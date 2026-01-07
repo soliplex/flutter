@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
+import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 
@@ -82,18 +83,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
 
       if (providers.isEmpty) {
-        // No auth required - bypass and go to rooms
-        noAuthMode = true;
+        // No auth required - enter no-auth mode and go to rooms
+        await ref.read(authProvider.notifier).enterNoAuthMode();
+        if (!mounted) return;
         context.go('/rooms');
       } else {
-        // Auth required
-        noAuthMode = false;
-        final hasAccess = ref.read(hasAppAccessProvider);
-        if (hasAccess) {
+        // Auth required - check current state
+        final authState = ref.read(authProvider);
+        if (authState is Authenticated) {
           // Already authenticated - go directly to rooms
           context.go('/rooms');
         } else {
-          // Not authenticated - go to login
+          // Need to authenticate - ensure clean state and go to login
+          if (authState is NoAuthRequired) {
+            // Was in no-auth mode, now need auth - exit no-auth mode
+            ref.read(authProvider.notifier).exitNoAuthMode();
+          }
           ref.invalidate(oidcIssuersProvider);
           context.go('/login');
         }
