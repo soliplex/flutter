@@ -86,8 +86,8 @@ class TokenRefreshService {
   TokenRefreshService({
     required SoliplexHttpClient httpClient,
     void Function(String) onDiagnostic = _noOp,
-  }) : _httpClient = httpClient,
-       _onDiagnostic = onDiagnostic;
+  })  : _httpClient = httpClient,
+        _onDiagnostic = onDiagnostic;
 
   final SoliplexHttpClient _httpClient;
   final void Function(String) _onDiagnostic;

@@ -111,33 +111,33 @@ class _AuthSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return switch (authState) {
       Authenticated(:final issuerId) => Column(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Signed In'),
-            subtitle: Text('via $issuerId'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text('Sign Out'),
-            onTap: () => _confirmSignOut(context, ref),
-          ),
-        ],
-      ),
-      AuthLoading() => const ListTile(
-        leading: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2),
+          children: [
+            ListTile(
+              leading: const Icon(Icons.person),
+              title: const Text('Signed In'),
+              subtitle: Text('via $issuerId'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout),
+              title: const Text('Sign Out'),
+              onTap: () => _confirmSignOut(context, ref),
+            ),
+          ],
         ),
-        title: Text('Loading...'),
-      ),
+      AuthLoading() => const ListTile(
+          leading: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          title: Text('Loading...'),
+        ),
       Unauthenticated() => const ListTile(
-        leading: Icon(Icons.login),
-        title: Text('Authentication'),
-        subtitle: Text('Not signed in'),
-        enabled: false,
-      ),
+          leading: Icon(Icons.login),
+          title: Text('Authentication'),
+          subtitle: Text('Not signed in'),
+          enabled: false,
+        ),
     };
   }
 

@@ -96,9 +96,9 @@ class RunningState extends ActiveRunState {
 
   /// The ID of this run.
   String get runId => switch (conversation.status) {
-    Running(:final runId) => runId,
-    _ => throw StateError('RunningState must have Running status'),
-  };
+        Running(:final runId) => runId,
+        _ => throw StateError('RunningState must have Running status'),
+      };
 
   /// Whether text is actively streaming.
   bool get isStreaming => streaming is Streaming;
@@ -125,8 +125,7 @@ class RunningState extends ActiveRunState {
   int get hashCode => Object.hash(conversation, streaming);
 
   @override
-  String toString() =>
-      'RunningState(threadId: $threadId, '
+  String toString() => 'RunningState(threadId: $threadId, '
       'messages: ${messages.length}, streaming: $streaming)';
 }
 
@@ -176,8 +175,7 @@ class CompletedState extends ActiveRunState {
   int get hashCode => Object.hash(conversation, streaming, result);
 
   @override
-  String toString() =>
-      'CompletedState(threadId: $threadId, '
+  String toString() => 'CompletedState(threadId: $threadId, '
       'result: $result, messages: ${messages.length})';
 }
 

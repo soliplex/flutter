@@ -148,8 +148,7 @@ class HttpResponseEvent extends HttpEvent {
   bool get isSuccess => statusCode >= 200 && statusCode < 300;
 
   @override
-  String toString() =>
-      'HttpResponseEvent($requestId, $statusCode, '
+  String toString() => 'HttpResponseEvent($requestId, $statusCode, '
       '${duration.inMilliseconds}ms, ${bodySize}B)';
 }
 
@@ -231,8 +230,7 @@ class HttpStreamEndEvent extends HttpEvent {
   bool get isSuccess => error == null;
 
   @override
-  String toString() =>
-      'HttpStreamEndEvent($requestId, '
+  String toString() => 'HttpStreamEndEvent($requestId, '
       '${bytesReceived}B, ${duration.inMilliseconds}ms'
       '${error != null ? ', error' : ''})';
 }

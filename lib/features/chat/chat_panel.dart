@@ -140,9 +140,7 @@ class ChatPanel extends ConsumerWidget {
     if (!context.mounted) return;
     await _withErrorHandling(
       context,
-      () => ref
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      () => ref.read(activeRunNotifierProvider.notifier).startRun(
             roomId: room.id,
             threadId: effectiveThread.id,
             userMessage: text,

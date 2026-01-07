@@ -39,9 +39,9 @@ class CupertinoHttpClient implements SoliplexHttpClient {
     URLSessionConfiguration? configuration,
     this.defaultTimeout = const Duration(seconds: 30),
   }) : _client = CupertinoClient.fromSessionConfiguration(
-         configuration ??
-             URLSessionConfiguration.ephemeralSessionConfiguration(),
-       );
+          configuration ??
+              URLSessionConfiguration.ephemeralSessionConfiguration(),
+        );
 
   /// Creates a Cupertino HTTP client with a custom client for testing.
   ///
@@ -73,17 +73,15 @@ class CupertinoHttpClient implements SoliplexHttpClient {
     final request = _createRequest(method, uri, headers, body);
 
     try {
-      final streamedResponse = await _client
-          .send(request)
-          .timeout(
+      final streamedResponse = await _client.send(request).timeout(
+        effectiveTimeout,
+        onTimeout: () {
+          throw TimeoutException(
+            'Request timed out after ${effectiveTimeout.inSeconds}s',
             effectiveTimeout,
-            onTimeout: () {
-              throw TimeoutException(
-                'Request timed out after ${effectiveTimeout.inSeconds}s',
-                effectiveTimeout,
-              );
-            },
           );
+        },
+      );
 
       final bodyBytes = await streamedResponse.stream.toBytes().timeout(
         effectiveTimeout,
@@ -140,8 +138,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
           if (streamedResponse.statusCode >= 400) {
             controller.addError(
               NetworkException(
-                message:
-                    'HTTP ${streamedResponse.statusCode}: '
+                message: 'HTTP ${streamedResponse.statusCode}: '
                     '${streamedResponse.reasonPhrase}',
               ),
             );
