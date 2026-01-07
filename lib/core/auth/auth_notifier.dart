@@ -330,6 +330,25 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     state = const Unauthenticated();
   }
 
+  /// Enter no-auth mode when backend has no identity providers configured.
+  ///
+  /// Call this when the backend returns an empty list of auth providers,
+  /// indicating authentication is not required.
+  ///
+  /// Clears any existing tokens since they're for a different backend.
+  Future<void> enterNoAuthMode() async {
+    if (state is Authenticated) {
+      _log('Clearing stale auth - switching to no-auth backend');
+      try {
+        await _storage.clearTokens();
+      } on Exception catch (e) {
+        _log('Failed to clear tokens: ${e.runtimeType}');
+      }
+    }
+    _log('Entering no-auth mode');
+    state = const NoAuthRequired();
+  }
+
   /// Get the current access token if authenticated.
   String? get accessToken {
     final current = state;
