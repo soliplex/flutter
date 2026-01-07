@@ -136,11 +136,6 @@ class _AuthStatusListenable extends ChangeNotifier {
   }
 }
 
-/// TEMP: bypass auth when backend has no IdP configured.
-/// Set to true when oidcIssuersProvider loads empty.
-// ignore: avoid_global_variables
-bool noAuthMode = false;
-
 /// Provider for fetching available OIDC issuers from the backend.
 ///
 /// Uses core's [fetchAuthProviders] to get configured identity providers,
