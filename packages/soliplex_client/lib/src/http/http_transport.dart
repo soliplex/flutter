@@ -275,8 +275,7 @@ class HttpTransport {
 
     // Check if response is JSON
     final contentType = response.contentType ?? '';
-    final isJson =
-        contentType.contains('application/json') ||
+    final isJson = contentType.contains('application/json') ||
         body.trimLeft().startsWith('{') ||
         body.trimLeft().startsWith('[');
 

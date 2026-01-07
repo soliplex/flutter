@@ -78,9 +78,8 @@ class _ChatInputState extends ConsumerState<ChatInput> {
           Expanded(
             child: CallbackShortcuts(
               bindings: {
-                const SingleActivator(LogicalKeyboardKey.enter): canSend
-                    ? _handleSend
-                    : () {},
+                const SingleActivator(LogicalKeyboardKey.enter):
+                    canSend ? _handleSend : () {},
                 const SingleActivator(LogicalKeyboardKey.escape): () =>
                     _focusNode.unfocus(),
               },

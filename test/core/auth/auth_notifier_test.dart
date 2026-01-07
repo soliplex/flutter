@@ -527,9 +527,7 @@ void main() {
         () => mockStorage.loadPreAuthState(),
       ).thenAnswer((_) async => preAuthState);
 
-      await container
-          .read(authProvider.notifier)
-          .completeWebAuth(
+      await container.read(authProvider.notifier).completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
             expiresIn: 3600,
@@ -619,9 +617,7 @@ void main() {
         () => mockStorage.loadPreAuthState(),
       ).thenAnswer((_) async => preAuthState);
 
-      await container
-          .read(authProvider.notifier)
-          .completeWebAuth(
+      await container.read(authProvider.notifier).completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
           );

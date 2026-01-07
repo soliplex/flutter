@@ -74,8 +74,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Sign in to continue',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 48),

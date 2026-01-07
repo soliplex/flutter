@@ -132,9 +132,9 @@ class _MessageListState extends ConsumerState<MessageList> {
                   Text(
                     'Assistant is thinking...',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
-                    ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
                   ),
                 ],
               ),

@@ -38,9 +38,9 @@ class ObservableHttpClient implements SoliplexHttpClient {
     required SoliplexHttpClient client,
     List<HttpObserver> observers = const [],
     String Function()? generateRequestId,
-  }) : _client = client,
-       _observers = List.unmodifiable(observers),
-       _generateRequestId = generateRequestId ?? _defaultRequestIdGenerator;
+  })  : _client = client,
+        _observers = List.unmodifiable(observers),
+        _generateRequestId = generateRequestId ?? _defaultRequestIdGenerator;
 
   final SoliplexHttpClient _client;
   final List<HttpObserver> _observers;
@@ -228,16 +228,19 @@ class ObservableHttpClient implements SoliplexHttpClient {
       } catch (e, stackTrace) {
         // Observer threw exception - log but don't break request flow.
         // Use assert pattern to only log in debug mode (assertions enabled).
-        assert(() {
-          // ignore: avoid_print
-          print(
-            'Warning: HttpObserver ${observer.runtimeType} '
-            'threw exception: $e',
-          );
-          // ignore: avoid_print
-          print(stackTrace);
-          return true;
-        }(), 'Observer exception logged',);
+        assert(
+          () {
+            // ignore: avoid_print
+            print(
+              'Warning: HttpObserver ${observer.runtimeType} '
+              'threw exception: $e',
+            );
+            // ignore: avoid_print
+            print(stackTrace);
+            return true;
+          }(),
+          'Observer exception logged',
+        );
       }
     }
   }

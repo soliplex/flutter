@@ -42,8 +42,8 @@ class SoliplexApi {
   SoliplexApi({
     required HttpTransport transport,
     required UrlBuilder urlBuilder,
-  }) : _transport = transport,
-       _urlBuilder = urlBuilder;
+  })  : _transport = transport,
+        _urlBuilder = urlBuilder;
 
   final HttpTransport _transport;
   final UrlBuilder _urlBuilder;
@@ -401,11 +401,14 @@ class SoliplexApi {
           // event. This can happen if the backend stores events from a newer
           // protocol version or if data corruption occurs.
           skippedEventCount++;
-          assert(() {
-            // ignore: avoid_print
-            print('Skipped malformed event during replay: $e');
-            return true;
-          }(), 'Debug logging for malformed events',);
+          assert(
+            () {
+              // ignore: avoid_print
+              print('Skipped malformed event during replay: $e');
+              return true;
+            }(),
+            'Debug logging for malformed events',
+          );
         }
       }
     }
@@ -427,18 +430,19 @@ class SoliplexApi {
   List<MapEntry<String, dynamic>> _sortRunsByCreationTime(
     Map<String, dynamic> runs,
   ) {
-    return runs.entries.toList()..sort((a, b) {
-      final aData = a.value as Map<String, dynamic>;
-      final bData = b.value as Map<String, dynamic>;
-      final aCreated = aData['created'] as String?;
-      final bCreated = bData['created'] as String?;
+    return runs.entries.toList()
+      ..sort((a, b) {
+        final aData = a.value as Map<String, dynamic>;
+        final bData = b.value as Map<String, dynamic>;
+        final aCreated = aData['created'] as String?;
+        final bCreated = bData['created'] as String?;
 
-      if (aCreated == null && bCreated == null) return 0;
-      if (aCreated == null) return 1;
-      if (bCreated == null) return -1;
+        if (aCreated == null && bCreated == null) return 0;
+        if (aCreated == null) return 1;
+        if (bCreated == null) return -1;
 
-      return DateTime.parse(aCreated).compareTo(DateTime.parse(bCreated));
-    });
+        return DateTime.parse(aCreated).compareTo(DateTime.parse(bCreated));
+      });
   }
 
   // ============================================================

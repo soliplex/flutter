@@ -16,15 +16,15 @@ import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
 /// Creates an authenticated auth state for testing.
 Authenticated createAuthenticatedState() => Authenticated(
-  accessToken: 'test-token',
-  refreshToken: 'test-refresh',
-  expiresAt: DateTime.now().add(const Duration(hours: 1)),
-  issuerId: 'test-issuer',
-  issuerDiscoveryUrl:
-      'https://sso.example.com/.well-known/openid-configuration',
-  clientId: 'test-client',
-  idToken: 'test-id-token',
-);
+      accessToken: 'test-token',
+      refreshToken: 'test-refresh',
+      expiresAt: DateTime.now().add(const Duration(hours: 1)),
+      issuerId: 'test-issuer',
+      issuerDiscoveryUrl:
+          'https://sso.example.com/.well-known/openid-configuration',
+      clientId: 'test-client',
+      idToken: 'test-id-token',
+    );
 
 // Using dynamic list since Override type is internal in Riverpod 3.0
 Widget createRouterApp({

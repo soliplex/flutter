@@ -140,8 +140,8 @@ class ThreadSelectionNotifier extends Notifier<ThreadSelection> {
 /// ```
 final threadSelectionProvider =
     NotifierProvider<ThreadSelectionNotifier, ThreadSelection>(
-      ThreadSelectionNotifier.new,
-    );
+  ThreadSelectionNotifier.new,
+);
 
 /// Provider for currently selected thread ID.
 ///

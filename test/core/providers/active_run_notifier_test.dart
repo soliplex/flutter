@@ -4,8 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_client/soliplex_client.dart'
-    as domain
+import 'package:soliplex_client/soliplex_client.dart' as domain
     show Cancelled, Completed, Conversation, Failed, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
@@ -116,9 +115,7 @@ void main() {
         });
 
         // Start a run
-        await testContainer
-            .read(activeRunNotifierProvider.notifier)
-            .startRun(
+        await testContainer.read(activeRunNotifierProvider.notifier).startRun(
               roomId: 'room-1',
               threadId: 'thread-1',
               userMessage: 'Hello',
@@ -131,15 +128,13 @@ void main() {
         );
 
         // Capture the cancel token to track disposal
-        final capturedToken =
-            verify(
-                  () => mockAgUiClient.runAgent(
-                    any(),
-                    any(),
-                    cancelToken: captureAny(named: 'cancelToken'),
-                  ),
-                ).captured.single
-                as CancelToken;
+        final capturedToken = verify(
+          () => mockAgUiClient.runAgent(
+            any(),
+            any(),
+            cancelToken: captureAny(named: 'cancelToken'),
+          ),
+        ).captured.single as CancelToken;
 
         // Override the stream subscription's cancel to track disposal
         eventStreamController.onCancel = () {
@@ -148,9 +143,8 @@ void main() {
         };
 
         // Call reset
-        final resetFuture = testContainer
-            .read(activeRunNotifierProvider.notifier)
-            .reset();
+        final resetFuture =
+            testContainer.read(activeRunNotifierProvider.notifier).reset();
 
         // State should be IdleState immediately
         expect(testContainer.read(activeRunNotifierProvider), isA<IdleState>());
@@ -203,9 +197,7 @@ void main() {
         });
 
         // Start a run
-        await testContainer
-            .read(activeRunNotifierProvider.notifier)
-            .startRun(
+        await testContainer.read(activeRunNotifierProvider.notifier).startRun(
               roomId: 'room-1',
               threadId: 'thread-1',
               userMessage: 'Hello',
@@ -411,9 +403,7 @@ void main() {
       const threadId = 'thread-1';
 
       // Start the run
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: roomId,
             threadId: threadId,
             userMessage: userMessage,
@@ -458,9 +448,7 @@ void main() {
       const threadId = 'thread-1';
       const existingRunId = 'existing-run-456';
 
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: roomId,
             threadId: threadId,
             userMessage: 'Test',
@@ -487,9 +475,7 @@ void main() {
       const roomId = 'room-1';
       const threadId = 'thread-1';
 
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: roomId,
             threadId: threadId,
             userMessage: 'Test',
@@ -523,9 +509,7 @@ void main() {
 
       // Attempt to start second run
       expect(
-        () => container
-            .read(activeRunNotifierProvider.notifier)
-            .startRun(
+        () => container.read(activeRunNotifierProvider.notifier).startRun(
               roomId: roomId,
               threadId: threadId,
               userMessage: 'Second',
@@ -579,9 +563,7 @@ void main() {
 
     test('transitions to CompletedState with Cancelled result', () async {
       // Start a run
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
@@ -598,9 +580,7 @@ void main() {
 
     test('preserves messages after cancellation', () async {
       // Start a run
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
@@ -669,9 +649,7 @@ void main() {
           .set(const ThreadSelected('thread-a'));
 
       // Start a run on thread A
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: 'room-1',
             threadId: 'thread-a',
             userMessage: 'Hello from thread A',
@@ -711,9 +689,7 @@ void main() {
           .set(const ThreadSelected('thread-a'));
 
       // Start a run on thread A
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: 'room-1',
             threadId: 'thread-a',
             userMessage: 'Hello from thread A',
@@ -817,9 +793,7 @@ void main() {
       addTearDown(container.dispose);
 
       // Start a run
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
@@ -861,9 +835,7 @@ void main() {
       addTearDown(container.dispose);
 
       // Start a run
-      await container
-          .read(activeRunNotifierProvider.notifier)
-          .startRun(
+      await container.read(activeRunNotifierProvider.notifier).startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',

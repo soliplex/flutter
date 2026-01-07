@@ -101,9 +101,9 @@ class ErrorDisplay extends StatelessWidget {
                 error.toString(),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontFamily: 'monospace',
-                  color: Colors.grey,
-                ),
+                      fontFamily: 'monospace',
+                      color: Colors.grey,
+                    ),
               ),
             ],
             if (onRetry != null && _canRetry()) ...[

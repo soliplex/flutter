@@ -403,7 +403,8 @@ void main() {
 
           await client.request('GET', Uri.parse('https://example.com/api'));
 
-          // Should not have custom headers (only default ones from http package)
+          // Should not have custom headers
+          // (only default ones from http package)
           expect(
             capturedRequest?.headers.containsKey('Authorization'),
             isFalse,
