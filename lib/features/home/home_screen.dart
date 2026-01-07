@@ -122,32 +122,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           context.go('/login');
         }
       }
-    } on Exception catch (e) {
+    } on NetworkException catch (e) {
       if (mounted) {
         setState(() {
-          _error = _formatError(e);
+          _error = e.isTimeout
+              ? 'Request timed out. Please try again.'
+              : 'Cannot reach server. Check the URL and try again.';
         });
       }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Server error: ${e.statusCode}');
+      }
+    } on Exception catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Connection failed. Please try again.');
+      }
+      debugPrint('HomeScreen: Unexpected exception: ${e.runtimeType} - $e');
     } finally {
       if (mounted) {
         setState(() => _isConnecting = false);
       }
     }
-  }
-
-  String _formatError(Exception e) {
-    if (e is ApiException) {
-      return 'Server error: ${e.statusCode}';
-    }
-    final message = e.toString();
-    // Extract just the error message without type prefix
-    if (message.contains('SocketException')) {
-      return 'Cannot reach server. Check the URL and try again.';
-    }
-    if (message.contains('Connection refused')) {
-      return 'Connection refused. Is the server running?';
-    }
-    return message.split('\n').first;
   }
 
   @override

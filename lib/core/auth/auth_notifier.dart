@@ -360,7 +360,12 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       try {
         await _storage.clearTokens();
       } on Exception catch (e) {
-        _log('Failed to clear tokens: ${e.runtimeType}');
+        // Proceed despite failure: no-auth mode doesn't use tokens, so stale
+        // tokens are harmless here. If user later switches back to an auth
+        // backend, _restoreSession() will re-validate and clear invalid tokens.
+        // This matches signOut() behavior which also catches storage failures.
+        _log('Warning: Failed to clear tokens (${e.runtimeType}) from '
+            'previous session. Proceeding to no-auth mode.');
       }
     }
     _log('Entering no-auth mode');
