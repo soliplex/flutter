@@ -84,8 +84,8 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
       debugPrint('AuthCallbackScreen: completeWebAuth succeeded');
 
       if (mounted) {
-        debugPrint('AuthCallbackScreen: Navigating to /');
-        context.go('/');
+        debugPrint('AuthCallbackScreen: Navigating to /rooms');
+        context.go('/rooms');
       }
     } on AuthException catch (e) {
       debugPrint('AuthCallbackScreen: Auth error: ${e.message}');

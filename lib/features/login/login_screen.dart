@@ -28,8 +28,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       await ref.read(authProvider.notifier).signIn(issuer);
+      // Native: sign in complete - go to rooms
       if (mounted) {
-        context.go('/');
+        context.go('/rooms');
       }
     } on AuthRedirectInitiated {
       // Web: browser is redirecting to IdP, page will unload.
@@ -112,14 +113,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildIssuerList(List<OidcIssuer> issuers) {
     if (issuers.isEmpty) {
-      // TEMP: bypass auth when backend has no IdP configured
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          noAuthMode = true;
-          context.go('/');
-        }
-      });
-      return const SizedBox.shrink();
+      // Should not reach here - HomeScreen handles no-IdP case
+      return const Text(
+        'No identity providers configured.',
+        textAlign: TextAlign.center,
+      );
     }
 
     return Column(

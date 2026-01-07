@@ -84,12 +84,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         noAuthMode = true;
         context.go('/rooms');
       } else {
-        // Auth required - sign out (clears old tokens) and go to login
+        // Auth required
         noAuthMode = false;
-        await ref.read(authProvider.notifier).signOut();
-        if (!mounted) return;
-        ref.invalidate(oidcIssuersProvider);
-        context.go('/login');
+        final isAuthenticated = ref.read(isAuthenticatedProvider);
+        if (isAuthenticated) {
+          // Already authenticated - go directly to rooms
+          context.go('/rooms');
+        } else {
+          // Not authenticated - go to login
+          ref.invalidate(oidcIssuersProvider);
+          context.go('/login');
+        }
       }
     } on Exception catch (e) {
       if (mounted) {
