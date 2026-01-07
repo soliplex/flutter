@@ -20,4 +20,4 @@ flutter test
 ## Related
 
 - [Soliplex Backend](https://github.com/soliplex/soliplex)
-- [Documentation](https://soliplex.github.io/docs/)
+- [Documentation](https://soliplex.github.io/)
