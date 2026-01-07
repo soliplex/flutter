@@ -42,8 +42,9 @@ class WebAuthStorage implements AuthStorage {
     final refreshToken = _storage.getItem(AuthStorageKeys.refreshToken);
     final expiresAtStr = _storage.getItem(AuthStorageKeys.expiresAt);
     final issuerId = _storage.getItem(AuthStorageKeys.issuerId);
-    final issuerDiscoveryUrl =
-        _storage.getItem(AuthStorageKeys.issuerDiscoveryUrl);
+    final issuerDiscoveryUrl = _storage.getItem(
+      AuthStorageKeys.issuerDiscoveryUrl,
+    );
     final clientId = _storage.getItem(AuthStorageKeys.clientId);
     final idToken = _storage.getItem(AuthStorageKeys.idToken);
 

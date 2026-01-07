@@ -58,5 +58,6 @@ class ConfigNotifier extends Notifier<AppConfig> {
 ///
 /// Dependent providers (API, auth, etc.) automatically rebuild when
 /// baseUrl changes via ref.watch(configProvider).
-final configProvider =
-    NotifierProvider<ConfigNotifier, AppConfig>(ConfigNotifier.new);
+final configProvider = NotifierProvider<ConfigNotifier, AppConfig>(
+  ConfigNotifier.new,
+);

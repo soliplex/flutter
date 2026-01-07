@@ -27,12 +27,13 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 /// - [NotFoundException]: Room not found (404)
 /// - [AuthException]: 401/403 authentication errors (AM7+)
 /// - [ApiException]: Other server errors
-final threadsProvider = FutureProvider.family<List<ThreadInfo>, String>(
-  (ref, roomId) async {
-    final api = ref.watch(apiProvider);
-    return api.getThreads(roomId);
-  },
-);
+final threadsProvider = FutureProvider.family<List<ThreadInfo>, String>((
+  ref,
+  roomId,
+) async {
+  final api = ref.watch(apiProvider);
+  return api.getThreads(roomId);
+});
 
 /// Sealed class representing the current thread selection state.
 ///
@@ -139,8 +140,8 @@ class ThreadSelectionNotifier extends Notifier<ThreadSelection> {
 /// ```
 final threadSelectionProvider =
     NotifierProvider<ThreadSelectionNotifier, ThreadSelection>(
-  ThreadSelectionNotifier.new,
-);
+      ThreadSelectionNotifier.new,
+    );
 
 /// Provider for currently selected thread ID.
 ///
@@ -277,16 +278,17 @@ void selectThread({
 ///
 /// Returns [HasLastViewed] with the thread ID if previously viewed,
 /// or [NoLastViewed] if no thread was viewed in this room.
-final lastViewedThreadProvider = FutureProvider.family<LastViewed, String>(
-  (ref, roomId) async {
-    final prefs = await SharedPreferences.getInstance();
-    final threadId = prefs.getString('$_lastViewedKeyPrefix$roomId');
-    if (threadId != null) {
-      return HasLastViewed(threadId);
-    }
-    return const NoLastViewed();
-  },
-);
+final lastViewedThreadProvider = FutureProvider.family<LastViewed, String>((
+  ref,
+  roomId,
+) async {
+  final prefs = await SharedPreferences.getInstance();
+  final threadId = prefs.getString('$_lastViewedKeyPrefix$roomId');
+  if (threadId != null) {
+    return HasLastViewed(threadId);
+  }
+  return const NoLastViewed();
+});
 
 /// Callback for invalidating the last viewed thread provider.
 typedef InvalidateLastViewed = void Function(String roomId);

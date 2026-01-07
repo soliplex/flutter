@@ -9,11 +9,7 @@ import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 /// - HTTP inspector drawer accessible from all screens
 /// - Consistent AppBar with inspector button
 class AppShell extends StatelessWidget {
-  const AppShell({
-    required this.config,
-    required this.body,
-    super.key,
-  });
+  const AppShell({required this.config, required this.body, super.key});
 
   /// Configuration for the AppBar and drawers.
   final ShellConfig config;
@@ -27,16 +23,10 @@ class AppShell extends StatelessWidget {
       appBar: AppBar(
         leading: config.leading,
         title: config.title,
-        actions: [
-          ...config.actions,
-          const _InspectorButton(),
-        ],
+        actions: [...config.actions, const _InspectorButton()],
       ),
       drawer: config.drawer != null
-          ? Semantics(
-              label: 'Navigation drawer',
-              child: config.drawer,
-            )
+          ? Semantics(label: 'Navigation drawer', child: config.drawer)
           : null,
       endDrawer: Semantics(
         label: 'HTTP traffic inspector panel',

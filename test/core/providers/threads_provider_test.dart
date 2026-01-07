@@ -41,13 +41,12 @@ void main() {
           updatedAt: now,
         ),
       ];
-      when(() => mockApi.getThreads(roomId))
-          .thenAnswer((_) async => mockThreads);
+      when(
+        () => mockApi.getThreads(roomId),
+      ).thenAnswer((_) async => mockThreads);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -74,9 +73,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -102,14 +99,12 @@ void main() {
     test('propagates NetworkException from API', () async {
       // Arrange
       const roomId = 'general';
-      when(() => mockApi.getThreads(roomId)).thenThrow(
-        const NetworkException(message: 'Connection failed'),
-      );
+      when(
+        () => mockApi.getThreads(roomId),
+      ).thenThrow(const NetworkException(message: 'Connection failed'));
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -136,16 +131,11 @@ void main() {
       // Arrange
       const roomId = 'general';
       when(() => mockApi.getThreads(roomId)).thenThrow(
-        const ApiException(
-          message: 'Internal server error',
-          statusCode: 500,
-        ),
+        const ApiException(message: 'Internal server error', statusCode: 500),
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -181,9 +171,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -211,13 +199,12 @@ void main() {
         TestData.createThread(id: 'thread2', roomId: roomId),
       ];
 
-      when(() => mockApi.getThreads(roomId))
-          .thenAnswer((_) async => mockThreads1);
+      when(
+        () => mockApi.getThreads(roomId),
+      ).thenAnswer((_) async => mockThreads1);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -226,8 +213,9 @@ void main() {
       expect(threads1, hasLength(1));
 
       // Update mock for second fetch
-      when(() => mockApi.getThreads(roomId))
-          .thenAnswer((_) async => mockThreads2);
+      when(
+        () => mockApi.getThreads(roomId),
+      ).thenAnswer((_) async => mockThreads2);
 
       // Refresh and fetch again
       container.refresh(threadsProvider(roomId));
@@ -244,9 +232,7 @@ void main() {
       when(() => mockApi.getThreads(roomId)).thenAnswer((_) async => []);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -320,9 +306,7 @@ void main() {
 
     test('returns null when NewThreadIntent', () {
       final container = ProviderContainer(
-        overrides: [
-          threadSelectionProviderOverride(const NewThreadIntent()),
-        ],
+        overrides: [threadSelectionProviderOverride(const NewThreadIntent())],
       );
       addTearDown(container.dispose);
 

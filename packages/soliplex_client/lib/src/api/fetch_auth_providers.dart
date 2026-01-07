@@ -27,10 +27,7 @@ Future<List<AuthProviderConfig>> fetchAuthProviders({
   required Uri baseUrl,
 }) async {
   final uri = baseUrl.resolve('/api/login');
-  final response = await transport.request<Map<String, dynamic>>(
-    'GET',
-    uri,
-  );
+  final response = await transport.request<Map<String, dynamic>>('GET', uri);
 
   // Backend returns a map of provider_id -> provider config
   // Convert to list of AuthProviderConfig

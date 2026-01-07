@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain
+import 'package:soliplex_client/soliplex_client.dart'
+    as domain
     show Cancelled, Completed, Conversation, Failed, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 
@@ -48,9 +49,7 @@ void main() {
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(
-          conversation: conversation,
-        );
+        const state = RunningState(conversation: conversation);
 
         expect(state.conversation, equals(conversation));
         expect(state.streaming, isA<NotStreaming>());
@@ -95,9 +94,7 @@ void main() {
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(
-          conversation: conversation,
-        );
+        const state = RunningState(conversation: conversation);
 
         expect(state.isStreaming, isFalse);
       });

@@ -66,7 +66,8 @@ void registerMocktailFallbacks() {
   MockAuthFlow authFlow,
   MockAuthStorage storage,
   MockTokenRefreshService refreshService,
-}) createMockedAuthDependencies() {
+})
+createMockedAuthDependencies() {
   final authFlow = MockAuthFlow();
   final storage = MockAuthStorage();
   final refreshService = MockTokenRefreshService();
@@ -100,12 +101,7 @@ ProviderContainer createContainerWithMockedAuth({
   List<Override> overrides = const [],
 }) {
   final authMocks = createMockedAuthDependencies();
-  return ProviderContainer(
-    overrides: [
-      ...authMocks.overrides,
-      ...overrides,
-    ],
-  );
+  return ProviderContainer(overrides: [...authMocks.overrides, ...overrides]);
 }
 
 /// Waits for the auth provider to finish restoring session.
@@ -167,8 +163,9 @@ class MockActiveRunNotifier extends Notifier<ActiveRunState>
 
 /// Creates an override for activeRunNotifierProvider with a mock state.
 Override activeRunNotifierOverride(ActiveRunState mockState) {
-  return activeRunNotifierProvider
-      .overrideWith(() => MockActiveRunNotifier(initialState: mockState));
+  return activeRunNotifierProvider.overrideWith(
+    () => MockActiveRunNotifier(initialState: mockState),
+  );
 }
 
 /// Mock ConfigNotifier for testing.
@@ -191,8 +188,9 @@ class MockConfigNotifier extends Notifier<AppConfig> implements ConfigNotifier {
 
 /// Creates an override for configProvider with a mock config.
 Override configProviderOverride(AppConfig config) {
-  return configProvider
-      .overrideWith(() => MockConfigNotifier(initialConfig: config));
+  return configProvider.overrideWith(
+    () => MockConfigNotifier(initialConfig: config),
+  );
 }
 
 /// Mock CurrentRoomIdNotifier for testing.
@@ -211,8 +209,9 @@ class MockCurrentRoomIdNotifier extends Notifier<String?>
 
 /// Creates an override for currentRoomIdProvider with a mock room ID.
 Override currentRoomIdProviderOverride(String? roomId) {
-  return currentRoomIdProvider
-      .overrideWith(() => MockCurrentRoomIdNotifier(initialRoomId: roomId));
+  return currentRoomIdProvider.overrideWith(
+    () => MockCurrentRoomIdNotifier(initialRoomId: roomId),
+  );
 }
 
 /// Mock ThreadSelectionNotifier for testing.
@@ -285,8 +284,7 @@ class FakeUrlBuilder implements UrlBuilder {
     String? path,
     List<String>? pathSegments,
     Map<String, String>? queryParameters,
-  }) =>
-      Uri.parse('http://localhost/${path ?? ''}');
+  }) => Uri.parse('http://localhost/${path ?? ''}');
 }
 
 /// Test data factory for creating mock objects.
@@ -300,11 +298,7 @@ class TestData {
     String name = 'Test Room',
     String description = '',
   }) {
-    return Room(
-      id: id,
-      name: name,
-      description: description,
-    );
+    return Room(id: id, name: name, description: description);
   }
 
   static ThreadInfo createThread({
@@ -456,7 +450,8 @@ class TestData {
   static PreAuthState createPreAuthState({
     bool expired = false,
     String issuerId = 'issuer-1',
-    String discoveryUrl = 'https://idp.example.com/.well-known/openid-configuration',
+    String discoveryUrl =
+        'https://idp.example.com/.well-known/openid-configuration',
     String clientId = 'client-app',
   }) {
     final createdAt = expired

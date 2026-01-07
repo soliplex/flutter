@@ -62,10 +62,7 @@ final authenticatedClientProvider = Provider<SoliplexHttpClient>((ref) {
   );
 
   // Outer client: handles proactive refresh + 401 retry
-  return RefreshingHttpClient(
-    inner: authClient,
-    refresher: authNotifier,
-  );
+  return RefreshingHttpClient(inner: authClient, refresher: authNotifier);
 });
 
 /// Provider for the HTTP transport layer.
@@ -141,10 +138,7 @@ final apiProvider = Provider<SoliplexApi>((ref) {
   // would close the shared transport. The transport is managed by
   // httpTransportProvider, and the underlying client is managed by
   // baseHttpClientProvider.
-  return SoliplexApi(
-    transport: transport,
-    urlBuilder: urlBuilder,
-  );
+  return SoliplexApi(transport: transport, urlBuilder: urlBuilder);
 });
 
 /// Provider for the Soliplex HTTP client.

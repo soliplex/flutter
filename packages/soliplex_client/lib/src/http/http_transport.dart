@@ -228,17 +228,11 @@ class HttpTransport {
     final message = _extractErrorMessage(body) ?? 'HTTP $statusCode';
 
     if (statusCode == 401 || statusCode == 403) {
-      throw AuthException(
-        message: message,
-        statusCode: statusCode,
-      );
+      throw AuthException(message: message, statusCode: statusCode);
     }
 
     if (statusCode == 404) {
-      throw NotFoundException(
-        message: message,
-        resource: uri.path,
-      );
+      throw NotFoundException(message: message, resource: uri.path);
     }
 
     // All other 4xx and 5xx errors
@@ -281,7 +275,8 @@ class HttpTransport {
 
     // Check if response is JSON
     final contentType = response.contentType ?? '';
-    final isJson = contentType.contains('application/json') ||
+    final isJson =
+        contentType.contains('application/json') ||
         body.trimLeft().startsWith('{') ||
         body.trimLeft().startsWith('[');
 

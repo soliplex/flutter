@@ -14,10 +14,7 @@ extension WarningColors on ColorScheme {
 
 /// Builds status display widget based on event group status.
 class HttpStatusDisplay extends StatelessWidget {
-  const HttpStatusDisplay({
-    required this.group,
-    super.key,
-  });
+  const HttpStatusDisplay({required this.group, super.key});
 
   static const double _spinnerSize = 12;
   static const double _spinnerStroke = 2;
@@ -58,19 +55,24 @@ class HttpStatusDisplay extends StatelessWidget {
   String _buildStatusText() {
     return switch (group.status) {
       HttpEventStatus.pending => 'pending...',
-      HttpEventStatus.success => '${group.response!.statusCode} OK '
-          '(${group.response!.duration.toHttpDurationString()}, '
-          '${group.response!.bodySize.toHttpBytesString()})',
-      HttpEventStatus.clientError => '${group.response!.statusCode} '
-          '(${group.response!.duration.toHttpDurationString()})',
-      HttpEventStatus.serverError => '${group.response!.statusCode} '
-          '(${group.response!.duration.toHttpDurationString()})',
-      HttpEventStatus.networkError => '${group.error!.exception.runtimeType} '
-          '(${group.error!.duration.toHttpDurationString()})',
-      HttpEventStatus.streaming => group.streamEnd != null
-          ? 'streaming... '
-              '(${group.streamEnd!.bytesReceived.toHttpBytesString()})'
-          : 'streaming...',
+      HttpEventStatus.success =>
+        '${group.response!.statusCode} OK '
+            '(${group.response!.duration.toHttpDurationString()}, '
+            '${group.response!.bodySize.toHttpBytesString()})',
+      HttpEventStatus.clientError =>
+        '${group.response!.statusCode} '
+            '(${group.response!.duration.toHttpDurationString()})',
+      HttpEventStatus.serverError =>
+        '${group.response!.statusCode} '
+            '(${group.response!.duration.toHttpDurationString()})',
+      HttpEventStatus.networkError =>
+        '${group.error!.exception.runtimeType} '
+            '(${group.error!.duration.toHttpDurationString()})',
+      HttpEventStatus.streaming =>
+        group.streamEnd != null
+            ? 'streaming... '
+                  '(${group.streamEnd!.bytesReceived.toHttpBytesString()})'
+            : 'streaming...',
       HttpEventStatus.streamComplete =>
         'complete (${group.streamEnd!.duration.toHttpDurationString()}, '
             '${group.streamEnd!.bytesReceived.toHttpBytesString()})',
@@ -80,10 +82,7 @@ class HttpStatusDisplay extends StatelessWidget {
   }
 
   Widget _buildTextStatus(String text, Color color, ThemeData theme) {
-    return Text(
-      text,
-      style: theme.textTheme.bodySmall?.copyWith(color: color),
-    );
+    return Text(text, style: theme.textTheme.bodySmall?.copyWith(color: color));
   }
 
   Widget _buildSpinnerStatus(String text, Color color, ThemeData theme) {

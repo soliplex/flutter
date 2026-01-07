@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain
+import 'package:soliplex_client/soliplex_client.dart'
+    as domain
     show ChatMessage, Conversation, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
@@ -19,19 +20,19 @@ import '../../../helpers/test_helpers.dart';
 void main() {
   group('MessageList', () {
     group('Loading State', () {
-      testWidgets('shows loading indicator while fetching messages',
-          (tester) async {
+      testWidgets('shows loading indicator while fetching messages', (
+        tester,
+      ) async {
         // Arrange: Provider that never completes
         final completer = Completer<List<domain.ChatMessage>>();
 
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
-              currentThreadProvider
-                  .overrideWith((ref) => TestData.createThread()),
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
               allMessagesProvider.overrideWith((ref) => completer.future),
               activeRunNotifierOverride(const IdleState()),
             ],
@@ -47,17 +48,17 @@ void main() {
     });
 
     group('Error State', () {
-      testWidgets('shows error display when message fetch fails',
-          (tester) async {
+      testWidgets('shows error display when message fetch fails', (
+        tester,
+      ) async {
         // Arrange: Provider that throws
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
-              currentThreadProvider
-                  .overrideWith((ref) => TestData.createThread()),
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
               allMessagesProvider.overrideWith(
                 (ref) => Future<List<domain.ChatMessage>>.error(
                   Exception('Network error'),
@@ -80,13 +81,12 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => null),
-              allMessagesProvider
-                  .overrideWith((ref) async => <domain.ChatMessage>[]),
+              allMessagesProvider.overrideWith(
+                (ref) async => <domain.ChatMessage>[],
+              ),
               activeRunNotifierOverride(const IdleState()),
             ],
           ),
@@ -95,23 +95,19 @@ void main() {
 
         // Assert
         expect(find.byType(EmptyState), findsOneWidget);
-        expect(
-          find.text('No messages yet. Send one below!'),
-          findsOneWidget,
-        );
+        expect(find.text('No messages yet. Send one below!'), findsOneWidget);
       });
 
       testWidgets('shows chat bubble icon in empty state', (tester) async {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => null),
-              allMessagesProvider
-                  .overrideWith((ref) async => <domain.ChatMessage>[]),
+              allMessagesProvider.overrideWith(
+                (ref) async => <domain.ChatMessage>[],
+              ),
               activeRunNotifierOverride(const IdleState()),
             ],
           ),
@@ -127,19 +123,13 @@ void main() {
       testWidgets('displays list of messages', (tester) async {
         // Arrange
         final messages = [
-          TestData.createMessage(
-            id: 'msg-1',
-            text: 'Hello',
-          ),
+          TestData.createMessage(id: 'msg-1', text: 'Hello'),
           TestData.createMessage(
             id: 'msg-2',
             user: ChatUser.assistant,
             text: 'Hi there!',
           ),
-          TestData.createMessage(
-            id: 'msg-3',
-            text: 'How are you?',
-          ),
+          TestData.createMessage(id: 'msg-3', text: 'How are you?'),
         ];
 
         final mockThread = TestData.createThread();
@@ -147,9 +137,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -178,9 +166,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -206,9 +192,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -239,13 +223,12 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider
-                  .overrideWith((ref) async => <domain.ChatMessage>[]),
+              allMessagesProvider.overrideWith(
+                (ref) async => <domain.ChatMessage>[],
+              ),
               activeRunNotifierOverride(
                 const RunningState(conversation: conversation),
               ),
@@ -264,18 +247,14 @@ void main() {
 
       testWidgets('does not show indicator when not streaming', (tester) async {
         // Arrange
-        final messages = [
-          TestData.createMessage(text: 'Hello'),
-        ];
+        final messages = [TestData.createMessage(text: 'Hello')];
 
         final mockThread = TestData.createThread();
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -305,9 +284,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -330,8 +307,9 @@ void main() {
     });
 
     group('Streaming Status', () {
-      testWidgets('passes isStreaming to message being streamed',
-          (tester) async {
+      testWidgets('passes isStreaming to message being streamed', (
+        tester,
+      ) async {
         // Arrange
         final messages = [
           TestData.createMessage(id: 'msg-1', text: 'Complete message'),
@@ -347,9 +325,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -378,8 +354,9 @@ void main() {
         expect(messageWidget.isStreaming, isTrue);
       });
 
-      testWidgets('does not pass isStreaming to other messages',
-          (tester) async {
+      testWidgets('does not pass isStreaming to other messages', (
+        tester,
+      ) async {
         // Arrange
         final messages = [
           TestData.createMessage(id: 'msg-1', text: 'Old message'),
@@ -396,9 +373,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -431,18 +406,14 @@ void main() {
     group('Scrolling', () {
       testWidgets('uses ScrollController', (tester) async {
         // Arrange
-        final messages = [
-          TestData.createMessage(text: 'Message 1'),
-        ];
+        final messages = [TestData.createMessage(text: 'Message 1')];
 
         final mockThread = TestData.createThread();
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -491,11 +462,7 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(
-              home: Scaffold(
-                body: MessageList(),
-              ),
-            ),
+            child: const MaterialApp(home: Scaffold(body: MessageList())),
           ),
         );
         await tester.pumpAndSettle();
@@ -518,18 +485,14 @@ void main() {
     group('Edge Cases', () {
       testWidgets('handles single message', (tester) async {
         // Arrange
-        final messages = [
-          TestData.createMessage(text: 'Only message'),
-        ];
+        final messages = [TestData.createMessage(text: 'Only message')];
 
         final mockThread = TestData.createThread();
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
@@ -548,10 +511,8 @@ void main() {
         // Arrange
         final messages = List.generate(
           50,
-          (index) => TestData.createMessage(
-            id: 'msg-$index',
-            text: 'Message $index',
-          ),
+          (index) =>
+              TestData.createMessage(id: 'msg-$index', text: 'Message $index'),
         );
 
         final mockThread = TestData.createThread();
@@ -559,9 +520,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: MessageList(),
-            ),
+            home: const Scaffold(body: MessageList()),
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),

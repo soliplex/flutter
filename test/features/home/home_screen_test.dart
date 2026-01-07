@@ -7,9 +7,7 @@ import '../../helpers/test_helpers.dart';
 void main() {
   group('HomeScreen', () {
     testWidgets('displays header and URL input', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(home: const HomeScreen()),
-      );
+      await tester.pumpWidget(createTestApp(home: const HomeScreen()));
 
       expect(find.text('Soliplex'), findsOneWidget);
       expect(find.text('Enter the URL of your backend server'), findsOneWidget);
@@ -18,9 +16,7 @@ void main() {
     });
 
     testWidgets('validates URL format', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(home: const HomeScreen()),
-      );
+      await tester.pumpWidget(createTestApp(home: const HomeScreen()));
 
       // Clear the URL field and enter invalid URL
       final urlField = find.byType(TextFormField);
@@ -35,9 +31,7 @@ void main() {
     });
 
     testWidgets('validates empty URL', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(home: const HomeScreen()),
-      );
+      await tester.pumpWidget(createTestApp(home: const HomeScreen()));
 
       // Clear the URL field
       final urlField = find.byType(TextFormField);
@@ -47,6 +41,5 @@ void main() {
 
       expect(find.text('Please enter a server URL'), findsOneWidget);
     });
-
   });
 }

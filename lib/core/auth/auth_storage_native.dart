@@ -61,7 +61,7 @@ FlutterSecureStorage _createSecureStorage() {
 /// - Tokens cannot be restored to a different device
 class NativeAuthStorage implements AuthStorage {
   NativeAuthStorage({FlutterSecureStorage? storage})
-      : _storage = storage ?? _createSecureStorage();
+    : _storage = storage ?? _createSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -99,7 +99,7 @@ class NativeAuthStorage implements AuthStorage {
       issuerId,
       issuerDiscoveryUrl,
       clientId,
-      idToken
+      idToken,
     ) = await (
       _storage.read(key: AuthStorageKeys.accessToken),
       _storage.read(key: AuthStorageKeys.refreshToken),

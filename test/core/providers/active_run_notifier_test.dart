@@ -4,7 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain
+import 'package:soliplex_client/soliplex_client.dart'
+    as domain
     show Cancelled, Completed, Conversation, Failed, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
@@ -20,9 +21,7 @@ void main() {
   late MockSoliplexApi mockApi;
 
   setUpAll(() {
-    registerFallbackValue(
-      const SimpleRunAgentInput(messages: []),
-    );
+    registerFallbackValue(const SimpleRunAgentInput(messages: []));
     registerFallbackValue(CancelToken());
   });
 
@@ -36,9 +35,7 @@ void main() {
 
     setUp(() {
       container = ProviderContainer(
-        overrides: [
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-        ],
+        overrides: [agUiClientProvider.overrideWithValue(mockAgUiClient)],
       );
     });
 
@@ -119,7 +116,9 @@ void main() {
         });
 
         // Start a run
-        await testContainer.read(activeRunNotifierProvider.notifier).startRun(
+        await testContainer
+            .read(activeRunNotifierProvider.notifier)
+            .startRun(
               roomId: 'room-1',
               threadId: 'thread-1',
               userMessage: 'Hello',
@@ -132,13 +131,15 @@ void main() {
         );
 
         // Capture the cancel token to track disposal
-        final capturedToken = verify(
-          () => mockAgUiClient.runAgent(
-            any(),
-            any(),
-            cancelToken: captureAny(named: 'cancelToken'),
-          ),
-        ).captured.single as CancelToken;
+        final capturedToken =
+            verify(
+                  () => mockAgUiClient.runAgent(
+                    any(),
+                    any(),
+                    cancelToken: captureAny(named: 'cancelToken'),
+                  ),
+                ).captured.single
+                as CancelToken;
 
         // Override the stream subscription's cancel to track disposal
         eventStreamController.onCancel = () {
@@ -147,14 +148,12 @@ void main() {
         };
 
         // Call reset
-        final resetFuture =
-            testContainer.read(activeRunNotifierProvider.notifier).reset();
+        final resetFuture = testContainer
+            .read(activeRunNotifierProvider.notifier)
+            .reset();
 
         // State should be IdleState immediately
-        expect(
-          testContainer.read(activeRunNotifierProvider),
-          isA<IdleState>(),
-        );
+        expect(testContainer.read(activeRunNotifierProvider), isA<IdleState>());
 
         // Token should be cancelled
         expect(capturedToken.isCancelled, isTrue);
@@ -204,7 +203,9 @@ void main() {
         });
 
         // Start a run
-        await testContainer.read(activeRunNotifierProvider.notifier).startRun(
+        await testContainer
+            .read(activeRunNotifierProvider.notifier)
+            .startRun(
               roomId: 'room-1',
               threadId: 'thread-1',
               userMessage: 'Hello',
@@ -222,10 +223,7 @@ void main() {
         await Future.wait(futures);
 
         // Final state should be idle
-        expect(
-          testContainer.read(activeRunNotifierProvider),
-          isA<IdleState>(),
-        );
+        expect(testContainer.read(activeRunNotifierProvider), isA<IdleState>());
       });
     });
 
@@ -413,7 +411,9 @@ void main() {
       const threadId = 'thread-1';
 
       // Start the run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: roomId,
             threadId: threadId,
             userMessage: userMessage,
@@ -440,11 +440,9 @@ void main() {
         const roomId = 'room-1';
         const threadId = 'thread-1';
 
-        await container.read(activeRunNotifierProvider.notifier).startRun(
-              roomId: roomId,
-              threadId: threadId,
-              userMessage: 'Test',
-            );
+        await container
+            .read(activeRunNotifierProvider.notifier)
+            .startRun(roomId: roomId, threadId: threadId, userMessage: 'Test');
 
         final state = container.read(activeRunNotifierProvider);
 
@@ -460,7 +458,9 @@ void main() {
       const threadId = 'thread-1';
       const existingRunId = 'existing-run-456';
 
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: roomId,
             threadId: threadId,
             userMessage: 'Test',
@@ -487,7 +487,9 @@ void main() {
       const roomId = 'room-1';
       const threadId = 'thread-1';
 
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: roomId,
             threadId: threadId,
             userMessage: 'Test',
@@ -515,15 +517,15 @@ void main() {
       const threadId = 'thread-1';
 
       // Start first run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: roomId,
-            threadId: threadId,
-            userMessage: 'First',
-          );
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(roomId: roomId, threadId: threadId, userMessage: 'First');
 
       // Attempt to start second run
       expect(
-        () => container.read(activeRunNotifierProvider.notifier).startRun(
+        () => container
+            .read(activeRunNotifierProvider.notifier)
+            .startRun(
               roomId: roomId,
               threadId: threadId,
               userMessage: 'Second',
@@ -577,7 +579,9 @@ void main() {
 
     test('transitions to CompletedState with Cancelled result', () async {
       // Start a run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
@@ -594,7 +598,9 @@ void main() {
 
     test('preserves messages after cancellation', () async {
       // Start a run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
@@ -663,21 +669,17 @@ void main() {
           .set(const ThreadSelected('thread-a'));
 
       // Start a run on thread A
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: 'room-1',
             threadId: 'thread-a',
             userMessage: 'Hello from thread A',
           );
 
       // Verify running with messages
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<RunningState>(),
-      );
-      expect(
-        container.read(activeRunNotifierProvider).messages,
-        isNotEmpty,
-      );
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+      expect(container.read(activeRunNotifierProvider).messages, isNotEmpty);
 
       // Switch to thread B
       container
@@ -688,14 +690,8 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // State should be reset to IdleState
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<IdleState>(),
-      );
-      expect(
-        container.read(activeRunNotifierProvider).messages,
-        isEmpty,
-      );
+      expect(container.read(activeRunNotifierProvider), isA<IdleState>());
+      expect(container.read(activeRunNotifierProvider).messages, isEmpty);
     });
 
     test('does not reset when selecting the same thread again', () async {
@@ -715,17 +711,16 @@ void main() {
           .set(const ThreadSelected('thread-a'));
 
       // Start a run on thread A
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: 'room-1',
             threadId: 'thread-a',
             userMessage: 'Hello from thread A',
           );
 
       // Verify running with messages
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<RunningState>(),
-      );
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
       // Select thread A again (same thread)
       container
@@ -736,14 +731,8 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // State should still be RunningState (not reset)
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<RunningState>(),
-      );
-      expect(
-        container.read(activeRunNotifierProvider).messages,
-        isNotEmpty,
-      );
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+      expect(container.read(activeRunNotifierProvider).messages, isNotEmpty);
     });
 
     test('does not reset when initially selecting a thread', () async {
@@ -758,19 +747,13 @@ void main() {
       addTearDown(container.dispose);
 
       // Verify initial state is NoThreadSelected
-      expect(
-        container.read(threadSelectionProvider),
-        isA<NoThreadSelected>(),
-      );
+      expect(container.read(threadSelectionProvider), isA<NoThreadSelected>());
 
       // Read the notifier to initialize it
       container.read(activeRunNotifierProvider);
 
       // Initial state should be IdleState
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<IdleState>(),
-      );
+      expect(container.read(activeRunNotifierProvider), isA<IdleState>());
 
       // Select a thread for the first time (null -> threadId)
       container
@@ -782,10 +765,7 @@ void main() {
 
       // State should still be IdleState (no reset triggered)
       // The key is that reset() was NOT called unnecessarily
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<IdleState>(),
-      );
+      expect(container.read(activeRunNotifierProvider), isA<IdleState>());
     });
   });
 
@@ -837,17 +817,16 @@ void main() {
       addTearDown(container.dispose);
 
       // Start a run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
           );
 
       // Verify running
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<RunningState>(),
-      );
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
       // Cache should be empty initially
       final cacheBefore = container.read(threadMessageCacheProvider);
@@ -862,19 +841,13 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify state is CompletedState
-      expect(
-        container.read(activeRunNotifierProvider),
-        isA<CompletedState>(),
-      );
+      expect(container.read(activeRunNotifierProvider), isA<CompletedState>());
 
       // Cache should now contain the messages
       final cacheAfter = container.read(threadMessageCacheProvider);
       expect(cacheAfter['thread-1'], isNotNull);
       expect(cacheAfter['thread-1'], hasLength(1));
-      expect(
-        (cacheAfter['thread-1']!.first as TextMessage).text,
-        'Hello',
-      );
+      expect((cacheAfter['thread-1']!.first as TextMessage).text, 'Hello');
     });
 
     test('updates cache when RUN_ERROR event is received', () async {
@@ -888,7 +861,9 @@ void main() {
       addTearDown(container.dispose);
 
       // Start a run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
+      await container
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: 'room-1',
             threadId: 'thread-1',
             userMessage: 'Hello',
@@ -899,9 +874,7 @@ void main() {
       expect(cacheBefore['thread-1'], isNull);
 
       // Send RUN_ERROR event
-      eventStreamController.add(
-        const RunErrorEvent(message: 'Test error'),
-      );
+      eventStreamController.add(const RunErrorEvent(message: 'Test error'));
 
       // Allow event to be processed
       await Future<void>.delayed(Duration.zero);

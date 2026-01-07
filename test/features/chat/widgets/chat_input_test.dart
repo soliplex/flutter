@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain
+import 'package:soliplex_client/soliplex_client.dart'
+    as domain
     show Conversation, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
@@ -21,11 +22,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -49,14 +46,8 @@ void main() {
         // Arrange - no room selected
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
-            overrides: [
-              currentRoomProvider.overrideWith((ref) => null),
-            ],
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
+            overrides: [currentRoomProvider.overrideWith((ref) => null)],
           ),
         );
 
@@ -79,11 +70,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -111,11 +98,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -146,11 +129,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -161,25 +140,17 @@ void main() {
 
         // Assert
         final textField = tester.widget<TextField>(find.byType(TextField));
-        expect(
-          textField.decoration?.hintText,
-          'Type a message...',
-        );
+        expect(textField.decoration?.hintText, 'Type a message...');
       });
 
-      testWidgets('displays disabled placeholder when cannot send',
-          (tester) async {
+      testWidgets('displays disabled placeholder when cannot send', (
+        tester,
+      ) async {
         // Arrange - no room selected
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
-            overrides: [
-              currentRoomProvider.overrideWith((ref) => null),
-            ],
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
+            overrides: [currentRoomProvider.overrideWith((ref) => null)],
           ),
         );
 
@@ -199,11 +170,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -223,14 +190,8 @@ void main() {
         // Arrange - no room selected
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
-            overrides: [
-              currentRoomProvider.overrideWith((ref) => null),
-            ],
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
+            overrides: [currentRoomProvider.overrideWith((ref) => null)],
           ),
         );
 
@@ -250,11 +211,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (text) => sentText = text,
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (text) => sentText = text)),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -281,11 +238,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -314,11 +267,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (text) => sentText = text,
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (text) => sentText = text)),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -346,11 +295,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) => sendCalled = true,
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) => sendCalled = true)),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -381,11 +326,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (text) => sentText = text,
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (text) => sentText = text)),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -420,11 +361,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) => sendCalled = true,
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) => sendCalled = true)),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -459,11 +396,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -497,11 +430,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
@@ -525,11 +454,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-              ),
-            ),
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),

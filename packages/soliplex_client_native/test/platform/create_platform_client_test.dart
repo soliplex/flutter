@@ -34,30 +34,23 @@ void main() {
     }
 
     final hasNativeLibs = canLoadNativeLibraries();
-    final skipNativeTests =
-        !hasNativeLibs ? 'Native libraries not available in test env' : null;
+    final skipNativeTests = !hasNativeLibs
+        ? 'Native libraries not available in test env'
+        : null;
 
-    test(
-      'returns SoliplexHttpClient',
-      skip: skipNativeTests,
-      () {
-        final client = createPlatformClient();
-        expect(client, isA<SoliplexHttpClient>());
-        client.close();
-      },
-    );
+    test('returns SoliplexHttpClient', skip: skipNativeTests, () {
+      final client = createPlatformClient();
+      expect(client, isA<SoliplexHttpClient>());
+      client.close();
+    });
 
-    test(
-      'accepts custom timeout',
-      skip: skipNativeTests,
-      () {
-        final client = createPlatformClient(
-          defaultTimeout: const Duration(seconds: 60),
-        );
-        expect(client, isA<SoliplexHttpClient>());
-        client.close();
-      },
-    );
+    test('accepts custom timeout', skip: skipNativeTests, () {
+      final client = createPlatformClient(
+        defaultTimeout: const Duration(seconds: 60),
+      );
+      expect(client, isA<SoliplexHttpClient>());
+      client.close();
+    });
 
     test(
       'returns CupertinoHttpClient on macOS',

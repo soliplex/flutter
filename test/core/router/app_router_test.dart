@@ -16,15 +16,15 @@ import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
 /// Creates an authenticated auth state for testing.
 Authenticated createAuthenticatedState() => Authenticated(
-      accessToken: 'test-token',
-      refreshToken: 'test-refresh',
-      expiresAt: DateTime.now().add(const Duration(hours: 1)),
-      issuerId: 'test-issuer',
-      issuerDiscoveryUrl:
-          'https://sso.example.com/.well-known/openid-configuration',
-      clientId: 'test-client',
-      idToken: 'test-id-token',
-    );
+  accessToken: 'test-token',
+  refreshToken: 'test-refresh',
+  expiresAt: DateTime.now().add(const Duration(hours: 1)),
+  issuerId: 'test-issuer',
+  issuerDiscoveryUrl:
+      'https://sso.example.com/.well-known/openid-configuration',
+  clientId: 'test-client',
+  idToken: 'test-id-token',
+);
 
 // Using dynamic list since Override type is internal in Riverpod 3.0
 Widget createRouterApp({
@@ -68,8 +68,9 @@ AuthNotifier createMockAuthNotifier(AuthState state) {
 List<dynamic> roomScreenOverrides(String roomId) {
   return [
     threadsProvider(roomId).overrideWith((ref) async => []),
-    lastViewedThreadProvider(roomId)
-        .overrideWith((ref) async => const NoLastViewed()),
+    lastViewedThreadProvider(
+      roomId,
+    ).overrideWith((ref) async => const NoLastViewed()),
   ];
 }
 
@@ -216,8 +217,9 @@ void main() {
       expect(find.byType(RoomScreen), findsOneWidget);
     });
 
-    testWidgets('redirects old thread URL to query param format',
-        (tester) async {
+    testWidgets('redirects old thread URL to query param format', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createRouterAppAt(
           '/rooms/general/thread/thread-1',
@@ -240,8 +242,9 @@ void main() {
       expect(roomScreen.initialThreadId, equals('thread-123'));
     });
 
-    testWidgets('RoomScreen receives null when no thread query param',
-        (tester) async {
+    testWidgets('RoomScreen receives null when no thread query param', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createRouterAppAt(
           '/rooms/general',
@@ -280,8 +283,9 @@ void main() {
   });
 
   group('Auth state changes', () {
-    testWidgets('logout from deep navigation redirects to /login',
-        (tester) async {
+    testWidgets('logout from deep navigation redirects to /login', (
+      tester,
+    ) async {
       // Start authenticated at /rooms
       final container = ProviderContainer(
         overrides: [

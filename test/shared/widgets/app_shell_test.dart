@@ -84,8 +84,9 @@ void main() {
       expect(find.byKey(actionKey), findsOneWidget);
     });
 
-    testWidgets('shows AppBar with inspector button for empty config',
-        (tester) async {
+    testWidgets('shows AppBar with inspector button for empty config', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         const ProviderScope(
           child: MaterialApp(
@@ -137,8 +138,9 @@ void main() {
         expect(tooltipFinder, findsOneWidget);
       });
 
-      testWidgets('inspector button appears after config actions',
-          (tester) async {
+      testWidgets('inspector button appears after config actions', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           ProviderScope(
             child: MaterialApp(
@@ -212,9 +214,7 @@ void main() {
           const ProviderScope(
             child: MaterialApp(
               home: AppShell(
-                config: ShellConfig(
-                  drawer: Drawer(child: drawerContent),
-                ),
+                config: ShellConfig(drawer: Drawer(child: drawerContent)),
                 body: SizedBox.shrink(),
               ),
             ),
@@ -232,9 +232,7 @@ void main() {
           const ProviderScope(
             child: MaterialApp(
               home: AppShell(
-                config: ShellConfig(
-                  drawer: Drawer(child: Text('Nav')),
-                ),
+                config: ShellConfig(drawer: Drawer(child: Text('Nav'))),
                 body: SizedBox.shrink(),
               ),
             ),
@@ -256,10 +254,7 @@ void main() {
         await tester.pumpWidget(
           const ProviderScope(
             child: MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: SizedBox.shrink(),
-              ),
+              home: AppShell(config: ShellConfig(), body: SizedBox.shrink()),
             ),
           ),
         );

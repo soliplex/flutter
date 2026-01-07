@@ -8,10 +8,7 @@ import 'package:soliplex_frontend/shared/utils/format_utils.dart';
 /// Groups related events (request + response/error) into a single tile
 /// showing method, path, timestamp, and result status.
 class HttpEventTile extends StatelessWidget {
-  const HttpEventTile({
-    required this.group,
-    super.key,
-  });
+  const HttpEventTile({required this.group, super.key});
 
   /// The grouped events for a single HTTP request.
   final HttpEventGroup group;

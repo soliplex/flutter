@@ -41,10 +41,10 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         });
 
       case WebCallbackParams(
-          accessToken: final token?,
-          :final refreshToken,
-          :final expiresIn,
-        ):
+        accessToken: final token?,
+        :final refreshToken,
+        :final expiresIn,
+      ):
         // Success - complete authentication
         debugPrint('AuthCallbackScreen: Got tokens, completing auth');
         await _completeAuth(
@@ -76,7 +76,9 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
   }) async {
     debugPrint('AuthCallbackScreen: _completeAuth called');
     try {
-      await ref.read(authProvider.notifier).completeWebAuth(
+      await ref
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: accessToken,
             refreshToken: refreshToken,
             expiresIn: expiresIn,

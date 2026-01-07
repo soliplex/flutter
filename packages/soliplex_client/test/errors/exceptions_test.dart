@@ -210,10 +210,7 @@ void main() {
     test('toString without resource', () {
       const exception = NotFoundException(message: 'Page not found');
 
-      expect(
-        exception.toString(),
-        equals('NotFoundException: Page not found'),
-      );
+      expect(exception.toString(), equals('NotFoundException: Page not found'));
     });
 
     test('is SoliplexException', () {

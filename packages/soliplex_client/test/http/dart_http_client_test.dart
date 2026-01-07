@@ -38,9 +38,9 @@ void main() {
           headers: {'content-type': 'application/json'},
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         final response = await client.request(
           'GET',
@@ -178,33 +178,38 @@ void main() {
         );
       });
 
-      test('throws NetworkException with isTimeout on request timeout',
-          () async {
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) => Future.delayed(
-            const Duration(seconds: 5),
-            () => _createStreamedResponse(statusCode: 200, body: []),
-          ),
-        );
+      test(
+        'throws NetworkException with isTimeout on request timeout',
+        () async {
+          when(() => mockClient.send(any())).thenAnswer(
+            (_) => Future.delayed(
+              const Duration(seconds: 5),
+              () => _createStreamedResponse(statusCode: 200, body: []),
+            ),
+          );
 
-        client = DartHttpClient(
-          client: mockClient,
-          defaultTimeout: const Duration(milliseconds: 50),
-        );
+          client = DartHttpClient(
+            client: mockClient,
+            defaultTimeout: const Duration(milliseconds: 50),
+          );
 
-        await expectLater(
-          client.request('GET', Uri.parse('https://example.com/api')),
-          throwsA(
-            isA<NetworkException>()
-                .having((e) => e.isTimeout, 'isTimeout', isTrue),
-          ),
-        );
-      });
+          await expectLater(
+            client.request('GET', Uri.parse('https://example.com/api')),
+            throwsA(
+              isA<NetworkException>().having(
+                (e) => e.isTimeout,
+                'isTimeout',
+                isTrue,
+              ),
+            ),
+          );
+        },
+      );
 
       test('throws NetworkException on SocketException', () async {
-        when(() => mockClient.send(any())).thenThrow(
-          const SocketException('Connection refused'),
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(const SocketException('Connection refused'));
 
         await expectLater(
           client.request('GET', Uri.parse('https://example.com/api')),
@@ -219,9 +224,9 @@ void main() {
       });
 
       test('throws NetworkException on ClientException', () async {
-        when(() => mockClient.send(any())).thenThrow(
-          http.ClientException('Network error'),
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(http.ClientException('Network error'));
 
         await expectLater(
           client.request('GET', Uri.parse('https://example.com/api')),
@@ -230,9 +235,9 @@ void main() {
       });
 
       test('throws NetworkException on HttpException', () async {
-        when(() => mockClient.send(any())).thenThrow(
-          const HttpException('Invalid response'),
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(const HttpException('Invalid response'));
 
         await expectLater(
           client.request('GET', Uri.parse('https://example.com/api')),
@@ -282,9 +287,9 @@ void main() {
           headers: {'Content-Type': 'application/json', 'X-Custom': 'value'},
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         final response = await client.request(
           'GET',
@@ -307,10 +312,7 @@ void main() {
           return streamedResponse;
         });
 
-        await client.request(
-          'get',
-          Uri.parse('https://example.com/api'),
-        );
+        await client.request('get', Uri.parse('https://example.com/api'));
 
         expect(capturedRequest?.method, equals('GET'));
       });
@@ -322,9 +324,9 @@ void main() {
           reasonPhrase: 'Created',
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         final response = await client.request(
           'POST',
@@ -356,9 +358,9 @@ void main() {
           reasonPhrase: 'OK',
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         client = DartHttpClient(
           client: mockClient,
@@ -382,9 +384,7 @@ void main() {
       });
 
       test('handles TimeoutException with null message', () async {
-        when(() => mockClient.send(any())).thenThrow(
-          TimeoutException(null),
-        );
+        when(() => mockClient.send(any())).thenThrow(TimeoutException(null));
 
         await expectLater(
           client.request('GET', Uri.parse('https://example.com/api')),
@@ -412,35 +412,34 @@ void main() {
           return streamedResponse;
         });
 
-        await client.request(
-          'GET',
-          Uri.parse('https://example.com/api'),
-        );
+        await client.request('GET', Uri.parse('https://example.com/api'));
 
         expect(capturedRequest?.bodyBytes, isEmpty);
       });
 
-      test('request with no headers sends request without custom headers',
-          () async {
-        final streamedResponse = _createStreamedResponse(
-          statusCode: 200,
-          body: [],
-        );
+      test(
+        'request with no headers sends request without custom headers',
+        () async {
+          final streamedResponse = _createStreamedResponse(
+            statusCode: 200,
+            body: [],
+          );
 
-        http.Request? capturedRequest;
-        when(() => mockClient.send(any())).thenAnswer((invocation) async {
-          capturedRequest = invocation.positionalArguments[0] as http.Request;
-          return streamedResponse;
-        });
+          http.Request? capturedRequest;
+          when(() => mockClient.send(any())).thenAnswer((invocation) async {
+            capturedRequest = invocation.positionalArguments[0] as http.Request;
+            return streamedResponse;
+          });
 
-        await client.request(
-          'GET',
-          Uri.parse('https://example.com/api'),
-        );
+          await client.request('GET', Uri.parse('https://example.com/api'));
 
-        // Should not have custom headers (only default ones from http package)
-        expect(capturedRequest?.headers.containsKey('Authorization'), isFalse);
-      });
+          // Should not have custom headers (only default ones from http package)
+          expect(
+            capturedRequest?.headers.containsKey('Authorization'),
+            isFalse,
+          );
+        },
+      );
     });
 
     group('requestStream', () {
@@ -452,9 +451,9 @@ void main() {
           reasonPhrase: 'OK',
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         final stream = client.requestStream(
           'GET',
@@ -496,51 +495,42 @@ void main() {
           reasonPhrase: 'Internal Server Error',
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         final stream = client.requestStream(
           'GET',
           Uri.parse('https://example.com/stream'),
         );
 
-        await expectLater(
-          stream,
-          emitsError(isA<NetworkException>()),
-        );
+        await expectLater(stream, emitsError(isA<NetworkException>()));
       });
 
       test('emits NetworkException on connection error', () async {
-        when(() => mockClient.send(any())).thenThrow(
-          const SocketException('Connection refused'),
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(const SocketException('Connection refused'));
 
         final stream = client.requestStream(
           'GET',
           Uri.parse('https://example.com/stream'),
         );
 
-        await expectLater(
-          stream,
-          emitsError(isA<NetworkException>()),
-        );
+        await expectLater(stream, emitsError(isA<NetworkException>()));
       });
 
       test('emits NetworkException on client exception', () async {
-        when(() => mockClient.send(any())).thenThrow(
-          http.ClientException('Client error'),
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(http.ClientException('Client error'));
 
         final stream = client.requestStream(
           'GET',
           Uri.parse('https://example.com/stream'),
         );
 
-        await expectLater(
-          stream,
-          emitsError(isA<NetworkException>()),
-        );
+        await expectLater(stream, emitsError(isA<NetworkException>()));
       });
 
       test('can be cancelled via subscription', () async {
@@ -551,9 +541,9 @@ void main() {
           reasonPhrase: 'OK',
         );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
         final stream = client.requestStream(
           'GET',
@@ -584,101 +574,105 @@ void main() {
         await controller.close();
       });
 
-      test('converts SocketException during streaming to NetworkException',
-          () async {
-        final controller = StreamController<List<int>>();
-        final streamedResponse = http.StreamedResponse(
-          controller.stream,
-          200,
-          reasonPhrase: 'OK',
-        );
+      test(
+        'converts SocketException during streaming to NetworkException',
+        () async {
+          final controller = StreamController<List<int>>();
+          final streamedResponse = http.StreamedResponse(
+            controller.stream,
+            200,
+            reasonPhrase: 'OK',
+          );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+          when(
+            () => mockClient.send(any()),
+          ).thenAnswer((_) async => streamedResponse);
 
-        final stream = client.requestStream(
-          'GET',
-          Uri.parse('https://example.com/stream'),
-        );
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/stream'),
+          );
 
-        final errors = <Object>[];
-        final completer = Completer<void>();
+          final errors = <Object>[];
+          final completer = Completer<void>();
 
-        stream.listen(
-          (_) {},
-          onError: (Object e) {
-            errors.add(e);
-            completer.complete();
-          },
-          onDone: () {
-            if (!completer.isCompleted) completer.complete();
-          },
-        );
+          stream.listen(
+            (_) {},
+            onError: (Object e) {
+              errors.add(e);
+              completer.complete();
+            },
+            onDone: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          );
 
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Simulate a SocketException during streaming
-        controller.addError(const SocketException('Connection lost'));
+          // Simulate a SocketException during streaming
+          controller.addError(const SocketException('Connection lost'));
 
-        await completer.future;
+          await completer.future;
 
-        expect(errors, hasLength(1));
-        expect(errors.first, isA<NetworkException>());
-        expect(
-          (errors.first as NetworkException).message,
-          contains('Connection lost'),
-        );
+          expect(errors, hasLength(1));
+          expect(errors.first, isA<NetworkException>());
+          expect(
+            (errors.first as NetworkException).message,
+            contains('Connection lost'),
+          );
 
-        await controller.close();
-      });
+          await controller.close();
+        },
+      );
 
-      test('passes through non-SocketException errors during streaming',
-          () async {
-        final controller = StreamController<List<int>>();
-        final streamedResponse = http.StreamedResponse(
-          controller.stream,
-          200,
-          reasonPhrase: 'OK',
-        );
+      test(
+        'passes through non-SocketException errors during streaming',
+        () async {
+          final controller = StreamController<List<int>>();
+          final streamedResponse = http.StreamedResponse(
+            controller.stream,
+            200,
+            reasonPhrase: 'OK',
+          );
 
-        when(() => mockClient.send(any())).thenAnswer(
-          (_) async => streamedResponse,
-        );
+          when(
+            () => mockClient.send(any()),
+          ).thenAnswer((_) async => streamedResponse);
 
-        final stream = client.requestStream(
-          'GET',
-          Uri.parse('https://example.com/stream'),
-        );
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/stream'),
+          );
 
-        final errors = <Object>[];
-        final completer = Completer<void>();
+          final errors = <Object>[];
+          final completer = Completer<void>();
 
-        stream.listen(
-          (_) {},
-          onError: (Object e) {
-            errors.add(e);
-            completer.complete();
-          },
-          onDone: () {
-            if (!completer.isCompleted) completer.complete();
-          },
-        );
+          stream.listen(
+            (_) {},
+            onError: (Object e) {
+              errors.add(e);
+              completer.complete();
+            },
+            onDone: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          );
 
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Simulate a non-SocketException error during streaming
-        controller.addError(Exception('Some other error'));
+          // Simulate a non-SocketException error during streaming
+          controller.addError(Exception('Some other error'));
 
-        await completer.future;
+          await completer.future;
 
-        expect(errors, hasLength(1));
-        // Non-SocketException errors should be passed through as-is
-        expect(errors.first, isA<Exception>());
-        expect(errors.first, isNot(isA<NetworkException>()));
+          expect(errors, hasLength(1));
+          // Non-SocketException errors should be passed through as-is
+          expect(errors.first, isA<Exception>());
+          expect(errors.first, isNot(isA<NetworkException>()));
 
-        await controller.close();
-      });
+          await controller.close();
+        },
+      );
 
       test('handles stream with body parameter', () async {
         final controller = StreamController<List<int>>();
@@ -704,10 +698,7 @@ void main() {
         final chunks = <List<int>>[];
         final completer = Completer<void>();
 
-        stream.listen(
-          chunks.add,
-          onDone: completer.complete,
-        );
+        stream.listen(chunks.add, onDone: completer.complete);
 
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
@@ -872,10 +863,7 @@ void main() {
           return streamedResponse;
         });
 
-        await client.request(
-          'HEAD',
-          Uri.parse('https://example.com/api'),
-        );
+        await client.request('HEAD', Uri.parse('https://example.com/api'));
 
         expect(capturedRequest?.method, equals('HEAD'));
       });

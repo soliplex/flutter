@@ -106,10 +106,7 @@ void main() {
           ),
         ).thenThrow(const AuthException(message: 'Unauthorized'));
 
-        expect(
-          () => api.getRooms(),
-          throwsA(isA<AuthException>()),
-        );
+        expect(() => api.getRooms(), throwsA(isA<AuthException>()));
       });
 
       test('supports cancellation', () async {
@@ -188,10 +185,7 @@ void main() {
       });
 
       test('validates non-empty roomId', () {
-        expect(
-          () => api.getRoom(''),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => api.getRoom(''), throwsA(isA<ArgumentError>()));
       });
 
       test('propagates NotFoundException', () async {
@@ -226,9 +220,7 @@ void main() {
             headers: any(named: 'headers'),
             timeout: any(named: 'timeout'),
           ),
-        ).thenAnswer(
-          (_) async => const Room(id: 'room-123', name: 'Test'),
-        );
+        ).thenAnswer((_) async => const Room(id: 'room-123', name: 'Test'));
 
         await api.getRoom('room-123', cancelToken: cancelToken);
 
@@ -319,10 +311,7 @@ void main() {
       });
 
       test('validates non-empty roomId', () {
-        expect(
-          () => api.getThreads(''),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => api.getThreads(''), throwsA(isA<ArgumentError>()));
       });
 
       test('supports cancellation', () async {
@@ -482,10 +471,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => {
-            'thread_id': 'new-thread',
-            'runs': <String, dynamic>{},
-          },
+          (_) async => {'thread_id': 'new-thread', 'runs': <String, dynamic>{}},
         );
 
         final thread = await api.createThread('room-123');
@@ -495,10 +481,7 @@ void main() {
       });
 
       test('validates non-empty roomId', () {
-        expect(
-          () => api.createThread(''),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => api.createThread(''), throwsA(isA<ArgumentError>()));
       });
 
       test('propagates exceptions', () async {
@@ -536,10 +519,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => {
-            'thread_id': 'new-thread',
-            'runs': <String, dynamic>{},
-          },
+          (_) async => {'thread_id': 'new-thread', 'runs': <String, dynamic>{}},
         );
 
         await api.createThread('room-123', cancelToken: cancelToken);
@@ -683,9 +663,7 @@ void main() {
             headers: any(named: 'headers'),
             timeout: any(named: 'timeout'),
           ),
-        ).thenAnswer(
-          (_) async => {'run_id': 'new-run'},
-        );
+        ).thenAnswer((_) async => {'run_id': 'new-run'});
 
         final run = await api.createRun('room-123', 'thread-456');
 
@@ -793,10 +771,7 @@ void main() {
                     'messageId': 'msg-1',
                     'delta': 'World',
                   },
-                  {
-                    'type': 'TEXT_MESSAGE_END',
-                    'messageId': 'msg-1',
-                  },
+                  {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
                 ],
               },
             },

@@ -27,9 +27,7 @@ void main() {
       when(() => mockApi.getRooms()).thenAnswer((_) async => mockRooms);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -51,9 +49,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -83,9 +79,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -111,16 +105,11 @@ void main() {
     test('propagates ApiException from API', () async {
       // Arrange
       when(() => mockApi.getRooms()).thenThrow(
-        const ApiException(
-          message: 'Internal server error',
-          statusCode: 500,
-        ),
+        const ApiException(message: 'Internal server error', statusCode: 500),
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -145,9 +134,7 @@ void main() {
 
     test('can be refreshed to fetch fresh data', () async {
       // Arrange
-      final mockRooms1 = [
-        TestData.createRoom(id: 'general', name: 'General'),
-      ];
+      final mockRooms1 = [TestData.createRoom(id: 'general', name: 'General')];
       final mockRooms2 = [
         TestData.createRoom(id: 'general', name: 'General'),
         TestData.createRoom(id: 'tech', name: 'Tech'),
@@ -156,9 +143,7 @@ void main() {
       when(() => mockApi.getRooms()).thenAnswer((_) async => mockRooms1);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -183,9 +168,7 @@ void main() {
       when(() => mockApi.getRooms()).thenAnswer((_) async => []);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -227,9 +210,7 @@ void main() {
 
     test('returns null when no room is selected', () {
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -247,9 +228,7 @@ void main() {
       when(() => mockApi.getRooms()).thenAnswer((_) async => mockRooms);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -268,15 +247,11 @@ void main() {
 
     test('returns null when selected room is not found', () async {
       // Arrange
-      final mockRooms = [
-        TestData.createRoom(id: 'general', name: 'General'),
-      ];
+      final mockRooms = [TestData.createRoom(id: 'general', name: 'General')];
       when(() => mockApi.getRooms()).thenAnswer((_) async => mockRooms);
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 
@@ -301,9 +276,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-        ],
+        overrides: [apiProvider.overrideWithValue(mockApi)],
       );
       addTearDown(container.dispose);
 

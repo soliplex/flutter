@@ -16,11 +16,7 @@ import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
 /// In debug mode, shows the full error details below the message
 /// for easier debugging.
 class ErrorDisplay extends StatelessWidget {
-  const ErrorDisplay({
-    required this.error,
-    this.onRetry,
-    super.key,
-  });
+  const ErrorDisplay({required this.error, this.onRetry, super.key});
 
   final Object error;
   final VoidCallback? onRetry;
@@ -105,9 +101,9 @@ class ErrorDisplay extends StatelessWidget {
                 error.toString(),
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontFamily: 'monospace',
-                      color: Colors.grey,
-                    ),
+                  fontFamily: 'monospace',
+                  color: Colors.grey,
+                ),
               ),
             ],
             if (onRetry != null && _canRetry()) ...[

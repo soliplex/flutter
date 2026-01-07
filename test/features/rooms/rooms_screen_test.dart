@@ -18,9 +18,7 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const RoomsScreen(),
-          overrides: [
-            roomsProvider.overrideWith((ref) => completer.future),
-          ],
+          overrides: [roomsProvider.overrideWith((ref) => completer.future)],
         ),
       );
 
@@ -41,9 +39,7 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const RoomsScreen(),
-          overrides: [
-            roomsProvider.overrideWith((ref) async => mockRooms),
-          ],
+          overrides: [roomsProvider.overrideWith((ref) async => mockRooms)],
         ),
       );
 
@@ -57,9 +53,7 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const RoomsScreen(),
-          overrides: [
-            roomsProvider.overrideWith((ref) async => []),
-          ],
+          overrides: [roomsProvider.overrideWith((ref) async => [])],
         ),
       );
 

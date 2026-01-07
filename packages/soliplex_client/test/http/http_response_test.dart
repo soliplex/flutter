@@ -33,10 +33,7 @@ void main() {
       });
 
       test('headers defaults to empty map', () {
-        final response = HttpResponse(
-          statusCode: 200,
-          bodyBytes: Uint8List(0),
-        );
+        final response = HttpResponse(statusCode: 200, bodyBytes: Uint8List(0));
 
         expect(response.headers, equals(<String, String>{}));
       });
@@ -53,10 +50,7 @@ void main() {
       });
 
       test('handles empty body', () {
-        final response = HttpResponse(
-          statusCode: 204,
-          bodyBytes: Uint8List(0),
-        );
+        final response = HttpResponse(statusCode: 204, bodyBytes: Uint8List(0));
 
         expect(response.body, isEmpty);
       });
@@ -73,13 +67,8 @@ void main() {
       });
 
       test('handles JSON body', () {
-        final jsonBytes = Uint8List.fromList(
-          '{"key": "value"}'.codeUnits,
-        );
-        final response = HttpResponse(
-          statusCode: 200,
-          bodyBytes: jsonBytes,
-        );
+        final jsonBytes = Uint8List.fromList('{"key": "value"}'.codeUnits);
+        final response = HttpResponse(statusCode: 200, bodyBytes: jsonBytes);
 
         expect(response.body, equals('{"key": "value"}'));
       });
@@ -371,10 +360,7 @@ void main() {
       });
 
       test('formats correctly for empty body', () {
-        final response = HttpResponse(
-          statusCode: 404,
-          bodyBytes: Uint8List(0),
-        );
+        final response = HttpResponse(statusCode: 404, bodyBytes: Uint8List(0));
 
         final str = response.toString();
 

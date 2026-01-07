@@ -67,8 +67,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       // Save the URL first
       await ref.read(configProvider.notifier).setBaseUrl(url);
-      debugPrint('HomeScreen: URL saved, config.baseUrl is now: '
-          '${ref.read(configProvider).baseUrl}');
+      debugPrint(
+        'HomeScreen: URL saved, config.baseUrl is now: '
+        '${ref.read(configProvider).baseUrl}',
+      );
 
       // Fetch auth providers from the new URL
       final transport = ref.read(httpTransportProvider);

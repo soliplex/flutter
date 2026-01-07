@@ -110,10 +110,7 @@ void main() {
         final response = HttpResponse(
           statusCode: 200,
           bodyBytes: bodyBytes,
-          headers: const {
-            'content-type': 'text/plain',
-            'x-custom': 'value',
-          },
+          headers: const {'content-type': 'text/plain', 'x-custom': 'value'},
         );
 
         when(

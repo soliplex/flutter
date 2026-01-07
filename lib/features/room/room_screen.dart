@@ -19,11 +19,7 @@ import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 /// This is a dynamic screen that builds its own AppShell to provide
 /// dynamic ShellConfig (room name in title, sidebar toggle, room dropdown).
 class RoomScreen extends ConsumerStatefulWidget {
-  const RoomScreen({
-    required this.roomId,
-    this.initialThreadId,
-    super.key,
-  });
+  const RoomScreen({required this.roomId, this.initialThreadId, super.key});
 
   final String roomId;
 
@@ -82,12 +78,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     }
 
     // 2. Last viewed (if valid)
-    final lastViewed =
-        await ref.read(lastViewedThreadProvider(widget.roomId).future);
+    final lastViewed = await ref.read(
+      lastViewedThreadProvider(widget.roomId).future,
+    );
     if (!mounted) return;
 
-    if (lastViewed case HasLastViewed(:final threadId)
-        when threads.any((t) => t.id == threadId)) {
+    if (lastViewed case HasLastViewed(
+      :final threadId,
+    ) when threads.any((t) => t.id == threadId)) {
       ref.read(threadSelectionProvider.notifier).set(ThreadSelected(threadId));
       return;
     }
@@ -98,11 +96,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
   /// Selects a thread and persists as last viewed.
   void _selectThread(String threadId) {
-    selectAndPersistThread(
-      ref: ref,
-      roomId: widget.roomId,
-      threadId: threadId,
-    );
+    selectAndPersistThread(ref: ref, roomId: widget.roomId, threadId: threadId);
   }
 
   /// Sidebar width for desktop layout.

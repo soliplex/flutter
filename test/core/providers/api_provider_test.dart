@@ -54,9 +54,7 @@ void main() {
       );
 
       final container = createContainerWithMockedAuth(
-        overrides: [
-          configProviderOverride(testConfig),
-        ],
+        overrides: [configProviderOverride(testConfig)],
       );
       addTearDown(container.dispose);
 
@@ -84,9 +82,7 @@ void main() {
 
       // Test with config1
       final container1 = createContainerWithMockedAuth(
-        overrides: [
-          configProviderOverride(config1),
-        ],
+        overrides: [configProviderOverride(config1)],
       );
       addTearDown(container1.dispose);
 
@@ -98,9 +94,7 @@ void main() {
 
       // Test with config2 in separate container
       final container2 = createContainerWithMockedAuth(
-        overrides: [
-          configProviderOverride(config2),
-        ],
+        overrides: [configProviderOverride(config2)],
       );
       addTearDown(container2.dispose);
 
@@ -154,8 +148,7 @@ void main() {
     // resources are actually cleaned up (close() called) requires mocking
     // and is covered by integration tests at the feature level.
     test('container disposal completes without errors', () async {
-      final container = createContainerWithMockedAuth()
-        ..read(apiProvider);
+      final container = createContainerWithMockedAuth()..read(apiProvider);
 
       // Wait for AuthNotifier's async _restoreSession to complete
       await waitForAuthRestore(container);
@@ -177,9 +170,7 @@ void main() {
 
       // Test with config1
       final container1 = createContainerWithMockedAuth(
-        overrides: [
-          configProviderOverride(config1),
-        ],
+        overrides: [configProviderOverride(config1)],
       );
       addTearDown(container1.dispose);
 
@@ -188,9 +179,7 @@ void main() {
 
       // Test with config2 in separate container
       final container2 = createContainerWithMockedAuth(
-        overrides: [
-          configProviderOverride(config2),
-        ],
+        overrides: [configProviderOverride(config2)],
       );
       addTearDown(container2.dispose);
 
@@ -211,9 +200,7 @@ void main() {
       );
 
       final container = createContainerWithMockedAuth(
-        overrides: [
-          configProviderOverride(testConfig),
-        ],
+        overrides: [configProviderOverride(testConfig)],
       );
       addTearDown(container.dispose);
 

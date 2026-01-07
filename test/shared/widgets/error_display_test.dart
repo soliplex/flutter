@@ -47,57 +47,48 @@ void main() {
 
     testWidgets('displays generic error message', (tester) async {
       await tester.pumpWidget(
-        createTestApp(
-          home: ErrorDisplay(
-            error: Exception('Unknown error'),
-          ),
-        ),
+        createTestApp(home: ErrorDisplay(error: Exception('Unknown error'))),
       );
 
       expect(find.text('An unexpected error occurred.'), findsOneWidget);
     });
 
-    testWidgets(
-      'shows retry button when callback provided',
-      (tester) async {
-        var retryPressed = false;
+    testWidgets('shows retry button when callback provided', (tester) async {
+      var retryPressed = false;
 
-        await tester.pumpWidget(
-          createTestApp(
-            home: ErrorDisplay(
-              error: const NetworkException(message: 'Failed'),
-              onRetry: () => retryPressed = true,
-            ),
+      await tester.pumpWidget(
+        createTestApp(
+          home: ErrorDisplay(
+            error: const NetworkException(message: 'Failed'),
+            onRetry: () => retryPressed = true,
           ),
-        );
+        ),
+      );
 
-        expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
 
-        await tester.tap(find.text('Retry'));
-        await tester.pump();
+      await tester.tap(find.text('Retry'));
+      await tester.pump();
 
-        expect(retryPressed, true);
-      },
-    );
+      expect(retryPressed, true);
+    });
 
-    testWidgets(
-      'hides retry button when callback not provided',
-      (tester) async {
-        await tester.pumpWidget(
-          createTestApp(
-            home: const ErrorDisplay(
-              error: NetworkException(message: 'Failed'),
-            ),
-          ),
-        );
+    testWidgets('hides retry button when callback not provided', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const ErrorDisplay(error: NetworkException(message: 'Failed')),
+        ),
+      );
 
-        expect(find.text('Retry'), findsNothing);
-      },
-    );
+      expect(find.text('Retry'), findsNothing);
+    });
 
     group('MessageFetchException unwrapping', () {
-      testWidgets('unwraps NetworkException from MessageFetchException',
-          (tester) async {
+      testWidgets('unwraps NetworkException from MessageFetchException', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
@@ -113,8 +104,9 @@ void main() {
         expect(find.byIcon(Icons.wifi_off), findsOneWidget);
       });
 
-      testWidgets('unwraps ApiException from MessageFetchException',
-          (tester) async {
+      testWidgets('unwraps ApiException from MessageFetchException', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
@@ -132,8 +124,9 @@ void main() {
         expect(find.textContaining('Server error (500)'), findsOneWidget);
       });
 
-      testWidgets('shows retry button for wrapped NetworkException',
-          (tester) async {
+      testWidgets('shows retry button for wrapped NetworkException', (
+        tester,
+      ) async {
         var retryPressed = false;
 
         await tester.pumpWidget(
@@ -156,8 +149,9 @@ void main() {
         expect(retryPressed, true);
       });
 
-      testWidgets('hides retry button for wrapped AuthException',
-          (tester) async {
+      testWidgets('hides retry button for wrapped AuthException', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(

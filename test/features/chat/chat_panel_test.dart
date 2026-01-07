@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain
+import 'package:soliplex_client/soliplex_client.dart'
+    as domain
     show Conversation, Failed, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
@@ -20,9 +21,7 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               currentRoomProvider.overrideWith((ref) => null),
               activeRunNotifierOverride(const IdleState()),
@@ -39,9 +38,7 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               currentRoomProvider.overrideWith((ref) => null),
               activeRunNotifierOverride(const IdleState()),
@@ -65,9 +62,7 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               currentRoomProvider.overrideWith((ref) => null),
               activeRunNotifierOverride(const IdleState()),
@@ -89,9 +84,7 @@ void main() {
         );
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               activeRunNotifierOverride(
                 const RunningState(conversation: conversation),
@@ -109,12 +102,8 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
-            overrides: [
-              activeRunNotifierOverride(const IdleState()),
-            ],
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [activeRunNotifierOverride(const IdleState())],
           ),
         );
 
@@ -133,9 +122,7 @@ void main() {
         );
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               activeRunNotifierOverride(
                 const CompletedState(
@@ -156,12 +143,8 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
-            overrides: [
-              activeRunNotifierOverride(const IdleState()),
-            ],
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [activeRunNotifierOverride(const IdleState())],
           ),
         );
 
@@ -176,9 +159,7 @@ void main() {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               currentRoomProvider.overrideWith((ref) => null),
               currentThreadProvider.overrideWith((ref) => null),
@@ -200,9 +181,7 @@ void main() {
 
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(
-              body: ChatPanel(),
-            ),
+            home: const Scaffold(body: ChatPanel()),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),

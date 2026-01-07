@@ -124,11 +124,7 @@ class ErrorMessage extends ChatMessage {
 
   /// Creates an error message with the given ID and auto-generated timestamp.
   factory ErrorMessage.create({required String id, required String message}) {
-    return ErrorMessage(
-      id: id,
-      errorText: message,
-      createdAt: DateTime.now(),
-    );
+    return ErrorMessage(id: id, errorText: message, createdAt: DateTime.now());
   }
 
   /// The error message text.
@@ -207,17 +203,12 @@ class GenUiMessage extends ChatMessage {
 @immutable
 class LoadingMessage extends ChatMessage {
   /// Creates a loading message with all properties.
-  const LoadingMessage({
-    required super.id,
-    required super.createdAt,
-  }) : super(user: ChatUser.assistant);
+  const LoadingMessage({required super.id, required super.createdAt})
+    : super(user: ChatUser.assistant);
 
   /// Creates a loading message with the given ID and auto-generated timestamp.
   factory LoadingMessage.create({required String id}) {
-    return LoadingMessage(
-      id: id,
-      createdAt: DateTime.now(),
-    );
+    return LoadingMessage(id: id, createdAt: DateTime.now());
   }
 
   @override

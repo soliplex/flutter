@@ -85,8 +85,9 @@ class UrlBuilder {
     // Build the URI
     return _baseUri.replace(
       pathSegments: segments,
-      queryParameters:
-          (queryParameters?.isNotEmpty ?? false) ? queryParameters : null,
+      queryParameters: (queryParameters?.isNotEmpty ?? false)
+          ? queryParameters
+          : null,
     );
   }
 

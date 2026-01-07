@@ -131,17 +131,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         name: 'login',
-        pageBuilder: (context, state) => const NoTransitionPage(
-          child: LoginScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: LoginScreen()),
       ),
       // OAuth callback for web BFF flow - must bypass auth guard
       GoRoute(
         path: '/auth/callback',
         name: 'auth-callback',
-        pageBuilder: (context, state) => const NoTransitionPage(
-          child: AuthCallbackScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: AuthCallbackScreen()),
       ),
       GoRoute(
         path: '/',
@@ -197,9 +195,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const ExcludeSemantics(
-              child: Icon(Icons.error_outline, size: 48),
-            ),
+            const ExcludeSemantics(child: Icon(Icons.error_outline, size: 48)),
             const SizedBox(height: 16),
             Text('Page not found: ${state.uri}'),
             const SizedBox(height: 16),

@@ -21,10 +21,7 @@ import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 /// ```
 class ChatInput extends ConsumerStatefulWidget {
   /// Creates a chat input widget.
-  const ChatInput({
-    required this.onSend,
-    super.key,
-  });
+  const ChatInput({required this.onSend, super.key});
 
   /// Callback invoked when user sends a message.
   final void Function(String text) onSend;
@@ -81,11 +78,11 @@ class _ChatInputState extends ConsumerState<ChatInput> {
           Expanded(
             child: CallbackShortcuts(
               bindings: {
-                const SingleActivator(LogicalKeyboardKey.enter):
-                    canSend ? _handleSend : () {},
-                const SingleActivator(
-                  LogicalKeyboardKey.escape,
-                ): () => _focusNode.unfocus(),
+                const SingleActivator(LogicalKeyboardKey.enter): canSend
+                    ? _handleSend
+                    : () {},
+                const SingleActivator(LogicalKeyboardKey.escape): () =>
+                    _focusNode.unfocus(),
               },
               child: Semantics(
                 label: 'Chat message input',

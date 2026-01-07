@@ -58,10 +58,8 @@ void main() {
         ),
       ).called(1);
       verify(
-        () => mockStorage.write(
-          key: AuthStorageKeys.issuerId,
-          value: 'issuer-1',
-        ),
+        () =>
+            mockStorage.write(key: AuthStorageKeys.issuerId, value: 'issuer-1'),
       ).called(1);
       verify(
         () => mockStorage.write(
@@ -76,33 +74,37 @@ void main() {
         ),
       ).called(1);
       verify(
-        () => mockStorage.write(
-          key: AuthStorageKeys.idToken,
-          value: 'id-token',
-        ),
+        () =>
+            mockStorage.write(key: AuthStorageKeys.idToken, value: 'id-token'),
       ).called(1);
     });
-
   });
 
   group('loadTokens', () {
     test('returns Authenticated when all required fields exist', () async {
       final expiresAt = DateTime(2025, 12, 31, 12);
 
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => expiresAt.toIso8601String());
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => 'id-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => expiresAt.toIso8601String());
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => 'id-token');
 
       final tokens = await authStorage.loadTokens();
 
@@ -117,20 +119,27 @@ void main() {
     });
 
     test('returns null when accessToken is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => null);
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => '2025-12-31T12:00:00.000');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => '2025-12-31T12:00:00.000');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -138,20 +147,27 @@ void main() {
     });
 
     test('returns null when refreshToken is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => null);
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => '2025-12-31T12:00:00.000');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => '2025-12-31T12:00:00.000');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -159,20 +175,27 @@ void main() {
     });
 
     test('returns null when expiresAt is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => null);
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -180,20 +203,27 @@ void main() {
     });
 
     test('returns null when expiresAt is malformed', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => 'not-a-date');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => 'not-a-date');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -201,20 +231,27 @@ void main() {
     });
 
     test('returns null when issuerId is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => '2025-12-31T12:00:00.000');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => null);
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => '2025-12-31T12:00:00.000');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -222,20 +259,27 @@ void main() {
     });
 
     test('returns null when issuerDiscoveryUrl is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => '2025-12-31T12:00:00.000');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => null);
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => '2025-12-31T12:00:00.000');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -243,20 +287,27 @@ void main() {
     });
 
     test('returns null when clientId is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => '2025-12-31T12:00:00.000');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => null);
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => 'id-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => '2025-12-31T12:00:00.000');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => 'id-token');
 
       final tokens = await authStorage.loadTokens();
 
@@ -264,20 +315,27 @@ void main() {
     });
 
     test('returns null when idToken is missing', () async {
-      when(() => mockStorage.read(key: AuthStorageKeys.accessToken))
-          .thenAnswer((_) async => 'access-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.refreshToken))
-          .thenAnswer((_) async => 'refresh-token');
-      when(() => mockStorage.read(key: AuthStorageKeys.expiresAt))
-          .thenAnswer((_) async => '2025-12-31T12:00:00.000');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerId))
-          .thenAnswer((_) async => 'issuer-1');
-      when(() => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .thenAnswer((_) async => 'https://idp.example.com/.well-known');
-      when(() => mockStorage.read(key: AuthStorageKeys.clientId))
-          .thenAnswer((_) async => 'client-app');
-      when(() => mockStorage.read(key: AuthStorageKeys.idToken))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.accessToken),
+      ).thenAnswer((_) async => 'access-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.refreshToken),
+      ).thenAnswer((_) async => 'refresh-token');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.expiresAt),
+      ).thenAnswer((_) async => '2025-12-31T12:00:00.000');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerId),
+      ).thenAnswer((_) async => 'issuer-1');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).thenAnswer((_) async => 'https://idp.example.com/.well-known');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.clientId),
+      ).thenAnswer((_) async => 'client-app');
+      when(
+        () => mockStorage.read(key: AuthStorageKeys.idToken),
+      ).thenAnswer((_) async => null);
 
       final tokens = await authStorage.loadTokens();
 
@@ -287,23 +345,27 @@ void main() {
 
   group('clearTokens', () {
     test('deletes all token keys from storage', () async {
-      when(() => mockStorage.delete(key: any(named: 'key')))
-          .thenAnswer((_) async {});
+      when(
+        () => mockStorage.delete(key: any(named: 'key')),
+      ).thenAnswer((_) async {});
 
       await authStorage.clearTokens();
 
-      verify(() => mockStorage.delete(key: AuthStorageKeys.accessToken))
-          .called(1);
-      verify(() => mockStorage.delete(key: AuthStorageKeys.refreshToken))
-          .called(1);
+      verify(
+        () => mockStorage.delete(key: AuthStorageKeys.accessToken),
+      ).called(1);
+      verify(
+        () => mockStorage.delete(key: AuthStorageKeys.refreshToken),
+      ).called(1);
       verify(() => mockStorage.delete(key: AuthStorageKeys.idToken)).called(1);
-      verify(() => mockStorage.delete(key: AuthStorageKeys.expiresAt))
-          .called(1);
+      verify(
+        () => mockStorage.delete(key: AuthStorageKeys.expiresAt),
+      ).called(1);
       verify(() => mockStorage.delete(key: AuthStorageKeys.issuerId)).called(1);
-      verify(() => mockStorage.delete(key: AuthStorageKeys.issuerDiscoveryUrl))
-          .called(1);
+      verify(
+        () => mockStorage.delete(key: AuthStorageKeys.issuerDiscoveryUrl),
+      ).called(1);
       verify(() => mockStorage.delete(key: AuthStorageKeys.clientId)).called(1);
     });
   });
-
 }

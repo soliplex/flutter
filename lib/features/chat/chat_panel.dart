@@ -53,9 +53,7 @@ class ChatPanel extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                const Expanded(
-                  child: Text('Streaming response...'),
-                ),
+                const Expanded(child: Text('Streaming response...')),
                 TextButton.icon(
                   onPressed: () => _handleCancel(ref),
                   icon: const Icon(Icons.cancel),
@@ -78,9 +76,7 @@ class ChatPanel extends ConsumerWidget {
         ),
 
         // Input
-        ChatInput(
-          onSend: (text) => _handleSend(context, ref, text),
-        ),
+        ChatInput(onSend: (text) => _handleSend(context, ref, text)),
       ],
     );
   }
@@ -94,9 +90,9 @@ class ChatPanel extends ConsumerWidget {
     final room = ref.read(currentRoomProvider);
     if (room == null) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No room selected')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('No room selected')));
       }
       return;
     }
@@ -144,7 +140,9 @@ class ChatPanel extends ConsumerWidget {
     if (!context.mounted) return;
     await _withErrorHandling(
       context,
-      () => ref.read(activeRunNotifierProvider.notifier).startRun(
+      () => ref
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: room.id,
             threadId: effectiveThread.id,
             userMessage: text,
@@ -169,9 +167,9 @@ class ChatPanel extends ConsumerWidget {
       debugPrint('Failed to $operation: Network error - ${e.message}');
       debugPrint(stackTrace.toString());
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Network error: ${e.message}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Network error: ${e.message}')));
       }
       return Err('Network error: ${e.message}');
     } on AuthException catch (e, stackTrace) {
@@ -187,9 +185,9 @@ class ChatPanel extends ConsumerWidget {
       debugPrint('Failed to $operation: $e');
       debugPrint(stackTrace.toString());
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to $operation: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to $operation: $e')));
       }
       return Err('$e');
     }

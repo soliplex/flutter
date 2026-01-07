@@ -13,11 +13,7 @@ void main() {
     group('Empty state', () {
       testWidgets('shows empty message when no events', (tester) async {
         await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(
-              body: HttpInspectorPanel(),
-            ),
-          ),
+          createTestApp(home: const Scaffold(body: HttpInspectorPanel())),
         );
 
         expect(find.text('No HTTP activity yet'), findsOneWidget);
@@ -25,11 +21,7 @@ void main() {
 
       testWidgets('does not show event list when empty', (tester) async {
         await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(
-              body: HttpInspectorPanel(),
-            ),
-          ),
+          createTestApp(home: const Scaffold(body: HttpInspectorPanel())),
         );
 
         expect(find.byType(HttpEventTile), findsNothing);
@@ -50,9 +42,7 @@ void main() {
               httpLogProvider.overrideWith(() => _MockHttpLogNotifier(events)),
             ],
             child: const MaterialApp(
-              home: Scaffold(
-                body: HttpInspectorPanel(),
-              ),
+              home: Scaffold(body: HttpInspectorPanel()),
             ),
           ),
         );
@@ -70,9 +60,7 @@ void main() {
               httpLogProvider.overrideWith(() => _MockHttpLogNotifier(events)),
             ],
             child: const MaterialApp(
-              home: Scaffold(
-                body: HttpInspectorPanel(),
-              ),
+              home: Scaffold(body: HttpInspectorPanel()),
             ),
           ),
         );
@@ -92,9 +80,7 @@ void main() {
               httpLogProvider.overrideWith(() => _MockHttpLogNotifier(events)),
             ],
             child: const MaterialApp(
-              home: Scaffold(
-                body: HttpInspectorPanel(),
-              ),
+              home: Scaffold(body: HttpInspectorPanel()),
             ),
           ),
         );
@@ -106,11 +92,7 @@ void main() {
     group('Actions', () {
       testWidgets('has clear button', (tester) async {
         await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(
-              body: HttpInspectorPanel(),
-            ),
-          ),
+          createTestApp(home: const Scaffold(body: HttpInspectorPanel())),
         );
 
         expect(find.byIcon(Icons.delete_outline), findsOneWidget);
@@ -122,13 +104,9 @@ void main() {
 
         await tester.pumpWidget(
           ProviderScope(
-            overrides: [
-              httpLogProvider.overrideWith(() => notifier),
-            ],
+            overrides: [httpLogProvider.overrideWith(() => notifier)],
             child: const MaterialApp(
-              home: Scaffold(
-                body: HttpInspectorPanel(),
-              ),
+              home: Scaffold(body: HttpInspectorPanel()),
             ),
           ),
         );
@@ -145,11 +123,7 @@ void main() {
     group('Header', () {
       testWidgets('displays title', (tester) async {
         await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(
-              body: HttpInspectorPanel(),
-            ),
-          ),
+          createTestApp(home: const Scaffold(body: HttpInspectorPanel())),
         );
 
         expect(find.text('HTTP Inspector'), findsOneWidget);
@@ -168,9 +142,7 @@ void main() {
               httpLogProvider.overrideWith(() => _MockHttpLogNotifier(events)),
             ],
             child: const MaterialApp(
-              home: Scaffold(
-                body: HttpInspectorPanel(),
-              ),
+              home: Scaffold(body: HttpInspectorPanel()),
             ),
           ),
         );
@@ -188,9 +160,7 @@ void main() {
               httpLogProvider.overrideWith(() => _MockHttpLogNotifier(events)),
             ],
             child: const MaterialApp(
-              home: Scaffold(
-                body: HttpInspectorPanel(),
-              ),
+              home: Scaffold(body: HttpInspectorPanel()),
             ),
           ),
         );

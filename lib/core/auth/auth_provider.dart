@@ -50,10 +50,7 @@ final authStorageProvider = Provider<AuthStorage>((ref) => createAuthStorage());
 /// when refreshing tokens.
 final tokenRefreshServiceProvider = Provider<TokenRefreshService>((ref) {
   final httpClient = ref.watch(baseHttpClientProvider);
-  return TokenRefreshService(
-    httpClient: httpClient,
-    onDiagnostic: debugPrint,
-  );
+  return TokenRefreshService(httpClient: httpClient, onDiagnostic: debugPrint);
 });
 
 /// Provider for auth state and actions.
@@ -74,8 +71,9 @@ final tokenRefreshServiceProvider = Provider<TokenRefreshService>((ref) {
 ///   // User is logged in
 /// }
 /// ```
-final authProvider =
-    NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new);
+final authProvider = NotifierProvider<AuthNotifier, AuthState>(
+  AuthNotifier.new,
+);
 
 /// Provider indicating whether user is authenticated.
 ///

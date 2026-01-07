@@ -72,8 +72,9 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
   Uri _redactUri(Uri uri) {
     if (uri.queryParameters.isEmpty) return uri;
 
-    final hasSenitiveParams = uri.queryParameters.keys
-        .any((key) => _sensitiveParams.contains(key.toLowerCase()));
+    final hasSenitiveParams = uri.queryParameters.keys.any(
+      (key) => _sensitiveParams.contains(key.toLowerCase()),
+    );
     if (!hasSenitiveParams) return uri;
 
     final redactedParams = uri.queryParameters.map((key, value) {
@@ -138,5 +139,6 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
 ///
 /// The notifier implements [HttpObserver] and can be passed to
 /// [ObservableHttpClient] to capture all HTTP traffic.
-final httpLogProvider =
-    NotifierProvider<HttpLogNotifier, List<HttpEvent>>(HttpLogNotifier.new);
+final httpLogProvider = NotifierProvider<HttpLogNotifier, List<HttpEvent>>(
+  HttpLogNotifier.new,
+);

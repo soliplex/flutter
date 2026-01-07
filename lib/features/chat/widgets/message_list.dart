@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:soliplex_client/soliplex_client.dart' show ChatMessage, Streaming;
+import 'package:soliplex_client/soliplex_client.dart'
+    show ChatMessage, Streaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
@@ -62,22 +63,22 @@ class _MessageListState extends ConsumerState<MessageList> {
     final runState = ref.watch(activeRunNotifierProvider);
 
     // Scroll to bottom when messages change
-    ref.listen<AsyncValue<List<ChatMessage>>>(
-      allMessagesProvider,
-      (previous, next) {
-        final prevLength = switch (previous) {
-          AsyncData(:final value) => value.length,
-          _ => 0,
-        };
-        final nextLength = switch (next) {
-          AsyncData(:final value) => value.length,
-          _ => 0,
-        };
-        if (nextLength > prevLength) {
-          _scrollToBottom();
-        }
-      },
-    );
+    ref.listen<AsyncValue<List<ChatMessage>>>(allMessagesProvider, (
+      previous,
+      next,
+    ) {
+      final prevLength = switch (previous) {
+        AsyncData(:final value) => value.length,
+        _ => 0,
+      };
+      final nextLength = switch (next) {
+        AsyncData(:final value) => value.length,
+        _ => 0,
+      };
+      if (nextLength > prevLength) {
+        _scrollToBottom();
+      }
+    });
 
     return messagesAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -85,12 +86,8 @@ class _MessageListState extends ConsumerState<MessageList> {
         error: error,
         onRetry: () => ref.invalidate(allMessagesProvider),
       ),
-      data: (messages) => _buildMessageList(
-        context,
-        messages,
-        isStreaming,
-        runState,
-      ),
+      data: (messages) =>
+          _buildMessageList(context, messages, isStreaming, runState),
     );
   }
 
@@ -135,9 +132,9 @@ class _MessageListState extends ConsumerState<MessageList> {
                   Text(
                     'Assistant is thinking...',
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontStyle: FontStyle.italic,
-                        ),
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                 ],
               ),

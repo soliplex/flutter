@@ -40,10 +40,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await client.request('GET', Uri.parse('https://example.com/api'));
@@ -65,10 +62,7 @@ void main() {
       });
 
       test('skips auth header when token is null', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => null,
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => null);
 
         when(
           () => mockClient.request(
@@ -79,10 +73,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await client.request('GET', Uri.parse('https://example.com/api'));
@@ -105,13 +96,10 @@ void main() {
 
       test('calls getToken for each request', () async {
         var callCount = 0;
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () {
-            callCount++;
-            return 'token-$callCount';
-          },
-        );
+        final client = AuthenticatedHttpClient(mockClient, () {
+          callCount++;
+          return 'token-$callCount';
+        });
 
         when(
           () => mockClient.request(
@@ -122,10 +110,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await client.request('GET', Uri.parse('https://example.com/1'));
@@ -139,10 +124,7 @@ void main() {
 
     group('header merging', () {
       test('preserves existing headers when adding auth', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         when(
           () => mockClient.request(
@@ -153,19 +135,13 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await client.request(
           'GET',
           Uri.parse('https://example.com/api'),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Custom': 'value',
-          },
+          headers: {'Content-Type': 'application/json', 'X-Custom': 'value'},
         );
 
         final captured = verify(
@@ -187,10 +163,7 @@ void main() {
       });
 
       test('handles null headers parameter', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         when(
           () => mockClient.request(
@@ -201,10 +174,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await client.request('GET', Uri.parse('https://example.com/api'));
@@ -226,10 +196,7 @@ void main() {
       });
 
       test('skips auth header when token is null (stream)', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => null,
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => null);
 
         final controller = StreamController<List<int>>();
 
@@ -311,10 +278,7 @@ void main() {
       });
 
       test('preserves existing headers in stream requests', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         final controller = StreamController<List<int>>();
 
@@ -356,10 +320,7 @@ void main() {
 
     group('parameter forwarding', () {
       test('forwards all request parameters', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         when(
           () => mockClient.request(
@@ -400,10 +361,7 @@ void main() {
       });
 
       test('forwards all stream parameters', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         final controller = StreamController<List<int>>();
 
@@ -441,10 +399,7 @@ void main() {
 
     group('close delegation', () {
       test('delegates close to wrapped client', () {
-        AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        ).close();
+        AuthenticatedHttpClient(mockClient, () => 'token').close();
 
         verify(() => mockClient.close()).called(1);
       });
@@ -452,10 +407,7 @@ void main() {
 
     group('response passthrough', () {
       test('returns response unchanged', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         final expectedResponse = HttpResponse(
           statusCode: 200,
@@ -488,10 +440,7 @@ void main() {
       });
 
       test('propagates exceptions unchanged', () async {
-        final client = AuthenticatedHttpClient(
-          mockClient,
-          () => 'token',
-        );
+        final client = AuthenticatedHttpClient(mockClient, () => 'token');
 
         const exception = AuthException(
           message: 'Unauthorized',

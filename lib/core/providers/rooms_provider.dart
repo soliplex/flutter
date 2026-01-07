@@ -38,8 +38,9 @@ class CurrentRoomIdNotifier extends Notifier<String?> {
 /// Provider for currently selected room ID.
 ///
 /// Updated by navigation when user selects a room.
-final currentRoomIdProvider =
-    NotifierProvider<CurrentRoomIdNotifier, String?>(CurrentRoomIdNotifier.new);
+final currentRoomIdProvider = NotifierProvider<CurrentRoomIdNotifier, String?>(
+  CurrentRoomIdNotifier.new,
+);
 
 /// Provider for the currently selected room.
 ///

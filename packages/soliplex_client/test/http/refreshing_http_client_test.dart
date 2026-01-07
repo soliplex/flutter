@@ -91,8 +91,9 @@ void main() {
     mockRefresher = MockTokenRefresher();
     when(() => mockClient.close()).thenReturn(null);
     when(() => mockRefresher.needsRefresh).thenReturn(false);
-    when(() => mockRefresher.refreshIfExpiringSoon())
-        .thenAnswer((_) async => {});
+    when(
+      () => mockRefresher.refreshIfExpiringSoon(),
+    ).thenAnswer((_) async => {});
     when(() => mockRefresher.tryRefresh()).thenAnswer((_) async => true);
   });
 
@@ -101,10 +102,8 @@ void main() {
     reset(mockRefresher);
   });
 
-  HttpResponse successResponse([int statusCode = 200]) => HttpResponse(
-        statusCode: statusCode,
-        bodyBytes: Uint8List(0),
-      );
+  HttpResponse successResponse([int statusCode = 200]) =>
+      HttpResponse(statusCode: statusCode, bodyBytes: Uint8List(0));
 
   void setupRequestSuccess([int statusCode = 200]) {
     when(
@@ -279,8 +278,9 @@ void main() {
     group('concurrent refresh deduplication', () {
       test('multiple 401s share single refresh call', () async {
         final refreshCompleter = Completer<bool>();
-        when(() => mockRefresher.tryRefresh())
-            .thenAnswer((_) => refreshCompleter.future);
+        when(
+          () => mockRefresher.tryRefresh(),
+        ).thenAnswer((_) => refreshCompleter.future);
 
         var call401Count = 0;
         when(
@@ -327,8 +327,9 @@ void main() {
 
       test('refresh error propagates to all waiting requests', () async {
         final refreshCompleter = Completer<bool>();
-        when(() => mockRefresher.tryRefresh())
-            .thenAnswer((_) => refreshCompleter.future);
+        when(
+          () => mockRefresher.tryRefresh(),
+        ).thenAnswer((_) => refreshCompleter.future);
 
         when(
           () => mockClient.request(

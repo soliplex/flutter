@@ -193,8 +193,9 @@ void main() {
           ),
         );
 
-        final text =
-            tester.widget<Text>(find.textContaining('NetworkException'));
+        final text = tester.widget<Text>(
+          find.textContaining('NetworkException'),
+        );
         final context = tester.element(find.byType(HttpStatusDisplay));
         final colorScheme = Theme.of(context).colorScheme;
         expect(text.style?.color, colorScheme.error);
@@ -218,8 +219,9 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
       });
 
-      testWidgets('shows bytes when streamEnd available during streaming',
-          (tester) async {
+      testWidgets('shows bytes when streamEnd available during streaming', (
+        tester,
+      ) async {
         final group = HttpEventGroup(
           requestId: 'req-1',
           streamStart: TestData.createStreamStartEvent(),

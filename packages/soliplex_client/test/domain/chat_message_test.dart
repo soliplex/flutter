@@ -73,8 +73,11 @@ void main() {
     });
 
     test('copyWith modifies id', () {
-      final original =
-          TextMessage.create(id: 'old-id', user: ChatUser.user, text: 'Hello');
+      final original = TextMessage.create(
+        id: 'old-id',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
       final copy = original.copyWith(id: 'new-id');
 
       expect(copy.id, equals('new-id'));
@@ -108,8 +111,11 @@ void main() {
     });
 
     test('equality by id', () {
-      final msg1 =
-          TextMessage.create(id: 'same-id', user: ChatUser.user, text: 'Hello');
+      final msg1 = TextMessage.create(
+        id: 'same-id',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
       final msg2 = TextMessage.create(
         id: 'same-id',
         user: ChatUser.assistant,
@@ -120,17 +126,26 @@ void main() {
     });
 
     test('not equal with different id', () {
-      final msg1 =
-          TextMessage.create(id: 'id1', user: ChatUser.user, text: 'Hello');
-      final msg2 =
-          TextMessage.create(id: 'id2', user: ChatUser.user, text: 'Hello');
+      final msg1 = TextMessage.create(
+        id: 'id1',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
+      final msg2 = TextMessage.create(
+        id: 'id2',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
 
       expect(msg1, isNot(equals(msg2)));
     });
 
     test('hashCode based on id', () {
-      final msg1 =
-          TextMessage.create(id: 'same-id', user: ChatUser.user, text: 'Hello');
+      final msg1 = TextMessage.create(
+        id: 'same-id',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
       final msg2 = TextMessage.create(
         id: 'same-id',
         user: ChatUser.assistant,
@@ -141,8 +156,11 @@ void main() {
     });
 
     test('toString includes id and user', () {
-      final message =
-          TextMessage.create(id: 'test-id', user: ChatUser.user, text: 'Hello');
+      final message = TextMessage.create(
+        id: 'test-id',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
       final str = message.toString();
 
       expect(str, contains('test-id'));
@@ -307,8 +325,11 @@ void main() {
 
   group('ChatMessage sealed class', () {
     test('different message types with same id are not equal', () {
-      final textMsg =
-          TextMessage.create(id: 'same-id', user: ChatUser.user, text: 'Hello');
+      final textMsg = TextMessage.create(
+        id: 'same-id',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
       final errorMsg = ErrorMessage.create(id: 'same-id', message: 'Error');
       final loadingMsg = LoadingMessage.create(id: 'same-id');
 
@@ -347,10 +368,15 @@ void main() {
     });
 
     test('extract text from different message types', () {
-      final textMsg =
-          TextMessage.create(id: 'msg-1', user: ChatUser.user, text: 'Hello');
-      final errorMsg =
-          ErrorMessage.create(id: 'err-1', message: 'Error occurred');
+      final textMsg = TextMessage.create(
+        id: 'msg-1',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
+      final errorMsg = ErrorMessage.create(
+        id: 'err-1',
+        message: 'Error occurred',
+      );
 
       String getText(ChatMessage msg) {
         return switch (msg) {

@@ -94,8 +94,9 @@ void main() {
         expect(find.text('200 OK (45ms, 1.2KB)'), findsOneWidget);
       });
 
-      testWidgets('shows success status when response received',
-          (tester) async {
+      testWidgets('shows success status when response received', (
+        tester,
+      ) async {
         final group = HttpEventGroup(
           requestId: 'req-1',
           request: TestData.createRequestEvent(),
@@ -239,8 +240,9 @@ void main() {
     });
 
     group('Accessibility', () {
-      testWidgets('provides semantic label for pending request',
-          (tester) async {
+      testWidgets('provides semantic label for pending request', (
+        tester,
+      ) async {
         final group = HttpEventGroup(
           requestId: 'req-1',
           request: TestData.createRequestEvent(),
@@ -257,8 +259,9 @@ void main() {
         expect(semantics.label, contains('pending'));
       });
 
-      testWidgets('provides semantic label for success response',
-          (tester) async {
+      testWidgets('provides semantic label for success response', (
+        tester,
+      ) async {
         final group = HttpEventGroup(
           requestId: 'req-1',
           request: TestData.createRequestEvent(),

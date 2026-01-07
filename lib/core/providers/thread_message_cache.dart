@@ -43,10 +43,7 @@ class ThreadMessageCache extends Notifier<ThreadMessageCacheState> {
   /// Concurrent calls for the same thread share a single fetch request.
   ///
   /// Throws on network/API errors from the backend fetch.
-  Future<List<ChatMessage>> getMessages(
-    String roomId,
-    String threadId,
-  ) async {
+  Future<List<ChatMessage>> getMessages(String roomId, String threadId) async {
     // Cache hit
     final cached = state[threadId];
     if (cached != null) return cached;
@@ -111,8 +108,8 @@ class ThreadMessageCache extends Notifier<ThreadMessageCacheState> {
 /// Manages cached messages per thread with backend fetch on miss.
 final threadMessageCacheProvider =
     NotifierProvider<ThreadMessageCache, ThreadMessageCacheState>(
-  ThreadMessageCache.new,
-);
+      ThreadMessageCache.new,
+    );
 
 /// Exception thrown when fetching messages for a thread fails.
 ///
@@ -120,7 +117,7 @@ final threadMessageCacheProvider =
 class MessageFetchException implements Exception {
   /// Creates an exception for a failed message fetch.
   MessageFetchException({required this.threadId, required this.cause})
-      : assert(threadId.isNotEmpty, 'threadId must not be empty');
+    : assert(threadId.isNotEmpty, 'threadId must not be empty');
 
   /// The thread that failed to load.
   final String threadId;

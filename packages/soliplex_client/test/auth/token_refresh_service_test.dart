@@ -11,7 +11,8 @@ void main() {
   late MockSoliplexHttpClient mockClient;
   late TokenRefreshService service;
 
-  const discoveryUrl = 'https://idp.example.com/.well-known/openid-configuration';
+  const discoveryUrl =
+      'https://idp.example.com/.well-known/openid-configuration';
   const refreshToken = 'test-refresh-token';
   const clientId = 'test-client-id';
 
@@ -28,10 +29,7 @@ void main() {
     reset(mockClient);
   });
 
-  HttpResponse jsonResponse(
-    Map<String, dynamic> body, {
-    int statusCode = 200,
-  }) {
+  HttpResponse jsonResponse(Map<String, dynamic> body, {int statusCode = 200}) {
     return HttpResponse(
       statusCode: statusCode,
       bodyBytes: Uint8List.fromList(utf8.encode(jsonEncode(body))),
@@ -46,9 +44,7 @@ void main() {
         Uri.parse(discoveryUrl),
         timeout: any(named: 'timeout'),
       ),
-    ).thenAnswer(
-      (_) async => jsonResponse({'token_endpoint': endpoint}),
-    );
+    ).thenAnswer((_) async => jsonResponse({'token_endpoint': endpoint}));
   }
 
   void setupTokenSuccess({
@@ -190,10 +186,10 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => jsonResponse(
-            {'error': 'invalid_grant', 'error_description': 'Token expired'},
-            statusCode: 400,
-          ),
+          (_) async => jsonResponse({
+            'error': 'invalid_grant',
+            'error_description': 'Token expired',
+          }, statusCode: 400),
         );
 
         final result = await service.refresh(
@@ -261,9 +257,7 @@ void main() {
             Uri.parse(discoveryUrl),
             timeout: any(named: 'timeout'),
           ),
-        ).thenAnswer(
-          (_) async => jsonResponse({}, statusCode: 500),
-        );
+        ).thenAnswer((_) async => jsonResponse({}, statusCode: 500));
 
         final result = await service.refresh(
           discoveryUrl: discoveryUrl,
@@ -314,7 +308,9 @@ void main() {
 
       test('returns unknownError on SSRF attempt (http downgrade)', () async {
         // Same host but HTTP instead of HTTPS - potential MITM attack
-        setupDiscoverySuccess(tokenEndpoint: 'http://idp.example.com/oauth2/token');
+        setupDiscoverySuccess(
+          tokenEndpoint: 'http://idp.example.com/oauth2/token',
+        );
 
         final result = await service.refresh(
           discoveryUrl: discoveryUrl,
@@ -355,9 +351,7 @@ void main() {
             body: any(named: 'body'),
             timeout: any(named: 'timeout'),
           ),
-        ).thenAnswer(
-          (_) async => jsonResponse({'token_type': 'Bearer'}),
-        );
+        ).thenAnswer((_) async => jsonResponse({'token_type': 'Bearer'}));
 
         final result = await service.refresh(
           discoveryUrl: discoveryUrl,
@@ -381,10 +375,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => jsonResponse(
-            {'error': 'server_error'},
-            statusCode: 500,
-          ),
+          (_) async => jsonResponse({'error': 'server_error'}, statusCode: 500),
         );
 
         final result = await service.refresh(

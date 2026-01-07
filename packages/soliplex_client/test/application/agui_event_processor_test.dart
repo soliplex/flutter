@@ -18,10 +18,7 @@ void main() {
 
     group('run lifecycle events', () {
       test('RunStartedEvent sets status to Running', () {
-        const event = RunStartedEvent(
-          threadId: 'thread-1',
-          runId: 'run-1',
-        );
+        const event = RunStartedEvent(threadId: 'thread-1', runId: 'run-1');
 
         final result = processEvent(conversation, streaming, event);
 
@@ -34,10 +31,7 @@ void main() {
         final runningConversation = conversation.withStatus(
           const Running(runId: 'run-1'),
         );
-        const event = RunFinishedEvent(
-          threadId: 'thread-1',
-          runId: 'run-1',
-        );
+        const event = RunFinishedEvent(threadId: 'thread-1', runId: 'run-1');
 
         final result = processEvent(runningConversation, streaming, event);
 

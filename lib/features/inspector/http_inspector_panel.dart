@@ -50,10 +50,7 @@ class HttpInspectorPanel extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Text(
-            'HTTP Inspector',
-            style: theme.textTheme.titleMedium,
-          ),
+          Text('HTTP Inspector', style: theme.textTheme.titleMedium),
           const Spacer(),
           if (requestCount > 0)
             Padding(

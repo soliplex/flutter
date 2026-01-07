@@ -63,15 +63,17 @@ class DartHttpClient implements SoliplexHttpClient {
     final request = _createRequest(method, uri, headers, body);
 
     try {
-      final streamedResponse = await _client.send(request).timeout(
-        effectiveTimeout,
-        onTimeout: () {
-          throw TimeoutException(
-            'Request timed out after ${effectiveTimeout.inSeconds}s',
+      final streamedResponse = await _client
+          .send(request)
+          .timeout(
             effectiveTimeout,
+            onTimeout: () {
+              throw TimeoutException(
+                'Request timed out after ${effectiveTimeout.inSeconds}s',
+                effectiveTimeout,
+              );
+            },
           );
-        },
-      );
 
       final bodyBytes = await streamedResponse.stream.toBytes().timeout(
         effectiveTimeout,
@@ -136,7 +138,8 @@ class DartHttpClient implements SoliplexHttpClient {
           if (streamedResponse.statusCode >= 400) {
             controller.addError(
               NetworkException(
-                message: 'HTTP ${streamedResponse.statusCode}: '
+                message:
+                    'HTTP ${streamedResponse.statusCode}: '
                     '${streamedResponse.reasonPhrase}',
               ),
             );

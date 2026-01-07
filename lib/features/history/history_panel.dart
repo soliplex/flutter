@@ -80,9 +80,7 @@ class HistoryPanel extends ConsumerWidget {
 
         return Column(
           children: [
-            NewConversationButton(
-              onPressed: () => _handleNewConversation(ref),
-            ),
+            NewConversationButton(onPressed: () => _handleNewConversation(ref)),
             const Divider(height: 1),
             Expanded(
               child: RefreshIndicator(

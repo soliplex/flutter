@@ -67,8 +67,9 @@ void main() {
         const toolCall1 = ToolCallInfo(id: 'tool-1', name: 'search');
         const toolCall2 = ToolCallInfo(id: 'tool-2', name: 'read');
 
-        final updated =
-            conversation.withToolCall(toolCall1).withToolCall(toolCall2);
+        final updated = conversation
+            .withToolCall(toolCall1)
+            .withToolCall(toolCall2);
 
         expect(updated.toolCalls, hasLength(2));
       });
@@ -90,16 +91,18 @@ void main() {
       });
 
       test('changes status to Failed', () {
-        final updated =
-            conversation.withStatus(const Failed(error: 'Network error'));
+        final updated = conversation.withStatus(
+          const Failed(error: 'Network error'),
+        );
 
         expect(updated.status, isA<Failed>());
         expect((updated.status as Failed).error, 'Network error');
       });
 
       test('changes status to Cancelled', () {
-        final updated =
-            conversation.withStatus(const Cancelled(reason: 'User cancelled'));
+        final updated = conversation.withStatus(
+          const Cancelled(reason: 'User cancelled'),
+        );
 
         expect(updated.status, isA<Cancelled>());
         expect((updated.status as Cancelled).reason, 'User cancelled');
@@ -367,8 +370,9 @@ void main() {
     });
 
     test('isRunning returns true when Running', () {
-      final conv = Conversation.empty(threadId: 'thread-1')
-          .withStatus(const Running(runId: 'run-1'));
+      final conv = Conversation.empty(
+        threadId: 'thread-1',
+      ).withStatus(const Running(runId: 'run-1'));
       expect(conv.isRunning, isTrue);
     });
 

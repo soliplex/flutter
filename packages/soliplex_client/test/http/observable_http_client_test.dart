@@ -162,16 +162,10 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
-        await observableClient.request(
-          'GET',
-          Uri.parse('https://example.com'),
-        );
+        await observableClient.request('GET', Uri.parse('https://example.com'));
 
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
         expect(requestEvent.headers, isEmpty);
@@ -180,9 +174,7 @@ void main() {
 
     group('request lifecycle - network error', () {
       test('notifies observer on network error and rethrows', () async {
-        const exception = NetworkException(
-          message: 'Connection refused',
-        );
+        const exception = NetworkException(message: 'Connection refused');
 
         when(
           () => mockClient.request(
@@ -195,10 +187,7 @@ void main() {
         ).thenThrow(exception);
 
         await expectLater(
-          observableClient.request(
-            'GET',
-            Uri.parse('https://example.com/api'),
-          ),
+          observableClient.request('GET', Uri.parse('https://example.com/api')),
           throwsA(equals(exception)),
         );
 
@@ -241,10 +230,7 @@ void main() {
 
         final errorEvent = recorder.eventsOfType<HttpErrorEvent>().first;
         expect(errorEvent.exception, isA<NetworkException>());
-        expect(
-          (errorEvent.exception as NetworkException).isTimeout,
-          isTrue,
-        );
+        expect((errorEvent.exception as NetworkException).isTimeout, isTrue);
       });
 
       test('notifies observer on auth error', () async {
@@ -307,10 +293,7 @@ void main() {
         expect(recorder.eventsOfType<HttpStreamStartEvent>(), hasLength(1));
         final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
         expect(startEvent.method, equals('GET'));
-        expect(
-          startEvent.uri.toString(),
-          equals('https://example.com/stream'),
-        );
+        expect(startEvent.uri.toString(), equals('https://example.com/stream'));
 
         // Send data and close
         controller
@@ -355,10 +338,7 @@ void main() {
         );
 
         final completer = Completer<void>();
-        stream.listen(
-          (_) {},
-          onDone: completer.complete,
-        );
+        stream.listen((_) {}, onDone: completer.complete);
 
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
@@ -377,61 +357,63 @@ void main() {
     });
 
     group('stream lifecycle - error', () {
-      test('notifies observer on stream error with SoliplexException',
-          () async {
-        final controller = StreamController<List<int>>();
+      test(
+        'notifies observer on stream error with SoliplexException',
+        () async {
+          final controller = StreamController<List<int>>();
 
-        when(
-          () => mockClient.requestStream(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-          ),
-        ).thenAnswer((_) => controller.stream);
+          when(
+            () => mockClient.requestStream(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer((_) => controller.stream);
 
-        final stream = observableClient.requestStream(
-          'GET',
-          Uri.parse('https://example.com/stream'),
-        );
+          final stream = observableClient.requestStream(
+            'GET',
+            Uri.parse('https://example.com/stream'),
+          );
 
-        final errors = <Object>[];
-        final completer = Completer<void>();
+          final errors = <Object>[];
+          final completer = Completer<void>();
 
-        stream.listen(
-          (_) {},
-          onError: (Object e) {
-            errors.add(e);
-            completer.complete();
-          },
-          onDone: () {
-            if (!completer.isCompleted) completer.complete();
-          },
-        );
+          stream.listen(
+            (_) {},
+            onError: (Object e) {
+              errors.add(e);
+              completer.complete();
+            },
+            onDone: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          );
 
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Add some data before error
-        controller.add([1, 2, 3]);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+          // Add some data before error
+          controller.add([1, 2, 3]);
+          await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Emit error
-        controller.addError(
-          const NetworkException(message: 'Connection lost'),
-        );
+          // Emit error
+          controller.addError(
+            const NetworkException(message: 'Connection lost'),
+          );
 
-        await completer.future;
+          await completer.future;
 
-        expect(errors, hasLength(1));
-        expect(errors.first, isA<NetworkException>());
+          expect(errors, hasLength(1));
+          expect(errors.first, isA<NetworkException>());
 
-        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
-        expect(endEvent.bytesReceived, equals(3));
-        expect(endEvent.isSuccess, isFalse);
-        expect(endEvent.error, isA<NetworkException>());
+          final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+          expect(endEvent.bytesReceived, equals(3));
+          expect(endEvent.isSuccess, isFalse);
+          expect(endEvent.error, isA<NetworkException>());
 
-        await controller.close();
-      });
+          await controller.close();
+        },
+      );
 
       test('wraps non-SoliplexException errors in NetworkException', () async {
         final controller = StreamController<List<int>>();
@@ -503,10 +485,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await observableClient.request('GET', Uri.parse('https://example.com'));
@@ -545,10 +524,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         // Should not throw despite throwing observer
@@ -613,10 +589,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 201,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 201, bodyBytes: Uint8List(0)),
         );
 
         final result = await observableClient.request(
@@ -655,56 +628,55 @@ void main() {
         observableClient.close();
       });
 
-      test('observer throwing on stream events does not break stream',
-          () async {
-        final observableClient = ObservableHttpClient(
-          client: mockClient,
-          observers: [ThrowingObserver()],
-        );
+      test(
+        'observer throwing on stream events does not break stream',
+        () async {
+          final observableClient = ObservableHttpClient(
+            client: mockClient,
+            observers: [ThrowingObserver()],
+          );
 
-        final controller = StreamController<List<int>>();
+          final controller = StreamController<List<int>>();
 
-        when(
-          () => mockClient.requestStream(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-          ),
-        ).thenAnswer((_) => controller.stream);
+          when(
+            () => mockClient.requestStream(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer((_) => controller.stream);
 
-        final stream = observableClient.requestStream(
-          'GET',
-          Uri.parse('https://example.com'),
-        );
+          final stream = observableClient.requestStream(
+            'GET',
+            Uri.parse('https://example.com'),
+          );
 
-        final chunks = <List<int>>[];
-        final completer = Completer<void>();
+          final chunks = <List<int>>[];
+          final completer = Completer<void>();
 
-        stream.listen(
-          chunks.add,
-          onDone: completer.complete,
-        );
+          stream.listen(chunks.add, onDone: completer.complete);
 
-        await Future<void>.delayed(const Duration(milliseconds: 10));
+          await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        controller
-          ..add([1, 2, 3])
-          ..add([4, 5, 6]);
-        await controller.close();
+          controller
+            ..add([1, 2, 3])
+            ..add([4, 5, 6]);
+          await controller.close();
 
-        await completer.future;
+          await completer.future;
 
-        expect(
-          chunks,
-          equals([
-            [1, 2, 3],
-            [4, 5, 6],
-          ]),
-        );
+          expect(
+            chunks,
+            equals([
+              [1, 2, 3],
+              [4, 5, 6],
+            ]),
+          );
 
-        observableClient.close();
-      });
+          observableClient.close();
+        },
+      );
     });
 
     group('request ID correlation', () {
@@ -718,16 +690,10 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
-        await observableClient.request(
-          'GET',
-          Uri.parse('https://example.com'),
-        );
+        await observableClient.request('GET', Uri.parse('https://example.com'));
 
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
         final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
@@ -803,10 +769,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await observableClient.request(
@@ -845,10 +808,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await customClient.request('GET', Uri.parse('https://example.com'));
@@ -876,9 +836,7 @@ void main() {
 
     group('empty observer list', () {
       test('works correctly with no observers', () async {
-        final clientNoObservers = ObservableHttpClient(
-          client: mockClient,
-        );
+        final clientNoObservers = ObservableHttpClient(client: mockClient);
 
         when(
           () => mockClient.request(
@@ -907,9 +865,7 @@ void main() {
       });
 
       test('streaming works with no observers', () async {
-        final clientNoObservers = ObservableHttpClient(
-          client: mockClient,
-        );
+        final clientNoObservers = ObservableHttpClient(client: mockClient);
 
         final controller = StreamController<List<int>>();
 
@@ -930,10 +886,7 @@ void main() {
         final chunks = <List<int>>[];
         final completer = Completer<void>();
 
-        stream.listen(
-          chunks.add,
-          onDone: completer.complete,
-        );
+        stream.listen(chunks.add, onDone: completer.complete);
 
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
@@ -967,10 +920,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
         );
 
         await observableClient.request(

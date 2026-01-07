@@ -25,10 +25,7 @@ void main() {
   group('HttpDurationFormat', () {
     group('toHttpDurationString', () {
       test('formats milliseconds under 1 second', () {
-        expect(
-          const Duration(milliseconds: 45).toHttpDurationString(),
-          '45ms',
-        );
+        expect(const Duration(milliseconds: 45).toHttpDurationString(), '45ms');
         expect(
           const Duration(milliseconds: 999).toHttpDurationString(),
           '999ms',

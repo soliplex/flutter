@@ -27,8 +27,8 @@ class RefreshingHttpClient implements SoliplexHttpClient {
   RefreshingHttpClient({
     required SoliplexHttpClient inner,
     required TokenRefresher refresher,
-  })  : _inner = inner,
-        _refresher = refresher;
+  }) : _inner = inner,
+       _refresher = refresher;
 
   final SoliplexHttpClient _inner;
   final TokenRefresher _refresher;
@@ -138,12 +138,7 @@ class RefreshingHttpClient implements SoliplexHttpClient {
     // Proactive refresh only - can't retry mid-stream on 401
     await _refresher.refreshIfExpiringSoon();
 
-    yield* _inner.requestStream(
-      method,
-      uri,
-      headers: headers,
-      body: body,
-    );
+    yield* _inner.requestStream(method, uri, headers: headers, body: body);
   }
 
   @override

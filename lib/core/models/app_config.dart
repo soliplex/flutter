@@ -21,11 +21,7 @@ class AppConfig {
   final String appName;
   final String version;
 
-  AppConfig copyWith({
-    String? baseUrl,
-    String? appName,
-    String? version,
-  }) {
+  AppConfig copyWith({String? baseUrl, String? appName, String? version}) {
     return AppConfig(
       baseUrl: baseUrl ?? this.baseUrl,
       appName: appName ?? this.appName,

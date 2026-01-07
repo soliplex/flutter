@@ -43,27 +43,30 @@ EventProcessingResult processEvent(
   return switch (event) {
     // Run lifecycle events
     RunStartedEvent(:final runId) => EventProcessingResult(
-        conversation: conversation.withStatus(Running(runId: runId)),
-        streaming: streaming,
-      ),
+      conversation: conversation.withStatus(Running(runId: runId)),
+      streaming: streaming,
+    ),
     RunFinishedEvent() => EventProcessingResult(
-        conversation: conversation.withStatus(const Completed()),
-        streaming: const NotStreaming(),
-      ),
+      conversation: conversation.withStatus(const Completed()),
+      streaming: const NotStreaming(),
+    ),
     RunErrorEvent(:final message) => EventProcessingResult(
-        conversation: conversation.withStatus(Failed(error: message)),
-        streaming: const NotStreaming(),
-      ),
+      conversation: conversation.withStatus(Failed(error: message)),
+      streaming: const NotStreaming(),
+    ),
 
     // Text message streaming events
     TextMessageStartEvent(:final messageId) => EventProcessingResult(
-        conversation: conversation,
-        streaming: Streaming(messageId: messageId, text: ''),
-      ),
+      conversation: conversation,
+      streaming: Streaming(messageId: messageId, text: ''),
+    ),
     TextMessageContentEvent(:final messageId, :final delta) =>
       _processTextContent(conversation, streaming, messageId, delta),
-    TextMessageEndEvent(:final messageId) =>
-      _processTextEnd(conversation, streaming, messageId),
+    TextMessageEndEvent(:final messageId) => _processTextEnd(
+      conversation,
+      streaming,
+      messageId,
+    ),
 
     // Tool call events
     ToolCallStartEvent(:final toolCallId, :final toolCallName) =>
@@ -74,19 +77,19 @@ EventProcessingResult processEvent(
         streaming: streaming,
       ),
     ToolCallEndEvent(:final toolCallId) => EventProcessingResult(
-        conversation: conversation.copyWith(
-          toolCalls: conversation.toolCalls
-              .where((tc) => tc.id != toolCallId)
-              .toList(),
-        ),
-        streaming: streaming,
+      conversation: conversation.copyWith(
+        toolCalls: conversation.toolCalls
+            .where((tc) => tc.id != toolCallId)
+            .toList(),
       ),
+      streaming: streaming,
+    ),
 
     // All other events pass through unchanged
     _ => EventProcessingResult(
-        conversation: conversation,
-        streaming: streaming,
-      ),
+      conversation: conversation,
+      streaming: streaming,
+    ),
   };
 }
 

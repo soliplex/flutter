@@ -34,8 +34,9 @@ class ChatMessageWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Flexible(
@@ -79,9 +80,7 @@ class ChatMessageWidget extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      builders: {
-                        'code': CodeBlockBuilder(),
-                      },
+                      builders: {'code': CodeBlockBuilder()},
                     ),
                   if (isStreaming) ...[
                     const SizedBox(height: 8),
@@ -179,10 +178,7 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
           language: language.isEmpty ? 'plaintext' : language,
           theme: githubTheme,
           padding: EdgeInsets.zero,
-          textStyle: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 14,
-          ),
+          textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 14),
         ),
       ),
     );

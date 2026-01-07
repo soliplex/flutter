@@ -37,8 +37,9 @@ void main() {
       test('attempts refresh before clearing state', () async {
         final expiredTokens = TestData.createAuthenticated(expired: true);
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => expiredTokens);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => expiredTokens);
         when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
         when(
           () => mockRefreshService.refresh(
@@ -47,9 +48,8 @@ void main() {
             clientId: expiredTokens.clientId,
           ),
         ).thenAnswer(
-          (_) async => const TokenRefreshFailure(
-            TokenRefreshFailureReason.invalidGrant,
-          ),
+          (_) async =>
+              const TokenRefreshFailure(TokenRefreshFailureReason.invalidGrant),
         );
 
         final container = createContainer();
@@ -75,8 +75,9 @@ void main() {
         final expiredTokens = TestData.createAuthenticated(expired: true);
         final newExpiresAt = DateTime.now().add(const Duration(hours: 1));
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => expiredTokens);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => expiredTokens);
         when(() => mockStorage.saveTokens(any())).thenAnswer((_) async {});
         when(
           () => mockRefreshService.refresh(
@@ -110,8 +111,9 @@ void main() {
       test('clears state when refresh fails with invalidGrant', () async {
         final expiredTokens = TestData.createAuthenticated(expired: true);
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => expiredTokens);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => expiredTokens);
         when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
         when(
           () => mockRefreshService.refresh(
@@ -120,9 +122,8 @@ void main() {
             clientId: expiredTokens.clientId,
           ),
         ).thenAnswer(
-          (_) async => const TokenRefreshFailure(
-            TokenRefreshFailureReason.invalidGrant,
-          ),
+          (_) async =>
+              const TokenRefreshFailure(TokenRefreshFailureReason.invalidGrant),
         );
 
         final container = createContainer();
@@ -140,8 +141,9 @@ void main() {
       test('clears state when refresh fails with networkError', () async {
         final expiredTokens = TestData.createAuthenticated(expired: true);
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => expiredTokens);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => expiredTokens);
         when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
         when(
           () => mockRefreshService.refresh(
@@ -150,9 +152,8 @@ void main() {
             clientId: expiredTokens.clientId,
           ),
         ).thenAnswer(
-          (_) async => const TokenRefreshFailure(
-            TokenRefreshFailureReason.networkError,
-          ),
+          (_) async =>
+              const TokenRefreshFailure(TokenRefreshFailureReason.networkError),
         );
 
         final container = createContainer();
@@ -170,8 +171,9 @@ void main() {
       test('clears state when refresh throws exception', () async {
         final expiredTokens = TestData.createAuthenticated(expired: true);
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => expiredTokens);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => expiredTokens);
         when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
         when(
           () => mockRefreshService.refresh(
@@ -201,8 +203,9 @@ void main() {
           refreshToken: '',
         );
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => expiredTokensNoRefresh);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => expiredTokensNoRefresh);
         when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
         when(
           () => mockRefreshService.refresh(
@@ -243,8 +246,9 @@ void main() {
       test('restores session without refresh attempt', () async {
         final validTokens = TestData.createAuthenticated();
 
-        when(() => mockStorage.loadTokens())
-            .thenAnswer((_) async => validTokens);
+        when(
+          () => mockStorage.loadTokens(),
+        ).thenAnswer((_) async => validTokens);
 
         final container = createContainer();
         addTearDown(container.dispose);
@@ -294,8 +298,7 @@ void main() {
     });
 
     Future<ProviderContainer> setupAuthenticatedSession() async {
-      when(() => mockStorage.loadTokens())
-          .thenAnswer((_) async => validTokens);
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => validTokens);
 
       final container = createContainer()..read(authProvider);
       await waitForAuthRestore(container);
@@ -317,13 +320,11 @@ void main() {
           clientId: validTokens.clientId,
         ),
       ).thenAnswer(
-        (_) async => const TokenRefreshFailure(
-          TokenRefreshFailureReason.networkError,
-        ),
+        (_) async =>
+            const TokenRefreshFailure(TokenRefreshFailureReason.networkError),
       );
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       expect(result, isFalse);
       // Key assertion: session preserved despite failure
@@ -342,13 +343,11 @@ void main() {
           clientId: validTokens.clientId,
         ),
       ).thenAnswer(
-        (_) async => const TokenRefreshFailure(
-          TokenRefreshFailureReason.noRefreshToken,
-        ),
+        (_) async =>
+            const TokenRefreshFailure(TokenRefreshFailureReason.noRefreshToken),
       );
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       expect(result, isFalse);
       // Session preserved - can't refresh but don't destroy existing session
@@ -367,13 +366,11 @@ void main() {
           clientId: validTokens.clientId,
         ),
       ).thenAnswer(
-        (_) async => const TokenRefreshFailure(
-          TokenRefreshFailureReason.unknownError,
-        ),
+        (_) async =>
+            const TokenRefreshFailure(TokenRefreshFailureReason.unknownError),
       );
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       expect(result, isFalse);
       // Session preserved - unknown errors treated optimistically
@@ -392,14 +389,12 @@ void main() {
           clientId: validTokens.clientId,
         ),
       ).thenAnswer(
-        (_) async => const TokenRefreshFailure(
-          TokenRefreshFailureReason.invalidGrant,
-        ),
+        (_) async =>
+            const TokenRefreshFailure(TokenRefreshFailureReason.invalidGrant),
       );
       when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       expect(result, isFalse);
       // Key assertion: only invalidGrant triggers logout
@@ -429,8 +424,7 @@ void main() {
       );
       when(() => mockStorage.saveTokens(any())).thenAnswer((_) async {});
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       expect(result, isTrue);
 
@@ -463,11 +457,11 @@ void main() {
         ),
       );
       // Storage throws - simulates keychain locked, full disk, etc.
-      when(() => mockStorage.saveTokens(any()))
-          .thenThrow(Exception('Keychain locked'));
+      when(
+        () => mockStorage.saveTokens(any()),
+      ).thenThrow(Exception('Keychain locked'));
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       // Key assertion: refresh succeeds despite storage failure
       // Session works for current app run, just won't survive restart
@@ -491,8 +485,7 @@ void main() {
 
       expect(container.read(authProvider), isA<Unauthenticated>());
 
-      final result =
-          await container.read(authProvider.notifier).tryRefresh();
+      final result = await container.read(authProvider.notifier).tryRefresh();
 
       expect(result, isFalse);
       // No refresh attempted when not authenticated
@@ -530,10 +523,13 @@ void main() {
         clientId: 'test-client',
       );
 
-      when(() => mockStorage.loadPreAuthState())
-          .thenAnswer((_) async => preAuthState);
+      when(
+        () => mockStorage.loadPreAuthState(),
+      ).thenAnswer((_) async => preAuthState);
 
-      await container.read(authProvider.notifier).completeWebAuth(
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
             expiresIn: 3600,
@@ -559,12 +555,13 @@ void main() {
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
-      when(() => mockStorage.loadPreAuthState())
-          .thenAnswer((_) async => preAuthState);
+      when(
+        () => mockStorage.loadPreAuthState(),
+      ).thenAnswer((_) async => preAuthState);
 
-      await container.read(authProvider.notifier).completeWebAuth(
-            accessToken: 'web-access-token',
-          );
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(accessToken: 'web-access-token');
 
       verify(() => mockStorage.clearPreAuthState()).called(1);
     });
@@ -577,9 +574,9 @@ void main() {
       when(() => mockStorage.loadPreAuthState()).thenAnswer((_) async => null);
 
       expect(
-        () => container.read(authProvider.notifier).completeWebAuth(
-              accessToken: 'web-access-token',
-            ),
+        () => container
+            .read(authProvider.notifier)
+            .completeWebAuth(accessToken: 'web-access-token'),
         throwsA(isA<auth_flow.AuthException>()),
       );
     });
@@ -589,14 +586,15 @@ void main() {
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
-      when(() => mockStorage.loadPreAuthState())
-          .thenAnswer((_) async => preAuthState);
+      when(
+        () => mockStorage.loadPreAuthState(),
+      ).thenAnswer((_) async => preAuthState);
 
       final before = DateTime.now();
       // Call without expiresIn to test fallback behavior
-      await container.read(authProvider.notifier).completeWebAuth(
-            accessToken: 'web-access-token',
-          );
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(accessToken: 'web-access-token');
       final after = DateTime.now();
 
       final state = container.read(authProvider) as Authenticated;
@@ -617,10 +615,13 @@ void main() {
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
-      when(() => mockStorage.loadPreAuthState())
-          .thenAnswer((_) async => preAuthState);
+      when(
+        () => mockStorage.loadPreAuthState(),
+      ).thenAnswer((_) async => preAuthState);
 
-      await container.read(authProvider.notifier).completeWebAuth(
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
           );
@@ -633,15 +634,17 @@ void main() {
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
-      when(() => mockStorage.loadPreAuthState())
-          .thenAnswer((_) async => preAuthState);
-      when(() => mockStorage.saveTokens(any()))
-          .thenThrow(Exception('Storage full'));
+      when(
+        () => mockStorage.loadPreAuthState(),
+      ).thenAnswer((_) async => preAuthState);
+      when(
+        () => mockStorage.saveTokens(any()),
+      ).thenThrow(Exception('Storage full'));
 
       // Should not throw - storage failure is non-fatal
-      await container.read(authProvider.notifier).completeWebAuth(
-            accessToken: 'web-access-token',
-          );
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(accessToken: 'web-access-token');
 
       // State should still be updated
       final state = container.read(authProvider);

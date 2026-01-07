@@ -24,10 +24,7 @@ void main() {
       });
 
       test('parses correctly with only required fields', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 
@@ -136,10 +133,7 @@ void main() {
       });
 
       test('parses correctly with only required fields', () {
-        final json = <String, dynamic>{
-          'id': 'thread-1',
-          'room_id': 'room-1',
-        };
+        final json = <String, dynamic>{'id': 'thread-1', 'room_id': 'room-1'};
 
         final thread = threadInfoFromJson(json);
 
@@ -165,9 +159,7 @@ void main() {
       });
 
       test('handles missing room_id', () {
-        final json = <String, dynamic>{
-          'id': 'thread-1',
-        };
+        final json = <String, dynamic>{'id': 'thread-1'};
 
         final thread = threadInfoFromJson(json);
 
@@ -320,10 +312,7 @@ void main() {
       });
 
       test('parses correctly with only required fields', () {
-        final json = <String, dynamic>{
-          'id': 'run-1',
-          'thread_id': 'thread-1',
-        };
+        final json = <String, dynamic>{'id': 'run-1', 'thread_id': 'thread-1'};
 
         final run = runInfoFromJson(json);
 
@@ -348,9 +337,7 @@ void main() {
       });
 
       test('handles missing thread_id', () {
-        final json = <String, dynamic>{
-          'id': 'run-1',
-        };
+        final json = <String, dynamic>{'id': 'run-1'};
 
         final run = runInfoFromJson(json);
 

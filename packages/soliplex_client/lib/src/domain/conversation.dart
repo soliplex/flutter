@@ -195,7 +195,8 @@ class Conversation {
   int get hashCode => threadId.hashCode;
 
   @override
-  String toString() => 'Conversation(threadId: $threadId, '
+  String toString() =>
+      'Conversation(threadId: $threadId, '
       'messages: ${messages.length}, '
       'toolCalls: ${toolCalls.length}, '
       'status: $status)';

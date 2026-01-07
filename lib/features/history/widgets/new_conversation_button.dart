@@ -16,10 +16,7 @@ import 'package:flutter/material.dart';
 /// ```
 class NewConversationButton extends StatelessWidget {
   /// Creates a new conversation button.
-  const NewConversationButton({
-    required this.onPressed,
-    super.key,
-  });
+  const NewConversationButton({required this.onPressed, super.key});
 
   /// Callback when the button is pressed.
   final VoidCallback onPressed;
@@ -61,8 +58,9 @@ class NewConversationButton extends StatelessWidget {
                 ExcludeSemantics(
                   child: Icon(
                     Icons.arrow_forward_ios,
-                    color:
-                        colorScheme.onPrimaryContainer.withValues(alpha: 0.5),
+                    color: colorScheme.onPrimaryContainer.withValues(
+                      alpha: 0.5,
+                    ),
                     size: 16,
                   ),
                 ),

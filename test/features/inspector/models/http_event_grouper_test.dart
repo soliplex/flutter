@@ -11,9 +11,7 @@ void main() {
     });
 
     test('creates single group for single event', () {
-      final events = [
-        TestData.createRequestEvent(),
-      ];
+      final events = [TestData.createRequestEvent()];
 
       final groups = groupHttpEvents(events);
 
@@ -59,9 +57,7 @@ void main() {
           requestId: 'req-2',
           timestamp: now.add(const Duration(minutes: 1)),
         ),
-        TestData.createRequestEvent(
-          timestamp: now,
-        ),
+        TestData.createRequestEvent(timestamp: now),
       ];
 
       final groups = groupHttpEvents(events);
@@ -76,9 +72,7 @@ void main() {
         TestData.createResponseEvent(
           timestamp: now.add(const Duration(milliseconds: 100)),
         ),
-        TestData.createRequestEvent(
-          timestamp: now,
-        ),
+        TestData.createRequestEvent(timestamp: now),
       ];
 
       final groups = groupHttpEvents(events);
@@ -116,9 +110,7 @@ void main() {
     });
 
     test('handles orphan response (response without request)', () {
-      final events = [
-        TestData.createResponseEvent(requestId: 'orphan'),
-      ];
+      final events = [TestData.createResponseEvent(requestId: 'orphan')];
 
       final groups = groupHttpEvents(events);
 
@@ -129,9 +121,7 @@ void main() {
     });
 
     test('handles orphan error (error without request)', () {
-      final events = [
-        TestData.createErrorEvent(requestId: 'orphan'),
-      ];
+      final events = [TestData.createErrorEvent(requestId: 'orphan')];
 
       final groups = groupHttpEvents(events);
 
@@ -143,10 +133,7 @@ void main() {
     test('handles mixed regular and streaming requests', () {
       final now = DateTime.now();
       final events = [
-        TestData.createRequestEvent(
-          requestId: 'regular',
-          timestamp: now,
-        ),
+        TestData.createRequestEvent(requestId: 'regular', timestamp: now),
         TestData.createStreamStartEvent(
           requestId: 'stream',
           timestamp: now.add(const Duration(milliseconds: 50)),

@@ -42,10 +42,7 @@ void main() {
     return HttpResponse(
       statusCode: statusCode,
       bodyBytes: Uint8List.fromList(utf8.encode(json)),
-      headers: {
-        'content-type': 'application/json',
-        ...?headers,
-      },
+      headers: {'content-type': 'application/json', ...?headers},
     );
   }
 
@@ -58,10 +55,7 @@ void main() {
   }
 
   HttpResponse emptyResponse(int statusCode) {
-    return HttpResponse(
-      statusCode: statusCode,
-      bodyBytes: Uint8List(0),
-    );
+    return HttpResponse(statusCode: statusCode, bodyBytes: Uint8List(0));
   }
 
   group('HttpTransport', () {
@@ -679,9 +673,7 @@ void main() {
       });
 
       test('passes through NetworkException from client', () async {
-        const networkError = NetworkException(
-          message: 'Connection refused',
-        );
+        const networkError = NetworkException(message: 'Connection refused');
 
         when(
           () => mockClient.request(
@@ -718,76 +710,89 @@ void main() {
         await expectLater(
           transport.request<void>('GET', Uri.parse('https://api.example.com')),
           throwsA(
-            isA<NetworkException>()
-                .having((e) => e.isTimeout, 'isTimeout', true),
+            isA<NetworkException>().having(
+              (e) => e.isTimeout,
+              'isTimeout',
+              true,
+            ),
           ),
         );
       });
     });
 
     group('request - CancelToken', () {
-      test('throws CancelledException when token is already cancelled',
-          () async {
-        final token = CancelToken()..cancel('Pre-cancelled');
+      test(
+        'throws CancelledException when token is already cancelled',
+        () async {
+          final token = CancelToken()..cancel('Pre-cancelled');
 
-        await expectLater(
-          transport.request<void>(
-            'GET',
-            Uri.parse('https://api.example.com'),
-            cancelToken: token,
-          ),
-          throwsA(
-            isA<CancelledException>()
-                .having((e) => e.reason, 'reason', 'Pre-cancelled'),
-          ),
-        );
+          await expectLater(
+            transport.request<void>(
+              'GET',
+              Uri.parse('https://api.example.com'),
+              cancelToken: token,
+            ),
+            throwsA(
+              isA<CancelledException>().having(
+                (e) => e.reason,
+                'reason',
+                'Pre-cancelled',
+              ),
+            ),
+          );
 
-        // Client should not be called
-        verifyNever(
-          () => mockClient.request(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            timeout: any(named: 'timeout'),
-          ),
-        );
-      });
+          // Client should not be called
+          verifyNever(
+            () => mockClient.request(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+              timeout: any(named: 'timeout'),
+            ),
+          );
+        },
+      );
 
-      test('throws CancelledException when token cancelled during request',
-          () async {
-        final token = CancelToken();
-        final completer = Completer<HttpResponse>();
+      test(
+        'throws CancelledException when token cancelled during request',
+        () async {
+          final token = CancelToken();
+          final completer = Completer<HttpResponse>();
 
-        when(
-          () => mockClient.request(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer((_) async {
-          // Cancel after request starts
-          token.cancel('Cancelled mid-flight');
-          return completer.future;
-        });
+          when(
+            () => mockClient.request(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenAnswer((_) async {
+            // Cancel after request starts
+            token.cancel('Cancelled mid-flight');
+            return completer.future;
+          });
 
-        // Complete the request (but token is already cancelled)
-        completer.complete(jsonResponse(200, body: {}));
+          // Complete the request (but token is already cancelled)
+          completer.complete(jsonResponse(200, body: {}));
 
-        await expectLater(
-          transport.request<void>(
-            'GET',
-            Uri.parse('https://api.example.com'),
-            cancelToken: token,
-          ),
-          throwsA(
-            isA<CancelledException>()
-                .having((e) => e.reason, 'reason', 'Cancelled mid-flight'),
-          ),
-        );
-      });
+          await expectLater(
+            transport.request<void>(
+              'GET',
+              Uri.parse('https://api.example.com'),
+              cancelToken: token,
+            ),
+            throwsA(
+              isA<CancelledException>().having(
+                (e) => e.reason,
+                'reason',
+                'Cancelled mid-flight',
+              ),
+            ),
+          );
+        },
+      );
 
       test('succeeds when token is not cancelled', () async {
         final token = CancelToken();
@@ -833,10 +838,7 @@ void main() {
         final chunks = <List<int>>[];
         final completer = Completer<void>();
 
-        stream.listen(
-          chunks.add,
-          onDone: completer.complete,
-        );
+        stream.listen(chunks.add, onDone: completer.complete);
 
         controller
           ..add([1, 2, 3])
@@ -981,10 +983,7 @@ void main() {
         final chunks = <List<int>>[];
         final completer = Completer<void>();
 
-        stream.listen(
-          chunks.add,
-          onDone: completer.complete,
-        );
+        stream.listen(chunks.add, onDone: completer.complete);
 
         controller
           ..add([1, 2, 3])
@@ -1022,10 +1021,7 @@ void main() {
         final chunks = <List<int>>[];
         final completer = Completer<void>();
 
-        stream.listen(
-          chunks.add,
-          onDone: completer.complete,
-        );
+        stream.listen(chunks.add, onDone: completer.complete);
 
         controller.add([1, 2, 3]);
         await controller.close();
@@ -1108,8 +1104,11 @@ void main() {
         await expectLater(
           transport.request<void>('GET', Uri.parse('https://api.example.com')),
           throwsA(
-            isA<ApiException>()
-                .having((e) => e.message, 'message', 'Custom error message'),
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              'Custom error message',
+            ),
           ),
         );
       });
@@ -1130,8 +1129,11 @@ void main() {
         await expectLater(
           transport.request<void>('GET', Uri.parse('https://api.example.com')),
           throwsA(
-            isA<ApiException>()
-                .having((e) => e.message, 'message', 'Error field value'),
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              'Error field value',
+            ),
           ),
         );
       });
@@ -1153,8 +1155,11 @@ void main() {
         await expectLater(
           transport.request<void>('GET', Uri.parse('https://api.example.com')),
           throwsA(
-            isA<ApiException>()
-                .having((e) => e.message, 'message', 'Detail field value'),
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              'Detail field value',
+            ),
           ),
         );
       });
@@ -1182,8 +1187,11 @@ void main() {
         await expectLater(
           transport.request<void>('GET', Uri.parse('https://api.example.com')),
           throwsA(
-            isA<ApiException>()
-                .having((e) => e.message, 'message', 'Message field'),
+            isA<ApiException>().having(
+              (e) => e.message,
+              'message',
+              'Message field',
+            ),
           ),
         );
       });

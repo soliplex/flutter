@@ -41,18 +41,14 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 void main() {
   group('SettingsScreen', () {
     testWidgets('displays app version', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(home: const SettingsScreen()),
-      );
+      await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
       expect(find.text('App Version'), findsOneWidget);
       expect(find.textContaining('1.0.0'), findsOneWidget);
     });
 
     testWidgets('displays backend URL', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(home: const SettingsScreen()),
-      );
+      await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
       expect(find.text('Backend URL'), findsOneWidget);
       expect(find.text('http://localhost:8000'), findsOneWidget);
@@ -62,9 +58,7 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
-          overrides: [
-            authProvider.overrideWith(_MockAuthNotifier.new),
-          ],
+          overrides: [authProvider.overrideWith(_MockAuthNotifier.new)],
         ),
       );
 

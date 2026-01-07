@@ -50,8 +50,8 @@ class Authenticated extends AuthState {
 
   /// Whether the access token needs refresh (expiring soon).
   bool get needsRefresh => DateTime.now().isAfter(
-        expiresAt.subtract(TokenRefreshService.refreshThreshold),
-      );
+    expiresAt.subtract(TokenRefreshService.refreshThreshold),
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -66,14 +66,14 @@ class Authenticated extends AuthState {
 
   @override
   int get hashCode => Object.hash(
-        accessToken,
-        refreshToken,
-        expiresAt,
-        issuerId,
-        issuerDiscoveryUrl,
-        clientId,
-        idToken,
-      );
+    accessToken,
+    refreshToken,
+    expiresAt,
+    issuerId,
+    issuerDiscoveryUrl,
+    clientId,
+    idToken,
+  );
 
   @override
   String toString() =>

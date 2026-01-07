@@ -16,8 +16,9 @@ void main() {
   });
 
   group('RoomScreen layout', () {
-    testWidgets('shows desktop layout with sidebar on wide screens',
-        (tester) async {
+    testWidgets('shows desktop layout with sidebar on wide screens', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(800, 600);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -27,8 +28,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => []),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
         ),
       );
@@ -39,8 +41,9 @@ void main() {
       expect(find.byType(ChatPanel), findsOneWidget);
     });
 
-    testWidgets('shows mobile layout without sidebar on narrow screens',
-        (tester) async {
+    testWidgets('shows mobile layout without sidebar on narrow screens', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -50,8 +53,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => []),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
         ),
       );
@@ -68,8 +72,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => []),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
         ),
       );
@@ -91,8 +96,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => []),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
         ),
       );
@@ -122,8 +128,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => []),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
         ),
       );
@@ -159,8 +166,9 @@ void main() {
           ),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => mockThreads),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const HasLastViewed('thread-1')),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const HasLastViewed('thread-1')),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -186,8 +194,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => mockThreads),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const HasLastViewed('thread-2')),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const HasLastViewed('thread-2')),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -201,8 +210,9 @@ void main() {
       expect((selection as ThreadSelected).threadId, equals('thread-2'));
     });
 
-    testWidgets('falls back to first thread when no last viewed',
-        (tester) async {
+    testWidgets('falls back to first thread when no last viewed', (
+      tester,
+    ) async {
       final mockThreads = [
         TestData.createThread(id: 'thread-1', roomId: 'general'),
         TestData.createThread(id: 'thread-2', roomId: 'general'),
@@ -214,8 +224,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => mockThreads),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -236,8 +247,9 @@ void main() {
           home: const RoomScreen(roomId: 'empty-room'),
           overrides: [
             threadsProvider('empty-room').overrideWith((ref) async => []),
-            lastViewedThreadProvider('empty-room')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'empty-room',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -249,8 +261,9 @@ void main() {
       expect(selection, isA<NoThreadSelected>());
     });
 
-    testWidgets('ignores invalid query param and falls back to first thread',
-        (tester) async {
+    testWidgets('ignores invalid query param and falls back to first thread', (
+      tester,
+    ) async {
       final mockThreads = [
         TestData.createThread(id: 'thread-1', roomId: 'general'),
         TestData.createThread(id: 'thread-2', roomId: 'general'),
@@ -265,8 +278,9 @@ void main() {
           ),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => mockThreads),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -282,8 +296,9 @@ void main() {
   });
 
   group('RoomScreen room ID sync', () {
-    testWidgets('syncs currentRoomIdProvider on initialization',
-        (tester) async {
+    testWidgets('syncs currentRoomIdProvider on initialization', (
+      tester,
+    ) async {
       final mockThreads = [
         TestData.createThread(id: 'thread-1', roomId: 'room-abc'),
       ];
@@ -293,10 +308,12 @@ void main() {
         createTestApp(
           home: const RoomScreen(roomId: 'room-abc'),
           overrides: [
-            threadsProvider('room-abc')
-                .overrideWith((ref) async => mockThreads),
-            lastViewedThreadProvider('room-abc')
-                .overrideWith((ref) async => const NoLastViewed()),
+            threadsProvider(
+              'room-abc',
+            ).overrideWith((ref) async => mockThreads),
+            lastViewedThreadProvider(
+              'room-abc',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -309,8 +326,9 @@ void main() {
       expect(roomId, equals('room-abc'));
     });
 
-    testWidgets('updates currentRoomIdProvider when room changes',
-        (tester) async {
+    testWidgets('updates currentRoomIdProvider when room changes', (
+      tester,
+    ) async {
       final roomAThreads = [
         TestData.createThread(id: 'thread-a', roomId: 'room-a'),
       ];
@@ -327,10 +345,12 @@ void main() {
           overrides: [
             threadsProvider('room-a').overrideWith((ref) async => roomAThreads),
             threadsProvider('room-b').overrideWith((ref) async => roomBThreads),
-            lastViewedThreadProvider('room-a')
-                .overrideWith((ref) async => const NoLastViewed()),
-            lastViewedThreadProvider('room-b')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'room-a',
+            ).overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'room-b',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -346,10 +366,12 @@ void main() {
           overrides: [
             threadsProvider('room-a').overrideWith((ref) async => roomAThreads),
             threadsProvider('room-b').overrideWith((ref) async => roomBThreads),
-            lastViewedThreadProvider('room-a')
-                .overrideWith((ref) async => const NoLastViewed()),
-            lastViewedThreadProvider('room-b')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'room-a',
+            ).overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'room-b',
+            ).overrideWith((ref) async => const NoLastViewed()),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -369,8 +391,9 @@ void main() {
           home: const RoomScreen(roomId: 'general'),
           overrides: [
             threadsProvider('general').overrideWith((ref) async => []),
-            lastViewedThreadProvider('general')
-                .overrideWith((ref) async => const NoLastViewed()),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
             roomsProvider.overrideWith(
               (ref) async => [
                 TestData.createRoom(id: 'general', name: 'General'),

@@ -25,10 +25,7 @@ void main() {
       });
 
       test('throws FormatException for relative URL', () {
-        expect(
-          () => UrlBuilder('/api/v1'),
-          throwsA(isA<FormatException>()),
-        );
+        expect(() => UrlBuilder('/api/v1'), throwsA(isA<FormatException>()));
       });
     });
 
@@ -81,10 +78,7 @@ void main() {
       test('handles path with multiple slashes', () {
         final builder = UrlBuilder('https://api.example.com');
         final uri = builder.build(path: '//rooms//threads//');
-        expect(
-          uri.toString(),
-          equals('https://api.example.com/rooms/threads'),
-        );
+        expect(uri.toString(), equals('https://api.example.com/rooms/threads'));
       });
     });
 
@@ -107,10 +101,7 @@ void main() {
       test('handles empty segments', () {
         final builder = UrlBuilder('https://api.example.com');
         final uri = builder.build(pathSegments: ['rooms', '', 'threads']);
-        expect(
-          uri.toString(),
-          equals('https://api.example.com/rooms/threads'),
-        );
+        expect(uri.toString(), equals('https://api.example.com/rooms/threads'));
       });
 
       test('handles segments with slashes', () {
@@ -144,14 +135,8 @@ void main() {
 
       test('handles nested path with segments', () {
         final builder = UrlBuilder('https://api.example.com');
-        final uri = builder.build(
-          path: 'api/v1',
-          pathSegments: ['rooms'],
-        );
-        expect(
-          uri.toString(),
-          equals('https://api.example.com/api/v1/rooms'),
-        );
+        final uri = builder.build(path: 'api/v1', pathSegments: ['rooms']);
+        expect(uri.toString(), equals('https://api.example.com/api/v1/rooms'));
       });
     });
 
@@ -195,10 +180,7 @@ void main() {
 
       test('handles empty query parameters', () {
         final builder = UrlBuilder('https://api.example.com');
-        final uri = builder.build(
-          path: 'rooms',
-          queryParameters: {},
-        );
+        final uri = builder.build(path: 'rooms', queryParameters: {});
         expect(uri.toString(), equals('https://api.example.com/rooms'));
         expect(uri.hasQuery, isFalse);
       });
@@ -272,8 +254,9 @@ void main() {
 
       test('handles URL-encoded path segments', () {
         final builder = UrlBuilder('https://api.example.com');
-        final uri =
-            builder.build(pathSegments: ['users', 'john%40example.com']);
+        final uri = builder.build(
+          pathSegments: ['users', 'john%40example.com'],
+        );
         // The segment should be preserved as-is by Uri
         expect(uri.pathSegments.last, contains('john'));
       });

@@ -11,16 +11,12 @@ void main() {
     group('User Messages', () {
       testWidgets('displays user message with right alignment', (tester) async {
         // Arrange
-        final message = TestData.createMessage(
-          text: 'Hello, assistant!',
-        );
+        final message = TestData.createMessage(text: 'Hello, assistant!');
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -34,16 +30,12 @@ void main() {
 
       testWidgets('displays user message with blue background', (tester) async {
         // Arrange
-        final message = TestData.createMessage(
-          text: 'Test',
-        );
+        final message = TestData.createMessage(text: 'Test');
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -59,21 +51,17 @@ void main() {
         // Primary container color for user messages
       });
 
-      testWidgets('shows streaming indicator when isStreaming is true',
-          (tester) async {
+      testWidgets('shows streaming indicator when isStreaming is true', (
+        tester,
+      ) async {
         // Arrange
-        final message = TestData.createMessage(
-          text: 'Typing...',
-        );
+        final message = TestData.createMessage(text: 'Typing...');
 
         // Act
         await tester.pumpWidget(
           createTestApp(
             home: Scaffold(
-              body: ChatMessageWidget(
-                message: message,
-                isStreaming: true,
-              ),
+              body: ChatMessageWidget(message: message, isStreaming: true),
             ),
           ),
         );
@@ -83,33 +71,30 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
       });
 
-      testWidgets('does not show streaming indicator when isStreaming is false',
-          (tester) async {
-        // Arrange
-        final message = TestData.createMessage(
-          text: 'Done',
-        );
+      testWidgets(
+        'does not show streaming indicator when isStreaming is false',
+        (tester) async {
+          // Arrange
+          final message = TestData.createMessage(text: 'Done');
 
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(
-                message: message,
-              ),
+          // Act
+          await tester.pumpWidget(
+            createTestApp(
+              home: Scaffold(body: ChatMessageWidget(message: message)),
             ),
-          ),
-        );
+          );
 
-        // Assert
-        expect(find.text('Typing...'), findsNothing);
-        expect(find.byType(CircularProgressIndicator), findsNothing);
-      });
+          // Assert
+          expect(find.text('Typing...'), findsNothing);
+          expect(find.byType(CircularProgressIndicator), findsNothing);
+        },
+      );
     });
 
     group('Assistant Messages', () {
-      testWidgets('displays assistant message with left alignment',
-          (tester) async {
+      testWidgets('displays assistant message with left alignment', (
+        tester,
+      ) async {
         // Arrange
         final message = TestData.createMessage(
           user: ChatUser.assistant,
@@ -119,9 +104,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -133,8 +116,9 @@ void main() {
         expect(row.mainAxisAlignment, MainAxisAlignment.start);
       });
 
-      testWidgets('displays assistant message with grey background',
-          (tester) async {
+      testWidgets('displays assistant message with grey background', (
+        tester,
+      ) async {
         // Arrange
         final message = TestData.createMessage(
           user: ChatUser.assistant,
@@ -144,9 +128,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -162,8 +144,9 @@ void main() {
         // Surface container color for assistant messages
       });
 
-      testWidgets('shows streaming indicator for assistant messages',
-          (tester) async {
+      testWidgets('shows streaming indicator for assistant messages', (
+        tester,
+      ) async {
         // Arrange
         final message = TestData.createMessage(
           user: ChatUser.assistant,
@@ -174,10 +157,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: Scaffold(
-              body: ChatMessageWidget(
-                message: message,
-                isStreaming: true,
-              ),
+              body: ChatMessageWidget(message: message, isStreaming: true),
             ),
           ),
         );
@@ -197,9 +177,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -216,9 +194,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -227,8 +203,9 @@ void main() {
         expect(find.text('**bold** and *italic* text'), findsOneWidget);
       });
 
-      testWidgets('renders code blocks with syntax highlighting',
-          (tester) async {
+      testWidgets('renders code blocks with syntax highlighting', (
+        tester,
+      ) async {
         // Arrange
         final message = TestData.createMessage(
           user: ChatUser.assistant,
@@ -238,9 +215,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -263,9 +238,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -274,8 +247,9 @@ void main() {
         expect(find.byType(Center), findsOneWidget);
       });
 
-      testWidgets('displays system message with subtle styling',
-          (tester) async {
+      testWidgets('displays system message with subtle styling', (
+        tester,
+      ) async {
         // Arrange
         final message = ErrorMessage.create(
           id: 'error-2',
@@ -285,9 +259,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -296,10 +268,7 @@ void main() {
 
         // System messages use bodySmall style
         final text = tester.widget<Text>(
-          find.descendant(
-            of: find.byType(Center),
-            matching: find.byType(Text),
-          ),
+          find.descendant(of: find.byType(Center), matching: find.byType(Text)),
         );
         expect(text.style?.fontSize, lessThan(16)); // bodySmall is smaller
       });
@@ -316,9 +285,7 @@ void main() {
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -330,16 +297,12 @@ void main() {
     group('Edge Cases', () {
       testWidgets('handles empty text message', (tester) async {
         // Arrange
-        final message = TestData.createMessage(
-          text: '',
-        );
+        final message = TestData.createMessage(text: '');
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 
@@ -350,16 +313,12 @@ void main() {
       testWidgets('handles long message text', (tester) async {
         // Arrange
         final longText = 'A' * 500;
-        final message = TestData.createMessage(
-          text: longText,
-        );
+        final message = TestData.createMessage(text: longText);
 
         // Act
         await tester.pumpWidget(
           createTestApp(
-            home: Scaffold(
-              body: ChatMessageWidget(message: message),
-            ),
+            home: Scaffold(body: ChatMessageWidget(message: message)),
           ),
         );
 

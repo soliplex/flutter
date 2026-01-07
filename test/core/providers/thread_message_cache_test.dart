@@ -24,9 +24,7 @@ void main() {
         ];
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -53,13 +51,12 @@ void main() {
           TestData.createMessage(id: 'msg-1', text: 'From API'),
         ];
 
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .thenAnswer((_) async => apiMessages);
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).thenAnswer((_) async => apiMessages);
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -71,8 +68,9 @@ void main() {
         // Assert
         expect(messages, hasLength(1));
         expect(messages[0].id, 'msg-1');
-        verify(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .called(1);
+        verify(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).called(1);
 
         // Verify cached
         final cacheState = container.read(threadMessageCacheProvider);
@@ -86,13 +84,12 @@ void main() {
           TestData.createMessage(id: 'msg-1', text: 'From API'),
         ];
 
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .thenAnswer((_) async => apiMessages);
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).thenAnswer((_) async => apiMessages);
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -105,8 +102,9 @@ void main() {
         await cache.getMessages('room-abc', 'thread-123');
 
         // Assert: API only called once
-        verify(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .called(1);
+        verify(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).called(1);
       });
 
       test('concurrent fetches share single API request', () async {
@@ -115,17 +113,16 @@ void main() {
           TestData.createMessage(id: 'msg-1', text: 'From API'),
         ];
 
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .thenAnswer((_) async {
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).thenAnswer((_) async {
           // Simulate slow API
           await Future<void>.delayed(const Duration(milliseconds: 50));
           return apiMessages;
         });
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -139,8 +136,9 @@ void main() {
         final results = await Future.wait([future1, future2]);
 
         // Assert: API called only once despite two concurrent requests
-        verify(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .called(1);
+        verify(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).called(1);
 
         // Both callers get the same messages
         expect(results[0], hasLength(1));
@@ -151,13 +149,12 @@ void main() {
 
       test('propagates API errors wrapped with thread context', () async {
         // Arrange
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .thenThrow(const NetworkException(message: 'Connection failed'));
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).thenThrow(const NetworkException(message: 'Connection failed'));
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -186,8 +183,9 @@ void main() {
       test('allows retry after API error', () async {
         // Arrange: First call fails, second succeeds
         var callCount = 0;
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .thenAnswer((_) async {
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).thenAnswer((_) async {
           callCount++;
           if (callCount == 1) {
             throw const NetworkException(message: 'Connection failed');
@@ -196,9 +194,7 @@ void main() {
         });
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -216,29 +212,26 @@ void main() {
         expect(messages[0].id, 'msg-1');
 
         // API was called twice (retry after failure)
-        verify(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .called(2);
+        verify(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).called(2);
       });
 
       test('different threads have separate cache entries', () async {
         // Arrange
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-1'))
-            .thenAnswer(
-          (_) async => [
-            TestData.createMessage(id: 'msg-t1', text: 'Thread 1'),
-          ],
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-1'),
+        ).thenAnswer(
+          (_) async => [TestData.createMessage(id: 'msg-t1', text: 'Thread 1')],
         );
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-2'))
-            .thenAnswer(
-          (_) async => [
-            TestData.createMessage(id: 'msg-t2', text: 'Thread 2'),
-          ],
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-2'),
+        ).thenAnswer(
+          (_) async => [TestData.createMessage(id: 'msg-t2', text: 'Thread 2')],
         );
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -261,9 +254,7 @@ void main() {
       test('updates cache for thread', () {
         // Arrange
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -285,9 +276,7 @@ void main() {
       test('overwrites existing cache entry', () {
         // Arrange
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -310,9 +299,7 @@ void main() {
       test('does not affect other thread entries', () {
         // Arrange
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -364,13 +351,12 @@ void main() {
           TestData.createMessage(id: 'fresh-msg', text: 'Fresh'),
         ];
 
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .thenAnswer((_) async => freshMessages);
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).thenAnswer((_) async => freshMessages);
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 
@@ -399,23 +385,23 @@ void main() {
         expect(cacheState['thread-123']![0].id, 'fresh-msg');
 
         // Assert: API was called
-        verify(() => mockApi.getThreadMessages('room-abc', 'thread-123'))
-            .called(1);
+        verify(
+          () => mockApi.getThreadMessages('room-abc', 'thread-123'),
+        ).called(1);
       });
 
       test('does not affect other thread entries', () async {
         // Arrange
-        when(() => mockApi.getThreadMessages('room-abc', 'thread-1'))
-            .thenAnswer(
+        when(
+          () => mockApi.getThreadMessages('room-abc', 'thread-1'),
+        ).thenAnswer(
           (_) async => [
             TestData.createMessage(id: 'refreshed-t1', text: 'Refreshed'),
           ],
         );
 
         final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-          ],
+          overrides: [apiProvider.overrideWithValue(mockApi)],
         );
         addTearDown(container.dispose);
 

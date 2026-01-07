@@ -67,14 +67,16 @@ void main() {
         expect(group.method, 'DELETE');
       });
 
-      test('returns method from streamStart event when no request or error',
-          () {
-        final group = HttpEventGroup(
-          requestId: 'req-1',
-          streamStart: TestData.createStreamStartEvent(),
-        );
-        expect(group.method, 'GET');
-      });
+      test(
+        'returns method from streamStart event when no request or error',
+        () {
+          final group = HttpEventGroup(
+            requestId: 'req-1',
+            streamStart: TestData.createStreamStartEvent(),
+          );
+          expect(group.method, 'GET');
+        },
+      );
 
       test('prefers request over error', () {
         final group = HttpEventGroup(
