@@ -56,7 +56,8 @@ NoTransitionPage<void> _staticPage({
 }
 
 /// Routes that don't require authentication.
-const _publicRoutes = {'/login', '/auth/callback'};
+/// Home is public so users can configure the backend URL before auth.
+const _publicRoutes = {'/', '/login', '/auth/callback'};
 
 /// Application router provider.
 ///
@@ -102,7 +103,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // CRITICAL: Use ref.read() for fresh auth state, not a captured variable.
       // This ensures the redirect always sees current auth status.
       final authState = ref.read(authProvider);
-      // TEMP: bypass auth when backend has no IdP configured
+      // noAuthMode is set when backend has no identity providers configured
       final isAuthenticated = authState is Authenticated || noAuthMode;
       final isPublicRoute = _publicRoutes.contains(state.matchedLocation);
       debugPrint(
@@ -115,10 +116,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      // Authenticated users on login page go to home
+      // Authenticated users on login page go to rooms
       if (isAuthenticated && state.matchedLocation == '/login') {
-        debugPrint('Router: redirecting to /');
-        return '/';
+        debugPrint('Router: redirecting to /rooms');
+        return '/rooms';
       }
 
       debugPrint('Router: no redirect');

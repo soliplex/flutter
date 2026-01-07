@@ -181,8 +181,20 @@ void main() {
       expect(find.byType(HomeScreen), findsOneWidget);
     });
 
-    testWidgets('redirects to login when unauthenticated', (tester) async {
+    testWidgets('shows home when unauthenticated at /', (tester) async {
+      // Home is public - users enter backend URL there before authenticating
       await tester.pumpWidget(createRouterApp(authenticated: false));
+      await tester.pumpAndSettle();
+      expect(find.byType(HomeScreen), findsOneWidget);
+    });
+
+    testWidgets('redirects to login when accessing protected route', (
+      tester,
+    ) async {
+      // Protected routes redirect to login when unauthenticated
+      await tester.pumpWidget(
+        createRouterAppAt('/rooms', authenticated: false),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsOneWidget);
     });
