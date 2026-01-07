@@ -138,6 +138,12 @@ class _AuthSection extends ConsumerWidget {
           subtitle: Text('Not signed in'),
           enabled: false,
         ),
+      NoAuthRequired() => const ListTile(
+          leading: Icon(Icons.no_accounts),
+          title: Text('Authentication'),
+          subtitle: Text('Not required by backend'),
+          enabled: false,
+        ),
     };
   }
 
