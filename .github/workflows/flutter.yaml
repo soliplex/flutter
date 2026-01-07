@@ -1,0 +1,47 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Analyze code
+        run: flutter analyze --fatal-infos
+
+      - name: Run tests
+        run: flutter test --coverage
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -X POST \
+            --data-urlencode \
+            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Flutter CI failed on $GITHUB_REF:\n$COMMIT_MSG\n$RUN_URL\", \"icon_emoji\": \":flutter:\"}" \
+            "$SLACK_NOTIFY_URL"
