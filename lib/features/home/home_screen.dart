@@ -54,6 +54,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
+  /// Normalize URL for comparison by removing trailing slash.
+  String _normalizeUrl(String url) {
+    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+
   Future<void> _connect() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -64,9 +69,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     try {
       final url = _urlController.text.trim();
+      final currentUrl = ref.read(configProvider).baseUrl;
+      final isBackendChange = _normalizeUrl(url) != _normalizeUrl(currentUrl);
+
       debugPrint('HomeScreen: Connecting to $url');
 
-      // Save the URL first
+      // Clear auth state when switching backends - old tokens are invalid
+      if (isBackendChange) {
+        final authState = ref.read(authProvider);
+        if (authState is Authenticated) {
+          await ref.read(authProvider.notifier).signOut();
+          if (!mounted) return;
+        } else if (authState is NoAuthRequired) {
+          ref.read(authProvider.notifier).exitNoAuthMode();
+        }
+      }
+
+      // Save the URL
       await ref.read(configProvider.notifier).setBaseUrl(url);
       debugPrint(
         'HomeScreen: URL saved, config.baseUrl is now: '
