@@ -103,21 +103,21 @@ final routerProvider = Provider<GoRouter>((ref) {
       // CRITICAL: Use ref.read() for fresh auth state, not a captured variable.
       // This ensures the redirect always sees current auth status.
       final authState = ref.read(authProvider);
-      // noAuthMode is set when backend has no identity providers configured
-      final isAuthenticated = authState is Authenticated || noAuthMode;
+      final hasAccess =
+          authState is Authenticated || authState is NoAuthRequired;
       final isPublicRoute = _publicRoutes.contains(state.matchedLocation);
       debugPrint(
-        'Router: isAuthenticated=$isAuthenticated, isPublic=$isPublicRoute',
+        'Router: hasAccess=$hasAccess, isPublic=$isPublicRoute',
       );
 
-      // Unauthenticated users go to login (except for public routes)
-      if (!isAuthenticated && !isPublicRoute) {
+      // Users without access go to login (except for public routes)
+      if (!hasAccess && !isPublicRoute) {
         debugPrint('Router: redirecting to /login');
         return '/login';
       }
 
-      // Authenticated users on login page go to rooms
-      if (isAuthenticated && state.matchedLocation == '/login') {
+      // Users with access on login page go to rooms
+      if (hasAccess && state.matchedLocation == '/login') {
         debugPrint('Router: redirecting to /rooms');
         return '/rooms';
       }
