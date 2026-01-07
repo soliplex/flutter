@@ -405,7 +405,7 @@ class SoliplexApi {
             // ignore: avoid_print
             print('Skipped malformed event during replay: $e');
             return true;
-          }(), 'Debug logging for malformed events');
+          }(), 'Debug logging for malformed events',);
         }
       }
     }

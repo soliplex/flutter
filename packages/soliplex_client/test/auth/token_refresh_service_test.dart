@@ -189,7 +189,7 @@ void main() {
           (_) async => jsonResponse({
             'error': 'invalid_grant',
             'error_description': 'Token expired',
-          }, statusCode: 400),
+          }, statusCode: 400,),
         );
 
         final result = await service.refresh(

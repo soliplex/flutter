@@ -237,7 +237,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
           // ignore: avoid_print
           print(stackTrace);
           return true;
-        }(), 'Observer exception logged');
+        }(), 'Observer exception logged',);
       }
     }
   }

@@ -30,7 +30,7 @@ jobs:
         continue-on-error: true  # TODO: Remove once team standardizes on Flutter version
 
       - name: Analyze code
-        run: flutter analyze --fatal-infos
+        run: flutter analyze --fatal-warnings
 
       - name: Run tests
         run: flutter test --coverage

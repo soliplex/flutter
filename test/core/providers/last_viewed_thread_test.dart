@@ -72,7 +72,7 @@ void main() {
         _setLastViewedThreadTestProvider((
           roomId: 'room-1',
           threadId: 'thread-456',
-        )).future,
+        ),).future,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -91,7 +91,7 @@ void main() {
         _setLastViewedThreadTestProvider((
           roomId: 'room-1',
           threadId: 'new-thread',
-        )).future,
+        ),).future,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -110,7 +110,7 @@ void main() {
         _setLastViewedThreadTestProvider((
           roomId: 'room-1',
           threadId: 'thread-456',
-        )).future,
+        ),).future,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -133,7 +133,7 @@ void main() {
         _setLastViewedThreadTestProvider((
           roomId: 'room-1',
           threadId: 'thread-789',
-        )).future,
+        ),).future,
       );
 
       // Re-read - should see new value
