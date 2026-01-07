@@ -110,27 +110,30 @@ final authStatusListenableProvider = Provider<Listenable>((ref) {
   return _AuthStatusListenable(ref);
 });
 
-/// Notifies only when auth status transitions between authenticated/unauthenticated.
+/// Notifies only when auth status transitions between having/not having app access.
 ///
 /// Filters out token refresh noise - when `Authenticated(oldTokens)` becomes
-/// `Authenticated(newTokens)`, no notification fires because auth STATUS
-/// (logged in vs logged out) hasn't changed.
+/// `Authenticated(newTokens)`, no notification fires because access status
+/// hasn't changed.
 class _AuthStatusListenable extends ChangeNotifier {
   _AuthStatusListenable(this._ref) {
-    _previouslyAuthenticated = _isAuthenticated;
+    _previouslyHadAccess = _hasAppAccess;
     _ref.listen<AuthState>(authProvider, (_, __) {
-      final currentlyAuthenticated = _isAuthenticated;
-      if (currentlyAuthenticated != _previouslyAuthenticated) {
-        _previouslyAuthenticated = currentlyAuthenticated;
+      final currentlyHasAccess = _hasAppAccess;
+      if (currentlyHasAccess != _previouslyHadAccess) {
+        _previouslyHadAccess = currentlyHasAccess;
         notifyListeners();
       }
     });
   }
 
   final Ref _ref;
-  late bool _previouslyAuthenticated;
+  late bool _previouslyHadAccess;
 
-  bool get _isAuthenticated => _ref.read(authProvider) is Authenticated;
+  bool get _hasAppAccess {
+    final state = _ref.read(authProvider);
+    return state is Authenticated || state is NoAuthRequired;
+  }
 }
 
 /// TEMP: bypass auth when backend has no IdP configured.
