@@ -94,3 +94,18 @@ class AuthLoading extends AuthState {
   @override
   String toString() => 'AuthLoading()';
 }
+
+/// Authentication is not required by the backend.
+@immutable
+class NoAuthRequired extends AuthState {
+  const NoAuthRequired();
+
+  @override
+  bool operator ==(Object other) => other is NoAuthRequired;
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() => 'NoAuthRequired()';
+}
