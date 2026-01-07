@@ -36,6 +36,12 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
     String? refreshToken,
     int? expiresIn,
   }) async {}
+
+  @override
+  Future<void> enterNoAuthMode() async {}
+
+  @override
+  void exitNoAuthMode() {}
 }
 
 void main() {

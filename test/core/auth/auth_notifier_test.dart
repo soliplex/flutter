@@ -671,4 +671,112 @@ void main() {
       expect(validState.isExpired, isFalse);
     });
   });
+
+  group('AuthNotifier.enterNoAuthMode', () {
+    test('transitions to NoAuthRequired from Unauthenticated', () async {
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => null);
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      expect(container.read(authProvider), isA<Unauthenticated>());
+
+      await container.read(authProvider.notifier).enterNoAuthMode();
+
+      expect(container.read(authProvider), isA<NoAuthRequired>());
+    });
+
+    test('clears tokens when transitioning from Authenticated', () async {
+      final validTokens = TestData.createAuthenticated();
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => validTokens);
+      when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      expect(container.read(authProvider), isA<Authenticated>());
+
+      await container.read(authProvider.notifier).enterNoAuthMode();
+
+      verify(() => mockStorage.clearTokens()).called(1);
+      expect(container.read(authProvider), isA<NoAuthRequired>());
+    });
+
+    test('continues even when clearTokens fails', () async {
+      final validTokens = TestData.createAuthenticated();
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => validTokens);
+      when(
+        () => mockStorage.clearTokens(),
+      ).thenThrow(Exception('Storage error'));
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      await container.read(authProvider.notifier).enterNoAuthMode();
+
+      expect(container.read(authProvider), isA<NoAuthRequired>());
+    });
+  });
+
+  group('AuthNotifier.exitNoAuthMode', () {
+    test('transitions to Unauthenticated from NoAuthRequired', () async {
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => null);
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      await container.read(authProvider.notifier).enterNoAuthMode();
+      expect(container.read(authProvider), isA<NoAuthRequired>());
+
+      container.read(authProvider.notifier).exitNoAuthMode();
+
+      expect(container.read(authProvider), isA<Unauthenticated>());
+    });
+
+    test('throws StateError when called from Authenticated state', () async {
+      final validTokens = TestData.createAuthenticated();
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => validTokens);
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      expect(container.read(authProvider), isA<Authenticated>());
+
+      expect(
+        () => container.read(authProvider.notifier).exitNoAuthMode(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('can be called from Unauthenticated state', () async {
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => null);
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      expect(container.read(authProvider), isA<Unauthenticated>());
+
+      container.read(authProvider.notifier).exitNoAuthMode();
+
+      expect(container.read(authProvider), isA<Unauthenticated>());
+    });
+  });
 }

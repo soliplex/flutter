@@ -29,6 +29,25 @@ void main() {
     });
   });
 
+  group('NoAuthRequired', () {
+    test('instances are equal', () {
+      const a = NoAuthRequired();
+      const b = NoAuthRequired();
+
+      expect(a, equals(b));
+      expect(a.hashCode, equals(b.hashCode));
+    });
+
+    test('is not equal to other AuthState types', () {
+      const noAuth = NoAuthRequired();
+      const unauthenticated = Unauthenticated();
+      const loading = AuthLoading();
+
+      expect(noAuth, isNot(equals(unauthenticated)));
+      expect(noAuth, isNot(equals(loading)));
+    });
+  });
+
   group('Authenticated', () {
     final defaultExpiresAt = DateTime(2025, 12, 31, 12);
 
