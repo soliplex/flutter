@@ -75,15 +75,18 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );
 
-/// Provider indicating whether user is authenticated.
+/// Provider indicating whether the user has access to the app.
+///
+/// Returns true when the user is [Authenticated] or when the backend
+/// is configured for [NoAuthRequired] mode.
 ///
 /// Example:
 /// ```dart
-/// final isLoggedIn = ref.watch(isAuthenticatedProvider);
+/// final canProceed = ref.watch(hasAppAccessProvider);
 /// ```
-final isAuthenticatedProvider = Provider<bool>((ref) {
+final hasAppAccessProvider = Provider<bool>((ref) {
   final authState = ref.watch(authProvider);
-  return authState is Authenticated;
+  return authState is Authenticated || authState is NoAuthRequired;
 });
 
 /// Provider for the current access token.

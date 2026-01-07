@@ -88,8 +88,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       } else {
         // Auth required
         noAuthMode = false;
-        final isAuthenticated = ref.read(isAuthenticatedProvider);
-        if (isAuthenticated) {
+        final hasAccess = ref.read(hasAppAccessProvider);
+        if (hasAccess) {
           // Already authenticated - go directly to rooms
           context.go('/rooms');
         } else {

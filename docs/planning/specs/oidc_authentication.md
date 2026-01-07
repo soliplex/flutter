@@ -920,7 +920,7 @@ Token endpoint for refresh is derived at runtime from OIDC discovery:
 | `authProvider` | NotifierProvider | Auth state + actions, implements TokenRefresher |
 | `baseHttpClientProvider` | Provider | Observable HTTP client for refresh (no auth header) |
 
-Derived providers (`accessTokenProvider`, `isAuthenticatedProvider`) added when needed.
+Derived providers (`accessTokenProvider`, `hasAppAccessProvider`) added when needed.
 
 ### AuthNotifier
 
