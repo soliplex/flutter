@@ -333,17 +333,14 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
   /// Exit no-auth mode, returning to unauthenticated state.
   ///
   /// Call this when switching from a no-auth backend to an auth-required
-  /// backend. Since no-auth mode has no tokens, this only changes state.
+  /// backend. Safe to call from any state - simply transitions to
+  /// [Unauthenticated].
   ///
-  /// Throws [StateError] if called from [Authenticated] state (use [signOut]
-  /// instead to properly clear tokens).
+  /// Note: Does not clear tokens. If transitioning from [Authenticated],
+  /// prefer [signOut] to properly end the IdP session and clear tokens.
+  /// However, calling this from [Authenticated] is harmless - it just
+  /// transitions to a less privileged state without token cleanup.
   void exitNoAuthMode() {
-    if (state is Authenticated) {
-      throw StateError(
-        'Cannot exit no-auth mode from Authenticated state. '
-        'Use signOut() to clear tokens.',
-      );
-    }
     _log('Exiting no-auth mode');
     state = const Unauthenticated();
   }

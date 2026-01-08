@@ -745,7 +745,10 @@ void main() {
       expect(container.read(authProvider), isA<Unauthenticated>());
     });
 
-    test('throws StateError when called from Authenticated state', () async {
+    test('transitions to Unauthenticated from Authenticated state', () async {
+      // exitNoAuthMode() is safe from any state - it simply transitions to
+      // Unauthenticated. While signOut() is preferred from Authenticated
+      // (to clear tokens), exitNoAuthMode() is harmless - just skips cleanup.
       final validTokens = TestData.createAuthenticated();
       when(() => mockStorage.loadTokens()).thenAnswer((_) async => validTokens);
 
@@ -757,10 +760,9 @@ void main() {
 
       expect(container.read(authProvider), isA<Authenticated>());
 
-      expect(
-        () => container.read(authProvider.notifier).exitNoAuthMode(),
-        throwsA(isA<StateError>()),
-      );
+      container.read(authProvider.notifier).exitNoAuthMode();
+
+      expect(container.read(authProvider), isA<Unauthenticated>());
     });
 
     test('can be called from Unauthenticated state', () async {
