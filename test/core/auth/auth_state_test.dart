@@ -59,6 +59,7 @@ void main() {
       String issuerDiscoveryUrl = 'https://idp.example.com/.well-known',
       String clientId = 'client-app',
       String idToken = 'id-token',
+      String? endSessionEndpoint,
     }) {
       return Authenticated(
         accessToken: accessToken,
@@ -68,6 +69,7 @@ void main() {
         issuerDiscoveryUrl: issuerDiscoveryUrl,
         clientId: clientId,
         idToken: idToken,
+        endSessionEndpoint: endSessionEndpoint,
       );
     }
 
@@ -118,6 +120,46 @@ void main() {
       test('not equal when idToken differs', () {
         final a = createAuth(idToken: 'id-a');
         final b = createAuth(idToken: 'id-b');
+
+        expect(a, isNot(equals(b)));
+      });
+
+      test('equal when both endSessionEndpoint are null', () {
+        final a = createAuth();
+        final b = createAuth();
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('equal when endSessionEndpoint matches', () {
+        final a = createAuth(
+          endSessionEndpoint: 'https://idp.example.com/logout',
+        );
+        final b = createAuth(
+          endSessionEndpoint: 'https://idp.example.com/logout',
+        );
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('not equal when endSessionEndpoint differs', () {
+        final a = createAuth(
+          endSessionEndpoint: 'https://idp.example.com/logout',
+        );
+        final b = createAuth(
+          endSessionEndpoint: 'https://other.example.com/logout',
+        );
+
+        expect(a, isNot(equals(b)));
+      });
+
+      test('not equal when one has endSessionEndpoint and other does not', () {
+        final a = createAuth(
+          endSessionEndpoint: 'https://idp.example.com/logout',
+        );
+        final b = createAuth();
 
         expect(a, isNot(equals(b)));
       });

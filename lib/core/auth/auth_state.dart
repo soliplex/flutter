@@ -35,6 +35,7 @@ class Authenticated extends AuthState {
     required this.issuerDiscoveryUrl,
     required this.clientId,
     required this.idToken,
+    this.endSessionEndpoint,
   });
 
   final String accessToken;
@@ -44,6 +45,7 @@ class Authenticated extends AuthState {
   final String issuerDiscoveryUrl;
   final String clientId;
   final String idToken;
+  final String? endSessionEndpoint;
 
   /// Whether the access token has expired.
   bool get isExpired => DateTime.now().isAfter(expiresAt);
@@ -62,7 +64,8 @@ class Authenticated extends AuthState {
       other.issuerId == issuerId &&
       other.issuerDiscoveryUrl == issuerDiscoveryUrl &&
       other.clientId == clientId &&
-      other.idToken == idToken;
+      other.idToken == idToken &&
+      other.endSessionEndpoint == endSessionEndpoint;
 
   @override
   int get hashCode => Object.hash(
@@ -73,6 +76,7 @@ class Authenticated extends AuthState {
         issuerDiscoveryUrl,
         clientId,
         idToken,
+        endSessionEndpoint,
       );
 
   @override
