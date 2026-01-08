@@ -299,4 +299,99 @@ void main() {
       // Native doesn't persist endSessionEndpoint - no delete expected.
     });
   });
+
+  group('PreAuthState', () {
+    test('stores all constructor parameters', () {
+      final createdAt = DateTime(2025, 6, 15, 10, 30);
+      final state = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://accounts.google.com/.well-known/openid-configuration',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+
+      expect(state.issuerId, 'google');
+      expect(state.discoveryUrl, 'https://accounts.google.com/.well-known/openid-configuration');
+      expect(state.clientId, 'client-123');
+      expect(state.createdAt, createdAt);
+    });
+
+    test('isExpired returns false for recent state', () {
+      final state = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: DateTime.now(),
+      );
+
+      expect(state.isExpired, isFalse);
+    });
+
+    test('isExpired returns true for old state', () {
+      final state = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: DateTime.now().subtract(const Duration(minutes: 6)),
+      );
+
+      expect(state.isExpired, isTrue);
+    });
+
+    test('equality based on all fields', () {
+      final createdAt = DateTime(2025, 6, 15, 10, 30);
+      final state1 = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+      final state2 = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+      final state3 = PreAuthState(
+        issuerId: 'microsoft',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+
+      expect(state1, equals(state2));
+      expect(state1, isNot(equals(state3)));
+    });
+
+    test('hashCode is consistent with equality', () {
+      final createdAt = DateTime(2025, 6, 15, 10, 30);
+      final state1 = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+      final state2 = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+
+      expect(state1.hashCode, equals(state2.hashCode));
+    });
+
+    test('toString shows issuerId and createdAt', () {
+      final createdAt = DateTime(2025, 6, 15, 10, 30);
+      final state = PreAuthState(
+        issuerId: 'google',
+        discoveryUrl: 'https://example.com',
+        clientId: 'client-123',
+        createdAt: createdAt,
+      );
+
+      expect(state.toString(), contains('issuerId: google'));
+      expect(state.toString(), contains('createdAt:'));
+    });
+  });
 }
