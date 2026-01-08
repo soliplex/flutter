@@ -62,7 +62,8 @@ abstract class AuthFlow {
   /// End the OIDC session.
   ///
   /// Platform behavior:
-  /// - Native: Opens browser to IdP's end_session_endpoint (uses discoveryUrl)
+  /// - Native: Ends session via flutter_appauth (fetches endpoint from
+  ///   discoveryUrl)
   /// - Web: Redirects to cached endSessionEndpoint (if available)
   ///
   /// Parameters:
