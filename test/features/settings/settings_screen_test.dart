@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+// Hide ag_ui's CancelToken - HttpTransport uses soliplex_client's.
+import 'package:soliplex_client/soliplex_client.dart' hide CancelToken;
+import 'package:soliplex_client/src/utils/cancel_token.dart';
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -16,6 +22,7 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   final AuthState initialState;
   bool exitNoAuthModeCalled = false;
   bool signOutCalled = false;
+  bool enterNoAuthModeCalled = false;
 
   @override
   AuthState build() => initialState;
@@ -49,7 +56,10 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   }) async {}
 
   @override
-  Future<void> enterNoAuthMode() async {}
+  Future<void> enterNoAuthMode() async {
+    enterNoAuthModeCalled = true;
+    state = const NoAuthRequired();
+  }
 
   @override
   void exitNoAuthMode() {
@@ -58,24 +68,72 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   }
 }
 
+/// Fake HttpTransport for controlling fetchAuthProviders responses.
+class _FakeHttpTransport implements HttpTransport {
+  _FakeHttpTransport({this.authProviders = const {}});
+
+  final Map<String, dynamic> authProviders;
+
+  @override
+  Duration get defaultTimeout => const Duration(seconds: 30);
+
+  @override
+  Future<T> request<T>(
+    String method,
+    Uri uri, {
+    Object? body,
+    Map<String, String>? headers,
+    Duration? timeout,
+    CancelToken? cancelToken,
+    T Function(Map<String, dynamic>)? fromJson,
+  }) async {
+    return authProviders as T;
+  }
+
+  @override
+  Stream<List<int>> requestStream(
+    String method,
+    Uri uri, {
+    Object? body,
+    Map<String, String>? headers,
+    CancelToken? cancelToken,
+  }) async* {
+    yield [];
+  }
+
+  @override
+  void close() {}
+}
+
 /// Creates a test app with GoRouter for testing navigation.
 Widget _createAppWithRouter({
   required Widget home,
   required List<dynamic> overrides,
+  String initialLocation = '/settings',
 }) {
-  final router = GoRouter(
-    initialLocation: '/settings',
+  late GoRouter router;
+  router = GoRouter(
+    initialLocation: initialLocation,
     routes: [
       GoRoute(
         path: '/settings',
         builder: (_, __) => Scaffold(body: home),
       ),
       GoRoute(path: '/', builder: (_, __) => const Text('Home')),
+      GoRoute(path: '/login', builder: (_, __) => const Text('Login')),
+      GoRoute(path: '/rooms', builder: (_, __) => const Text('Rooms')),
+    ],
+  );
+
+  final container = ProviderContainer(
+    overrides: [
+      ...overrides.cast(),
+      routerProvider.overrideWithValue(router),
     ],
   );
 
   return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast()),
+    container: container,
     child: MaterialApp.router(routerConfig: router),
   );
 }
@@ -264,6 +322,203 @@ void main() {
 
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
         expect(find.text('Loading...'), findsOneWidget);
+      });
+    });
+
+    group('URL edit dialog', () {
+      testWidgets('does nothing when URL is unchanged (normalized)',
+          (tester) async {
+        late _MockAuthNotifier mockNotifier;
+        final fakeTransport = _FakeHttpTransport();
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(() {
+                return mockNotifier = _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(),
+                );
+              }),
+              httpTransportProvider.overrideWithValue(fakeTransport),
+            ],
+          ),
+        );
+
+        // Tap Backend URL to open dialog
+        await tester.tap(find.text('Backend URL'));
+        await tester.pumpAndSettle();
+
+        // Enter same URL with trailing slash (should normalize to same)
+        final textField = find.byType(TextFormField);
+        await tester.enterText(textField, 'http://localhost:8000/');
+        await tester.pumpAndSettle();
+
+        // Tap Save
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Should not sign out (URLs normalize to same)
+        expect(mockNotifier.signOutCalled, isFalse);
+        // Should show snackbar
+        expect(find.text('URL unchanged'), findsOneWidget);
+      });
+
+      testWidgets(
+          'signs out and navigates to login when URL changes '
+          'and backend requires auth', (tester) async {
+        late _MockAuthNotifier mockNotifier;
+        // Fake transport that returns auth providers
+        final fakeTransport = _FakeHttpTransport(
+          authProviders: {
+            'google': {
+              'title': 'Google',
+              'server_url': 'https://accounts.google.com',
+              'client_id': 'client-id',
+              'scope': 'openid profile',
+            },
+          },
+        );
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(() {
+                return mockNotifier = _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(),
+                );
+              }),
+              httpTransportProvider.overrideWithValue(fakeTransport),
+              configProviderOverride(AppConfig.defaults()),
+            ],
+          ),
+        );
+
+        // Tap Backend URL to open dialog
+        await tester.tap(find.text('Backend URL'));
+        await tester.pumpAndSettle();
+
+        // Enter different URL
+        final textField = find.byType(TextFormField);
+        await tester.enterText(textField, 'http://newbackend.example.com');
+        await tester.pumpAndSettle();
+
+        // Tap Save - connection flow runs asynchronously
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Run async code and allow it to complete
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+
+        // Should sign out and navigate to login
+        expect(mockNotifier.signOutCalled, isTrue);
+        expect(find.text('Login'), findsOneWidget);
+      });
+
+      testWidgets(
+          'enters no-auth mode and navigates to rooms when URL changes '
+          'and backend has no auth providers', (tester) async {
+        late _MockAuthNotifier mockNotifier;
+        // Fake transport that returns empty (no auth required)
+        final fakeTransport = _FakeHttpTransport(authProviders: {});
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(() {
+                return mockNotifier = _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(),
+                );
+              }),
+              httpTransportProvider.overrideWithValue(fakeTransport),
+              configProviderOverride(AppConfig.defaults()),
+            ],
+          ),
+        );
+
+        // Tap Backend URL to open dialog
+        await tester.tap(find.text('Backend URL'));
+        await tester.pumpAndSettle();
+
+        // Enter different URL
+        final textField = find.byType(TextFormField);
+        await tester.enterText(textField, 'http://newbackend.example.com');
+        await tester.pumpAndSettle();
+
+        // Tap Save - connection flow runs asynchronously
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Run async code and allow it to complete
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+
+        // Should sign out, enter no-auth mode, and navigate to rooms
+        expect(mockNotifier.signOutCalled, isTrue);
+        expect(mockNotifier.enterNoAuthModeCalled, isTrue);
+        expect(find.text('Rooms'), findsOneWidget);
+      });
+
+      testWidgets(
+          'exits no-auth mode when URL changes from NoAuthRequired state',
+          (tester) async {
+        late _MockAuthNotifier mockNotifier;
+        // Fake transport that returns auth providers
+        final fakeTransport = _FakeHttpTransport(
+          authProviders: {
+            'google': {
+              'title': 'Google',
+              'server_url': 'https://accounts.google.com',
+              'client_id': 'client-id',
+              'scope': 'openid profile',
+            },
+          },
+        );
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(() {
+                return mockNotifier = _MockAuthNotifier(
+                  initialState: const NoAuthRequired(),
+                );
+              }),
+              httpTransportProvider.overrideWithValue(fakeTransport),
+              configProviderOverride(AppConfig.defaults()),
+            ],
+          ),
+        );
+
+        // Tap Backend URL to open dialog
+        await tester.tap(find.text('Backend URL'));
+        await tester.pumpAndSettle();
+
+        // Enter different URL
+        final textField = find.byType(TextFormField);
+        await tester.enterText(textField, 'http://newbackend.example.com');
+        await tester.pumpAndSettle();
+
+        // Tap Save - connection flow runs asynchronously
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Run async code and allow it to complete
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+        });
+        await tester.pumpAndSettle();
+
+        // Should exit no-auth mode and navigate to login
+        expect(mockNotifier.exitNoAuthModeCalled, isTrue);
+        expect(find.text('Login'), findsOneWidget);
       });
     });
   });

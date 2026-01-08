@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/router/app_router.dart';
+import 'package:soliplex_frontend/features/home/connection_flow.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -16,6 +20,17 @@ class SettingsScreen extends ConsumerWidget {
     WidgetRef ref,
     String currentUrl,
   ) async {
+    // Capture dependencies upfront before any async that might unmount widget.
+    // After signOut, router redirects from /settings (protected) to /login,
+    // which unmounts this widget. Using captured refs allows us to continue.
+    final authNotifier = ref.read(authProvider.notifier);
+    final configNotifier = ref.read(configProvider.notifier);
+    final transport = ref.read(httpTransportProvider);
+    final router = ref.read(routerProvider);
+    final authState = ref.read(authProvider);
+
+    // No dispose: GC handles function-scoped controller; explicit disposal
+    // crashes because dialog still references it during exit animation.
     final controller = TextEditingController(text: currentUrl);
     final formKey = GlobalKey<FormState>();
 
@@ -64,15 +79,47 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
 
-    controller.dispose();
+    if (newUrl == null) return;
 
-    if (newUrl != null && newUrl != currentUrl) {
-      await ref.read(configProvider.notifier).setBaseUrl(newUrl);
+    // Use normalized comparison to handle trailing slashes
+    if (normalizeUrl(newUrl) == normalizeUrl(currentUrl)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Backend URL updated')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('URL unchanged')),
+        );
       }
+      return;
+    }
+
+    // Different URL - run full connection flow
+    try {
+      // Pre-connect cleanup: sign out if switching backends
+      if (authState is Authenticated) {
+        await authNotifier.signOut();
+      } else if (authState is NoAuthRequired) {
+        authNotifier.exitNoAuthMode();
+      }
+
+      // Save the new URL
+      await configNotifier.setBaseUrl(newUrl);
+
+      // Fetch auth providers from new backend
+      final providers = await fetchAuthProviders(
+        transport: transport,
+        baseUrl: Uri.parse(newUrl),
+      );
+
+      // Navigate based on whether new backend requires auth
+      if (providers.isEmpty) {
+        await authNotifier.enterNoAuthMode();
+        router.go('/rooms');
+      } else {
+        router.go('/login');
+      }
+    } on Exception catch (e) {
+      // Connection failed - user will be redirected to login by router
+      // (if they were signed out) or stay on settings (if no auth change).
+      debugPrint('Settings URL change failed: $e');
     }
   }
 
