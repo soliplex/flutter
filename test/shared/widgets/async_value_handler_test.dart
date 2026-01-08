@@ -15,7 +15,7 @@ void main() {
         createTestApp(
           home: AsyncValueHandler<String>(
             value: const AsyncValue.loading(),
-            data: (data) => Text(data),
+            data: (text) => Text(text, key: ValueKey(text)),
           ),
         ),
       );
@@ -28,7 +28,7 @@ void main() {
         createTestApp(
           home: AsyncValueHandler<String>(
             value: const AsyncValue.loading(),
-            data: (data) => Text(data),
+            data: (text) => Text(text, key: ValueKey(text)),
             loading: const Text('Custom Loading'),
           ),
         ),
@@ -43,7 +43,7 @@ void main() {
         createTestApp(
           home: AsyncValueHandler<String>(
             value: const AsyncValue.data('Hello World'),
-            data: (data) => Text(data),
+            data: (text) => Text(text, key: ValueKey(text)),
           ),
         ),
       );
@@ -56,7 +56,7 @@ void main() {
         createTestApp(
           home: AsyncValueHandler<String>(
             value: AsyncValue.error(Exception('Test error'), StackTrace.empty),
-            data: (data) => Text(data),
+            data: (text) => Text(text, key: ValueKey(text)),
           ),
         ),
       );
@@ -72,7 +72,7 @@ void main() {
         createTestApp(
           home: AsyncValueHandler<String>(
             value: AsyncValue.error(Exception('Test error'), StackTrace.empty),
-            data: (data) => Text(data),
+            data: (text) => Text(text, key: ValueKey(text)),
             onRetry: () => retried = true,
           ),
         ),
