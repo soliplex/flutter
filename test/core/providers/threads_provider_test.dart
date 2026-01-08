@@ -315,4 +315,98 @@ void main() {
       expect(threadId, isNull);
     });
   });
+
+  group('ThreadSelection types', () {
+    group('NoThreadSelected', () {
+      test('equality', () {
+        const a = NoThreadSelected();
+        const b = NoThreadSelected();
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('toString', () {
+        const selection = NoThreadSelected();
+
+        expect(selection.toString(), 'NoThreadSelected()');
+      });
+    });
+
+    group('ThreadSelected', () {
+      test('equality based on threadId', () {
+        const a = ThreadSelected('thread-1');
+        const b = ThreadSelected('thread-1');
+        const c = ThreadSelected('thread-2');
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(a, isNot(equals(c)));
+      });
+
+      test('toString shows threadId', () {
+        const selection = ThreadSelected('thread-123');
+
+        expect(selection.toString(), 'ThreadSelected(threadId: thread-123)');
+      });
+    });
+
+    group('NewThreadIntent', () {
+      test('equality', () {
+        const a = NewThreadIntent();
+        const b = NewThreadIntent();
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('toString', () {
+        const intent = NewThreadIntent();
+
+        expect(intent.toString(), 'NewThreadIntent()');
+      });
+    });
+  });
+
+  group('LastViewed types', () {
+    group('HasLastViewed', () {
+      test('stores threadId', () {
+        const lastViewed = HasLastViewed('thread-123');
+
+        expect(lastViewed.threadId, 'thread-123');
+      });
+
+      test('equality based on threadId', () {
+        const a = HasLastViewed('thread-1');
+        const b = HasLastViewed('thread-1');
+        const c = HasLastViewed('thread-2');
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(a, isNot(equals(c)));
+      });
+
+      test('toString shows threadId', () {
+        const lastViewed = HasLastViewed('thread-456');
+
+        expect(lastViewed.toString(), 'HasLastViewed(thread-456)');
+      });
+    });
+
+    group('NoLastViewed', () {
+      test('equality', () {
+        const a = NoLastViewed();
+        const b = NoLastViewed();
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+      });
+
+      test('toString', () {
+        const noLast = NoLastViewed();
+
+        expect(noLast.toString(), 'NoLastViewed()');
+      });
+    });
+  });
 }
