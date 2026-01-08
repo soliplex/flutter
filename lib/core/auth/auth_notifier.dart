@@ -135,6 +135,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: tokens.issuerDiscoveryUrl,
       clientId: tokens.clientId,
       fallbackIdToken: tokens.idToken,
+      endSessionEndpoint: tokens.endSessionEndpoint,
     );
 
     _log('Session restored via token refresh');
@@ -152,6 +153,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     required String issuerDiscoveryUrl,
     required String clientId,
     required String fallbackIdToken,
+    required String? endSessionEndpoint,
   }) async {
     final newState = Authenticated(
       accessToken: result.accessToken,
@@ -161,6 +163,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: issuerDiscoveryUrl,
       clientId: clientId,
       idToken: result.idToken ?? fallbackIdToken,
+      endSessionEndpoint: endSessionEndpoint,
     );
 
     try {
@@ -299,8 +302,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: preAuthState.discoveryUrl,
       clientId: preAuthState.clientId,
       // Web BFF flow doesn't return id_token - use empty string.
-      // This means web logout won't redirect to IdP (acceptable tradeoff).
-      // See docs/planning/backend-frontend-integration.md for details.
+      // Logout still redirects to IdP, just without id_token_hint parameter.
       idToken: '',
       endSessionEndpoint: endSessionEndpoint,
     );
@@ -355,10 +357,11 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       try {
         await _authFlow.endSession(
           discoveryUrl: current.issuerDiscoveryUrl,
+          endSessionEndpoint: current.endSessionEndpoint,
           idToken: current.idToken,
+          clientId: current.clientId,
         );
       } on Exception catch (e) {
-        // endSession failure shouldn't prevent local logout completion
         _log('IdP session termination failed: ${e.runtimeType}');
       }
     }
@@ -490,6 +493,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: current.issuerDiscoveryUrl,
       clientId: current.clientId,
       fallbackIdToken: current.idToken,
+      endSessionEndpoint: current.endSessionEndpoint,
     );
 
     _log('Token refresh successful');

@@ -62,11 +62,19 @@ abstract class AuthFlow {
   /// End the OIDC session.
   ///
   /// Platform behavior:
-  /// - Native: Opens browser to IdP's end_session_endpoint
-  /// - Web: No-op (local logout only, no IdP redirect)
+  /// - Native: Opens browser to IdP's end_session_endpoint (uses discoveryUrl)
+  /// - Web: Redirects to cached endSessionEndpoint (if available)
+  ///
+  /// Parameters:
+  /// - [discoveryUrl]: OIDC discovery URL (native fetches end_session_endpoint)
+  /// - [endSessionEndpoint]: Cached endpoint URL (web uses this directly)
+  /// - [idToken]: ID token for id_token_hint parameter
+  /// - [clientId]: Client ID for logout request
   Future<void> endSession({
     required String discoveryUrl,
+    required String? endSessionEndpoint,
     required String idToken,
+    required String clientId,
   });
 
   /// Whether this is a web platform implementation.

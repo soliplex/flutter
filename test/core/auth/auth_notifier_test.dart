@@ -810,7 +810,9 @@ void main() {
       when(
         () => mockAuthFlow.endSession(
           discoveryUrl: any(named: 'discoveryUrl'),
+          endSessionEndpoint: any(named: 'endSessionEndpoint'),
           idToken: any(named: 'idToken'),
+          clientId: any(named: 'clientId'),
         ),
       ).thenAnswer((_) async {});
 
@@ -837,7 +839,9 @@ void main() {
       when(
         () => mockAuthFlow.endSession(
           discoveryUrl: any(named: 'discoveryUrl'),
+          endSessionEndpoint: any(named: 'endSessionEndpoint'),
           idToken: any(named: 'idToken'),
+          clientId: any(named: 'clientId'),
         ),
       ).thenAnswer((_) async {
         stateWhenEndSessionCalled = container.read(authProvider);
@@ -860,7 +864,9 @@ void main() {
       when(
         () => mockAuthFlow.endSession(
           discoveryUrl: any(named: 'discoveryUrl'),
+          endSessionEndpoint: any(named: 'endSessionEndpoint'),
           idToken: any(named: 'idToken'),
+          clientId: any(named: 'clientId'),
         ),
       ).thenAnswer((_) async {
         stateWhenEndSessionCalled = container.read(authProvider);
@@ -878,7 +884,9 @@ void main() {
       when(
         () => mockAuthFlow.endSession(
           discoveryUrl: any(named: 'discoveryUrl'),
+          endSessionEndpoint: any(named: 'endSessionEndpoint'),
           idToken: any(named: 'idToken'),
+          clientId: any(named: 'clientId'),
         ),
       ).thenThrow(Exception('IdP unreachable'));
 

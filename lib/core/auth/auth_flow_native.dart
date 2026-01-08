@@ -61,7 +61,9 @@ class NativeAuthFlow implements AuthFlow {
   @override
   Future<void> endSession({
     required String discoveryUrl,
+    required String? endSessionEndpoint,
     required String idToken,
+    required String clientId,
   }) async {
     try {
       await _appAuth.endSession(
@@ -72,7 +74,6 @@ class NativeAuthFlow implements AuthFlow {
         ),
       );
     } on Exception catch (e) {
-      // endSession failure shouldn't prevent local logout
       // Log type only - exception details may contain sensitive data
       debugPrint('IdP session termination failed: ${e.runtimeType}');
     }

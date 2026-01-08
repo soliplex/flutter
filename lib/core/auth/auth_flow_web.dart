@@ -76,10 +76,25 @@ class WebAuthFlow implements AuthFlow {
   @override
   Future<void> endSession({
     required String discoveryUrl,
+    required String? endSessionEndpoint,
     required String idToken,
+    required String clientId,
   }) async {
-    // On web, we just clear local storage (done by caller).
-    // No IdP session termination - would require redirect flow.
-    debugPrint('Web auth: Local logout only (no IdP redirect)');
+    if (endSessionEndpoint == null) {
+      debugPrint('Web auth: No end_session_endpoint, local logout only');
+      return;
+    }
+
+    final frontendOrigin = _navigator.origin;
+    final logoutUri = Uri.parse(endSessionEndpoint).replace(
+      queryParameters: {
+        'post_logout_redirect_uri': frontendOrigin,
+        'client_id': clientId,
+        if (idToken.isNotEmpty) 'id_token_hint': idToken,
+      },
+    );
+
+    debugPrint('Web auth: Redirecting to IdP logout: $logoutUri');
+    _navigator.navigateTo(logoutUri.toString());
   }
 }
