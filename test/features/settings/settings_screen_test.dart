@@ -9,8 +9,13 @@ import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 import '../../helpers/test_helpers.dart';
 
 class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
+  _MockAuthNotifier({this.initialState = const Unauthenticated()});
+
+  final AuthState initialState;
+  bool exitNoAuthModeCalled = false;
+
   @override
-  AuthState build() => const Unauthenticated();
+  AuthState build() => initialState;
 
   @override
   String? get accessToken => null;
@@ -41,7 +46,10 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   Future<void> enterNoAuthMode() async {}
 
   @override
-  void exitNoAuthMode() {}
+  void exitNoAuthMode() {
+    exitNoAuthModeCalled = true;
+    state = const Unauthenticated();
+  }
 }
 
 void main() {
@@ -70,6 +78,47 @@ void main() {
 
       expect(find.text('Authentication'), findsOneWidget);
       expect(find.text('Not signed in'), findsOneWidget);
+    });
+
+    testWidgets('shows Disconnect option in NoAuthRequired state',
+        (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const SettingsScreen(),
+          overrides: [
+            authProvider.overrideWith(
+              () => _MockAuthNotifier(initialState: const NoAuthRequired()),
+            ),
+          ],
+        ),
+      );
+
+      expect(find.text('No Authentication'), findsOneWidget);
+      expect(find.text('Backend does not require login'), findsOneWidget);
+      expect(find.text('Disconnect'), findsOneWidget);
+    });
+
+    testWidgets('Disconnect calls exitNoAuthMode', (tester) async {
+      late _MockAuthNotifier mockNotifier;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const SettingsScreen(),
+          overrides: [
+            authProvider.overrideWith(() {
+              return mockNotifier = _MockAuthNotifier(
+                initialState: const NoAuthRequired(),
+              );
+            }),
+          ],
+        ),
+      );
+
+      await tester.tap(find.text('Disconnect'));
+      // Don't pump - the tap triggers sync call before navigation throws
+      tester.takeException(); // Consume the go_router error
+
+      expect(mockNotifier.exitNoAuthModeCalled, isTrue);
     });
   });
 }
