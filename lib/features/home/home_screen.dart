@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
-import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/features/home/connection_flow.dart';
 
 /// Home/welcome screen with backend URL configuration.
 ///
@@ -54,10 +54,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
-  /// Normalize URL for comparison by removing trailing slash.
-  String _normalizeUrl(String url) {
-    return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
-  }
 
   Future<void> _connect() async {
     if (!_formKey.currentState!.validate()) return;
@@ -70,19 +66,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final url = _urlController.text.trim();
       final currentUrl = ref.read(configProvider).baseUrl;
-      final isBackendChange = _normalizeUrl(url) != _normalizeUrl(currentUrl);
+      final isBackendChange = normalizeUrl(url) != normalizeUrl(currentUrl);
 
       debugPrint('HomeScreen: Connecting to $url');
 
-      // Clear auth state when switching backends - old tokens are invalid
-      if (isBackendChange) {
-        final authState = ref.read(authProvider);
-        if (authState is Authenticated) {
+      // Determine and execute pre-connect cleanup action.
+      final preConnectAction = determinePreConnectAction(
+        isBackendChange: isBackendChange,
+        currentAuthState: ref.read(authProvider),
+      );
+      switch (preConnectAction) {
+        case PreConnectAction.signOut:
           await ref.read(authProvider.notifier).signOut();
           if (!mounted) return;
-        } else if (authState is NoAuthRequired) {
+        case PreConnectAction.exitNoAuthMode:
           ref.read(authProvider.notifier).exitNoAuthMode();
-        }
+        case PreConnectAction.none:
+          break;
       }
 
       // Save the URL
@@ -101,26 +101,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (!mounted) return;
 
-      if (providers.isEmpty) {
-        // No auth required - enter no-auth mode and go to rooms
-        await ref.read(authProvider.notifier).enterNoAuthMode();
-        if (!mounted) return;
-        context.go('/rooms');
-      } else {
-        // Auth required - check current state
-        final authState = ref.read(authProvider);
-        if (authState is Authenticated) {
-          // Already authenticated - go directly to rooms
+      // Determine and execute post-connect navigation.
+      final result = determinePostConnectResult(
+        hasProviders: providers.isNotEmpty,
+        currentAuthState: ref.read(authProvider),
+      );
+      switch (result) {
+        case EnterNoAuthModeResult():
+          await ref.read(authProvider.notifier).enterNoAuthMode();
+          if (!mounted) return;
           context.go('/rooms');
-        } else {
-          // Need to authenticate - ensure clean state and go to login
-          if (authState is NoAuthRequired) {
-            // Was in no-auth mode, now need auth - exit no-auth mode
+        case AlreadyAuthenticatedResult():
+          context.go('/rooms');
+        case RequireLoginResult(:final shouldExitNoAuthMode):
+          if (shouldExitNoAuthMode) {
             ref.read(authProvider.notifier).exitNoAuthMode();
           }
           ref.invalidate(oidcIssuersProvider);
           context.go('/login');
-        }
       }
     } on NetworkException catch (e) {
       if (mounted) {
