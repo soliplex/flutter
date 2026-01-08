@@ -116,8 +116,8 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login';
       }
 
-      // Users with access on login page go to rooms
-      if (hasAccess && state.matchedLocation == '/login') {
+      // Public routes are for guests only - redirect to rooms if authenticated
+      if (hasAccess && isPublicRoute) {
         debugPrint('Router: redirecting to /rooms');
         return '/rooms';
       }

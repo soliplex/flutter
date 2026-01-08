@@ -86,10 +86,10 @@ Widget createRouterAppAt(
         return GoRouter(
           initialLocation: initialLocation,
           redirect: (context, state) {
-            const publicRoutes = {'/', '/login'};
+            const publicRoutes = {'/', '/login', '/auth/callback'};
             final isPublicRoute = publicRoutes.contains(state.matchedLocation);
             if (!hasAccess && !isPublicRoute) return '/login';
-            if (hasAccess && state.matchedLocation == '/login') return '/';
+            if (hasAccess && isPublicRoute) return '/rooms';
             return null;
           },
           routes: [
@@ -168,10 +168,12 @@ void main() {
   });
 
   group('AppRouter', () {
-    testWidgets('navigates to home screen at /', (tester) async {
+    testWidgets('redirects authenticated users from / to /rooms', (
+      tester,
+    ) async {
       await tester.pumpWidget(createRouterApp());
       await tester.pumpAndSettle();
-      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(RoomsScreen), findsOneWidget);
     });
 
     testWidgets('shows home when unauthenticated at /', (tester) async {
@@ -282,7 +284,8 @@ void main() {
       await tester.tap(find.text('Go Home'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(HomeScreen), findsOneWidget);
+      // Authenticated users get redirected from / to /rooms
+      expect(find.byType(RoomsScreen), findsOneWidget);
     });
   });
 
