@@ -14,8 +14,7 @@ import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
-/// Creates an authenticated auth state for testing.
-Authenticated createAuthenticatedState() => Authenticated(
+Authenticated _createAuthenticatedState() => Authenticated(
       accessToken: 'test-token',
       refreshToken: 'test-refresh',
       expiresAt: DateTime.now().add(const Duration(hours: 1)),
@@ -26,31 +25,15 @@ Authenticated createAuthenticatedState() => Authenticated(
       idToken: 'test-id-token',
     );
 
-// Using dynamic list since Override type is internal in Riverpod 3.0
-Widget createRouterApp({
-  List<dynamic> overrides = const [],
+AuthState _resolveAuthState({
   bool authenticated = true,
+  bool noAuthMode = false,
 }) {
-  return ProviderScope(
-    overrides: [
-      // Override auth state based on test requirement
-      authProvider.overrideWith(
-        () => createMockAuthNotifier(
-          authenticated ? createAuthenticatedState() : const Unauthenticated(),
-        ),
-      ),
-      ...overrides,
-    ].cast(),
-    child: Consumer(
-      builder: (context, ref, _) {
-        final router = ref.watch(routerProvider);
-        return MaterialApp.router(routerConfig: router);
-      },
-    ),
-  );
+  if (noAuthMode) return const NoAuthRequired();
+  if (authenticated) return _createAuthenticatedState();
+  return const Unauthenticated();
 }
 
-/// Mock AuthNotifier that returns a fixed state.
 class _MockAuthNotifier extends AuthNotifier {
   _MockAuthNotifier(this._initialState);
   final AuthState _initialState;
@@ -59,45 +42,54 @@ class _MockAuthNotifier extends AuthNotifier {
   AuthState build() => _initialState;
 }
 
-/// Factory function for creating mock auth notifier.
-AuthNotifier createMockAuthNotifier(AuthState state) {
-  return _MockAuthNotifier(state);
+// Using dynamic list since Override type is internal in Riverpod 3.0
+Widget createRouterApp({
+  List<dynamic> overrides = const [],
+  bool authenticated = true,
+  bool noAuthMode = false,
+}) {
+  return createRouterAppAt(
+    '/',
+    overrides: overrides,
+    authenticated: authenticated,
+    noAuthMode: noAuthMode,
+  );
 }
 
-/// Common overrides for tests that navigate to RoomScreen.
 List<dynamic> roomScreenOverrides(String roomId) {
   return [
     threadsProvider(roomId).overrideWith((ref) async => []),
-    lastViewedThreadProvider(
-      roomId,
-    ).overrideWith((ref) async => const NoLastViewed()),
+    lastViewedThreadProvider(roomId).overrideWith(
+      (ref) async => const NoLastViewed(),
+    ),
   ];
 }
 
-/// Creates a router app starting at a specific location.
 Widget createRouterAppAt(
   String initialLocation, {
   List<dynamic> overrides = const [],
   bool authenticated = true,
+  bool noAuthMode = false,
 }) {
+  final authState = _resolveAuthState(
+    authenticated: authenticated,
+    noAuthMode: noAuthMode,
+  );
+
   return ProviderScope(
     overrides: [
-      if (authenticated)
-        authProvider.overrideWith(
-          () => createMockAuthNotifier(createAuthenticatedState()),
-        ),
-      // Override router to start at specific location
+      authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
-        final authState = ref.watch(authProvider);
+        final currentAuthState = ref.watch(authProvider);
+        final hasAccess = currentAuthState is Authenticated ||
+            currentAuthState is NoAuthRequired;
         return GoRouter(
           initialLocation: initialLocation,
           redirect: (context, state) {
-            final isAuthenticated = authState is Authenticated;
-            final isPublicRoute = state.matchedLocation == '/login';
-            if (!isAuthenticated && !isPublicRoute) return '/login';
-            if (isAuthenticated && state.matchedLocation == '/login') {
-              return '/';
-            }
+            const publicRoutes = {'/', '/login'};
+            final isPublicRoute = publicRoutes.contains(state.matchedLocation);
+            if (!hasAccess && !isPublicRoute) return '/login';
+            if (hasAccess && state.matchedLocation == '/login') return '/';
             return null;
           },
           routes: [
@@ -183,7 +175,6 @@ void main() {
     });
 
     testWidgets('shows home when unauthenticated at /', (tester) async {
-      // Home is public - users enter backend URL there before authenticating
       await tester.pumpWidget(createRouterApp(authenticated: false));
       await tester.pumpAndSettle();
       expect(find.byType(HomeScreen), findsOneWidget);
@@ -192,12 +183,25 @@ void main() {
     testWidgets('redirects to login when accessing protected route', (
       tester,
     ) async {
-      // Protected routes redirect to login when unauthenticated
       await tester.pumpWidget(
         createRouterAppAt('/rooms', authenticated: false),
       );
       await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets('allows access to protected routes when NoAuthRequired', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createRouterAppAt(
+          '/rooms',
+          authenticated: false,
+          noAuthMode: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(RoomsScreen), findsOneWidget);
     });
 
     testWidgets('navigates to rooms screen', (tester) async {
@@ -286,11 +290,10 @@ void main() {
     testWidgets('logout from deep navigation redirects to /login', (
       tester,
     ) async {
-      // Start authenticated at /rooms
       final container = ProviderContainer(
         overrides: [
           authProvider.overrideWith(
-            () => _ControllableAuthNotifier(createAuthenticatedState()),
+            () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
         ],
       );
@@ -309,27 +312,23 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Navigate to /rooms
       container.read(routerProvider).go('/rooms');
       await tester.pumpAndSettle();
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
-      // Simulate logout
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .setUnauthenticated();
       await tester.pumpAndSettle();
 
-      // Should redirect to /login
       expect(find.byType(LoginScreen), findsOneWidget);
     });
 
     testWidgets('token refresh preserves navigation location', (tester) async {
-      // Start authenticated at /rooms
       final container = ProviderContainer(
         overrides: [
           authProvider.overrideWith(
-            () => _ControllableAuthNotifier(createAuthenticatedState()),
+            () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
         ],
       );
@@ -348,25 +347,21 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Navigate to /rooms
       container.read(routerProvider).go('/rooms');
       await tester.pumpAndSettle();
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
-      // Simulate token refresh (new tokens, still authenticated)
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .refreshTokens();
       await tester.pumpAndSettle();
 
-      // Should stay at /rooms (NOT redirect to /)
       expect(find.byType(RoomsScreen), findsOneWidget);
       expect(find.byType(HomeScreen), findsNothing);
     });
   });
 }
 
-/// Controllable AuthNotifier for testing auth state transitions.
 class _ControllableAuthNotifier extends AuthNotifier {
   _ControllableAuthNotifier(this._initialState);
   final AuthState _initialState;
@@ -374,12 +369,10 @@ class _ControllableAuthNotifier extends AuthNotifier {
   @override
   AuthState build() => _initialState;
 
-  /// Simulate logout.
   void setUnauthenticated() {
     state = const Unauthenticated();
   }
 
-  /// Simulate token refresh (new tokens, still authenticated).
   void refreshTokens() {
     final current = state;
     if (current is Authenticated) {

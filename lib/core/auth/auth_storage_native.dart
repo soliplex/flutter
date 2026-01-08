@@ -67,6 +67,8 @@ class NativeAuthStorage implements AuthStorage {
 
   @override
   Future<void> saveTokens(Authenticated tokens) async {
+    // Note: endSessionEndpoint is not persisted on native because
+    // flutter_appauth fetches it from discoveryUrl at logout time.
     await Future.wait([
       _storage.write(
         key: AuthStorageKeys.accessToken,

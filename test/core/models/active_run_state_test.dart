@@ -433,5 +433,122 @@ void main() {
       expect(success, isNot(equals(cancelled)));
       expect(failed, isNot(equals(cancelled)));
     });
+
+    test('Success.toString returns Success()', () {
+      const success = Success();
+
+      expect(success.toString(), 'Success()');
+    });
+
+    test('FailedResult.toString shows error message', () {
+      const failed = FailedResult(errorMessage: 'Network error');
+
+      expect(failed.toString(), 'FailedResult(errorMessage: Network error)');
+    });
+
+    test('CancelledResult.toString shows reason', () {
+      const cancelled = CancelledResult(reason: 'User cancelled');
+
+      expect(cancelled.toString(), 'CancelledResult(reason: User cancelled)');
+    });
+  });
+
+  group('toString methods', () {
+    test('IdleState.toString returns IdleState()', () {
+      const state = IdleState();
+
+      expect(state.toString(), 'IdleState()');
+    });
+
+    test('RunningState.toString shows threadId and message count', () {
+      final message = TextMessage.create(
+        id: 'msg-1',
+        user: ChatUser.user,
+        text: 'Hello',
+      );
+      final conversation = domain.Conversation(
+        threadId: 'thread-123',
+        messages: [message],
+        status: const domain.Running(runId: 'run-1'),
+      );
+      final state = RunningState(
+        conversation: conversation,
+        streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
+      );
+
+      final str = state.toString();
+
+      expect(str, contains('threadId: thread-123'));
+      expect(str, contains('messages: 1'));
+      expect(str, contains('streaming:'));
+    });
+
+    test('CompletedState.toString shows result and message count', () {
+      const conversation = domain.Conversation(
+        threadId: 'thread-456',
+        status: domain.Completed(),
+      );
+      const state = CompletedState(
+        conversation: conversation,
+        result: Success(),
+      );
+
+      final str = state.toString();
+
+      expect(str, contains('threadId: thread-456'));
+      expect(str, contains('result: Success()'));
+      expect(str, contains('messages: 0'));
+    });
+  });
+
+  group('hashCode methods', () {
+    test('IdleState.hashCode is consistent', () {
+      const state1 = IdleState();
+      const state2 = IdleState();
+
+      expect(state1.hashCode, equals(state2.hashCode));
+    });
+
+    test('RunningState.hashCode is consistent with equality', () {
+      const conversation = domain.Conversation(
+        threadId: 'thread-1',
+        status: domain.Running(runId: 'run-1'),
+      );
+      const state1 = RunningState(conversation: conversation);
+      const state2 = RunningState(conversation: conversation);
+
+      expect(state1.hashCode, equals(state2.hashCode));
+    });
+
+    test('CompletedState.hashCode is consistent with equality', () {
+      const conversation = domain.Conversation(
+        threadId: 'thread-1',
+        status: domain.Completed(),
+      );
+      const state1 = CompletedState(
+        conversation: conversation,
+        result: Success(),
+      );
+      const state2 = CompletedState(
+        conversation: conversation,
+        result: Success(),
+      );
+
+      expect(state1.hashCode, equals(state2.hashCode));
+    });
+  });
+
+  group('RunningState.runId edge case', () {
+    test('throws StateError when conversation status is not Running', () {
+      // This is an invalid state that shouldn't occur in practice,
+      // but the code has a safety check for it.
+      const conversation = domain.Conversation(
+        threadId: 'thread-1',
+        status: domain.Completed(),
+      );
+      const state = RunningState(conversation: conversation);
+
+      expect(() => state.runId, throwsStateError);
+    });
   });
 }

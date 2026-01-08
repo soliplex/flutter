@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Notifier for managing authentication state.
 ///
@@ -134,6 +135,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: tokens.issuerDiscoveryUrl,
       clientId: tokens.clientId,
       fallbackIdToken: tokens.idToken,
+      endSessionEndpoint: tokens.endSessionEndpoint,
     );
 
     _log('Session restored via token refresh');
@@ -151,6 +153,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     required String issuerDiscoveryUrl,
     required String clientId,
     required String fallbackIdToken,
+    required String? endSessionEndpoint,
   }) async {
     final newState = Authenticated(
       accessToken: result.accessToken,
@@ -160,6 +163,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: issuerDiscoveryUrl,
       clientId: clientId,
       idToken: result.idToken ?? fallbackIdToken,
+      endSessionEndpoint: endSessionEndpoint,
     );
 
     try {
@@ -281,6 +285,11 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       _log('Failed to clear pre-auth state: ${e.runtimeType}');
     }
 
+    // Fetch OIDC discovery to get end_session_endpoint for logout
+    final endSessionEndpoint = await _fetchEndSessionEndpoint(
+      preAuthState.discoveryUrl,
+    );
+
     final expiresAt = expiresIn != null
         ? DateTime.now().add(Duration(seconds: expiresIn))
         : DateTime.now().add(TokenRefreshService.fallbackTokenLifetime);
@@ -293,9 +302,9 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: preAuthState.discoveryUrl,
       clientId: preAuthState.clientId,
       // Web BFF flow doesn't return id_token - use empty string.
-      // This means web logout won't redirect to IdP (acceptable tradeoff).
-      // See docs/planning/backend-frontend-integration.md for details.
+      // Logout still redirects to IdP, just without id_token_hint parameter.
       idToken: '',
+      endSessionEndpoint: endSessionEndpoint,
     );
 
     try {
@@ -309,25 +318,92 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     state = newState;
   }
 
+  /// Fetches the end_session_endpoint from OIDC discovery.
+  ///
+  /// Returns null if discovery fails or the IdP doesn't support logout.
+  /// Failure is non-fatal since logout will still clear local state.
+  Future<String?> _fetchEndSessionEndpoint(String discoveryUrl) async {
+    try {
+      final httpClient = ref.read(baseHttpClientProvider);
+      final discovery = await fetchOidcDiscoveryDocument(
+        Uri.parse(discoveryUrl),
+        httpClient,
+      );
+      return discovery.endSessionEndpoint?.toString();
+    } on Exception catch (e) {
+      _log('Failed to fetch end_session_endpoint: ${e.runtimeType}');
+      return null;
+    }
+  }
+
   /// Sign out, end IdP session, and clear tokens.
   ///
-  /// Calls the IdP's end_session_endpoint to fully log out, then clears
-  /// local state and secure storage. If endSession fails, local logout
-  /// still proceeds.
+  /// Clears local tokens FIRST, then calls the IdP's end_session_endpoint.
+  /// This order is critical for web where endSession redirects the page -
+  /// tokens must be cleared before the redirect or they'll persist.
   Future<void> signOut() async {
     final current = state;
-    if (current is Authenticated) {
-      await _authFlow.endSession(
-        discoveryUrl: current.issuerDiscoveryUrl,
-        idToken: current.idToken,
-      );
-    }
+
+    // Clear local state FIRST (critical for web where endSession redirects)
     try {
       await _storage.clearTokens();
     } on Exception catch (e) {
       _log('Failed to clear tokens on logout: ${e.runtimeType}');
     }
     state = const Unauthenticated();
+
+    // Then end IdP session (may redirect on web)
+    if (current is Authenticated) {
+      try {
+        await _authFlow.endSession(
+          discoveryUrl: current.issuerDiscoveryUrl,
+          endSessionEndpoint: current.endSessionEndpoint,
+          idToken: current.idToken,
+          clientId: current.clientId,
+        );
+      } on Exception catch (e) {
+        _log('IdP session termination failed: ${e.runtimeType}');
+      }
+    }
+  }
+
+  /// Exit no-auth mode, returning to unauthenticated state.
+  ///
+  /// Call this when switching from a no-auth backend to an auth-required
+  /// backend. Safe to call from any state - simply transitions to
+  /// [Unauthenticated].
+  ///
+  /// Note: Does not clear tokens. If transitioning from [Authenticated],
+  /// prefer [signOut] to properly end the IdP session and clear tokens.
+  /// However, calling this from [Authenticated] is harmless - it just
+  /// transitions to a less privileged state without token cleanup.
+  void exitNoAuthMode() {
+    _log('Exiting no-auth mode');
+    state = const Unauthenticated();
+  }
+
+  /// Enter no-auth mode when backend has no identity providers configured.
+  ///
+  /// Call this when the backend returns an empty list of auth providers,
+  /// indicating authentication is not required.
+  ///
+  /// Clears any existing tokens since they're for a different backend.
+  Future<void> enterNoAuthMode() async {
+    if (state is Authenticated) {
+      _log('Clearing stale auth - switching to no-auth backend');
+      try {
+        await _storage.clearTokens();
+      } on Exception catch (e) {
+        // Proceed despite failure: no-auth mode doesn't use tokens, so stale
+        // tokens are harmless here. If user later switches back to an auth
+        // backend, _restoreSession() will re-validate and clear invalid tokens.
+        // This matches signOut() behavior which also catches storage failures.
+        _log('Warning: Failed to clear tokens (${e.runtimeType}) from '
+            'previous session. Proceeding to no-auth mode.');
+      }
+    }
+    _log('Entering no-auth mode');
+    state = const NoAuthRequired();
   }
 
   /// Get the current access token if authenticated.
@@ -417,6 +493,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       issuerDiscoveryUrl: current.issuerDiscoveryUrl,
       clientId: current.clientId,
       fallbackIdToken: current.idToken,
+      endSessionEndpoint: current.endSessionEndpoint,
     );
 
     _log('Token refresh successful');

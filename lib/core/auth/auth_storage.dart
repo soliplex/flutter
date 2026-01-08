@@ -13,6 +13,7 @@ abstract final class AuthStorageKeys {
   static const issuerId = 'auth_issuer_id';
   static const issuerDiscoveryUrl = 'auth_issuer_discovery_url';
   static const clientId = 'auth_client_id';
+  static const endSessionEndpoint = 'auth_end_session_endpoint';
 
   // Pre-auth state keys (web only - stores issuer before OAuth redirect)
   static const preAuthIssuerId = 'pre_auth_issuer_id';

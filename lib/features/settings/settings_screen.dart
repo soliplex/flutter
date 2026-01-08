@@ -138,7 +138,26 @@ class _AuthSection extends ConsumerWidget {
           subtitle: Text('Not signed in'),
           enabled: false,
         ),
+      NoAuthRequired() => Column(
+          children: [
+            const ListTile(
+              leading: Icon(Icons.no_accounts),
+              title: Text('No Authentication'),
+              subtitle: Text('Backend does not require login'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link_off),
+              title: const Text('Disconnect'),
+              onTap: () => _disconnect(context, ref),
+            ),
+          ],
+        ),
     };
+  }
+
+  void _disconnect(BuildContext context, WidgetRef ref) {
+    ref.read(authProvider.notifier).exitNoAuthMode();
+    context.go('/');
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
@@ -161,10 +180,12 @@ class _AuthSection extends ConsumerWidget {
     );
 
     if ((confirmed ?? false) && context.mounted) {
+      // Navigate BEFORE signOut - signOut changes auth state which triggers
+      // router redirect. If we're at /settings (non-public), we'd get
+      // redirected to /login. By navigating to / (public) first, the
+      // redirect doesn't kick in.
+      context.go('/');
       await ref.read(authProvider.notifier).signOut();
-      if (context.mounted) {
-        context.go('/');
-      }
     }
   }
 }

@@ -75,15 +75,18 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(
   AuthNotifier.new,
 );
 
-/// Provider indicating whether user is authenticated.
+/// Provider indicating whether the user has access to the app.
+///
+/// Returns true when the user is [Authenticated] or when the backend
+/// is configured for [NoAuthRequired] mode.
 ///
 /// Example:
 /// ```dart
-/// final isLoggedIn = ref.watch(isAuthenticatedProvider);
+/// final canProceed = ref.watch(hasAppAccessProvider);
 /// ```
-final isAuthenticatedProvider = Provider<bool>((ref) {
+final hasAppAccessProvider = Provider<bool>((ref) {
   final authState = ref.watch(authProvider);
-  return authState is Authenticated;
+  return authState is Authenticated || authState is NoAuthRequired;
 });
 
 /// Provider for the current access token.
@@ -107,33 +110,31 @@ final authStatusListenableProvider = Provider<Listenable>((ref) {
   return _AuthStatusListenable(ref);
 });
 
-/// Notifies only when auth status transitions between authenticated/unauthenticated.
+/// Notifies only when auth status transitions between having/not having app access.
 ///
 /// Filters out token refresh noise - when `Authenticated(oldTokens)` becomes
-/// `Authenticated(newTokens)`, no notification fires because auth STATUS
-/// (logged in vs logged out) hasn't changed.
+/// `Authenticated(newTokens)`, no notification fires because access status
+/// hasn't changed.
 class _AuthStatusListenable extends ChangeNotifier {
   _AuthStatusListenable(this._ref) {
-    _previouslyAuthenticated = _isAuthenticated;
+    _previouslyHadAccess = _hasAppAccess;
     _ref.listen<AuthState>(authProvider, (_, __) {
-      final currentlyAuthenticated = _isAuthenticated;
-      if (currentlyAuthenticated != _previouslyAuthenticated) {
-        _previouslyAuthenticated = currentlyAuthenticated;
+      final currentlyHasAccess = _hasAppAccess;
+      if (currentlyHasAccess != _previouslyHadAccess) {
+        _previouslyHadAccess = currentlyHasAccess;
         notifyListeners();
       }
     });
   }
 
   final Ref _ref;
-  late bool _previouslyAuthenticated;
+  late bool _previouslyHadAccess;
 
-  bool get _isAuthenticated => _ref.read(authProvider) is Authenticated;
+  bool get _hasAppAccess {
+    final state = _ref.read(authProvider);
+    return state is Authenticated || state is NoAuthRequired;
+  }
 }
-
-/// TEMP: bypass auth when backend has no IdP configured.
-/// Set to true when oidcIssuersProvider loads empty.
-// ignore: avoid_global_variables
-bool noAuthMode = false;
 
 /// Provider for fetching available OIDC issuers from the backend.
 ///

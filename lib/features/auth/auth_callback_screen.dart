@@ -27,10 +27,7 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
   }
 
   Future<void> _processCallback() async {
-    debugPrint('AuthCallbackScreen: Processing callback');
-
     final params = ref.read(capturedCallbackParamsProvider);
-    debugPrint('AuthCallbackScreen: Params type: ${params.runtimeType}');
 
     switch (params) {
       case WebCallbackParams(:final error?, :final errorDescription):
@@ -46,7 +43,6 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
           :final expiresIn,
         ):
         // Success - complete authentication
-        debugPrint('AuthCallbackScreen: Got tokens, completing auth');
         await _completeAuth(
           accessToken: token,
           refreshToken: refreshToken,
@@ -74,31 +70,24 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
     String? refreshToken,
     int? expiresIn,
   }) async {
-    debugPrint('AuthCallbackScreen: _completeAuth called');
     try {
       await ref.read(authProvider.notifier).completeWebAuth(
             accessToken: accessToken,
             refreshToken: refreshToken,
             expiresIn: expiresIn,
           );
-      debugPrint('AuthCallbackScreen: completeWebAuth succeeded');
 
       if (mounted) {
-        debugPrint('AuthCallbackScreen: Navigating to /rooms');
         context.go('/rooms');
       }
     } on AuthException catch (e) {
-      debugPrint('AuthCallbackScreen: Auth error: ${e.message}');
       if (mounted) {
         setState(() {
           _error = e.message;
           _processing = false;
         });
       }
-    } on Exception catch (e) {
-      debugPrint(
-        'AuthCallbackScreen: completeWebAuth failed: ${e.runtimeType}',
-      );
+    } on Exception {
       if (mounted) {
         setState(() {
           _error = 'Failed to complete authentication. Please try again.';

@@ -5,6 +5,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/features/home/connection_flow.dart';
 
 /// Home/welcome screen with backend URL configuration.
 ///
@@ -63,9 +64,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     try {
       final url = _urlController.text.trim();
+      final currentUrl = ref.read(configProvider).baseUrl;
+      final isBackendChange = normalizeUrl(url) != normalizeUrl(currentUrl);
+
       debugPrint('HomeScreen: Connecting to $url');
 
-      // Save the URL first
+      // Determine and execute pre-connect cleanup action.
+      final preConnectAction = determinePreConnectAction(
+        isBackendChange: isBackendChange,
+        currentAuthState: ref.read(authProvider),
+      );
+      switch (preConnectAction) {
+        case PreConnectAction.signOut:
+          await ref.read(authProvider.notifier).signOut();
+          if (!mounted) return;
+        case PreConnectAction.exitNoAuthMode:
+          ref.read(authProvider.notifier).exitNoAuthMode();
+        case PreConnectAction.none:
+          break;
+      }
+
+      // Save the URL
       await ref.read(configProvider.notifier).setBaseUrl(url);
       debugPrint(
         'HomeScreen: URL saved, config.baseUrl is now: '
@@ -81,49 +100,47 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
       if (!mounted) return;
 
-      if (providers.isEmpty) {
-        // No auth required - bypass and go to rooms
-        noAuthMode = true;
-        context.go('/rooms');
-      } else {
-        // Auth required
-        noAuthMode = false;
-        final isAuthenticated = ref.read(isAuthenticatedProvider);
-        if (isAuthenticated) {
-          // Already authenticated - go directly to rooms
+      // Determine and execute post-connect navigation.
+      final result = determinePostConnectResult(
+        hasProviders: providers.isNotEmpty,
+        currentAuthState: ref.read(authProvider),
+      );
+      switch (result) {
+        case EnterNoAuthModeResult():
+          await ref.read(authProvider.notifier).enterNoAuthMode();
+          if (!mounted) return;
           context.go('/rooms');
-        } else {
-          // Not authenticated - go to login
+        case AlreadyAuthenticatedResult():
+          context.go('/rooms');
+        case RequireLoginResult(:final shouldExitNoAuthMode):
+          if (shouldExitNoAuthMode) {
+            ref.read(authProvider.notifier).exitNoAuthMode();
+          }
           ref.invalidate(oidcIssuersProvider);
           context.go('/login');
-        }
+      }
+    } on NetworkException catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.isTimeout
+              ? 'Request timed out. Please try again.'
+              : 'Cannot reach server. Check the URL and try again.';
+        });
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Server error: ${e.statusCode}');
       }
     } on Exception catch (e) {
       if (mounted) {
-        setState(() {
-          _error = _formatError(e);
-        });
+        setState(() => _error = 'Connection failed. Please try again.');
       }
+      debugPrint('HomeScreen: Unexpected exception: ${e.runtimeType} - $e');
     } finally {
       if (mounted) {
         setState(() => _isConnecting = false);
       }
     }
-  }
-
-  String _formatError(Exception e) {
-    if (e is ApiException) {
-      return 'Server error: ${e.statusCode}';
-    }
-    final message = e.toString();
-    // Extract just the error message without type prefix
-    if (message.contains('SocketException')) {
-      return 'Cannot reach server. Check the URL and try again.';
-    }
-    if (message.contains('Connection refused')) {
-      return 'Connection refused. Is the server running?';
-    }
-    return message.split('\n').first;
   }
 
   @override
