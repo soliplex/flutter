@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Failed, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -12,6 +14,38 @@ import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
 import '../../helpers/test_helpers.dart';
+
+/// Mock that tracks method calls for verification.
+class _TrackingActiveRunNotifier extends Notifier<ActiveRunState>
+    implements ActiveRunNotifier {
+  _TrackingActiveRunNotifier({required this.initialState});
+
+  final ActiveRunState initialState;
+  bool cancelRunCalled = false;
+  bool resetCalled = false;
+
+  @override
+  ActiveRunState build() => initialState;
+
+  @override
+  Future<void> startRun({
+    required String roomId,
+    required String threadId,
+    required String userMessage,
+    String? existingRunId,
+    Map<String, dynamic>? initialState,
+  }) async {}
+
+  @override
+  Future<void> cancelRun() async {
+    cancelRunCalled = true;
+  }
+
+  @override
+  Future<void> reset() async {
+    resetCalled = true;
+  }
+}
 
 void main() {
   group('ChatPanel', () {
@@ -195,6 +229,69 @@ void main() {
         // Assert
         final textField = tester.widget<TextField>(find.byType(TextField));
         expect(textField.enabled, isTrue);
+      });
+    });
+
+    group('Cancel Handler', () {
+      testWidgets('cancel button calls cancelRun', (tester) async {
+        late _TrackingActiveRunNotifier mockNotifier;
+        const conversation = domain.Conversation(
+          threadId: 'test-thread',
+          status: domain.Running(runId: 'test-run'),
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [
+              activeRunNotifierProvider.overrideWith(() {
+                return mockNotifier = _TrackingActiveRunNotifier(
+                  initialState: const RunningState(conversation: conversation),
+                );
+              }),
+            ],
+          ),
+        );
+
+        // Tap cancel button
+        await tester.tap(find.text('Cancel'));
+        await tester.pump();
+
+        // Verify cancelRun was called
+        expect(mockNotifier.cancelRunCalled, isTrue);
+      });
+    });
+
+    group('Retry Handler', () {
+      testWidgets('retry button calls reset', (tester) async {
+        late _TrackingActiveRunNotifier mockNotifier;
+        const conversation = domain.Conversation(
+          threadId: 'test-thread',
+          status: domain.Failed(error: 'Test error'),
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [
+              activeRunNotifierProvider.overrideWith(() {
+                return mockNotifier = _TrackingActiveRunNotifier(
+                  initialState: const CompletedState(
+                    conversation: conversation,
+                    result: FailedResult(errorMessage: 'Test error'),
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+
+        // Tap retry button
+        await tester.tap(find.text('Retry'));
+        await tester.pumpAndSettle();
+
+        // Verify reset was called
+        expect(mockNotifier.resetCalled, isTrue);
       });
     });
   });
