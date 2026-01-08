@@ -237,6 +237,9 @@ Override threadSelectionProviderOverride(ThreadSelection selection) {
 /// Mock HttpTransport for testing with mocktail.
 class MockHttpTransport extends Mock implements HttpTransport {}
 
+/// Mock SoliplexHttpClient for testing with mocktail.
+class MockSoliplexHttpClient extends Mock implements SoliplexHttpClient {}
+
 /// Mock AgUiClient for testing with mocktail.
 class MockAgUiClient extends Mock implements AgUiClient {}
 

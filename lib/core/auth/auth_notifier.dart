@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Notifier for managing authentication state.
 ///
@@ -281,6 +282,11 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       _log('Failed to clear pre-auth state: ${e.runtimeType}');
     }
 
+    // Fetch OIDC discovery to get end_session_endpoint for logout
+    final endSessionEndpoint = await _fetchEndSessionEndpoint(
+      preAuthState.discoveryUrl,
+    );
+
     final expiresAt = expiresIn != null
         ? DateTime.now().add(Duration(seconds: expiresIn))
         : DateTime.now().add(TokenRefreshService.fallbackTokenLifetime);
@@ -296,6 +302,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       // This means web logout won't redirect to IdP (acceptable tradeoff).
       // See docs/planning/backend-frontend-integration.md for details.
       idToken: '',
+      endSessionEndpoint: endSessionEndpoint,
     );
 
     try {
@@ -307,6 +314,24 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     }
 
     state = newState;
+  }
+
+  /// Fetches the end_session_endpoint from OIDC discovery.
+  ///
+  /// Returns null if discovery fails or the IdP doesn't support logout.
+  /// Failure is non-fatal since logout will still clear local state.
+  Future<String?> _fetchEndSessionEndpoint(String discoveryUrl) async {
+    try {
+      final httpClient = ref.read(baseHttpClientProvider);
+      final discovery = await fetchOidcDiscoveryDocument(
+        Uri.parse(discoveryUrl),
+        httpClient,
+      );
+      return discovery.endSessionEndpoint?.toString();
+    } on Exception catch (e) {
+      _log('Failed to fetch end_session_endpoint: ${e.runtimeType}');
+      return null;
+    }
   }
 
   /// Sign out, end IdP session, and clear tokens.
