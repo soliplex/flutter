@@ -28,6 +28,9 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+
+        // Required for flutter_appauth OAuth callback
+        manifestPlaceholders["appAuthRedirectScheme"] = "ai.soliplex.client"
     }
 
     buildTypes {
