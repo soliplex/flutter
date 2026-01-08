@@ -180,10 +180,12 @@ class _AuthSection extends ConsumerWidget {
     );
 
     if ((confirmed ?? false) && context.mounted) {
+      // Navigate BEFORE signOut - signOut changes auth state which triggers
+      // router redirect. If we're at /settings (non-public), we'd get
+      // redirected to /login. By navigating to / (public) first, the
+      // redirect doesn't kick in.
+      context.go('/');
       await ref.read(authProvider.notifier).signOut();
-      if (context.mounted) {
-        context.go('/');
-      }
     }
   }
 }
