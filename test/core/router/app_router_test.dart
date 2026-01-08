@@ -176,6 +176,22 @@ void main() {
       expect(find.byType(RoomsScreen), findsOneWidget);
     });
 
+    testWidgets('redirects authenticated users from /login to /rooms', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createRouterAppAt('/login'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RoomsScreen), findsOneWidget);
+    });
+
+    testWidgets('redirects authenticated users from /auth/callback to /rooms', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createRouterAppAt('/auth/callback'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RoomsScreen), findsOneWidget);
+    });
+
     testWidgets('shows home when unauthenticated at /', (tester) async {
       await tester.pumpWidget(createRouterApp(authenticated: false));
       await tester.pumpAndSettle();
@@ -201,6 +217,16 @@ void main() {
           authenticated: false,
           noAuthMode: true,
         ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(RoomsScreen), findsOneWidget);
+    });
+
+    testWidgets('redirects NoAuthRequired users from / to /rooms', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createRouterApp(authenticated: false, noAuthMode: true),
       );
       await tester.pumpAndSettle();
       expect(find.byType(RoomsScreen), findsOneWidget);

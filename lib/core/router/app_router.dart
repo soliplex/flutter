@@ -69,8 +69,9 @@ const _publicRoutes = {'/', '/login', '/auth/callback'};
 /// shouldn't cause navigation).
 ///
 /// Routes:
-/// - `/login` - Login screen (public)
-/// - `/` - Home screen (requires auth)
+/// - `/login` - Login screen (public, authenticated users redirect to /rooms)
+/// - `/` - Home screen (public, authenticated users redirect to /rooms)
+/// - `/auth/callback` - OAuth callback (public, authenticated users redirect to /rooms)
 /// - `/rooms` - List of rooms (requires auth)
 /// - `/rooms/:roomId` - Room with thread selection (requires auth)
 /// - `/rooms/:roomId/thread/:threadId` - Redirects to query param format
