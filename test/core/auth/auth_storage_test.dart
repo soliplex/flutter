@@ -312,8 +312,10 @@ void main() {
       );
 
       expect(state.issuerId, 'google');
-      expect(state.discoveryUrl,
-          'https://accounts.google.com/.well-known/openid-configuration');
+      expect(
+        state.discoveryUrl,
+        'https://accounts.google.com/.well-known/openid-configuration',
+      );
       expect(state.clientId, 'client-123');
       expect(state.createdAt, createdAt);
     });
