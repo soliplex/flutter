@@ -43,8 +43,6 @@ Future<void> clearOnReinstall() async {
 }
 
 FlutterSecureStorage _createSecureStorage() {
-  // Android uses secure defaults automatically (custom ciphers since v10).
-  // iOS/macOS need explicit accessibility for background token refresh.
   return const FlutterSecureStorage(
     iOptions: IOSOptions(
       accessibility: KeychainAccessibility.first_unlock_this_device,
