@@ -54,7 +54,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return null;
   }
 
-
   Future<void> _connect() async {
     if (!_formKey.currentState!.validate()) return;
 

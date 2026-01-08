@@ -305,13 +305,15 @@ void main() {
       final createdAt = DateTime(2025, 6, 15, 10, 30);
       final state = PreAuthState(
         issuerId: 'google',
-        discoveryUrl: 'https://accounts.google.com/.well-known/openid-configuration',
+        discoveryUrl:
+            'https://accounts.google.com/.well-known/openid-configuration',
         clientId: 'client-123',
         createdAt: createdAt,
       );
 
       expect(state.issuerId, 'google');
-      expect(state.discoveryUrl, 'https://accounts.google.com/.well-known/openid-configuration');
+      expect(state.discoveryUrl,
+          'https://accounts.google.com/.well-known/openid-configuration');
       expect(state.clientId, 'client-123');
       expect(state.createdAt, createdAt);
     });

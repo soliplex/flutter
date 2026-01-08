@@ -266,6 +266,5 @@ void main() {
         expect(find.text('Loading...'), findsOneWidget);
       });
     });
-
   });
 }

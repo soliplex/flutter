@@ -140,8 +140,7 @@ void main() {
         expect((result as RequireLoginResult).shouldExitNoAuthMode, isFalse);
       });
 
-      test(
-          'returns RequireLoginResult without exitNoAuthMode when AuthLoading',
+      test('returns RequireLoginResult without exitNoAuthMode when AuthLoading',
           () {
         final result = determinePostConnectResult(
           hasProviders: true,
