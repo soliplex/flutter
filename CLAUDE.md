@@ -75,13 +75,14 @@ docs/planning/               # Design specs and work logs (see ROADMAP.md)
 
 ## Code Quality
 
-**Formatting (run first):** `mcp__dart__dart_format`
+**After any code modification, run these checks:**
 
-**Zero tolerance on analyzer issues:** `mcp__dart__analyze_files` (must be 0 issues)
+1. **Format:** `mcp__dart__dart_format` (formats files in place)
+2. **Verify format:** `dart format --set-exit-if-changed .` (must exit 0 - CI uses this)
+3. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
+4. **Test:** `mcp__dart__run_tests` (all green before any code is complete)
 
 Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
-
-**Tests must pass:** `mcp__dart__run_tests` (all green before any code is complete)
 
 **Coverage target:** 85%+
 
@@ -108,7 +109,7 @@ Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
 ## Critical Rules
 
 1. Always refer to, and abide by `docs/rules/flutter_rules.md`
-2. Run `mcp__dart__dart_format` before commits
+2. Run `mcp__dart__dart_format` then verify with `dart format --set-exit-if-changed .`
 3. `mcp__dart__analyze_files` MUST report 0 errors AND 0 warnings
 4. `mcp__dart__run_tests` must pass before changes are complete
 5. Keep `soliplex_client` pure Dart (no Flutter imports)
