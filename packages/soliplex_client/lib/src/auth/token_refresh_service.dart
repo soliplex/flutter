@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:soliplex_client/src/auth/oidc_discovery.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_response.dart';
 import 'package:soliplex_client/src/http/soliplex_http_client.dart';
@@ -120,10 +121,13 @@ class TokenRefreshService {
 
     try {
       final discoveryUri = Uri.parse(discoveryUrl);
-      final tokenUri = await _fetchTokenEndpoint(discoveryUri);
+      final discovery = await fetchOidcDiscoveryDocument(
+        discoveryUri,
+        _httpClient,
+      );
 
       final tokenResponse = await _postRefreshGrant(
-        tokenUri: tokenUri,
+        tokenUri: discovery.tokenEndpoint,
         refreshToken: refreshToken,
         clientId: clientId,
       );
@@ -131,61 +135,12 @@ class TokenRefreshService {
       return _parseTokenResponse(tokenResponse, refreshToken);
     } on NetworkException {
       return const TokenRefreshFailure(TokenRefreshFailureReason.networkError);
-    } on _DiscoveryException catch (e) {
-      _onDiagnostic('TokenRefreshService: ${e.message}');
+    } on FormatException catch (e) {
+      _onDiagnostic('TokenRefreshService: $e');
       return const TokenRefreshFailure(TokenRefreshFailureReason.unknownError);
     } catch (_) {
       return const TokenRefreshFailure(TokenRefreshFailureReason.unknownError);
     }
-  }
-
-  /// Fetch the token endpoint from OIDC discovery document.
-  Future<Uri> _fetchTokenEndpoint(Uri discoveryUrl) async {
-    final HttpResponse response;
-    try {
-      response = await _httpClient.request(
-        'GET',
-        discoveryUrl,
-        timeout: const Duration(seconds: 10),
-      );
-    } on Exception catch (e) {
-      throw NetworkException(
-        message: 'Failed to fetch OIDC configuration',
-        originalError: e,
-      );
-    }
-
-    if (response.statusCode != 200) {
-      throw _DiscoveryException(
-        'OIDC discovery failed: ${response.statusCode}',
-      );
-    }
-
-    final Map<String, dynamic> discovery;
-    try {
-      discovery = jsonDecode(response.body) as Map<String, dynamic>;
-    } on FormatException {
-      throw _DiscoveryException('Invalid OIDC discovery document');
-    }
-
-    final tokenEndpoint = discovery['token_endpoint'] as String?;
-    if (tokenEndpoint == null) {
-      throw _DiscoveryException('OIDC discovery missing token_endpoint');
-    }
-
-    final tokenUri = Uri.parse(tokenEndpoint);
-
-    // Validate token endpoint origin matches discovery origin (SSRF prevention)
-    if (tokenUri.host != discoveryUrl.host ||
-        tokenUri.scheme != discoveryUrl.scheme ||
-        tokenUri.port != discoveryUrl.port) {
-      throw _DiscoveryException(
-        'Token endpoint origin mismatch: expected '
-        '${discoveryUrl.origin}, got ${tokenUri.origin}',
-      );
-    }
-
-    return tokenUri;
   }
 
   /// POST refresh_token grant to token endpoint.
@@ -263,10 +218,4 @@ class TokenRefreshService {
       idToken: tokenData['id_token'] as String?,
     );
   }
-}
-
-/// Internal exception for discovery failures.
-class _DiscoveryException implements Exception {
-  _DiscoveryException(this.message);
-  final String message;
 }
