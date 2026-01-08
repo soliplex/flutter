@@ -34,6 +34,10 @@ class WebAuthStorage implements AuthStorage {
       ..setItem(AuthStorageKeys.issuerDiscoveryUrl, tokens.issuerDiscoveryUrl)
       ..setItem(AuthStorageKeys.clientId, tokens.clientId)
       ..setItem(AuthStorageKeys.idToken, tokens.idToken);
+
+    if (tokens.endSessionEndpoint case final endpoint?) {
+      _storage.setItem(AuthStorageKeys.endSessionEndpoint, endpoint);
+    }
   }
 
   @override
@@ -47,6 +51,9 @@ class WebAuthStorage implements AuthStorage {
     );
     final clientId = _storage.getItem(AuthStorageKeys.clientId);
     final idToken = _storage.getItem(AuthStorageKeys.idToken);
+    final endSessionEndpoint = _storage.getItem(
+      AuthStorageKeys.endSessionEndpoint,
+    );
 
     if (accessToken == null ||
         refreshToken == null ||
@@ -69,6 +76,7 @@ class WebAuthStorage implements AuthStorage {
       issuerDiscoveryUrl: issuerDiscoveryUrl,
       clientId: clientId,
       idToken: idToken,
+      endSessionEndpoint: endSessionEndpoint,
     );
   }
 
@@ -81,7 +89,8 @@ class WebAuthStorage implements AuthStorage {
       ..removeItem(AuthStorageKeys.expiresAt)
       ..removeItem(AuthStorageKeys.issuerId)
       ..removeItem(AuthStorageKeys.issuerDiscoveryUrl)
-      ..removeItem(AuthStorageKeys.clientId);
+      ..removeItem(AuthStorageKeys.clientId)
+      ..removeItem(AuthStorageKeys.endSessionEndpoint);
   }
 
   @override

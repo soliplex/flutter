@@ -67,6 +67,8 @@ class NativeAuthStorage implements AuthStorage {
 
   @override
   Future<void> saveTokens(Authenticated tokens) async {
+    // Note: endSessionEndpoint is not persisted on native because
+    // flutter_appauth fetches it from discoveryUrl at logout time.
     await Future.wait([
       _storage.write(
         key: AuthStorageKeys.accessToken,
@@ -123,6 +125,8 @@ class NativeAuthStorage implements AuthStorage {
     final expiresAt = DateTime.tryParse(expiresAtStr);
     if (expiresAt == null) return null;
 
+    // endSessionEndpoint is not persisted on native - flutter_appauth
+    // fetches it from discoveryUrl at logout time.
     return Authenticated(
       accessToken: accessToken,
       refreshToken: refreshToken,
