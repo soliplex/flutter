@@ -1,5 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
@@ -13,6 +15,7 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 
   final AuthState initialState;
   bool exitNoAuthModeCalled = false;
+  bool signOutCalled = false;
 
   @override
   AuthState build() => initialState;
@@ -27,7 +30,10 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   Future<void> signIn(OidcIssuer issuer) async {}
 
   @override
-  Future<void> signOut() async {}
+  Future<void> signOut() async {
+    signOutCalled = true;
+    state = const Unauthenticated();
+  }
 
   @override
   Future<void> refreshIfExpiringSoon() async {}
@@ -50,6 +56,28 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
     exitNoAuthModeCalled = true;
     state = const Unauthenticated();
   }
+}
+
+/// Creates a test app with GoRouter for testing navigation.
+Widget _createAppWithRouter({
+  required Widget home,
+  required List<dynamic> overrides,
+}) {
+  final router = GoRouter(
+    initialLocation: '/settings',
+    routes: [
+      GoRoute(
+        path: '/settings',
+        builder: (_, __) => Scaffold(body: home),
+      ),
+      GoRoute(path: '/', builder: (_, __) => const Text('Home')),
+    ],
+  );
+
+  return UncontrolledProviderScope(
+    container: ProviderContainer(overrides: overrides.cast()),
+    child: MaterialApp.router(routerConfig: router),
+  );
 }
 
 void main() {
@@ -98,11 +126,12 @@ void main() {
       expect(find.text('Disconnect'), findsOneWidget);
     });
 
-    testWidgets('Disconnect calls exitNoAuthMode', (tester) async {
+    testWidgets('Disconnect calls exitNoAuthMode and navigates to home',
+        (tester) async {
       late _MockAuthNotifier mockNotifier;
 
       await tester.pumpWidget(
-        createTestApp(
+        _createAppWithRouter(
           home: const SettingsScreen(),
           overrides: [
             authProvider.overrideWith(() {
@@ -115,10 +144,128 @@ void main() {
       );
 
       await tester.tap(find.text('Disconnect'));
-      // Don't pump - the tap triggers sync call before navigation throws
-      tester.takeException(); // Consume the go_router error
+      await tester.pumpAndSettle();
 
       expect(mockNotifier.exitNoAuthModeCalled, isTrue);
+      expect(find.text('Home'), findsOneWidget);
     });
+
+    group('Authenticated state', () {
+      testWidgets('shows signed in status with issuer ID', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(
+                () => _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(
+                    issuerId: 'google-oauth',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        expect(find.text('Signed In'), findsOneWidget);
+        expect(find.text('via google-oauth'), findsOneWidget);
+        expect(find.text('Sign Out'), findsOneWidget);
+      });
+
+      testWidgets('shows confirmation dialog on Sign Out tap', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(
+                () => _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Sign Out'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Are you sure you want to sign out?'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+      });
+
+      testWidgets('dismisses dialog on Cancel', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(
+                () => _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        await tester.tap(find.text('Sign Out'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // Dialog should be dismissed
+        expect(
+          find.text('Are you sure you want to sign out?'),
+          findsNothing,
+        );
+      });
+
+      testWidgets('calls signOut and navigates on confirm', (tester) async {
+        late _MockAuthNotifier mockNotifier;
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(() {
+                return mockNotifier = _MockAuthNotifier(
+                  initialState: TestData.createAuthenticated(),
+                );
+              }),
+            ],
+          ),
+        );
+
+        // Tap Sign Out
+        await tester.tap(find.text('Sign Out'));
+        await tester.pumpAndSettle();
+
+        // Confirm in dialog
+        await tester.tap(find.widgetWithText(TextButton, 'Sign Out'));
+        await tester.pumpAndSettle();
+
+        expect(mockNotifier.signOutCalled, isTrue);
+        expect(find.text('Home'), findsOneWidget);
+      });
+    });
+
+    group('Loading state', () {
+      testWidgets('shows loading indicator', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const SettingsScreen(),
+            overrides: [
+              authProvider.overrideWith(
+                () => _MockAuthNotifier(initialState: const AuthLoading()),
+              ),
+            ],
+          ),
+        );
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('Loading...'), findsOneWidget);
+      });
+    });
+
   });
 }
