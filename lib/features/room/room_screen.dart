@@ -112,14 +112,6 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         leading: isDesktop ? _buildSidebarToggle() : null,
         title: _buildRoomDropdown(),
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
-        floatingActionButton: Semantics(
-          label: 'Create new thread',
-          child: FloatingActionButton(
-            tooltip: 'Create new thread',
-            onPressed: _handleNewThread,
-            child: const Icon(Icons.add),
-          ),
-        ),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
     );
@@ -200,10 +192,5 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         const Expanded(child: ChatPanel()),
       ],
     );
-  }
-
-  void _handleNewThread() {
-    ref.read(threadSelectionProvider.notifier).set(const NewThreadIntent());
-    // ChatPanel will create thread on first message
   }
 }

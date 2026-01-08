@@ -35,7 +35,6 @@ class AppShell extends StatelessWidget {
           child: Drawer(child: HttpInspectorPanel()),
         ),
       ),
-      floatingActionButton: config.floatingActionButton,
       body: body,
     );
   }
