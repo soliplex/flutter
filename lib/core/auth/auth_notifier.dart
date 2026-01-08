@@ -336,23 +336,32 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
 
   /// Sign out, end IdP session, and clear tokens.
   ///
-  /// Calls the IdP's end_session_endpoint to fully log out, then clears
-  /// local state and secure storage. If endSession fails, local logout
-  /// still proceeds.
+  /// Clears local tokens FIRST, then calls the IdP's end_session_endpoint.
+  /// This order is critical for web where endSession redirects the page -
+  /// tokens must be cleared before the redirect or they'll persist.
   Future<void> signOut() async {
     final current = state;
-    if (current is Authenticated) {
-      await _authFlow.endSession(
-        discoveryUrl: current.issuerDiscoveryUrl,
-        idToken: current.idToken,
-      );
-    }
+
+    // Clear local state FIRST (critical for web where endSession redirects)
     try {
       await _storage.clearTokens();
     } on Exception catch (e) {
       _log('Failed to clear tokens on logout: ${e.runtimeType}');
     }
     state = const Unauthenticated();
+
+    // Then end IdP session (may redirect on web)
+    if (current is Authenticated) {
+      try {
+        await _authFlow.endSession(
+          discoveryUrl: current.issuerDiscoveryUrl,
+          idToken: current.idToken,
+        );
+      } on Exception catch (e) {
+        // endSession failure shouldn't prevent local logout completion
+        _log('IdP session termination failed: ${e.runtimeType}');
+      }
+    }
   }
 
   /// Exit no-auth mode, returning to unauthenticated state.

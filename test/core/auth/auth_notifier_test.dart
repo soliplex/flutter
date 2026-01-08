@@ -785,6 +785,111 @@ void main() {
     });
   });
 
+  group('AuthNotifier.signOut', () {
+    late MockAuthFlow mockAuthFlow;
+
+    setUp(() {
+      mockAuthFlow = MockAuthFlow();
+      when(() => mockAuthFlow.isWeb).thenReturn(false);
+    });
+
+    ProviderContainer createContainerWithAuthFlow() {
+      return ProviderContainer(
+        overrides: [
+          authStorageProvider.overrideWithValue(mockStorage),
+          tokenRefreshServiceProvider.overrideWithValue(mockRefreshService),
+          authFlowProvider.overrideWithValue(mockAuthFlow),
+        ],
+      );
+    }
+
+    Future<ProviderContainer> setupAuthenticatedContainer() async {
+      final validTokens = TestData.createAuthenticated();
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => validTokens);
+      when(() => mockStorage.clearTokens()).thenAnswer((_) async {});
+      when(
+        () => mockAuthFlow.endSession(
+          discoveryUrl: any(named: 'discoveryUrl'),
+          idToken: any(named: 'idToken'),
+        ),
+      ).thenAnswer((_) async {});
+
+      final container = createContainerWithAuthFlow()..read(authProvider);
+      await waitForAuthRestore(container);
+
+      expect(container.read(authProvider), isA<Authenticated>());
+      return container;
+    }
+
+    test('clears tokens before calling endSession', () async {
+      final container = await setupAuthenticatedContainer();
+      addTearDown(container.dispose);
+
+      var tokensCleared = false;
+      var stateWhenEndSessionCalled = container.read(authProvider);
+
+      // Track when clearTokens is called
+      when(() => mockStorage.clearTokens()).thenAnswer((_) async {
+        tokensCleared = true;
+      });
+
+      // Capture state when endSession is called
+      when(
+        () => mockAuthFlow.endSession(
+          discoveryUrl: any(named: 'discoveryUrl'),
+          idToken: any(named: 'idToken'),
+        ),
+      ).thenAnswer((_) async {
+        stateWhenEndSessionCalled = container.read(authProvider);
+      });
+
+      await container.read(authProvider.notifier).signOut();
+
+      // Verify clearTokens was called
+      expect(tokensCleared, isTrue);
+      // Verify state was Unauthenticated when endSession was called
+      expect(stateWhenEndSessionCalled, isA<Unauthenticated>());
+    });
+
+    test('sets state to Unauthenticated before endSession', () async {
+      final container = await setupAuthenticatedContainer();
+      addTearDown(container.dispose);
+
+      AuthState? stateWhenEndSessionCalled;
+
+      when(
+        () => mockAuthFlow.endSession(
+          discoveryUrl: any(named: 'discoveryUrl'),
+          idToken: any(named: 'idToken'),
+        ),
+      ).thenAnswer((_) async {
+        stateWhenEndSessionCalled = container.read(authProvider);
+      });
+
+      await container.read(authProvider.notifier).signOut();
+
+      expect(stateWhenEndSessionCalled, isA<Unauthenticated>());
+    });
+
+    test('completes even when endSession throws', () async {
+      final container = await setupAuthenticatedContainer();
+      addTearDown(container.dispose);
+
+      when(
+        () => mockAuthFlow.endSession(
+          discoveryUrl: any(named: 'discoveryUrl'),
+          idToken: any(named: 'idToken'),
+        ),
+      ).thenThrow(Exception('IdP unreachable'));
+
+      // Should not throw
+      await container.read(authProvider.notifier).signOut();
+
+      expect(container.read(authProvider), isA<Unauthenticated>());
+      verify(() => mockStorage.clearTokens()).called(1);
+    });
+  });
+
   group('PreAuthState', () {
     test('isExpired returns true when older than maxAge', () {
       final expiredState = PreAuthState(
