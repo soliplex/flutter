@@ -290,4 +290,62 @@ void main() {
       });
     });
   });
+
+  group('Back navigation', () {
+    testWidgets('shows change backend server button', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const LoginScreen(),
+          overrides: [
+            oidcIssuersProvider.overrideWith(
+              (ref) async => [_createIssuer()],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Change backend server'), findsOneWidget);
+      expect(
+        find.widgetWithText(TextButton, 'Change backend server'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('change backend server button navigates to home', (
+      tester,
+    ) async {
+      final router = GoRouter(
+        initialLocation: '/login',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, __) => const Scaffold(body: Text('Home Screen')),
+          ),
+          GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: ProviderContainer(
+            overrides: [
+              oidcIssuersProvider.overrideWith(
+                (ref) async => [_createIssuer()],
+              ),
+            ],
+          ),
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Change backend server'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Home Screen'), findsOneWidget);
+    });
+  });
 }
