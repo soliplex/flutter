@@ -306,9 +306,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Change backend server'), findsOneWidget);
+      expect(find.text('Change server'), findsOneWidget);
       expect(
-        find.widgetWithText(TextButton, 'Change backend server'),
+        find.widgetWithText(TextButton, 'Change server'),
         findsOneWidget,
       );
     });
@@ -342,7 +342,7 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Change backend server'));
+      await tester.tap(find.text('Change server'));
       await tester.pumpAndSettle();
 
       expect(find.text('Home Screen'), findsOneWidget);

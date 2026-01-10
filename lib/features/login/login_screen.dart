@@ -139,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         TextButton(
           onPressed: () => context.go('/'),
           child: Text(
-            'Change backend server',
+            'Change server',
             style: TextStyle(color: Theme.of(context).colorScheme.outline),
           ),
         ),
