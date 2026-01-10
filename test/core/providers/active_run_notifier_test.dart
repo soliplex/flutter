@@ -862,4 +862,435 @@ void main() {
       expect(cacheAfter['thread-1'], hasLength(1));
     });
   });
+
+  group('stream error handling', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late StreamController<BaseEvent> eventStreamController;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      eventStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    test('stream onError transitions to Failed state', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Verify running
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+
+      // Emit an error on the stream
+      eventStreamController.addError(Exception('Network connection lost'));
+
+      // Allow error to be processed
+      await Future<void>.delayed(Duration.zero);
+
+      // Verify state is CompletedState with FailedResult
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<CompletedState>());
+      final completedState = state as CompletedState;
+      expect(completedState.result, isA<FailedResult>());
+      expect(
+        (completedState.result as FailedResult).errorMessage,
+        contains('Network connection lost'),
+      );
+    });
+
+    test('stream onError updates cache with messages', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Add some events before error
+      eventStreamController
+        ..add(const TextMessageStartEvent(messageId: 'msg-1'))
+        ..add(
+          const TextMessageContentEvent(
+            messageId: 'msg-1',
+            delta: 'Response text',
+          ),
+        );
+      await Future<void>.delayed(Duration.zero);
+
+      // Emit error
+      eventStreamController.addError(Exception('Stream error'));
+      await Future<void>.delayed(Duration.zero);
+
+      // Verify cache was updated despite error
+      final cache = container.read(threadMessageCacheProvider);
+      expect(cache['thread-1'], isNotNull);
+      expect(cache['thread-1']!.length, greaterThan(0));
+    });
+
+    test('stream onDone without RUN_FINISHED transitions to Completed',
+        () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Verify running
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+
+      // Close stream without sending RUN_FINISHED
+      await eventStreamController.close();
+
+      // Allow onDone to be processed
+      await Future<void>.delayed(Duration.zero);
+
+      // Verify state is CompletedState with Success
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<CompletedState>());
+      final completedState = state as CompletedState;
+      expect(completedState.result, isA<Success>());
+    });
+
+    test('stream onDone updates cache with messages', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Add some events
+      eventStreamController
+        ..add(const TextMessageStartEvent(messageId: 'msg-1'))
+        ..add(
+          const TextMessageContentEvent(
+            messageId: 'msg-1',
+            delta: 'Response text',
+          ),
+        );
+      await Future<void>.delayed(Duration.zero);
+
+      // Close stream
+      await eventStreamController.close();
+      await Future<void>.delayed(Duration.zero);
+
+      // Verify cache was updated
+      final cache = container.read(threadMessageCacheProvider);
+      expect(cache['thread-1'], isNotNull);
+      expect(cache['thread-1']!.length, greaterThan(0));
+    });
+  });
+
+  group('event processing race conditions', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late StreamController<BaseEvent> eventStreamController;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      eventStreamController = StreamController<BaseEvent>.broadcast();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    test('ignores events when not in RunningState', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Verify running
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+
+      // Reset to IdleState
+      await container.read(activeRunNotifierProvider.notifier).reset();
+      expect(container.read(activeRunNotifierProvider), isA<IdleState>());
+
+      // Add events after reset (simulating race condition)
+      eventStreamController.add(
+        const TextMessageContentEvent(
+          messageId: 'msg-1',
+          delta: 'Should be ignored',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // State should still be IdleState
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<IdleState>());
+      expect(state.messages, isEmpty);
+    });
+
+    test('ignores events after RUN_FINISHED completes', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Send RUN_FINISHED
+      eventStreamController.add(
+        const RunFinishedEvent(threadId: 'thread-1', runId: 'run-1'),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // State should be CompletedState
+      expect(container.read(activeRunNotifierProvider), isA<CompletedState>());
+      final messageCountAfterCompletion =
+          container.read(activeRunNotifierProvider).messages.length;
+
+      // Send more events (race condition)
+      eventStreamController.add(
+        const TextMessageContentEvent(
+          messageId: 'msg-2',
+          delta: 'Late event',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // Message count should not change
+      expect(
+        container.read(activeRunNotifierProvider).messages.length,
+        equals(messageCountAfterCompletion),
+      );
+    });
+  });
+
+  group('CancellationError handling', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+    });
+
+    test('CancellationError transitions to CancelledResult', () async {
+      // Setup stream that throws CancellationError
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenThrow(const CancellationError('Cancelled'));
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run (will immediately throw CancellationError)
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // State should be CompletedState with CancelledResult
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<CompletedState>());
+      final completedState = state as CompletedState;
+      expect(completedState.result, isA<CancelledResult>());
+      expect(
+        (completedState.result as CancelledResult).reason,
+        equals('Cancelled by user'),
+      );
+    });
+
+    test('CancellationError preserves user message', () async {
+      // Setup stream that throws CancellationError
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenThrow(const CancellationError('Cancelled'));
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Test message',
+          );
+
+      // Messages should still contain the user message
+      final state = container.read(activeRunNotifierProvider);
+      expect(state.messages, hasLength(1));
+      expect((state.messages.first as TextMessage).text, 'Test message');
+    });
+
+    test('CancellationError updates cache', () async {
+      // Setup stream that throws CancellationError
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenThrow(const CancellationError('Cancelled'));
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Test message',
+          );
+
+      // Cache should be updated
+      final cache = container.read(threadMessageCacheProvider);
+      expect(cache['thread-1'], isNotNull);
+      expect(cache['thread-1'], hasLength(1));
+    });
+  });
 }

@@ -6,8 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/auth/callback_params.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
+import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
@@ -387,6 +389,137 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
       expect(find.byType(HomeScreen), findsNothing);
+    });
+  });
+
+  group('OAuth callback handling', () {
+    testWidgets('no OAuth redirect when callback params absent', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          capturedCallbackParamsProvider.overrideWithValue(
+            const NoCallbackParams(),
+          ),
+          authProvider.overrideWith(
+            () => _MockAuthNotifier(const Unauthenticated()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) {
+              final router = ref.watch(routerProvider);
+              return MaterialApp.router(routerConfig: router);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Should navigate to home screen (public route)
+      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(AuthCallbackScreen), findsNothing);
+    });
+  });
+
+  group('Redirect logic edge cases', () {
+    testWidgets('unauthenticated user at /settings redirects to /login', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createRouterAppAt('/settings', authenticated: false),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets('NoAuthRequired user at /login redirects to /rooms', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createRouterAppAt(
+          '/login',
+          authenticated: false,
+          noAuthMode: true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(RoomsScreen), findsOneWidget);
+    });
+
+    testWidgets('multiple rapid auth state changes preserve navigation', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(
+            () => _ControllableAuthNotifier(_createAuthenticatedState()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) {
+              final router = ref.watch(routerProvider);
+              return MaterialApp.router(routerConfig: router);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Navigate to settings
+      container.read(routerProvider).go('/settings');
+      await tester.pumpAndSettle();
+      expect(find.byType(SettingsScreen), findsOneWidget);
+
+      // Rapid token refreshes (simulating background refresh)
+      (container.read(authProvider.notifier) as _ControllableAuthNotifier)
+        ..refreshTokens()
+        ..refreshTokens()
+        ..refreshTokens();
+      await tester.pumpAndSettle();
+
+      // Should still be on settings screen
+      expect(find.byType(SettingsScreen), findsOneWidget);
+    });
+  });
+
+  group('Error boundary', () {
+    testWidgets('error page shows error message with route', (tester) async {
+      await tester.pumpWidget(createRouterAppAt('/completely-invalid-path'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Page not found'), findsOneWidget);
+      expect(find.textContaining('/completely-invalid-path'), findsOneWidget);
+      expect(find.byIcon(Icons.error_outline), findsOneWidget);
+    });
+
+    testWidgets('error page button navigates authenticated user to /rooms', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createRouterAppAt('/invalid-route'));
+      await tester.pumpAndSettle();
+
+      // Error page should be showing
+      expect(find.text('Go Home'), findsOneWidget);
+
+      // Tap "Go Home" button
+      await tester.tap(find.text('Go Home'));
+      await tester.pumpAndSettle();
+
+      // Authenticated users redirect from / to /rooms
+      expect(find.byType(RoomsScreen), findsOneWidget);
+      expect(find.textContaining('Page not found'), findsNothing);
     });
   });
 }
