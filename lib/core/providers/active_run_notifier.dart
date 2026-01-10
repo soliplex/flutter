@@ -63,6 +63,7 @@ class RunningInternalState extends NotifierInternalState {
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late final AgUiClient _agUiClient;
   NotifierInternalState _internalState = const IdleInternalState();
+  bool _isStarting = false;
 
   @override
   ActiveRunState build() {
@@ -101,49 +102,52 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     String? existingRunId,
     Map<String, dynamic>? initialState,
   }) async {
-    if (state.isRunning) {
+    if (_isStarting || state.isRunning) {
       throw StateError(
         'Cannot start run: a run is already active. '
         'Call cancelRun() first.',
       );
     }
 
-    // Dispose any previous resources
-    if (_internalState is RunningInternalState) {
-      await (_internalState as RunningInternalState).dispose();
-    }
-
-    // Create new resources
-    final cancelToken = CancelToken();
-
-    // Step 1: Get run_id (use existing or create new)
-    final String runId;
-    if (existingRunId != null && existingRunId.isNotEmpty) {
-      runId = existingRunId;
-    } else {
-      final api = ref.read(apiProvider);
-      final runInfo = await api.createRun(roomId, threadId);
-      runId = runInfo.id;
-    }
-
-    // Create user message
-    final userMessageObj = TextMessage.create(
-      id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-      user: ChatUser.user,
-      text: userMessage,
-    );
-
-    // Create conversation with user message and Running status
-    final conversation = domain.Conversation(
-      threadId: threadId,
-      messages: [userMessageObj],
-      status: domain.Running(runId: runId),
-    );
-
-    // Set running state
-    state = RunningState(conversation: conversation);
+    _isStarting = true;
+    StreamSubscription<BaseEvent>? subscription;
 
     try {
+      // Dispose any previous resources
+      if (_internalState is RunningInternalState) {
+        await (_internalState as RunningInternalState).dispose();
+      }
+
+      // Create new resources
+      final cancelToken = CancelToken();
+
+      // Step 1: Get run_id (use existing or create new)
+      final String runId;
+      if (existingRunId != null && existingRunId.isNotEmpty) {
+        runId = existingRunId;
+      } else {
+        final api = ref.read(apiProvider);
+        final runInfo = await api.createRun(roomId, threadId);
+        runId = runInfo.id;
+      }
+
+      // Create user message
+      final userMessageObj = TextMessage.create(
+        id: 'user_${DateTime.now().millisecondsSinceEpoch}',
+        user: ChatUser.user,
+        text: userMessage,
+      );
+
+      // Create conversation with user message and Running status
+      final conversation = domain.Conversation(
+        threadId: threadId,
+        messages: [userMessageObj],
+        status: domain.Running(runId: runId),
+      );
+
+      // Set running state
+      state = RunningState(conversation: conversation);
+
       // Step 2: Build the streaming endpoint URL with backend run_id
       final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
 
@@ -164,7 +168,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       // Process events
       // ignore: cancel_subscriptions - stored in _internalState and cancelled
-      final subscription = eventStream.listen(
+      subscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
           final currentState = state;
@@ -202,20 +206,23 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         cancelToken: cancelToken,
         subscription: subscription,
       );
-    } on CancellationError {
-      // User cancelled - already handled in cancelRun
+    } on CancellationError catch (e) {
+      // User cancelled - clean up resources
+      await subscription?.cancel();
       final completed = CompletedState(
-        conversation: conversation.withStatus(
-          const domain.Cancelled(reason: 'Cancelled by user'),
+        conversation: state.conversation.withStatus(
+          domain.Cancelled(reason: e.message),
         ),
-        result: const CancelledResult(reason: 'Cancelled by user'),
+        result: CancelledResult(reason: e.message),
       );
       state = completed;
       _updateCacheOnCompletion(completed);
       _internalState = const IdleInternalState();
     } catch (e) {
+      // Clean up subscription on any error
+      await subscription?.cancel();
       final completed = CompletedState(
-        conversation: conversation.withStatus(
+        conversation: state.conversation.withStatus(
           domain.Failed(error: e.toString()),
         ),
         result: FailedResult(errorMessage: e.toString()),
@@ -223,6 +230,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       state = completed;
       _updateCacheOnCompletion(completed);
       _internalState = const IdleInternalState();
+    } finally {
+      _isStarting = false;
     }
   }
 

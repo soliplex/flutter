@@ -76,12 +76,11 @@ class _TrackingThreadSelectionNotifier extends Notifier<ThreadSelection>
   }
 }
 
-/// Mock SoliplexApi that tracks createThread calls.
+/// Mock SoliplexApi that returns a specific thread on creation.
 class _TrackingSoliplexApi extends Mock implements MockSoliplexApi {
   _TrackingSoliplexApi({required this.threadToCreate});
 
   final domain.ThreadInfo threadToCreate;
-  String? createThreadCalledWithRoomId;
 }
 
 /// Creates a test app with GoRouter for testing navigation.

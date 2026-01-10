@@ -1225,7 +1225,7 @@ void main() {
       expect(completedState.result, isA<CancelledResult>());
       expect(
         (completedState.result as CancelledResult).reason,
-        equals('Cancelled by user'),
+        equals('Cancelled'),
       );
     });
 
@@ -1291,6 +1291,79 @@ void main() {
       final cache = container.read(threadMessageCacheProvider);
       expect(cache['thread-1'], isNotNull);
       expect(cache['thread-1'], hasLength(1));
+    });
+  });
+
+  group('concurrent startRun protection', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late StreamController<BaseEvent> eventStreamController;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      eventStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    test('concurrent startRun calls are rejected', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start two runs concurrently without awaiting
+      final notifier = container.read(activeRunNotifierProvider.notifier);
+      final future1 = notifier.startRun(
+        roomId: 'room-1',
+        threadId: 'thread-1',
+        userMessage: 'First',
+      );
+      final future2 = notifier.startRun(
+        roomId: 'room-1',
+        threadId: 'thread-2',
+        userMessage: 'Second',
+      );
+
+      // Second call should throw StateError
+      await expectLater(future2, throwsA(isA<StateError>()));
+
+      // First call should complete successfully
+      await future1;
+
+      // State should reflect first call
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<RunningState>());
+      expect(state.conversation.threadId, equals('thread-1'));
     });
   });
 }
