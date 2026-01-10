@@ -29,6 +29,8 @@ dependencies:
   web: ^1.1.1
 
 dev_dependencies:
+  # Icon generation
+  flutter_launcher_icons: ^0.14.4
   flutter_test:
     sdk: flutter
 
@@ -42,3 +44,13 @@ dev_dependencies:
   very_good_analysis: ^10.0.0
 flutter:
   uses-material-design: true
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  macos:
+    generate: true
+  web:
+    generate: true
+  image_path: "assets/branding/app_icon_1024.png"
+  web_favicon_path: "assets/branding/favicon_48.png"
