@@ -877,6 +877,17 @@ void main() {
       expect(stateWhenEndSessionCalled, isA<Unauthenticated>());
     });
 
+    test('sets redirectTo to home for explicit sign-out', () async {
+      final container = await setupAuthenticatedContainer();
+      addTearDown(container.dispose);
+
+      await container.read(authProvider.notifier).signOut();
+
+      final state = container.read(authProvider);
+      expect(state, isA<Unauthenticated>());
+      expect((state as Unauthenticated).redirectTo, equals('/'));
+    });
+
     test('completes even when endSession throws', () async {
       final container = await setupAuthenticatedContainer();
       addTearDown(container.dispose);
@@ -993,6 +1004,23 @@ void main() {
       container.read(authProvider.notifier).exitNoAuthMode();
 
       expect(container.read(authProvider), isA<Unauthenticated>());
+    });
+
+    test('sets redirectTo to home for disconnect', () async {
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async => null);
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      container.read(authProvider);
+      await waitForAuthRestore(container);
+
+      await container.read(authProvider.notifier).enterNoAuthMode();
+      container.read(authProvider.notifier).exitNoAuthMode();
+
+      final state = container.read(authProvider);
+      expect(state, isA<Unauthenticated>());
+      expect((state as Unauthenticated).redirectTo, equals('/'));
     });
 
     test('transitions to Unauthenticated from Authenticated state', () async {
