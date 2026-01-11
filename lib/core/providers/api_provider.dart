@@ -7,6 +7,30 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 
+/// HTTP client wrapper that delegates all operations except close().
+///
+/// Used to inject a shared HTTP client into consumers that call close()
+/// but shouldn't own the client lifecycle. The close() operation is a no-op,
+/// allowing the client to remain active for other consumers.
+///
+/// This enforces the resource ownership principle: "Don't close resources
+/// you don't own" at the type system level.
+class _NonClosingHttpClient extends http.BaseClient {
+  _NonClosingHttpClient(this._inner);
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    return _inner.send(request);
+  }
+
+  @override
+  void close() {
+    // No-op: lifecycle is managed by the provider, not the consumer
+  }
+}
+
 /// Provider for the base observable HTTP client (without auth).
 ///
 /// Creates a single [ObservableHttpClient] that wraps the platform client
@@ -154,24 +178,37 @@ final soliplexHttpClientProvider = Provider<SoliplexHttpClient>((ref) {
 /// This bridges our [SoliplexHttpClient] to the standard [http.Client]
 /// interface, allowing libraries like AgUiClient to use our HTTP
 /// infrastructure.
+///
+/// **Ownership**: This provider does NOT close the underlying client on
+/// disposal. [HttpClientAdapter] is a thin stateless wrapper, and the
+/// underlying [soliplexHttpClientProvider] manages its own lifecycle.
 final httpClientProvider = Provider<http.Client>((ref) {
   final soliplexClient = ref.watch(soliplexHttpClientProvider);
-  final client = HttpClientAdapter(client: soliplexClient);
-  ref.onDispose(client.close);
-  return client;
+  return HttpClientAdapter(client: soliplexClient);
 });
 
 /// Provider for the AG-UI client.
 ///
 /// Creates an [AgUiClient] that uses our HTTP stack via [httpClientProvider].
 /// This ensures AG-UI requests go through our platform adapters and observers.
+///
+/// **Ownership**: The httpClient is wrapped in [_NonClosingHttpClient] to
+/// prevent AgUiClient.close() from closing the shared HTTP client. This
+/// provider watches [configProvider], so it gets disposed when the backend
+/// URL changes. Without the wrapper, disposal would close the shared client,
+/// breaking all HTTP consumers. See: https://github.com/soliplex/flutter/issues/27
 final agUiClientProvider = Provider<AgUiClient>((ref) {
   final httpClient = ref.watch(httpClientProvider);
   final config = ref.watch(configProvider);
 
+  // Wrap in non-closing adapter to protect shared resource.
+  // AgUiClient.close() will clean up its internal resources (streams, tokens)
+  // but won't close the underlying shared HTTP client.
+  final protectedClient = _NonClosingHttpClient(httpClient);
+
   final client = AgUiClient(
     config: AgUiClientConfig(baseUrl: '${config.baseUrl}/api/v1'),
-    httpClient: httpClient,
+    httpClient: protectedClient,
   );
 
   ref.onDispose(client.close);
