@@ -111,10 +111,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         'Router: hasAccess=$hasAccess, isPublic=$isPublicRoute',
       );
 
-      // Users without access go to login (except for public routes)
+      // Redirect based on auth state reason (Unauthenticated) or default to
+      // /login (AuthLoading). Public routes are exempt.
       if (!hasAccess && !isPublicRoute) {
-        debugPrint('Router: redirecting to /login');
-        return '/login';
+        final target = switch (authState) {
+          Unauthenticated(reason: UnauthenticatedReason.explicitSignOut) => '/',
+          _ => '/login',
+        };
+        debugPrint('Router: redirecting to $target');
+        return target;
       }
 
       // Public routes are for guests only - redirect to rooms if authenticated
