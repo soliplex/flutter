@@ -111,8 +111,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         'Router: hasAccess=$hasAccess, isPublic=$isPublicRoute',
       );
 
-      // Users without access go to login (except for public routes)
+      // Users without access go to their redirect target
+      // (except for public routes)
       if (!hasAccess && !isPublicRoute) {
+        if (authState is Unauthenticated) {
+          debugPrint('Router: redirecting to ${authState.redirectTo}');
+          return authState.redirectTo;
+        }
         debugPrint('Router: redirecting to /login');
         return '/login';
       }

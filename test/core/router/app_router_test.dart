@@ -90,7 +90,12 @@ Widget createRouterAppAt(
           redirect: (context, state) {
             const publicRoutes = {'/', '/login', '/auth/callback'};
             final isPublicRoute = publicRoutes.contains(state.matchedLocation);
-            if (!hasAccess && !isPublicRoute) return '/login';
+            if (!hasAccess && !isPublicRoute) {
+              if (currentAuthState is Unauthenticated) {
+                return currentAuthState.redirectTo;
+              }
+              return '/login';
+            }
             if (hasAccess && isPublicRoute) return '/rooms';
             return null;
           },
@@ -318,7 +323,7 @@ void main() {
   });
 
   group('Auth state changes', () {
-    testWidgets('logout from deep navigation redirects to /login', (
+    testWidgets('session expiry redirects to /login', (
       tester,
     ) async {
       final container = ProviderContainer(
@@ -348,11 +353,50 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
+      // Session expiry uses default redirectTo: '/login'
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .setUnauthenticated();
       await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets('explicit sign-out redirects to home', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(
+            () => _ControllableAuthNotifier(_createAuthenticatedState()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) {
+              final router = ref.watch(routerProvider);
+              return MaterialApp.router(routerConfig: router);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      container.read(routerProvider).go('/rooms');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RoomsScreen), findsOneWidget);
+
+      // Explicit sign-out uses redirectTo: '/'
+      await (container.read(authProvider.notifier) as _ControllableAuthNotifier)
+          .signOut();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HomeScreen), findsOneWidget);
     });
 
     testWidgets('token refresh preserves navigation location', (tester) async {
@@ -533,6 +577,11 @@ class _ControllableAuthNotifier extends AuthNotifier {
 
   void setUnauthenticated() {
     state = const Unauthenticated();
+  }
+
+  @override
+  Future<void> signOut() async {
+    state = const Unauthenticated(redirectTo: '/');
   }
 
   void refreshTokens() {
