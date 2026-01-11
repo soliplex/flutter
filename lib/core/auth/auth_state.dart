@@ -12,16 +12,25 @@ sealed class AuthState {
 /// User is not authenticated.
 @immutable
 class Unauthenticated extends AuthState {
-  const Unauthenticated();
+  const Unauthenticated({this.redirectTo = defaultRedirect});
+
+  /// Default redirect target for unauthenticated users.
+  static const defaultRedirect = '/login';
+
+  /// Redirect target when transitioning to unauthenticated state.
+  /// Defaults to '/login' for session expiry, app startup, etc.
+  /// Set to '/' for explicit sign-out or disconnect.
+  final String redirectTo;
 
   @override
-  bool operator ==(Object other) => other is Unauthenticated;
+  bool operator ==(Object other) =>
+      other is Unauthenticated && other.redirectTo == redirectTo;
 
   @override
-  int get hashCode => runtimeType.hashCode;
+  int get hashCode => Object.hash(runtimeType, redirectTo);
 
   @override
-  String toString() => 'Unauthenticated()';
+  String toString() => 'Unauthenticated(redirectTo: $redirectTo)';
 }
 
 /// User is authenticated with valid tokens.
