@@ -61,7 +61,7 @@ class RunningInternalState extends NotifierInternalState {
 /// );
 /// ```
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
-  late final AgUiClient _agUiClient;
+  late AgUiClient _agUiClient;
   NotifierInternalState _internalState = const IdleInternalState();
   bool _isStarting = false;
 
