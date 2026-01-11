@@ -91,10 +91,14 @@ Widget createRouterAppAt(
             const publicRoutes = {'/', '/login', '/auth/callback'};
             final isPublicRoute = publicRoutes.contains(state.matchedLocation);
             if (!hasAccess && !isPublicRoute) {
-              if (currentAuthState is Unauthenticated) {
-                return currentAuthState.redirectTo;
-              }
-              return '/login';
+              final target = switch (currentAuthState) {
+                Unauthenticated(
+                  reason: UnauthenticatedReason.explicitSignOut,
+                ) =>
+                  '/',
+                _ => '/login',
+              };
+              return target;
             }
             if (hasAccess && isPublicRoute) return '/rooms';
             return null;
@@ -353,7 +357,7 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
-      // Session expiry uses default redirectTo: '/login'
+      // Session expiry uses default reason: sessionExpired -> /login
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .setUnauthenticated();
       await tester.pumpAndSettle();
@@ -391,7 +395,7 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
-      // Explicit sign-out uses redirectTo: '/'
+      // Explicit sign-out uses reason: explicitSignOut -> /
       await (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .signOut();
       await tester.pumpAndSettle();
@@ -581,7 +585,9 @@ class _ControllableAuthNotifier extends AuthNotifier {
 
   @override
   Future<void> signOut() async {
-    state = const Unauthenticated(redirectTo: '/');
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
 
   void refreshTokens() {

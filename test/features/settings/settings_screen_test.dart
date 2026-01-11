@@ -31,7 +31,9 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   @override
   Future<void> signOut() async {
     signOutCalled = true;
-    state = const Unauthenticated(redirectTo: '/');
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
 
   @override
@@ -53,7 +55,9 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   @override
   void exitNoAuthMode() {
     exitNoAuthModeCalled = true;
-    state = const Unauthenticated(redirectTo: '/');
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
 }
 

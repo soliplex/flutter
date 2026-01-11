@@ -9,28 +9,36 @@ sealed class AuthState {
   const AuthState();
 }
 
+/// Why the user is unauthenticated.
+///
+/// Determines where the router redirects when entering [Unauthenticated] state.
+enum UnauthenticatedReason {
+  /// Session expired, app startup, or other implicit logout.
+  /// Router redirects to login.
+  sessionExpired,
+
+  /// User explicitly signed out or disconnected.
+  /// Router redirects to home so they can choose a different backend.
+  explicitSignOut,
+}
+
 /// User is not authenticated.
 @immutable
 class Unauthenticated extends AuthState {
-  const Unauthenticated({this.redirectTo = defaultRedirect});
+  const Unauthenticated({this.reason = UnauthenticatedReason.sessionExpired});
 
-  /// Default redirect target for unauthenticated users.
-  static const defaultRedirect = '/login';
-
-  /// Redirect target when transitioning to unauthenticated state.
-  /// Defaults to '/login' for session expiry, app startup, etc.
-  /// Set to '/' for explicit sign-out or disconnect.
-  final String redirectTo;
+  /// Why the user is unauthenticated.
+  final UnauthenticatedReason reason;
 
   @override
   bool operator ==(Object other) =>
-      other is Unauthenticated && other.redirectTo == redirectTo;
+      other is Unauthenticated && other.reason == reason;
 
   @override
-  int get hashCode => Object.hash(runtimeType, redirectTo);
+  int get hashCode => Object.hash(runtimeType, reason);
 
   @override
-  String toString() => 'Unauthenticated(redirectTo: $redirectTo)';
+  String toString() => 'Unauthenticated(reason: $reason)';
 }
 
 /// User is authenticated with valid tokens.

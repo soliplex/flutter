@@ -877,7 +877,7 @@ void main() {
       expect(stateWhenEndSessionCalled, isA<Unauthenticated>());
     });
 
-    test('sets redirectTo to home for explicit sign-out', () async {
+    test('sets reason to explicitSignOut for sign-out', () async {
       final container = await setupAuthenticatedContainer();
       addTearDown(container.dispose);
 
@@ -885,7 +885,10 @@ void main() {
 
       final state = container.read(authProvider);
       expect(state, isA<Unauthenticated>());
-      expect((state as Unauthenticated).redirectTo, equals('/'));
+      expect(
+        (state as Unauthenticated).reason,
+        equals(UnauthenticatedReason.explicitSignOut),
+      );
     });
 
     test('completes even when endSession throws', () async {
@@ -1006,7 +1009,7 @@ void main() {
       expect(container.read(authProvider), isA<Unauthenticated>());
     });
 
-    test('sets redirectTo to home for disconnect', () async {
+    test('sets reason to explicitSignOut for disconnect', () async {
       when(() => mockStorage.loadTokens()).thenAnswer((_) async => null);
 
       final container = createContainer();
@@ -1020,7 +1023,10 @@ void main() {
 
       final state = container.read(authProvider);
       expect(state, isA<Unauthenticated>());
-      expect((state as Unauthenticated).redirectTo, equals('/'));
+      expect(
+        (state as Unauthenticated).reason,
+        equals(UnauthenticatedReason.explicitSignOut),
+      );
     });
 
     test('transitions to Unauthenticated from Authenticated state', () async {

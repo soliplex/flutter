@@ -2,22 +2,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 
 void main() {
+  group('UnauthenticatedReason', () {
+    test('has sessionExpired and explicitSignOut values', () {
+      expect(UnauthenticatedReason.values, hasLength(2));
+      expect(
+        UnauthenticatedReason.values,
+        contains(UnauthenticatedReason.sessionExpired),
+      );
+      expect(
+        UnauthenticatedReason.values,
+        contains(UnauthenticatedReason.explicitSignOut),
+      );
+    });
+  });
+
   group('Unauthenticated', () {
-    test('has defaultRedirect constant of /login', () {
-      expect(Unauthenticated.defaultRedirect, equals('/login'));
-    });
-
-    test('default redirectTo is /login', () {
+    test('default reason is sessionExpired', () {
       const state = Unauthenticated();
-      expect(state.redirectTo, equals('/login'));
+      expect(state.reason, equals(UnauthenticatedReason.sessionExpired));
     });
 
-    test('can specify custom redirectTo', () {
-      const state = Unauthenticated(redirectTo: '/');
-      expect(state.redirectTo, equals('/'));
+    test('can specify explicitSignOut reason', () {
+      const state = Unauthenticated(
+        reason: UnauthenticatedReason.explicitSignOut,
+      );
+      expect(state.reason, equals(UnauthenticatedReason.explicitSignOut));
     });
 
-    test('instances with same redirectTo are equal', () {
+    test('instances with same reason are equal', () {
       const a = Unauthenticated();
       const b = Unauthenticated();
 
@@ -25,9 +37,9 @@ void main() {
       expect(a.hashCode, equals(b.hashCode));
     });
 
-    test('instances with different redirectTo are not equal', () {
+    test('instances with different reason are not equal', () {
       const a = Unauthenticated();
-      const b = Unauthenticated(redirectTo: '/');
+      const b = Unauthenticated(reason: UnauthenticatedReason.explicitSignOut);
 
       expect(a, isNot(equals(b)));
       expect(a.hashCode, isNot(equals(b.hashCode)));
@@ -40,9 +52,11 @@ void main() {
       expect(unauthenticated, isNot(equals(loading)));
     });
 
-    test('toString includes redirectTo', () {
-      const state = Unauthenticated(redirectTo: '/');
-      expect(state.toString(), contains('/'));
+    test('toString includes reason', () {
+      const state = Unauthenticated(
+        reason: UnauthenticatedReason.explicitSignOut,
+      );
+      expect(state.toString(), contains('explicitSignOut'));
     });
   });
 

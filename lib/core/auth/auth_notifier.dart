@@ -341,9 +341,6 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
   /// Clears local tokens FIRST, then calls the IdP's end_session_endpoint.
   /// This order is critical for web where endSession redirects the page -
   /// tokens must be cleared before the redirect or they'll persist.
-  ///
-  /// Sets redirectTo to '/' so the router redirects to home, allowing the
-  /// user to choose a different backend or re-login.
   Future<void> signOut() async {
     final current = state;
 
@@ -353,7 +350,8 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     } on Exception catch (e) {
       _log('Failed to clear tokens on logout: ${e.runtimeType}');
     }
-    state = const Unauthenticated(redirectTo: '/');
+    state =
+        const Unauthenticated(reason: UnauthenticatedReason.explicitSignOut);
 
     // Then end IdP session (may redirect on web)
     if (current is Authenticated) {
@@ -376,16 +374,15 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
   /// backend. Safe to call from any state - simply transitions to
   /// [Unauthenticated].
   ///
-  /// Sets redirectTo to '/' so the router redirects to home, allowing the
-  /// user to choose a different backend or re-login.
-  ///
   /// Note: Does not clear tokens. If transitioning from [Authenticated],
   /// prefer [signOut] to properly end the IdP session and clear tokens.
   /// However, calling this from [Authenticated] is harmless - it just
   /// transitions to a less privileged state without token cleanup.
   void exitNoAuthMode() {
     _log('Exiting no-auth mode');
-    state = const Unauthenticated(redirectTo: '/');
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
 
   /// Enter no-auth mode when backend has no identity providers configured.
