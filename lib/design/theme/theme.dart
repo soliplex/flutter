@@ -23,6 +23,17 @@ ThemeData soliplexLightTheme() {
       error: colors.destructive,
       onError: colors.onDestructive,
     ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: colors.onPrimary,
+      foregroundColor: colors.primary,
+      elevation: 0,
+      actionsPadding: const EdgeInsets.symmetric(
+        horizontal: SoliplexSpacing.s2,
+      ),
+      shape: Border(
+        bottom: BorderSide(color: colors.border),
+      ),
+    ),
     dividerTheme: DividerThemeData(
       color: colors.border,
       thickness: 1,
@@ -192,6 +203,17 @@ ThemeData soliplexDarkTheme() {
       onSurface: colors.foreground,
       error: colors.destructive,
       onError: colors.onDestructive,
+    ),
+    appBarTheme: AppBarTheme(
+      backgroundColor: colors.onPrimary,
+      foregroundColor: colors.primary,
+      elevation: 0,
+      actionsPadding: const EdgeInsets.symmetric(
+        horizontal: SoliplexSpacing.s2,
+      ),
+      shape: Border(
+        bottom: BorderSide(color: colors.border),
+      ),
     ),
     dividerTheme: DividerThemeData(
       color: colors.border,

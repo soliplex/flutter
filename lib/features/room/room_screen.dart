@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:soliplex_frontend/core/constants/breakpoints.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
@@ -105,7 +105,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= kDesktopBreakpoint;
+    final isDesktop =
+        MediaQuery.of(context).size.width >= SoliplexBreakpoints.desktop;
 
     return AppShell(
       config: ShellConfig(
@@ -186,7 +187,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
               decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
+                    color: Theme.of(context).dividerTheme.color!,
                   ),
                 ),
               ),

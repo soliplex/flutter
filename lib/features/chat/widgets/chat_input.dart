@@ -64,13 +64,11 @@ class _ChatInputState extends ConsumerState<ChatInput> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
+        border: Border(
+          top: BorderSide(
+            color: Theme.of(context).dividerTheme.color!,
           ),
-        ],
+        ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
