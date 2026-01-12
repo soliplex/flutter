@@ -79,7 +79,7 @@ docs/planning/               # Design specs and work logs (see ROADMAP.md)
 
 1. **Format:** `mcp__dart__dart_format` (formats files in place)
 2. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
-3. **Test:** `mcp__dart__run_tests` (all green before any code is complete)
+3. **Test:** `mcp__dart__run_tests` (targeted tests during dev, full suite before commit)
 4. **Coverage:** Verify coverage is at least 85%
 
 Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
