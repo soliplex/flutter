@@ -1,6 +1,4 @@
-/// Application configuration for AM1.
-///
-/// In AM7, this will be loaded from settings storage.
+/// Application configuration.
 class AppConfig {
   const AppConfig({
     required this.baseUrl,
@@ -8,7 +6,7 @@ class AppConfig {
     required this.version,
   });
 
-  /// Default configuration for AM1.
+  /// Default configuration for local development.
   factory AppConfig.defaults() {
     return const AppConfig(
       baseUrl: 'http://localhost:8000',
