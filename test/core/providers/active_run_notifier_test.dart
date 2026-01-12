@@ -1366,4 +1366,201 @@ void main() {
       expect(state.conversation.threadId, equals('thread-1'));
     });
   });
+
+  group('history preservation', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late StreamController<BaseEvent> eventStreamController;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      eventStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    test(
+      'includes cached messages in Conversation when starting run',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWithValue(mockApi),
+            agUiClientProvider.overrideWithValue(mockAgUiClient),
+          ],
+        );
+
+        addTearDown(container.dispose);
+
+        // Pre-populate cache with historical messages
+        final historicalMessages = [
+          TextMessage.create(
+            id: 'hist-1',
+            user: ChatUser.user,
+            text: 'First question',
+          ),
+          TextMessage.create(
+            id: 'hist-2',
+            user: ChatUser.assistant,
+            text: 'First answer',
+          ),
+        ];
+        container
+            .read(threadMessageCacheProvider.notifier)
+            .updateMessages('thread-1', historicalMessages);
+
+        // Start a new run
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+              roomId: 'room-1',
+              threadId: 'thread-1',
+              userMessage: 'Second question',
+            );
+
+        // Verify state includes all messages (history + new)
+        final state = container.read(activeRunNotifierProvider);
+        expect(state.messages, hasLength(3));
+        expect((state.messages[0] as TextMessage).text, 'First question');
+        expect((state.messages[1] as TextMessage).text, 'First answer');
+        expect((state.messages[2] as TextMessage).text, 'Second question');
+      },
+    );
+
+    test('sends complete history to backend in AG-UI format', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Pre-populate cache with historical messages
+      final historicalMessages = [
+        TextMessage.create(
+          id: 'hist-1',
+          user: ChatUser.user,
+          text: 'First question',
+        ),
+        TextMessage.create(
+          id: 'hist-2',
+          user: ChatUser.assistant,
+          text: 'First answer',
+        ),
+      ];
+      container
+          .read(threadMessageCacheProvider.notifier)
+          .updateMessages('thread-1', historicalMessages);
+
+      // Start a new run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Second question',
+          );
+
+      // Capture the input sent to the backend
+      final captured = verify(
+        () => mockAgUiClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured.single as SimpleRunAgentInput;
+
+      // Verify all messages were sent (history + new)
+      final messages = captured.messages!;
+      expect(messages, hasLength(3));
+      expect(messages[0], isA<UserMessage>());
+      expect((messages[0] as UserMessage).content, 'First question');
+      expect(messages[1], isA<AssistantMessage>());
+      expect((messages[1] as AssistantMessage).content, 'First answer');
+      expect(messages[2], isA<UserMessage>());
+      expect((messages[2] as UserMessage).content, 'Second question');
+    });
+
+    test('preserves messages from multiple runs in sequence', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // First run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'First message',
+          );
+
+      // Simulate assistant response
+      eventStreamController
+        ..add(const TextMessageStartEvent(messageId: 'resp-1'))
+        ..add(
+          const TextMessageContentEvent(
+            messageId: 'resp-1',
+            delta: 'First response',
+          ),
+        )
+        ..add(const TextMessageEndEvent(messageId: 'resp-1'))
+        ..add(const RunFinishedEvent(threadId: 'thread-1', runId: 'run-1'));
+      await Future<void>.delayed(Duration.zero);
+
+      // Verify first run completed with 2 messages
+      expect(container.read(activeRunNotifierProvider), isA<CompletedState>());
+      expect(container.read(activeRunNotifierProvider).messages, hasLength(2));
+
+      // Reset and create new stream for second run
+      await container.read(activeRunNotifierProvider.notifier).reset();
+      eventStreamController = StreamController<BaseEvent>();
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+
+      // Second run should include messages from first run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Second message',
+          );
+
+      // Verify all messages are present (2 from first run + 1 new)
+      final state = container.read(activeRunNotifierProvider);
+      expect(state.messages, hasLength(3));
+      expect((state.messages[0] as TextMessage).text, 'First message');
+      expect((state.messages[1] as TextMessage).text, 'First response');
+      expect((state.messages[2] as TextMessage).text, 'Second message');
+    });
+  });
 }
