@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
@@ -157,7 +156,6 @@ class _AuthSection extends ConsumerWidget {
 
   void _disconnect(BuildContext context, WidgetRef ref) {
     ref.read(authProvider.notifier).exitNoAuthMode();
-    context.go('/');
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
@@ -180,11 +178,6 @@ class _AuthSection extends ConsumerWidget {
     );
 
     if ((confirmed ?? false) && context.mounted) {
-      // Navigate BEFORE signOut - signOut changes auth state which triggers
-      // router redirect. If we're at /settings (non-public), we'd get
-      // redirected to /login. By navigating to / (public) first, the
-      // redirect doesn't kick in.
-      context.go('/');
       await ref.read(authProvider.notifier).signOut();
     }
   }

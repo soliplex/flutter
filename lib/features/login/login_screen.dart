@@ -135,6 +135,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             padding: EdgeInsets.only(top: 8),
             child: LinearProgressIndicator(),
           ),
+        const SizedBox(height: 24),
+        TextButton(
+          onPressed: () => context.go('/'),
+          child: Text(
+            'Change server',
+            style: TextStyle(color: Theme.of(context).colorScheme.outline),
+          ),
+        ),
       ],
     );
   }

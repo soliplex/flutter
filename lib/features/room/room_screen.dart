@@ -109,24 +109,28 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
     return AppShell(
       config: ShellConfig(
-        leading: isDesktop ? _buildSidebarToggle() : null,
+        leading: _buildBackButton(),
         title: _buildRoomDropdown(),
+        actions: isDesktop ? [_buildSidebarToggle()] : const [],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
     );
   }
 
+  Widget _buildBackButton() {
+    return IconButton(
+      icon: Icon(Icons.adaptive.arrow_back),
+      tooltip: 'Back to rooms',
+      onPressed: () => context.go('/rooms'),
+    );
+  }
+
   Widget _buildSidebarToggle() {
-    return Semantics(
-      label: _sidebarCollapsed
-          ? 'Show thread list sidebar'
-          : 'Hide thread list sidebar',
-      child: IconButton(
-        icon: Icon(_sidebarCollapsed ? Icons.menu : Icons.menu_open),
-        tooltip: _sidebarCollapsed ? 'Show threads' : 'Hide threads',
-        onPressed: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
-      ),
+    return IconButton(
+      icon: Icon(_sidebarCollapsed ? Icons.menu : Icons.menu_open),
+      tooltip: _sidebarCollapsed ? 'Show threads' : 'Hide threads',
+      onPressed: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
     );
   }
 

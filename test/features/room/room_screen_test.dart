@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -389,6 +390,121 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(DropdownMenu<String>), findsOneWidget);
+    });
+  });
+
+  group('RoomScreen back navigation', () {
+    testWidgets('shows back button on desktop', (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomScreen(roomId: 'general'),
+          overrides: [
+            threadsProvider('general').overrideWith((ref) async => []),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.adaptive.arrow_back), findsOneWidget);
+      expect(find.byTooltip('Back to rooms'), findsOneWidget);
+    });
+
+    testWidgets('shows back button on mobile', (tester) async {
+      tester.view.physicalSize = const Size(400, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomScreen(roomId: 'general'),
+          overrides: [
+            threadsProvider('general').overrideWith((ref) async => []),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.adaptive.arrow_back), findsOneWidget);
+      expect(find.byTooltip('Back to rooms'), findsOneWidget);
+    });
+
+    testWidgets('back button navigates to rooms list', (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      final router = GoRouter(
+        initialLocation: '/rooms/general',
+        routes: [
+          GoRoute(
+            path: '/rooms',
+            builder: (_, __) => const Scaffold(body: Text('Rooms List')),
+          ),
+          GoRoute(
+            path: '/rooms/:roomId',
+            builder: (_, state) => RoomScreen(
+              roomId: state.pathParameters['roomId']!,
+            ),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: ProviderContainer(
+            overrides: [
+              threadsProvider('general').overrideWith((ref) async => []),
+              lastViewedThreadProvider(
+                'general',
+              ).overrideWith((ref) async => const NoLastViewed()),
+            ],
+          ),
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.adaptive.arrow_back));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rooms List'), findsOneWidget);
+    });
+
+    testWidgets('sidebar toggle is in actions slot on desktop', (tester) async {
+      tester.view.physicalSize = const Size(800, 600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(() => tester.view.resetPhysicalSize());
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomScreen(roomId: 'general'),
+          overrides: [
+            threadsProvider('general').overrideWith((ref) async => []),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Both back button and sidebar toggle should be visible on desktop
+      expect(find.byIcon(Icons.adaptive.arrow_back), findsOneWidget);
+      expect(find.byIcon(Icons.menu_open), findsOneWidget);
     });
   });
 }
