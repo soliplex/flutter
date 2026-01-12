@@ -4,6 +4,7 @@ import 'package:soliplex_client/soliplex_client.dart'
     show ChatMessage, Streaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
@@ -107,7 +108,7 @@ class _MessageListState extends ConsumerState<MessageList> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
       itemCount: messages.length + (isStreaming ? 1 : 0),
       itemBuilder: (context, index) {
         // Show streaming indicator at the bottom
