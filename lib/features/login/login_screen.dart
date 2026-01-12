@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/shared/widgets/platform_adaptive_progress_indicator.dart';
 
 /// Login screen with OIDC provider selection.
 ///
@@ -133,7 +134,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (_isAuthenticating)
           const Padding(
             padding: EdgeInsets.only(top: 8),
-            child: LinearProgressIndicator(),
+            child: PlatformAdaptiveProgressIndicator(),
           ),
         const SizedBox(height: 24),
         TextButton(
