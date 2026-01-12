@@ -141,9 +141,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       // Read historical messages from cache.
-      // Note: Cache is populated by allMessagesProvider when thread is
-      // selected. If cache is empty (e.g., direct URL navigation + immediate
-      // send), we proceed without history. Backend still processes correctly.
+      // Cache is populated by allMessagesProvider when thread is selected.
+      // If cache is empty (e.g., direct URL navigation + immediate send),
+      // we proceed without history - backend still processes correctly.
+      //
+      // Deferred: Safety fetch from backend when cache is empty. Not needed
+      // because normal UI flow ensures cache is populated before user can
+      // send. Adding async fetch here would block UI for a rare edge case.
+      // See issue #30 for details.
       final cachedMessages =
           ref.read(threadMessageCacheProvider)[threadId] ?? [];
 
