@@ -21,16 +21,49 @@ void main() {
       expect(find.byIcon(Icons.wifi_off), findsOneWidget);
     });
 
-    testWidgets('displays not found error message', (tester) async {
+    testWidgets('displays session expired for 401 auth error', (tester) async {
       await tester.pumpWidget(
         createTestApp(
           home: const ErrorDisplay(
-            error: NotFoundException(message: 'Not found'),
+            error: AuthException(message: 'Unauthorized', statusCode: 401),
           ),
         ),
       );
 
-      expect(find.text('Resource not found.'), findsOneWidget);
+      expect(
+        find.text('Session expired. Please log in again.'),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+    });
+
+    testWidgets('displays permission denied for 403 auth error',
+        (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const ErrorDisplay(
+            error: AuthException(message: 'Forbidden', statusCode: 403),
+          ),
+        ),
+      );
+
+      expect(
+        find.text("You don't have permission to access this resource."),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+    });
+
+    testWidgets('displays not found error message', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const ErrorDisplay(
+            error: NotFoundException(message: 'Thread not found'),
+          ),
+        ),
+      );
+
+      expect(find.text('Thread not found'), findsOneWidget);
     });
 
     testWidgets('displays API error message', (tester) async {

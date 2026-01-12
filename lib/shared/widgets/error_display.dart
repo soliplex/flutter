@@ -32,26 +32,28 @@ class ErrorDisplay extends StatelessWidget {
   String _getErrorMessage() {
     final unwrapped = _unwrapError();
     if (unwrapped is AuthException) {
-      // AM1-AM6: No auth implemented yet
-      // AM7+: This should trigger redirect to login
-      return 'Authentication required. Coming in AM7.';
+      if (unwrapped.statusCode == 401) {
+        return 'Session expired. Please log in again.';
+      } else if (unwrapped.statusCode == 403) {
+        return "You don't have permission to access this resource.";
+      }
+      return unwrapped.message;
     } else if (unwrapped is NetworkException) {
-      final netErr = unwrapped;
-      if (netErr.isTimeout) {
-        return 'Request timed out. Please try again.';
+      if (unwrapped.isTimeout) {
+        return 'Request timed out: ${unwrapped.message}';
       }
-      return 'Network error. Please check your connection.';
+      return 'Network error: ${unwrapped.message}';
     } else if (unwrapped is NotFoundException) {
-      final notFound = unwrapped;
-      if (notFound.resource != null) {
-        return '${notFound.resource} not found.';
-      }
-      return 'Resource not found.';
+      return unwrapped.message;
     } else if (unwrapped is ApiException) {
-      final apiError = unwrapped;
-      return 'Server error (${apiError.statusCode}): ${apiError.message}';
+      return 'Server error (${unwrapped.statusCode}): ${unwrapped.message}';
     } else if (unwrapped is CancelledException) {
+      if (unwrapped.reason != null) {
+        return 'Operation cancelled: ${unwrapped.reason}';
+      }
       return 'Operation cancelled.';
+    } else if (unwrapped is String && unwrapped.isNotEmpty) {
+      return unwrapped;
     } else {
       return 'An unexpected error occurred.';
     }
