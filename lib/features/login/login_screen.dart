@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/shared/widgets/platform_adaptive_progress_indicator.dart';
 
 /// Login screen with OIDC provider selection.
@@ -61,7 +62,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 400),
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(SoliplexSpacing.s6),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
