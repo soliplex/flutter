@@ -34,27 +34,71 @@ class MessageList extends ConsumerStatefulWidget {
 
 class _MessageListState extends ConsumerState<MessageList> {
   final ScrollController _scrollController = ScrollController();
+  bool _autoScrollEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_scrollListener);
+  }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    _scrollController.removeListener(_scrollListener);
     super.dispose();
   }
 
-  /// Scrolls to the bottom of the list.
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      // Use a post-frame callback to ensure the list has been built
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      });
+  void _scrollListener() {
+    if (!_scrollController.hasClients) return;
+    final position = _scrollController.position;
+    const threshold = 50.0; // 50 pixels from the bottom
+
+    final atBottom = position.pixels >= position.maxScrollExtent - threshold;
+
+    // Manually scrolled up
+    if (!atBottom && _autoScrollEnabled) {
+      if (mounted) {
+        setState(() {
+          _autoScrollEnabled = false;
+        });
+      }
     }
+    // Scrolled back to bottom
+    else if (atBottom && !_autoScrollEnabled) {
+      if (mounted) {
+        setState(() {
+          _autoScrollEnabled = true;
+        });
+      }
+    }
+  }
+
+  /// Scrolls to the bottom of the list.
+  /// Can be forced to scroll even if auto-scroll is disabled.
+  void _scrollToBottom({bool force = false}) {
+    if (!force && !_autoScrollEnabled) return;
+
+    if (!_scrollController.hasClients) return;
+
+    // If forced, re-enable auto-scroll state
+    if (force && !_autoScrollEnabled) {
+      if (mounted) {
+        setState(() {
+          _autoScrollEnabled = true;
+        });
+      }
+    }
+
+    // Use a post-frame callback to ensure the list has been built/updated
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   @override
@@ -63,7 +107,7 @@ class _MessageListState extends ConsumerState<MessageList> {
     final isStreaming = ref.watch(isStreamingProvider);
     final runState = ref.watch(activeRunNotifierProvider);
 
-    // Scroll to bottom when messages change
+    // Scroll to bottom when messages change, if auto-scroll is enabled
     ref.listen<AsyncValue<List<ChatMessage>>>(allMessagesProvider, (
       previous,
       next,
@@ -106,57 +150,114 @@ class _MessageListState extends ConsumerState<MessageList> {
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
-      itemCount: messages.length + (isStreaming ? 1 : 0),
-      itemBuilder: (context, index) {
-        // Show streaming indicator at the bottom
-        if (index == messages.length) {
-          return Semantics(
-            label: 'Assistant is thinking',
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        Theme.of(context).colorScheme.primary,
+    return Stack(
+      children: [
+        ListView.builder(
+          controller: _scrollController,
+          padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
+          itemCount: messages.length + (isStreaming ? 1 : 0),
+          itemBuilder: (context, index) {
+            // Show streaming indicator at the bottom
+            if (index == messages.length) {
+              return Semantics(
+                label: 'Assistant is thinking',
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
                       ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Assistant is thinking...',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant,
+                              fontStyle: FontStyle.italic,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            final message = messages[index];
+            // Check if this message is currently being streamed
+            final isCurrentlyStreaming = switch (runState) {
+              RunningState(streaming: Streaming(:final messageId)) =>
+                messageId == message.id,
+              _ => false,
+            };
+
+            return ChatMessageWidget(
+              key: ValueKey(message.id),
+              message: message,
+              isStreaming: isCurrentlyStreaming,
+            );
+          },
+        ),
+        
+        // "Scroll to Bottom" button
+        if (!_autoScrollEnabled)
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Material(
+                elevation: 8,
+                borderRadius: BorderRadius.circular(24),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(24),
+                  onTap: () => _scrollToBottom(force: true),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.arrow_downward,
+                          size: 20,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .onSecondaryContainer,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Scroll to bottom',
+                          style:
+                              Theme.of(context).textTheme.labelLarge?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSecondaryContainer,
+                                  ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Assistant is thinking...',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontStyle: FontStyle.italic,
-                        ),
-                  ),
-                ],
+                ),
               ),
             ),
-          );
-        }
-
-        final message = messages[index];
-        // Check if this message is currently being streamed
-        final isCurrentlyStreaming = switch (runState) {
-          RunningState(streaming: Streaming(:final messageId)) =>
-            messageId == message.id,
-          _ => false,
-        };
-
-        return ChatMessageWidget(
-          key: ValueKey(message.id),
-          message: message,
-          isStreaming: isCurrentlyStreaming,
-        );
-      },
+          ),
+      ],
     );
   }
 }
