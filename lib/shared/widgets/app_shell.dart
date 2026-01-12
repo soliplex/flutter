@@ -42,7 +42,7 @@ class AppShell extends StatelessWidget {
           child: Drawer(child: HttpInspectorPanel()),
         ),
       ),
-      body: body,
+      body: SafeArea(child: body),
     );
   }
 }
