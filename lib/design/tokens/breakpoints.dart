@@ -1,3 +1,3 @@
 class SoliplexBreakpoints {
-  static const double desktop = 600;
+  static const double desktop = 840;
 }
