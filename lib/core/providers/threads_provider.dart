@@ -25,7 +25,7 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 /// Throws [SoliplexException] subtypes which should be handled in the UI:
 /// - [NetworkException]: Connection failures, timeouts
 /// - [NotFoundException]: Room not found (404)
-/// - [AuthException]: 401/403 authentication errors (AM7+)
+/// - [AuthException]: 401/403 authentication errors
 /// - [ApiException]: Other server errors
 final threadsProvider = FutureProvider.family<List<ThreadInfo>, String>((
   ref,
