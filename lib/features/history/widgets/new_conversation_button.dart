@@ -26,9 +26,7 @@ class NewConversationButton extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Material(
+    return  Material(
         color: colorScheme.primaryContainer,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
@@ -68,7 +66,6 @@ class NewConversationButton extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
