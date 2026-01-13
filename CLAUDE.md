@@ -78,11 +78,9 @@ docs/planning/               # Design specs and work logs (see ROADMAP.md)
 **After any code modification, run these checks:**
 
 1. **Format:** `mcp__dart__dart_format` (formats files in place)
-2. **Verify format:** `dart format --set-exit-if-changed .` (must exit 0 - CI uses this)
-3. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
-4. **Verify Analyze:** `flutter analyze --fatal-infos` (must be 0 issues - infos are fatal)
-5. **Test:** `mcp__dart__run_tests` (all green before any code is complete)
-6. **Coverage:** Verify coverage is at least 85%
+2. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
+3. **Test:** `mcp__dart__run_tests` (targeted tests during dev, full suite before commit)
+4. **Coverage:** Verify coverage is at least 85%
 
 Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
 

@@ -19,7 +19,7 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 /// **Error Handling**:
 /// Throws [SoliplexException] subtypes which should be handled in the UI:
 /// - [NetworkException]: Connection failures, timeouts
-/// - [AuthException]: 401/403 authentication errors (AM7+)
+/// - [AuthException]: 401/403 authentication errors
 /// - [ApiException]: Other server errors
 final roomsProvider = FutureProvider<List<Room>>((ref) async {
   final api = ref.watch(apiProvider);

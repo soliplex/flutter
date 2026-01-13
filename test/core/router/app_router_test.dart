@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
@@ -15,6 +16,8 @@ import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
+
+import '../../helpers/test_helpers.dart';
 
 Authenticated _createAuthenticatedState() => Authenticated(
       accessToken: 'test-token',
@@ -80,6 +83,7 @@ Widget createRouterAppAt(
 
   return ProviderScope(
     overrides: [
+      packageInfoProvider.overrideWithValue(testPackageInfo),
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
         final currentAuthState = ref.watch(authProvider);
@@ -90,7 +94,16 @@ Widget createRouterAppAt(
           redirect: (context, state) {
             const publicRoutes = {'/', '/login', '/auth/callback'};
             final isPublicRoute = publicRoutes.contains(state.matchedLocation);
-            if (!hasAccess && !isPublicRoute) return '/login';
+            if (!hasAccess && !isPublicRoute) {
+              final target = switch (currentAuthState) {
+                Unauthenticated(
+                  reason: UnauthenticatedReason.explicitSignOut,
+                ) =>
+                  '/',
+                _ => '/login',
+              };
+              return target;
+            }
             if (hasAccess && isPublicRoute) return '/rooms';
             return null;
           },
@@ -318,7 +331,7 @@ void main() {
   });
 
   group('Auth state changes', () {
-    testWidgets('logout from deep navigation redirects to /login', (
+    testWidgets('session expiry redirects to /login', (
       tester,
     ) async {
       final container = ProviderContainer(
@@ -348,11 +361,50 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
+      // Session expiry uses default reason: sessionExpired -> /login
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .setUnauthenticated();
       await tester.pumpAndSettle();
 
       expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets('explicit sign-out redirects to home', (
+      tester,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          authProvider.overrideWith(
+            () => _ControllableAuthNotifier(_createAuthenticatedState()),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) {
+              final router = ref.watch(routerProvider);
+              return MaterialApp.router(routerConfig: router);
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      container.read(routerProvider).go('/rooms');
+      await tester.pumpAndSettle();
+
+      expect(find.byType(RoomsScreen), findsOneWidget);
+
+      // Explicit sign-out uses reason: explicitSignOut -> /
+      await (container.read(authProvider.notifier) as _ControllableAuthNotifier)
+          .signOut();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(HomeScreen), findsOneWidget);
     });
 
     testWidgets('token refresh preserves navigation location', (tester) async {
@@ -457,6 +509,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          packageInfoProvider.overrideWithValue(testPackageInfo),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -533,6 +586,13 @@ class _ControllableAuthNotifier extends AuthNotifier {
 
   void setUnauthenticated() {
     state = const Unauthenticated();
+  }
+
+  @override
+  Future<void> signOut() async {
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
 
   void refreshTokens() {

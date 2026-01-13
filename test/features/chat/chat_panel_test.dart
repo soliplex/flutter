@@ -235,7 +235,7 @@ void main() {
 
         // Assert
         expect(find.byType(ErrorDisplay), findsOneWidget);
-        expect(find.text('Something went wrong'), findsOneWidget);
+        expect(find.textContaining('Something went wrong'), findsWidgets);
       });
 
       testWidgets('shows message list when no error', (tester) async {

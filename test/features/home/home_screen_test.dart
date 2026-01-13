@@ -12,6 +12,7 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -90,7 +91,12 @@ Widget _createAppWithRouter({
   );
 
   return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast()),
+    container: ProviderContainer(
+      overrides: [
+        packageInfoProvider.overrideWithValue(testPackageInfo),
+        ...overrides.cast(),
+      ],
+    ),
     child: MaterialApp.router(routerConfig: router),
   );
 }
@@ -120,11 +126,7 @@ void main() {
             home: const HomeScreen(),
             overrides: [
               configProviderOverride(
-                const AppConfig(
-                  baseUrl: 'https://custom.example.com',
-                  appName: 'Test',
-                  version: '1.0.0',
-                ),
+                const AppConfig(baseUrl: 'https://custom.example.com'),
               ),
             ],
           ),

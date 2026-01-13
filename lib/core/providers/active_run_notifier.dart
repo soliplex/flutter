@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +10,23 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+
+void _log(String message, {Object? error, StackTrace? stackTrace}) {
+  developer.log(
+    message,
+    name: 'ActiveRunNotifier',
+    error: error,
+    stackTrace: stackTrace,
+  );
+  // Also print to console for easier debugging
+  debugPrint('[ActiveRunNotifier] $message');
+  if (error != null) {
+    debugPrint('[ActiveRunNotifier] Error: $error');
+  }
+  if (stackTrace != null) {
+    debugPrint('[ActiveRunNotifier] StackTrace: $stackTrace');
+  }
+}
 
 /// Internal state representing the notifier's resource management.
 ///
@@ -61,7 +79,7 @@ class RunningInternalState extends NotifierInternalState {
 /// );
 /// ```
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
-  late final AgUiClient _agUiClient;
+  late AgUiClient _agUiClient;
   NotifierInternalState _internalState = const IdleInternalState();
   bool _isStarting = false;
 
@@ -131,17 +149,34 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         runId = runInfo.id;
       }
 
-      // Create user message
+      // Create user message.
+      // Note: Message ID uses milliseconds. Collision is mitigated by
+      // _isStarting guard preventing concurrent startRun calls.
       final userMessageObj = TextMessage.create(
         id: 'user_${DateTime.now().millisecondsSinceEpoch}',
         user: ChatUser.user,
         text: userMessage,
       );
 
-      // Create conversation with user message and Running status
+      // Read historical messages from cache.
+      // Cache is populated by allMessagesProvider when thread is selected.
+      // If cache is empty (e.g., direct URL navigation + immediate send),
+      // we proceed without history - backend still processes correctly.
+      //
+      // Deferred: Safety fetch from backend when cache is empty. Not needed
+      // because normal UI flow ensures cache is populated before user can
+      // send. Adding async fetch here would block UI for a rare edge case.
+      // See issue #30 for details.
+      final cachedMessages =
+          ref.read(threadMessageCacheProvider)[threadId] ?? [];
+
+      // Combine historical messages with new user message
+      final allMessages = [...cachedMessages, userMessageObj];
+
+      // Create conversation with full history and Running status
       final conversation = domain.Conversation(
         threadId: threadId,
-        messages: [userMessageObj],
+        messages: allMessages,
         status: domain.Running(runId: runId),
       );
 
@@ -151,11 +186,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Step 2: Build the streaming endpoint URL with backend run_id
       final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
 
+      // Convert all messages to AG-UI format for backend
+      final aguiMessages = convertToAgui(allMessages);
+
       // Create the input for the run
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
-        messages: [UserMessage(id: userMessageObj.id, content: userMessage)],
+        messages: aguiMessages,
         state: initialState,
       );
 
@@ -171,13 +209,20 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       subscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
+          _log(
+            'Stream error during run',
+            error: error,
+            stackTrace: stackTrace,
+          );
           final currentState = state;
           if (currentState is RunningState) {
+            final errorMsg = error.toString();
+            _log('Run failed with error: $errorMsg');
             final completed = CompletedState(
               conversation: currentState.conversation.withStatus(
-                domain.Failed(error: error.toString()),
+                domain.Failed(error: errorMsg),
               ),
-              result: FailedResult(errorMessage: error.toString()),
+              result: FailedResult(errorMessage: errorMsg),
             );
             state = completed;
             _updateCacheOnCompletion(completed);
@@ -206,8 +251,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         cancelToken: cancelToken,
         subscription: subscription,
       );
-    } on CancellationError catch (e) {
+    } on CancellationError catch (e, stackTrace) {
       // User cancelled - clean up resources
+      _log('Run cancelled: ${e.message}', error: e, stackTrace: stackTrace);
       await subscription?.cancel();
       final completed = CompletedState(
         conversation: state.conversation.withStatus(
@@ -218,14 +264,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       state = completed;
       _updateCacheOnCompletion(completed);
       _internalState = const IdleInternalState();
-    } catch (e) {
+    } catch (e, stackTrace) {
       // Clean up subscription on any error
+      _log('Run failed with exception', error: e, stackTrace: stackTrace);
       await subscription?.cancel();
+      final errorMsg = e.toString();
       final completed = CompletedState(
         conversation: state.conversation.withStatus(
-          domain.Failed(error: e.toString()),
+          domain.Failed(error: errorMsg),
         ),
-        result: FailedResult(errorMessage: e.toString()),
+        result: FailedResult(errorMessage: errorMsg),
       );
       state = completed;
       _updateCacheOnCompletion(completed);
@@ -282,6 +330,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     final currentState = state;
     if (currentState is! RunningState) return;
 
+    // Log error events for debugging
+    if (event is RunErrorEvent) {
+      _log('Received RUN_ERROR event: ${event.message}');
+    }
+
     // Use application layer processor
     final result = processEvent(
       currentState.conversation,
@@ -307,11 +360,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           streaming: result.streaming,
           result: const Success(),
         ),
-      domain.Failed(:final error) => CompletedState(
-          conversation: result.conversation,
-          streaming: result.streaming,
-          result: FailedResult(errorMessage: error),
-        ),
+      domain.Failed(:final error) => () {
+          _log('Run completed with failure: $error');
+          return CompletedState(
+            conversation: result.conversation,
+            streaming: result.streaming,
+            result: FailedResult(errorMessage: error),
+          );
+        }(),
       domain.Cancelled(:final reason) => CompletedState(
           conversation: result.conversation,
           streaming: result.streaming,

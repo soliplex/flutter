@@ -2,8 +2,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 
 void main() {
+  group('UnauthenticatedReason', () {
+    test('has sessionExpired and explicitSignOut values', () {
+      expect(UnauthenticatedReason.values, hasLength(2));
+      expect(
+        UnauthenticatedReason.values,
+        contains(UnauthenticatedReason.sessionExpired),
+      );
+      expect(
+        UnauthenticatedReason.values,
+        contains(UnauthenticatedReason.explicitSignOut),
+      );
+    });
+  });
+
   group('Unauthenticated', () {
-    test('instances are equal', () {
+    test('default reason is sessionExpired', () {
+      const state = Unauthenticated();
+      expect(state.reason, equals(UnauthenticatedReason.sessionExpired));
+    });
+
+    test('can specify explicitSignOut reason', () {
+      const state = Unauthenticated(
+        reason: UnauthenticatedReason.explicitSignOut,
+      );
+      expect(state.reason, equals(UnauthenticatedReason.explicitSignOut));
+    });
+
+    test('instances with same reason are equal', () {
       const a = Unauthenticated();
       const b = Unauthenticated();
 
@@ -11,11 +37,26 @@ void main() {
       expect(a.hashCode, equals(b.hashCode));
     });
 
+    test('instances with different reason are not equal', () {
+      const a = Unauthenticated();
+      const b = Unauthenticated(reason: UnauthenticatedReason.explicitSignOut);
+
+      expect(a, isNot(equals(b)));
+      expect(a.hashCode, isNot(equals(b.hashCode)));
+    });
+
     test('is not equal to other AuthState types', () {
       const unauthenticated = Unauthenticated();
       const loading = AuthLoading();
 
       expect(unauthenticated, isNot(equals(loading)));
+    });
+
+    test('toString includes reason', () {
+      const state = Unauthenticated(
+        reason: UnauthenticatedReason.explicitSignOut,
+      );
+      expect(state.toString(), contains('explicitSignOut'));
     });
   });
 

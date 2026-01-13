@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 // Riverpod 3.0 doesn't export Override from a public location.
 // Using dynamic list + cast in createTestApp() avoids this import,
 // but helper functions need the type for signatures.
@@ -20,6 +21,7 @@ import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
@@ -190,6 +192,19 @@ Override configProviderOverride(AppConfig config) {
   return configProvider.overrideWith(
     () => MockConfigNotifier(initialConfig: config),
   );
+}
+
+/// Default test PackageInfo for widget tests.
+final testPackageInfo = PackageInfo(
+  appName: 'Soliplex',
+  packageName: 'com.soliplex.frontend',
+  version: '1.0.0',
+  buildNumber: '1',
+);
+
+/// Creates an override for packageInfoProvider.
+Override packageInfoProviderOverride(PackageInfo info) {
+  return packageInfoProvider.overrideWithValue(info);
 }
 
 /// Mock CurrentRoomIdNotifier for testing.
@@ -475,6 +490,9 @@ class TestData {
 /// Wraps the widget in a Scaffold since screens no longer provide their own.
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
+/// Automatically includes [packageInfoProvider] override with [testPackageInfo]
+/// since it must always be overridden (throws UnimplementedError by default).
+///
 /// [onContainerCreated] is called with the [ProviderContainer] after it's
 /// created, allowing tests to read provider state.
 Widget createTestApp({
@@ -484,8 +502,12 @@ Widget createTestApp({
   void Function(ProviderContainer)? onContainerCreated,
 }) {
   return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast())
-      ..also(onContainerCreated),
+    container: ProviderContainer(
+      overrides: [
+        packageInfoProvider.overrideWithValue(testPackageInfo),
+        ...overrides.cast<Override>(),
+      ],
+    )..also(onContainerCreated),
     child: MaterialApp(home: Scaffold(body: home)),
   );
 }

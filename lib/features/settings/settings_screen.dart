@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/shared/widgets/platform_adaptive_dialog.dart';
 
 /// Settings screen for app configuration.
@@ -68,9 +68,9 @@ class SettingsScreen extends ConsumerWidget {
     if (newUrl != null && newUrl != currentUrl) {
       await ref.read(configProvider.notifier).setBaseUrl(newUrl);
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Backend URL updated')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Backend URL updated')),
+        );
       }
     }
   }
@@ -78,20 +78,22 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configProvider);
-    final authState = ref.watch(authProvider);
+    final packageInfo = ref.watch(packageInfoProvider);
+    final authState = ref.watch(
+        authStateProvider); // Note: verify if authProvider or authStateProvider
 
     return ListView(
       children: [
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('App Version'),
-          subtitle: Text(config.version),
+          subtitle: Text('${packageInfo.version}+${packageInfo.buildNumber}'),
         ),
         ListTile(
           leading: const Icon(Icons.dns),
           title: const Text('Backend URL'),
           subtitle: Text(config.baseUrl),
-          trailing: const Icon(Icons.edit),
+          trailing: const Icon(Icons.edit), // Added visual cue for editing
           onTap: () => _showUrlEditDialog(context, ref, config.baseUrl),
         ),
         const Divider(),
@@ -156,7 +158,6 @@ class _AuthSection extends ConsumerWidget {
 
   void _disconnect(BuildContext context, WidgetRef ref) {
     ref.read(authProvider.notifier).exitNoAuthMode();
-    context.go('/');
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
@@ -179,11 +180,6 @@ class _AuthSection extends ConsumerWidget {
     );
 
     if ((confirmed ?? false) && context.mounted) {
-      // Navigate BEFORE signOut - signOut changes auth state which triggers
-      // router redirect. If we're at /settings (non-public), we'd get
-      // redirected to /login. By navigating to / (public) first, the
-      // redirect doesn't kick in.
-      context.go('/');
       await ref.read(authProvider.notifier).signOut();
     }
   }

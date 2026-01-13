@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
@@ -32,7 +31,9 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   @override
   Future<void> signOut() async {
     signOutCalled = true;
-    state = const Unauthenticated();
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
 
   @override
@@ -54,39 +55,20 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   @override
   void exitNoAuthMode() {
     exitNoAuthModeCalled = true;
-    state = const Unauthenticated();
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
   }
-}
-
-/// Creates a test app with GoRouter for testing navigation.
-Widget _createAppWithRouter({
-  required Widget home,
-  required List<dynamic> overrides,
-}) {
-  final router = GoRouter(
-    initialLocation: '/settings',
-    routes: [
-      GoRoute(
-        path: '/settings',
-        builder: (_, __) => Scaffold(body: home),
-      ),
-      GoRoute(path: '/', builder: (_, __) => const Text('Home')),
-    ],
-  );
-
-  return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast()),
-    child: MaterialApp.router(routerConfig: router),
-  );
 }
 
 void main() {
   group('SettingsScreen', () {
-    testWidgets('displays app version', (tester) async {
+    testWidgets('displays app version from packageInfoProvider',
+        (tester) async {
       await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
       expect(find.text('App Version'), findsOneWidget);
-      expect(find.textContaining('1.0.0'), findsOneWidget);
+      expect(find.text('1.0.0+1'), findsOneWidget);
     });
 
     testWidgets('displays backend URL', (tester) async {
@@ -126,12 +108,11 @@ void main() {
       expect(find.text('Disconnect'), findsOneWidget);
     });
 
-    testWidgets('Disconnect calls exitNoAuthMode and navigates to home',
-        (tester) async {
+    testWidgets('Disconnect calls exitNoAuthMode', (tester) async {
       late _MockAuthNotifier mockNotifier;
 
       await tester.pumpWidget(
-        _createAppWithRouter(
+        createTestApp(
           home: const SettingsScreen(),
           overrides: [
             authProvider.overrideWith(() {
@@ -147,7 +128,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(mockNotifier.exitNoAuthModeCalled, isTrue);
-      expect(find.text('Home'), findsOneWidget);
     });
 
     group('Authenticated state', () {
@@ -220,11 +200,11 @@ void main() {
         );
       });
 
-      testWidgets('calls signOut and navigates on confirm', (tester) async {
+      testWidgets('calls signOut on confirm', (tester) async {
         late _MockAuthNotifier mockNotifier;
 
         await tester.pumpWidget(
-          _createAppWithRouter(
+          createTestApp(
             home: const SettingsScreen(),
             overrides: [
               authProvider.overrideWith(() {
@@ -245,7 +225,6 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(mockNotifier.signOutCalled, isTrue);
-        expect(find.text('Home'), findsOneWidget);
       });
     });
 
