@@ -126,11 +126,7 @@ void main() {
             home: const HomeScreen(),
             overrides: [
               configProviderOverride(
-                const AppConfig(
-                  baseUrl: 'https://custom.example.com',
-                  appName: 'Test',
-                  version: '1.0.0',
-                ),
+                const AppConfig(baseUrl: 'https://custom.example.com'),
               ),
             ],
           ),
