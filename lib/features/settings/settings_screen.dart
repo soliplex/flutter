@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -13,6 +14,7 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configProvider);
+    final packageInfo = ref.watch(packageInfoProvider);
     final authState = ref.watch(authProvider);
 
     return ListView(
@@ -20,7 +22,7 @@ class SettingsScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('App Version'),
-          subtitle: Text(config.version),
+          subtitle: Text('${packageInfo.version}+${packageInfo.buildNumber}'),
         ),
         ListTile(
           leading: const Icon(Icons.dns),

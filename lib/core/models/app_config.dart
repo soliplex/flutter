@@ -1,29 +1,15 @@
-/// Application configuration.
+/// Application configuration for user-configurable settings.
 class AppConfig {
-  const AppConfig({
-    required this.baseUrl,
-    required this.appName,
-    required this.version,
-  });
+  const AppConfig({required this.baseUrl});
 
   /// Default configuration for local development.
   factory AppConfig.defaults() {
-    return const AppConfig(
-      baseUrl: 'http://localhost:8000',
-      appName: 'Soliplex',
-      version: '1.0.0-dev',
-    );
+    return const AppConfig(baseUrl: 'http://localhost:8000');
   }
 
   final String baseUrl;
-  final String appName;
-  final String version;
 
-  AppConfig copyWith({String? baseUrl, String? appName, String? version}) {
-    return AppConfig(
-      baseUrl: baseUrl ?? this.baseUrl,
-      appName: appName ?? this.appName,
-      version: version ?? this.version,
-    );
+  AppConfig copyWith({String? baseUrl}) {
+    return AppConfig(baseUrl: baseUrl ?? this.baseUrl);
   }
 }

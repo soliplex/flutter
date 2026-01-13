@@ -63,11 +63,12 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 
 void main() {
   group('SettingsScreen', () {
-    testWidgets('displays app version', (tester) async {
+    testWidgets('displays app version from packageInfoProvider',
+        (tester) async {
       await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
       expect(find.text('App Version'), findsOneWidget);
-      expect(find.textContaining('1.0.0'), findsOneWidget);
+      expect(find.text('1.0.0+1'), findsOneWidget);
     });
 
     testWidgets('displays backend URL', (tester) async {
