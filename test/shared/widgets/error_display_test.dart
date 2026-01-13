@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
@@ -18,6 +18,7 @@ void main() {
       );
 
       expect(find.textContaining('Network error'), findsOneWidget);
+      expect(find.textContaining('Connection failed'), findsOneWidget);
       expect(find.byIcon(Icons.wifi_off), findsOneWidget);
     });
 
@@ -54,28 +55,48 @@ void main() {
       expect(find.byIcon(Icons.lock_outline), findsOneWidget);
     });
 
-    testWidgets('displays not found error message', (tester) async {
+    testWidgets('displays not found error with resource', (tester) async {
       await tester.pumpWidget(
         createTestApp(
           home: const ErrorDisplay(
-            error: NotFoundException(message: 'Thread not found'),
+            error: NotFoundException(
+              message: 'does not exist',
+              resource: 'Thread',
+            ),
           ),
         ),
       );
 
-      expect(find.text('Thread not found'), findsOneWidget);
+      expect(find.textContaining('Thread not found'), findsOneWidget);
+      expect(find.textContaining('does not exist'), findsOneWidget);
     });
 
-    testWidgets('displays API error message', (tester) async {
+    testWidgets('displays not found error without resource', (tester) async {
       await tester.pumpWidget(
         createTestApp(
           home: const ErrorDisplay(
-            error: ApiException(statusCode: 500, message: 'Server error'),
+            error: NotFoundException(message: 'Resource not found'),
           ),
         ),
       );
 
-      expect(find.textContaining('Server error (500)'), findsOneWidget);
+      expect(find.text('Resource not found'), findsOneWidget);
+    });
+
+    testWidgets('displays API error message with status text', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const ErrorDisplay(
+            error: ApiException(statusCode: 500, message: 'Database error'),
+          ),
+        ),
+      );
+
+      expect(
+        find.textContaining('Server error (Internal Server Error)'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Database error'), findsOneWidget);
     });
 
     testWidgets('displays generic error message', (tester) async {
@@ -118,6 +139,65 @@ void main() {
       expect(find.text('Retry'), findsNothing);
     });
 
+    group('collapsible details', () {
+      testWidgets('shows "Show details" toggle', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const ErrorDisplay(
+              error: NetworkException(message: 'Connection failed'),
+            ),
+          ),
+        );
+
+        expect(find.text('Show details'), findsOneWidget);
+        expect(find.text('Hide details'), findsNothing);
+      });
+
+      testWidgets('expands details on tap', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const ErrorDisplay(
+              error: ApiException(
+                statusCode: 500,
+                message: 'Server error',
+                body: '{"error": "internal"}',
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Show details'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Hide details'), findsOneWidget);
+        expect(find.textContaining('Type:'), findsOneWidget);
+        expect(find.textContaining('ApiException'), findsOneWidget);
+        expect(find.textContaining('Response Body:'), findsOneWidget);
+        expect(find.text('Copy details'), findsOneWidget);
+      });
+
+      testWidgets('collapses details on second tap', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const ErrorDisplay(
+              error: NetworkException(message: 'Failed'),
+            ),
+          ),
+        );
+
+        // Expand
+        await tester.tap(find.text('Show details'));
+        await tester.pumpAndSettle();
+        expect(find.text('Hide details'), findsOneWidget);
+
+        // Collapse
+        await tester.tap(find.text('Hide details'));
+        await tester.pumpAndSettle();
+        expect(find.text('Show details'), findsOneWidget);
+        expect(find.text('Copy details'), findsNothing);
+      });
+    });
+
     group('MessageFetchException unwrapping', () {
       testWidgets('unwraps NetworkException from MessageFetchException', (
         tester,
@@ -154,7 +234,29 @@ void main() {
           ),
         );
 
-        expect(find.textContaining('Server error (500)'), findsOneWidget);
+        expect(
+          find.textContaining('Server error (Internal Server Error)'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('shows thread ID in expanded details', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: ErrorDisplay(
+              error: MessageFetchException(
+                threadId: 'thread-123',
+                cause: const NetworkException(message: 'Failed'),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('Show details'));
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('Thread ID:'), findsOneWidget);
+        expect(find.textContaining('thread-123'), findsOneWidget);
       });
 
       testWidgets('shows retry button for wrapped NetworkException', (
