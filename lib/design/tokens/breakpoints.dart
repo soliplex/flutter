@@ -1,0 +1,3 @@
+class SoliplexBreakpoints {
+  static const double desktop = 840;
+}

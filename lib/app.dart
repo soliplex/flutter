@@ -3,23 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
+import 'package:soliplex_frontend/design/theme/theme.dart';
 
 /// Root application widget.
 class SoliplexApp extends ConsumerWidget {
   const SoliplexApp({super.key});
-
-  static final _theme = ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-    useMaterial3: true,
-  );
-
-  static final _darkTheme = ThemeData(
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: Colors.blue,
-      brightness: Brightness.dark,
-    ),
-    useMaterial3: true,
-  );
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -31,8 +19,9 @@ class SoliplexApp extends ConsumerWidget {
     if (authState is AuthLoading) {
       return MaterialApp(
         title: 'Soliplex',
-        theme: _theme,
-        darkTheme: _darkTheme,
+        theme: soliplexLightTheme(),
+        darkTheme: soliplexDarkTheme(),
+        themeMode: ThemeMode.light,
         debugShowCheckedModeBanner: false,
         home: const _AuthLoadingScreen(),
       );
@@ -42,8 +31,9 @@ class SoliplexApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Soliplex',
-      theme: _theme,
-      darkTheme: _darkTheme,
+      theme: soliplexLightTheme(),
+      darkTheme: soliplexDarkTheme(),
+      themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/inspector/http_inspector_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
@@ -23,7 +24,13 @@ class AppShell extends StatelessWidget {
       appBar: AppBar(
         leading: config.leading,
         title: config.title,
-        actions: [...config.actions, const _InspectorButton()],
+        actions: [
+          ...config.actions,
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+            child: _InspectorButton(),
+          ),
+        ],
       ),
       drawer: config.drawer != null
           ? Semantics(label: 'Navigation drawer', child: config.drawer)
@@ -35,7 +42,7 @@ class AppShell extends StatelessWidget {
           child: Drawer(child: HttpInspectorPanel()),
         ),
       ),
-      body: body,
+      body: SafeArea(child: body),
     );
   }
 }

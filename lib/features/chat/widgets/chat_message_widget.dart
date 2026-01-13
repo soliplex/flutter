@@ -1,9 +1,12 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/design/tokens/typography_x.dart';
 
 /// Widget that displays a single chat message.
 class ChatMessageWidget extends StatelessWidget {
@@ -40,7 +43,9 @@ class ChatMessageWidget extends StatelessWidget {
         children: [
           Flexible(
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 600),
+              constraints: BoxConstraints(
+                maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
+              ),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: isUser
@@ -69,8 +74,7 @@ class ChatMessageWidget extends StatelessWidget {
                               ? theme.colorScheme.error
                               : theme.colorScheme.onSurface,
                         ),
-                        code: theme.textTheme.bodyMedium?.copyWith(
-                          fontFamily: 'monospace',
+                        code: context.monospace.copyWith(
                           backgroundColor:
                               theme.colorScheme.surfaceContainerHigh,
                         ),
@@ -79,7 +83,12 @@ class ChatMessageWidget extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      builders: {'code': CodeBlockBuilder()},
+                      builders: {
+                        'code': CodeBlockBuilder(
+                          preferredStyle:
+                              context.monospace.copyWith(fontSize: 14),
+                        ),
+                      },
                     ),
                   if (isStreaming) ...[
                     const SizedBox(height: 8),
@@ -153,6 +162,10 @@ class ChatMessageWidget extends StatelessWidget {
 
 /// Custom markdown builder for code blocks with syntax highlighting.
 class CodeBlockBuilder extends MarkdownElementBuilder {
+  CodeBlockBuilder({required this.preferredStyle});
+
+  final TextStyle preferredStyle;
+
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final code = element.textContent;
@@ -177,7 +190,7 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
           language: language.isEmpty ? 'plaintext' : language,
           theme: githubTheme,
           padding: EdgeInsets.zero,
-          textStyle: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+          textStyle: preferredStyle,
         ),
       ),
     );
