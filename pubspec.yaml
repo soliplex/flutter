@@ -21,6 +21,7 @@ dependencies:
   intl: ^0.20.1
   markdown: ^7.0.0
   meta: ^1.15.0
+  package_info_plus: ^9.0.0
   shared_preferences: ^2.5.4
   soliplex_client:
     path: packages/soliplex_client
