@@ -1,5 +1,7 @@
 # Developer Setup Guide
 
+*Last updated: January 2026*
+
 Platform-specific setup instructions for building and running the Soliplex
 Flutter frontend.
 

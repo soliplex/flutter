@@ -1,58 +1,75 @@
 # Soliplex Frontend Codebase Analysis
 
-**Generated:** 2025-12-17
-**Branch:** new_frontend
-**Current Milestone:** AM3 (Working Chat) ✅
+**Last updated:** January 2026
+**Current Milestone:** AM7 (Authentication) ✅
+
+> **Note:** File counts and structure in this document reflect the codebase as of the last update.
+> Run `find lib -name "*.dart" | wc -l` to get current counts.
 
 ## 1. Project Structure
 
 ```text
 frontend/
-├── lib/                              # Main Flutter app (29 Dart files)
+├── lib/                              # Main Flutter app (~57 Dart files)
 │   ├── main.dart                     # Entry point with ProviderScope
 │   ├── app.dart                      # Root SoliplexApp widget
 │   ├── core/                         # Infrastructure layer
+│   │   ├── auth/                     # Authentication (14 files)
+│   │   │   ├── auth_state.dart       # Sealed class: Unauthenticated|Authenticated|AuthLoading|NoAuthRequired
+│   │   │   ├── auth_provider.dart    # Main auth notifier provider
+│   │   │   ├── auth_notifier.dart    # Auth state management
+│   │   │   ├── auth_flow*.dart       # Platform-specific OAuth flows (native, web)
+│   │   │   ├── auth_storage*.dart    # Platform-specific token storage (native, web)
+│   │   │   └── oidc_issuer.dart      # OIDC issuer management
 │   │   ├── models/                   # Core data models
-│   │   │   ├── active_run_state.dart # AG-UI streaming state
-│   │   │   └── app_config.dart       # App configuration (baseUrl, version)
-│   │   ├── providers/                # Riverpod state management (7 providers)
-│   │   │   ├── api_provider.dart     # SoliplexApi singleton
+│   │   │   ├── active_run_state.dart # Sealed class: IdleState|RunningState|CompletedState
+│   │   │   └── app_config.dart       # App configuration (baseUrl)
+│   │   ├── providers/                # Riverpod state management (10 providers)
+│   │   │   ├── api_provider.dart     # SoliplexApi with HTTP transport
 │   │   │   ├── active_run_provider.dart
 │   │   │   ├── active_run_notifier.dart
 │   │   │   ├── config_provider.dart
 │   │   │   ├── rooms_provider.dart
 │   │   │   ├── threads_provider.dart
-│   │   │   └── backend_health_provider.dart
-│   │   └── router/
-│   │       └── app_router.dart       # GoRouter (5 routes)
+│   │   │   ├── thread_message_cache.dart
+│   │   │   ├── backend_health_provider.dart
+│   │   │   ├── http_log_provider.dart
+│   │   │   └── package_info_provider.dart
+│   │   ├── router/
+│   │   │   └── app_router.dart       # GoRouter (8 routes)
+│   │   └── constants/
+│   │       └── breakpoints.dart      # Responsive breakpoints
 │   ├── features/                     # Feature screens
-│   │   ├── home/                     # Welcome screen
+│   │   ├── auth/                     # OAuth callback handler
+│   │   ├── home/                     # Backend URL configuration
+│   │   ├── login/                    # OIDC login UI
 │   │   ├── rooms/                    # Room list
-│   │   ├── room/                     # Threads in room
-│   │   ├── thread/                   # Main chat (dual panel desktop)
-│   │   ├── chat/                     # Chat messaging
-│   │   ├── history/                  # Thread list sidebar
-│   │   ├── login/                    # Placeholder (AM7)
+│   │   ├── room/                     # Room view with threads
+│   │   ├── chat/                     # Chat messaging (4 files)
+│   │   ├── history/                  # Thread list sidebar (3 files)
+│   │   ├── inspector/                # HTTP traffic debugger (5 files)
 │   │   └── settings/                 # Settings screen
 │   └── shared/                       # Reusable components
-│       ├── widgets/
-│       └── utils/
+│       ├── widgets/                  # AppShell, AsyncValueHandler, etc.
+│       └── utils/                    # Date formatting, utilities
 │
-├── packages/soliplex_client/         # Pure Dart package (NO Flutter)
+├── packages/soliplex_client/         # Pure Dart package (NO Flutter, ~34 files)
 │   ├── lib/src/
-│   │   ├── models/                   # Data models
-│   │   ├── errors/                   # Exception hierarchy
 │   │   ├── api/                      # REST API client
+│   │   ├── application/              # AG-UI application facade
+│   │   ├── auth/                     # OIDC discovery, token refresh
+│   │   ├── domain/                   # Data models
 │   │   ├── http/                     # HTTP abstraction layer
-│   │   ├── agui/                     # AG-UI protocol
+│   │   ├── errors/                   # Exception hierarchy
 │   │   └── utils/                    # Utilities
-│   └── test/                         # 587 tests, 100% coverage
+│   └── test/                         # ~23 test files
 │
-├── packages/soliplex_client_native/  # Flutter package - Native HTTP
-│   └── lib/src/adapters/
-│       └── cupertino_http_client.dart   # NSURLSession for iOS/macOS
+├── packages/soliplex_client_native/  # Flutter package - Native HTTP (~8 files)
+│   └── lib/src/
+│       ├── platform/                 # Platform-specific factory
+│       └── clients/                  # CupertinoHttpClient for iOS/macOS
 │
-├── test/                             # Integration and widget tests
+├── test/                             # Widget and unit tests (~42 files)
 ├── android/, ios/, macos/, web/      # Platform-specific code
 └── pubspec.yaml
 ```
@@ -124,11 +141,13 @@ Derived: canSendMessageProvider, allMessagesProvider, isStreamingProvider
 
 | Route | Screen | Description |
 |-------|--------|-------------|
-| `/` | HomeScreen | Welcome page |
+| `/` | HomeScreen | Backend URL configuration |
+| `/login` | LoginScreen | OIDC provider selection |
+| `/auth/callback` | AuthCallbackScreen | OAuth callback handler |
 | `/rooms` | RoomsScreen | List all rooms |
-| `/rooms/:roomId` | RoomScreen | Threads in room |
-| `/rooms/:roomId/thread/:threadId` | ThreadScreen | Chat interface |
-| `/settings` | SettingsScreen | Backend config |
+| `/rooms/:roomId` | RoomScreen | Room view with thread selection |
+| `/rooms/:roomId/thread/:threadId` | (redirect) | Redirects to `/rooms/:roomId?thread=:threadId` |
+| `/settings` | SettingsScreen | App config and auth status |
 
 **Responsive Layout:**
 
@@ -153,18 +172,25 @@ Derived: canSendMessageProvider, allMessagesProvider, isStreamingProvider
 - createdAt: DateTime
 ```
 
-**ActiveRunState:**
+**ActiveRunState (sealed class hierarchy):**
 
 ```dart
-- status: ThreadRunStatus (idle | running | finished | error)
-- messages: List<ChatMessage>
-- threadId: String?
-- runId: String?
-- streamingText: String?
-- isTextStreaming: bool
-- activeToolCalls: List<ToolCallInfo>
-- state: Map<String, dynamic>
-- rawEvents: List<AgUiEvent>
+sealed class ActiveRunState {
+  Conversation get conversation;
+  StreamingState get streaming;
+  List<ChatMessage> get messages;
+  bool get isRunning;
+}
+
+class IdleState extends ActiveRunState { }      // No active run
+class RunningState extends ActiveRunState {     // Run executing
+  String get threadId;
+  String get runId;
+  bool get isStreaming;
+}
+class CompletedState extends ActiveRunState {   // Run finished
+  CompletionResult result;  // Success | FailedResult | CancelledResult
+}
 ```
 
 ### 3.2 AG-UI Protocol
@@ -227,11 +253,12 @@ MessageList watches allMessagesProvider
 
 | Screen | Purpose |
 |--------|---------|
-| HomeScreen | Welcome with navigation |
+| HomeScreen | Backend URL configuration |
+| LoginScreen | OIDC provider selection |
+| AuthCallbackScreen | OAuth callback handler |
 | RoomsScreen | List rooms from API |
-| RoomScreen | List threads, create new |
-| ThreadScreen | Main chat interface |
-| SettingsScreen | Backend configuration |
+| RoomScreen | Room view with thread selection |
+| SettingsScreen | App config and auth status |
 
 ### Panels
 
@@ -239,9 +266,11 @@ MessageList watches allMessagesProvider
 |-------|---------|
 | ChatPanel | Message list + input, send/cancel/error handling |
 | HistoryPanel | Thread list, new conversation, auto-selection |
+| HttpInspectorPanel | HTTP traffic debugging with request grouping |
 
 ### Shared Widgets
 
+- `AppShell`: Main scaffold with AppBar/Sidebar
 - `AsyncValueHandler`: Wraps AsyncValue with error handling
 - `ErrorDisplay`: Exception-aware error UI with retry
 - `LoadingIndicator`: Spinner with optional message
@@ -251,16 +280,28 @@ MessageList watches allMessagesProvider
 
 **Test Coverage:**
 
-- Frontend: 129 tests total
-- soliplex_client: 587 tests, 100% coverage
+- Frontend: ~42 test files covering auth, providers, features, widgets
+- soliplex_client: ~23 test files
 - Zero analyzer issues
 
 **Test Structure:**
 
 ```text
 test/
-├── core/providers/        # Provider tests
+├── core/
+│   ├── auth/              # Auth layer tests (9 files)
+│   ├── models/            # Model tests
+│   └── providers/         # Provider tests (7 files)
 ├── features/              # Screen and widget tests
+│   ├── auth/
+│   ├── chat/
+│   ├── history/
+│   ├── home/
+│   ├── inspector/
+│   ├── login/
+│   ├── room/
+│   ├── rooms/
+│   └── settings/
 ├── shared/                # Shared widget tests
 └── helpers/               # Mocks and utilities
 ```
@@ -322,13 +363,19 @@ Graceful SSE stream cancellation via `Completer` pattern.
 **Frontend App:**
 
 ```yaml
-flutter_riverpod: ^2.6.1    # State management
-go_router: ^14.7.1          # Navigation
-http: ^1.2.0                # Health checks
-intl: ^0.20.1               # Localization
-meta: ^1.15.0               # Annotations
-soliplex_client: path       # Pure Dart client
-soliplex_client_native: path # Native adapters
+flutter_riverpod: ^3.1.0       # State management
+go_router: ^17.0.0             # Navigation
+flutter_appauth: ^11.0.0       # OIDC flows
+flutter_secure_storage: ^10.0.0 # Secure token storage
+shared_preferences: ^2.5.4     # Config persistence
+package_info_plus: ^9.0.0      # App version info
+http: ^1.2.0                   # HTTP client
+flutter_markdown: ^0.7.4+1     # Message rendering
+flutter_highlight: ^0.7.0      # Code highlighting
+intl: ^0.20.1                  # Localization
+meta: ^1.15.0                  # Annotations
+soliplex_client: path          # Pure Dart client
+soliplex_client_native: path   # Native adapters
 ```
 
 **soliplex_client:**
@@ -353,20 +400,21 @@ http: ^1.2.0
 | AM1 | App shell, navigation | ✅ |
 | AM2 | Real API integration | ✅ |
 | AM3 | Working chat with streaming | ✅ |
-| AM4 | Message history and persistence | Pending |
-| AM5 | Detail panel (events, thinking, tools) | Pending |
+| AM4 | Full chat (markdown, streaming) | ✅ |
+| AM5 | HTTP Inspector panel | ✅ |
 | AM6 | Canvas components | Pending |
-| AM7 | Authentication UI | Pending |
+| AM7 | Authentication (OIDC) | ✅ |
 | AM8 | Multi-room package extraction | Pending |
 
 ## 11. Key Architectural Decisions
 
 1. **Pure Dart client package** - Reusable across platforms without Flutter dependency
-2. **Sealed classes for events** - Type-safe exhaustive pattern matching
+2. **Sealed classes for state** - Type-safe exhaustive pattern matching (ActiveRunState, AuthState, CompletionResult)
 3. **3-layer HTTP abstraction** - Testable adapters, transport, and API layers
 4. **Platform-optimized adapters** - NSURLSession on iOS/macOS for better performance
-5. **Manual Riverpod providers** - Explicit control over provider lifecycle
-6. **Responsive dual-panel layout** - Desktop sidebar with mobile fallback
+5. **Platform-specific auth** - Native Keychain/SecureStorage vs Web localStorage
+6. **Manual Riverpod providers** - Explicit control over provider lifecycle
+7. **Responsive dual-panel layout** - Desktop sidebar with mobile fallback
 
 ## 12. Summary
 
@@ -376,8 +424,10 @@ This is a well-architected, production-quality Flutter frontend featuring:
 - ✅ Pure Dart client package reusable across platforms
 - ✅ Sophisticated AG-UI event streaming protocol
 - ✅ Responsive dual-panel desktop + mobile chat
+- ✅ OIDC authentication with platform-specific flows
+- ✅ HTTP traffic inspector for debugging
 - ✅ Comprehensive error handling with exception hierarchy
-- ✅ Strict code quality (zero analyzer issues, 100% test coverage on client)
+- ✅ Strict code quality (zero analyzer issues)
 - ✅ Riverpod state management with clear provider hierarchy
-- ✅ Sealed classes for type-safe event handling
+- ✅ Sealed classes for type-safe state handling
 - ✅ Platform-optimized native HTTP adapters
