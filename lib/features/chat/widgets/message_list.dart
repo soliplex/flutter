@@ -212,10 +212,9 @@ class _MessageListState extends ConsumerState<MessageList> {
             child: Center(
               child: Material(
                 elevation: 8,
-                borderRadius: 
-                  BorderRadius.circular(soliplexTheme.radii.xl),
+                borderRadius: BorderRadius.circular(soliplexTheme.radii.xl),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular( 
+                  borderRadius: BorderRadius.circular(
                     soliplexTheme.radii.xl,
                   ),
                   onTap: () => _scrollToBottom(force: true),
@@ -226,7 +225,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                     ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular (
+                      borderRadius: BorderRadius.circular(
                         soliplexTheme.radii.xl,
                       ),
                     ),

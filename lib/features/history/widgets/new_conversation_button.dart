@@ -28,50 +28,50 @@ class NewConversationButton extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final soliplexTheme = SoliplexTheme.of(context);
 
-    return  Material(
-        color: colorScheme.primaryContainer,
+    return Material(
+      color: colorScheme.primaryContainer,
+      borderRadius: BorderRadius.circular(
+        soliplexTheme.radii.md,
+      ),
+      child: InkWell(
+        onTap: onPressed,
         borderRadius: BorderRadius.circular(
           soliplexTheme.radii.md,
         ),
-        child: InkWell(
-          onTap: onPressed,
-          borderRadius: BorderRadius.circular(
-            soliplexTheme.radii.md,
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-            child: Row(
-              children: [
-                ExcludeSemantics(
-                  child: Icon(
-                    Icons.edit_outlined,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          child: Row(
+            children: [
+              ExcludeSemantics(
+                child: Icon(
+                  Icons.edit_outlined,
+                  color: colorScheme.onPrimaryContainer,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'New Conversation',
+                  style: theme.textTheme.titleMedium?.copyWith(
                     color: colorScheme.onPrimaryContainer,
-                    size: 24,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    'New Conversation',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
+              ),
+              ExcludeSemantics(
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  color: colorScheme.onPrimaryContainer.withValues(
+                    alpha: 0.5,
                   ),
+                  size: 16,
                 ),
-                ExcludeSemantics(
-                  child: Icon(
-                    Icons.arrow_forward_ios,
-                    color: colorScheme.onPrimaryContainer.withValues(
-                      alpha: 0.5,
-                    ),
-                    size: 16,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }

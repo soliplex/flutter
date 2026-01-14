@@ -25,7 +25,7 @@ class ChatMessageWidget extends StatelessWidget {
     final soliplexTheme = SoliplexTheme.of(context);
 
     if (message.user == ChatUser.system) {
-      return _buildSystemMessage(context,theme);
+      return _buildSystemMessage(context, theme);
     }
 
     final isUser = message.user == ChatUser.user;

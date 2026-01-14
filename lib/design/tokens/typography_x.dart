@@ -18,7 +18,6 @@ TextStyle appMonospaceTextStyle(BuildContext context) {
   );
 }
 
-
 extension TypographyX on BuildContext {
   TextStyle get monospace => appMonospaceTextStyle(this);
 }
