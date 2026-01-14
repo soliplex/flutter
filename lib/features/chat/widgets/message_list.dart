@@ -53,26 +53,16 @@ class _MessageListState extends ConsumerState<MessageList> {
 
   void _scrollListener() {
     if (!_scrollController.hasClients) return;
-    final position = _scrollController.position;
-    const threshold = 50.0; // 50 pixels from the bottom
 
+    final position = _scrollController.position;
+    // 50 pixels margin to avoid accidentally triggering auto-scroll
+    const threshold = 50.0;
     final atBottom = position.pixels >= position.maxScrollExtent - threshold;
 
-    // Manually scrolled up
-    if (!atBottom && _autoScrollEnabled) {
-      if (mounted) {
-        setState(() {
-          _autoScrollEnabled = false;
-        });
-      }
-    }
-    // Scrolled back to bottom
-    else if (atBottom && !_autoScrollEnabled) {
-      if (mounted) {
-        setState(() {
-          _autoScrollEnabled = true;
-        });
-      }
+    if (atBottom != _autoScrollEnabled && mounted) {
+      setState(() {
+        _autoScrollEnabled = atBottom;
+      });
     }
   }
 
