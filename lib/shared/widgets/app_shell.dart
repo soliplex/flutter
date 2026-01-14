@@ -50,13 +50,28 @@ class AppShell extends StatelessWidget {
         ],
       ),
       drawer: config.drawer != null
-          ? Semantics(label: 'Navigation drawer', child: config.drawer)
+          ? Semantics(
+              label: 'Navigation drawer',
+              child: Drawer(
+                child: SafeArea(
+                  left: false,
+                  right: false,
+                  child: config.drawer!,
+                ),
+              ),
+            )
           : null,
       endDrawer: Semantics(
         label: 'HTTP traffic inspector panel',
         child: SizedBox(
           width: _getDrawerWidth(context),
-          child: const Drawer(child: HttpInspectorPanel()),
+          child: const Drawer(
+            child: SafeArea(
+              left: false,
+              right: false,
+              child: HttpInspectorPanel(),
+            ),
+          ),
         ),
       ),
       body: SafeArea(child: body),
