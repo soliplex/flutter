@@ -24,6 +24,7 @@ import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/design/theme/theme.dart';
 
 /// Mock AuthFlow for testing.
 class MockAuthFlow extends Mock implements AuthFlow {}
@@ -485,6 +486,9 @@ class TestData {
   }
 }
 
+/// Default test theme data with SoliplexTheme extension.
+final testThemeData = soliplexLightTheme();
+
 /// Helper to create a testable app with provider overrides.
 ///
 /// Wraps the widget in a Scaffold since screens no longer provide their own.
@@ -508,7 +512,7 @@ Widget createTestApp({
         ...overrides.cast<Override>(),
       ],
     )..also(onContainerCreated),
-    child: MaterialApp(home: Scaffold(body: home)),
+    child: MaterialApp(theme: testThemeData, home: Scaffold(body: home)),
   );
 }
 

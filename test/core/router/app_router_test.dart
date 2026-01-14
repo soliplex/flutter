@@ -171,7 +171,10 @@ Widget createRouterAppAt(
     child: Consumer(
       builder: (context, ref, _) {
         final router = ref.watch(routerProvider);
-        return MaterialApp.router(routerConfig: router);
+        return MaterialApp.router(
+          theme: testThemeData,
+          routerConfig: router,
+        );
       },
     ),
   );
@@ -349,7 +352,10 @@ void main() {
           child: Consumer(
             builder: (context, ref, _) {
               final router = ref.watch(routerProvider);
-              return MaterialApp.router(routerConfig: router);
+              return MaterialApp.router(
+                theme: testThemeData,
+                routerConfig: router,
+              );
             },
           ),
         ),
@@ -387,7 +393,10 @@ void main() {
           child: Consumer(
             builder: (context, ref, _) {
               final router = ref.watch(routerProvider);
-              return MaterialApp.router(routerConfig: router);
+              return MaterialApp.router(
+                theme: testThemeData,
+                routerConfig: router,
+              );
             },
           ),
         ),
@@ -423,7 +432,10 @@ void main() {
           child: Consumer(
             builder: (context, ref, _) {
               final router = ref.watch(routerProvider);
-              return MaterialApp.router(routerConfig: router);
+              return MaterialApp.router(
+                theme: testThemeData,
+                routerConfig: router,
+              );
             },
           ),
         ),
@@ -466,7 +478,10 @@ void main() {
           child: Consumer(
             builder: (context, ref, _) {
               final router = ref.watch(routerProvider);
-              return MaterialApp.router(routerConfig: router);
+              return MaterialApp.router(
+                theme: testThemeData,
+                routerConfig: router,
+              );
             },
           ),
         ),
@@ -523,7 +538,10 @@ void main() {
           child: Consumer(
             builder: (context, ref, _) {
               final router = ref.watch(routerProvider);
-              return MaterialApp.router(routerConfig: router);
+              return MaterialApp.router(
+                theme: testThemeData,
+                routerConfig: router,
+              );
             },
           ),
         ),

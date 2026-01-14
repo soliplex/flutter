@@ -461,7 +461,10 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(home: Scaffold(body: MessageList())),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: MessageList()),
+            ),
           ),
         );
         await tester.pumpAndSettle();

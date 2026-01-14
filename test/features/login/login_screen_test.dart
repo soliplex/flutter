@@ -107,7 +107,7 @@ Widget _createAppWithRouter({
 
   return UncontrolledProviderScope(
     container: ProviderContainer(overrides: overrides.cast()),
-    child: MaterialApp.router(routerConfig: router),
+    child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
 
@@ -336,7 +336,7 @@ void main() {
               ),
             ],
           ),
-          child: MaterialApp.router(routerConfig: router),
+          child: MaterialApp.router(theme: testThemeData, routerConfig: router),
         ),
       );
 
