@@ -45,7 +45,9 @@ class _MessageListState extends ConsumerState<MessageList> {
 
   @override
   void dispose() {
-    _scrollController.removeListener(_scrollListener);
+    _scrollController
+      ..removeListener(_scrollListener)
+      ..dispose();
     super.dispose();
   }
 
