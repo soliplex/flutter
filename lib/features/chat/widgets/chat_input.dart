@@ -62,7 +62,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     final canSend = ref.watch(canSendMessageProvider);
 
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
+      padding: const EdgeInsets.all(SoliplexSpacing.s4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
