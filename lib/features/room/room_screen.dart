@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
@@ -110,9 +112,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
     return AppShell(
       config: ShellConfig(
-        leading: _buildBackButton(),
+        leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
-        actions: isDesktop ? [_buildSidebarToggle()] : const [],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
@@ -139,6 +140,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final roomsAsync = ref.watch(roomsProvider);
     final currentRoom = ref.watch(currentRoomProvider);
 
+    String trimRoomName(String name) {
+      const maxLength = 16;
+      if (name.length <= maxLength) return name;
+      return '${name.substring(0, maxLength - 3)}...';
+    }
+
     return roomsAsync.when(
       data: (rooms) => Semantics(
         label: 'Room selector, current: ${currentRoom?.name ?? 'none'}',
@@ -147,7 +154,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           child: DropdownMenu<String>(
             initialSelection: currentRoom?.id,
             dropdownMenuEntries: rooms
-                .map((r) => DropdownMenuEntry(value: r.id, label: r.name))
+                .map(
+                  (r) => DropdownMenuEntry(
+                    value: r.id,
+                    label: trimRoomName(r.name),
+                  ),
+                )
                 .toList(),
             onSelected: (id) {
               if (id != null) context.go('/rooms/$id');

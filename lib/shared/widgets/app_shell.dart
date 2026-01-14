@@ -33,8 +33,14 @@ class AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: config.leading,
-        title: config.title,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: SoliplexSpacing.s6,
+          children: [
+            if (config.leading != null) config.leading!,
+            if (config.title != null) config.title!,
+          ],
+        ),
         actions: [
           ...config.actions,
           const Padding(
