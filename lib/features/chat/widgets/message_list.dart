@@ -4,6 +4,7 @@ import 'package:soliplex_client/soliplex_client.dart'
     show ChatMessage, Streaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
@@ -142,6 +143,8 @@ class _MessageListState extends ConsumerState<MessageList> {
     bool isStreaming,
     ActiveRunState runState,
   ) {
+    final soliplexTheme = SoliplexTheme.of(context);
+
     // Empty state
     if (messages.isEmpty && !isStreaming) {
       return const EmptyState(
@@ -207,7 +210,7 @@ class _MessageListState extends ConsumerState<MessageList> {
             );
           },
         ),
-        
+
         // "Scroll to Bottom" button
         if (!_autoScrollEnabled)
           Positioned(
@@ -217,9 +220,12 @@ class _MessageListState extends ConsumerState<MessageList> {
             child: Center(
               child: Material(
                 elevation: 8,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: 
+                  BorderRadius.circular(soliplexTheme.radii.xl),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular( 
+                    soliplexTheme.radii.xl,
+                  ),
                   onTap: () => _scrollToBottom(force: true),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -228,7 +234,9 @@ class _MessageListState extends ConsumerState<MessageList> {
                     ),
                     decoration: BoxDecoration(
                       color: Theme.of(context).colorScheme.secondaryContainer,
-                      borderRadius: BorderRadius.circular(24),
+                      borderRadius: BorderRadius.circular (
+                        soliplexTheme.radii.xl,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

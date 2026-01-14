@@ -6,7 +6,7 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:markdown/markdown.dart' as md;
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_frontend/design/tokens/typography_x.dart';
+import 'package:soliplex_frontend/design/design.dart';
 
 /// Widget that displays a single chat message.
 class ChatMessageWidget extends StatelessWidget {
@@ -22,9 +22,10 @@ class ChatMessageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final soliplexTheme = SoliplexTheme.of(context);
 
     if (message.user == ChatUser.system) {
-      return _buildSystemMessage(theme);
+      return _buildSystemMessage(context,theme);
     }
 
     final isUser = message.user == ChatUser.user;
@@ -51,7 +52,9 @@ class ChatMessageWidget extends StatelessWidget {
                 color: isUser
                     ? theme.colorScheme.primaryContainer
                     : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(
+                  soliplexTheme.radii.lg,
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,7 +83,9 @@ class ChatMessageWidget extends StatelessWidget {
                         ),
                         codeblockDecoration: BoxDecoration(
                           color: theme.colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(
+                            soliplexTheme.radii.sm,
+                          ),
                         ),
                       ),
                       builders: {
@@ -92,7 +97,7 @@ class ChatMessageWidget extends StatelessWidget {
                     ),
                   if (isStreaming) ...[
                     const SizedBox(height: 8),
-                    _buildStreamingIndicator(theme),
+                    _buildStreamingIndicator(context, theme),
                   ],
                 ],
               ),
@@ -103,7 +108,7 @@ class ChatMessageWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildSystemMessage(ThemeData theme) {
+  Widget _buildSystemMessage(BuildContext context, ThemeData theme) {
     final text = switch (message) {
       TextMessage(:final text) => text,
       ErrorMessage(:final errorText) => errorText,
@@ -117,7 +122,9 @@ class ChatMessageWidget extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
             color: theme.colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(
+              SoliplexTheme.of(context).radii.md,
+            ),
           ),
           child: Text(
             text,
@@ -131,7 +138,7 @@ class ChatMessageWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildStreamingIndicator(ThemeData theme) {
+  Widget _buildStreamingIndicator(BuildContext context, ThemeData theme) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:soliplex_frontend/design/tokens/colors.dart';
 import 'package:soliplex_frontend/design/tokens/radii.dart';
 
-
 class SoliplexBadgeThemeData {
   const SoliplexBadgeThemeData({
     required this.background,
@@ -48,8 +47,8 @@ class SoliplexTheme extends ThemeExtension<SoliplexTheme> {
       badgeTheme: badgeTheme,
     );
   }
-}
 
-extension SoliplexContext on BuildContext {
-  SoliplexTheme get soliplex => Theme.of(this).extension<SoliplexTheme>()!;
+  static SoliplexTheme of(BuildContext context) {
+    return Theme.of(context).extension<SoliplexTheme>()!;
+  }
 }

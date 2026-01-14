@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 
 /// A button that triggers creation of a new conversation thread.
 ///
@@ -25,13 +26,18 @@ class NewConversationButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final soliplexTheme = SoliplexTheme.of(context);
 
     return  Material(
         color: colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(
+          soliplexTheme.radii.md,
+        ),
         child: InkWell(
           onTap: onPressed,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(
+            soliplexTheme.radii.md,
+          ),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
             child: Row(
