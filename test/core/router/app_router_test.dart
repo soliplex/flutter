@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
@@ -66,6 +67,9 @@ List<dynamic> roomScreenOverrides(String roomId) {
     threadsProvider(roomId).overrideWith((ref) async => []),
     lastViewedThreadProvider(roomId).overrideWith(
       (ref) async => const NoLastViewed(),
+    ),
+    roomsProvider.overrideWith(
+      (ref) async => [TestData.createRoom(id: roomId)],
     ),
   ];
 }

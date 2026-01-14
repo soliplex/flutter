@@ -38,7 +38,7 @@ class AppShell extends StatelessWidget {
           spacing: SoliplexSpacing.s6,
           children: [
             if (config.leading != null) config.leading!,
-            if (config.title != null) config.title!,
+            if (config.title != null) Flexible(child: config.title!),
           ],
         ),
         actions: [
