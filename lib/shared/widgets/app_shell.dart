@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/inspector/http_inspector_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
@@ -17,6 +17,17 @@ class AppShell extends StatelessWidget {
 
   /// The screen's body content.
   final Widget body;
+
+  double _getDrawerWidth(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth >= SoliplexBreakpoints.desktop) {
+      return 600;
+    } else if (screenWidth >= SoliplexBreakpoints.tablet) {
+      return 400;
+    } else {
+      return screenWidth * 0.8;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,9 +48,9 @@ class AppShell extends StatelessWidget {
           : null,
       endDrawer: Semantics(
         label: 'HTTP traffic inspector panel',
-        child: const SizedBox(
-          width: 400,
-          child: Drawer(child: HttpInspectorPanel()),
+        child: SizedBox(
+          width: _getDrawerWidth(context),
+          child: const Drawer(child: HttpInspectorPanel()),
         ),
       ),
       body: SafeArea(child: body),
