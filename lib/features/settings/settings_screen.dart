@@ -79,8 +79,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configProvider);
     final packageInfo = ref.watch(packageInfoProvider);
-    final authState = ref.watch(
-        authStateProvider); // Note: verify if authProvider or authStateProvider
+    final authState = ref.watch(authProvider);
 
     return ListView(
       children: [
