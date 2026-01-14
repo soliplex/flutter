@@ -36,7 +36,7 @@ class SoliplexColors {
   final Color hintText;
 }
 
-// NOTE: OKLCH values have been approximately converted to sRGB for Flutter (we'll refine these later).
+// NOTE: OKLCH values have been approximately converted to sRGB for Flutter
 
 const lightSoliplexColors = SoliplexColors(
   background: Color(0xffffffff),
