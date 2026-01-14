@@ -10,7 +10,9 @@ void main() {
       expect(room.name, equals('Test Room'));
       expect(room.description, equals(''));
       expect(room.metadata, equals(const <String, dynamic>{}));
+      expect(room.quizIds, equals(const <String>[]));
       expect(room.hasDescription, isFalse);
+      expect(room.hasQuizzes, isFalse);
     });
 
     test('creates with all fields', () {
@@ -19,13 +21,16 @@ void main() {
         name: 'Test Room',
         description: 'A test room',
         metadata: {'key': 'value'},
+        quizIds: ['quiz-1', 'quiz-2'],
       );
 
       expect(room.id, equals('room-1'));
       expect(room.name, equals('Test Room'));
       expect(room.description, equals('A test room'));
       expect(room.metadata, equals({'key': 'value'}));
+      expect(room.quizIds, equals(['quiz-1', 'quiz-2']));
       expect(room.hasDescription, isTrue);
+      expect(room.hasQuizzes, isTrue);
     });
 
     group('copyWith', () {
@@ -45,12 +50,14 @@ void main() {
           name: 'New Room',
           description: 'New description',
           metadata: {'new': 'data'},
+          quizIds: ['quiz-1'],
         );
 
         expect(modified.id, equals('room-2'));
         expect(modified.name, equals('New Room'));
         expect(modified.description, equals('New description'));
         expect(modified.metadata, equals({'new': 'data'}));
+        expect(modified.quizIds, equals(['quiz-1']));
       });
 
       test('creates identical copy when no parameters passed', () {
@@ -59,6 +66,7 @@ void main() {
           name: 'Test Room',
           description: 'A description',
           metadata: {'key': 'value'},
+          quizIds: ['quiz-1'],
         );
         final copy = room.copyWith();
 
@@ -66,6 +74,7 @@ void main() {
         expect(copy.name, equals(room.name));
         expect(copy.description, equals(room.description));
         expect(copy.metadata, equals(room.metadata));
+        expect(copy.quizIds, equals(room.quizIds));
       });
     });
 
