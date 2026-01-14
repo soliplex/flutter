@@ -85,9 +85,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                     hintText: canSend
                         ? 'Type a message...'
                         : 'Select a room to start chatting',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
