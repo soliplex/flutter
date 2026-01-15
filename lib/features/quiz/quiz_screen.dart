@@ -218,7 +218,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           context,
           hint: 'Type your answer...',
           questionState: questionState,
-          maxLines: 3,
         ),
     };
   }
@@ -306,7 +305,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     BuildContext context, {
     required String hint,
     required QuestionState questionState,
-    int maxLines = 1,
   }) {
     final isDisabled = questionState is Answered || questionState is Submitting;
 
@@ -324,7 +322,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     return TextField(
       controller: _answerController,
       enabled: !isDisabled,
-      maxLines: maxLines,
+      textInputAction: TextInputAction.done,
+      onSubmitted: isDisabled ? null : (_) => _submitAnswer(),
       onChanged: (text) {
         ref
             .read(quizSessionProvider(_sessionKey).notifier)
