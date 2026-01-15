@@ -209,12 +209,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           selectedOption: selectedOption,
           questionState: questionState,
         ),
-      FillBlank() => _buildTextInput(
-          context,
-          hint: 'Type your answer...',
-          questionState: questionState,
-        ),
-      FreeForm() => _buildTextInput(
+      FillBlank() || FreeForm() => _buildTextInput(
           context,
           hint: 'Type your answer...',
           questionState: questionState,
@@ -249,20 +244,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           final isWrong =
               answeredResult != null && isSelected && !answeredResult.isCorrect;
 
-          final backgroundColor = isCorrect
-              ? colorScheme.primaryContainer
-              : isWrong
-                  ? colorScheme.errorContainer
-                  : isSelected
-                      ? colorScheme.secondaryContainer
-                      : colorScheme.surface;
-          final foregroundColor = isCorrect
-              ? colorScheme.onPrimaryContainer
-              : isWrong
-                  ? colorScheme.onErrorContainer
-                  : isSelected
-                      ? colorScheme.onSecondaryContainer
-                      : colorScheme.onSurface;
+          final backgroundColor = switch ((isCorrect, isWrong, isSelected)) {
+            (true, _, _) => colorScheme.primaryContainer,
+            (_, true, _) => colorScheme.errorContainer,
+            (_, _, true) => colorScheme.secondaryContainer,
+            _ => colorScheme.surface,
+          };
+          final foregroundColor = switch ((isCorrect, isWrong, isSelected)) {
+            (true, _, _) => colorScheme.onPrimaryContainer,
+            (_, true, _) => colorScheme.onErrorContainer,
+            (_, _, true) => colorScheme.onSecondaryContainer,
+            _ => colorScheme.onSurface,
+          };
 
           return Padding(
             padding: const EdgeInsets.only(bottom: SoliplexSpacing.s2),
@@ -420,11 +413,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildResultsScreen(BuildContext context, QuizCompleted session) {
-    final scoreColor = session.scorePercent >= 70
-        ? Theme.of(context).colorScheme.primary
-        : session.scorePercent >= 40
-            ? Theme.of(context).colorScheme.tertiary
-            : Theme.of(context).colorScheme.error;
+    final colorScheme = Theme.of(context).colorScheme;
+    final percent = session.scorePercent;
+
+    final (scoreColor, scoreIcon) = switch (percent) {
+      >= 70 => (colorScheme.primary, Icons.emoji_events),
+      >= 40 => (colorScheme.tertiary, Icons.thumb_up),
+      _ => (colorScheme.error, Icons.refresh),
+    };
 
     return Center(
       child: ConstrainedBox(
@@ -435,11 +431,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
-                session.scorePercent >= 70
-                    ? Icons.emoji_events
-                    : session.scorePercent >= 40
-                        ? Icons.thumb_up
-                        : Icons.refresh,
+                scoreIcon,
                 size: 64,
                 color: scoreColor,
               ),
@@ -510,7 +502,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Network error: ${e.message}. Please try again.'),
+            content: Text('Network error: ${e.message}'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _submitAnswer,
+            ),
           ),
         );
       }
@@ -524,13 +520,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           ),
         );
       }
-    } catch (e, stackTrace) {
+    } on SoliplexException catch (e, stackTrace) {
       debugPrint('Quiz submit failed: $e');
       debugPrint(stackTrace.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to submit answer: $e'),
+            content: Text('Something went wrong: $e\nPlease try again.'),
           ),
         );
       }

@@ -324,7 +324,7 @@ void main() {
       when(() => mockApi.getQuiz('room-1', 'quiz-1'))
           .thenAnswer((_) async => quiz);
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
-          .thenThrow(Exception('Network error'));
+          .thenThrow(const NetworkException(message: 'Connection timeout'));
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -339,12 +339,10 @@ void main() {
       await tester.tap(find.text('Submit Answer'));
       await tester.pumpAndSettle();
 
-      // Assert - snackbar shown with error message
+      // Assert - snackbar shown with error message and retry action
       expect(find.byType(SnackBar), findsOneWidget);
-      expect(
-        find.textContaining('Failed to submit answer'),
-        findsOneWidget,
-      );
+      expect(find.textContaining('Network error'), findsOneWidget);
+      expect(find.text('Retry'), findsOneWidget);
 
       // Assert - button should still be enabled (input preserved)
       final submitButton = tester.widget<FilledButton>(
