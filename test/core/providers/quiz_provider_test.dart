@@ -136,7 +136,7 @@ void main() {
     });
 
     group('QuizInProgress', () {
-      test('stores quiz, currentIndex, and results', () {
+      test('stores quiz, currentIndex, results, and questionState', () {
         const quiz = Quiz(
           id: 'quiz-1',
           title: 'Test',
@@ -149,11 +149,13 @@ void main() {
           quiz: quiz,
           currentIndex: 1,
           results: {},
+          questionState: AwaitingInput(),
         );
 
         expect(session.quiz.id, 'quiz-1');
         expect(session.currentIndex, 1);
         expect(session.results, isEmpty);
+        expect(session.questionState, isA<AwaitingInput>());
       });
 
       test('currentQuestion returns question at currentIndex', () {
@@ -169,6 +171,7 @@ void main() {
           quiz: quiz,
           currentIndex: 1,
           results: {},
+          questionState: AwaitingInput(),
         );
 
         expect(session.currentQuestion.id, 'q2');
@@ -187,11 +190,13 @@ void main() {
           quiz: quiz,
           currentIndex: 0,
           results: {},
+          questionState: AwaitingInput(),
         );
         const atLast = QuizInProgress(
           quiz: quiz,
           currentIndex: 1,
           results: {},
+          questionState: AwaitingInput(),
         );
 
         expect(atFirst.isLastQuestion, isFalse);
@@ -213,6 +218,7 @@ void main() {
           quiz: quiz,
           currentIndex: 0,
           results: {},
+          questionState: AwaitingInput(),
         );
         const halfAnswered = QuizInProgress(
           quiz: quiz,
@@ -221,13 +227,15 @@ void main() {
             'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
             'q2': QuizAnswerResult(isCorrect: false, expectedAnswer: 'B'),
           },
+          questionState: AwaitingInput(),
         );
 
         expect(noAnswers.progress, 0.0);
         expect(halfAnswered.progress, 0.5);
       });
 
-      test('equality based on quiz, currentIndex, and results', () {
+      test('equality based on quiz, currentIndex, results, and questionState',
+          () {
         const quiz = Quiz(
           id: 'quiz-1',
           title: 'Test',
@@ -235,16 +243,34 @@ void main() {
             QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
           ],
         );
-        const a = QuizInProgress(quiz: quiz, currentIndex: 0, results: {});
-        const b = QuizInProgress(quiz: quiz, currentIndex: 0, results: {});
-        const c = QuizInProgress(quiz: quiz, currentIndex: 0, results: {
-          'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-        });
+        const a = QuizInProgress(
+          quiz: quiz,
+          currentIndex: 0,
+          results: {},
+          questionState: AwaitingInput(),
+        );
+        const b = QuizInProgress(
+          quiz: quiz,
+          currentIndex: 0,
+          results: {},
+          questionState: AwaitingInput(),
+        );
+        const c = QuizInProgress(
+          quiz: quiz,
+          currentIndex: 0,
+          results: {
+            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
+          },
+          questionState: AwaitingInput(),
+        );
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
-        expect(a, isNot(equals(c)),
-            reason: 'Different results should be unequal');
+        expect(
+          a,
+          isNot(equals(c)),
+          reason: 'Different results should be unequal',
+        );
       });
 
       test('equality detects different currentIndex', () {
@@ -256,8 +282,18 @@ void main() {
             QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm()),
           ],
         );
-        const a = QuizInProgress(quiz: quiz, currentIndex: 0, results: {});
-        const b = QuizInProgress(quiz: quiz, currentIndex: 1, results: {});
+        const a = QuizInProgress(
+          quiz: quiz,
+          currentIndex: 0,
+          results: {},
+          questionState: AwaitingInput(),
+        );
+        const b = QuizInProgress(
+          quiz: quiz,
+          currentIndex: 1,
+          results: {},
+          questionState: AwaitingInput(),
+        );
 
         expect(a, isNot(equals(b)));
       });
@@ -275,6 +311,7 @@ void main() {
           quiz: quiz,
           currentIndex: 0,
           results: {},
+          questionState: AwaitingInput(),
         );
 
         expect(session.toString(), contains('quiz-1'));
@@ -340,15 +377,25 @@ void main() {
         const a = QuizCompleted(quiz: quiz1, results: {});
         const b = QuizCompleted(quiz: quiz1, results: {});
         const c = QuizCompleted(quiz: quiz2, results: {});
-        const d = QuizCompleted(quiz: quiz1, results: {
-          'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-        });
+        const d = QuizCompleted(
+          quiz: quiz1,
+          results: {
+            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
+          },
+        );
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
-        expect(a, isNot(equals(c)), reason: 'Different quiz should be unequal');
-        expect(a, isNot(equals(d)),
-            reason: 'Different results should be unequal');
+        expect(
+          a,
+          isNot(equals(c)),
+          reason: 'Different quiz should be unequal',
+        );
+        expect(
+          a,
+          isNot(equals(d)),
+          reason: 'Different results should be unequal',
+        );
       });
 
       test('toString shows quiz id and score', () {
@@ -368,11 +415,13 @@ void main() {
   });
 
   group('quizSessionProvider', () {
+    const testKey = (roomId: 'room-1', quizId: 'quiz-1');
+
     test('starts with QuizNotStarted', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final session = container.read(quizSessionProvider);
+      final session = container.read(quizSessionProvider(testKey));
 
       expect(session, isA<QuizNotStarted>());
     });
@@ -389,9 +438,9 @@ void main() {
             QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
           ],
         );
-        container.read(quizSessionProvider.notifier).start(quiz);
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
 
-        final session = container.read(quizSessionProvider);
+        final session = container.read(quizSessionProvider(testKey));
         expect(session, isA<QuizInProgress>());
         final inProgress = session as QuizInProgress;
         expect(inProgress.quiz.id, 'quiz-1');
@@ -410,7 +459,9 @@ void main() {
         );
 
         expect(
-          () => container.read(quizSessionProvider.notifier).start(emptyQuiz),
+          () => container
+              .read(quizSessionProvider(testKey).notifier)
+              .start(emptyQuiz),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -425,7 +476,6 @@ void main() {
 
       test('submits answer and stores result', () async {
         // Arrange
-        const roomId = 'room-1';
         const quiz = Quiz(
           id: 'quiz-1',
           title: 'Test',
@@ -438,7 +488,12 @@ void main() {
           expectedAnswer: 'correct answer',
         );
         when(
-          () => mockApi.submitQuizAnswer(roomId, 'quiz-1', 'q1', 'my answer'),
+          () => mockApi.submitQuizAnswer(
+            testKey.roomId,
+            'quiz-1',
+            'q1',
+            'my answer',
+          ),
         ).thenAnswer((_) async => answerResult);
 
         final container = ProviderContainer(
@@ -446,21 +501,31 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        container.read(quizSessionProvider.notifier).start(quiz);
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('my answer'));
 
         // Act
         final result = await container
-            .read(quizSessionProvider.notifier)
-            .submitAnswer(roomId, 'my answer');
+            .read(quizSessionProvider(testKey).notifier)
+            .submitAnswer();
 
         // Assert
         expect(result.isCorrect, isTrue);
         expect(result.expectedAnswer, 'correct answer');
 
-        final session = container.read(quizSessionProvider) as QuizInProgress;
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
         expect(session.results['q1'], equals(answerResult));
+        expect(session.questionState, isA<Answered>());
         verify(
-          () => mockApi.submitQuizAnswer(roomId, 'quiz-1', 'q1', 'my answer'),
+          () => mockApi.submitQuizAnswer(
+            testKey.roomId,
+            'quiz-1',
+            'q1',
+            'my answer',
+          ),
         ).called(1);
       });
 
@@ -470,13 +535,60 @@ void main() {
 
         expect(
           () => container
-              .read(quizSessionProvider.notifier)
-              .submitAnswer('room-1', 'answer'),
+              .read(quizSessionProvider(testKey).notifier)
+              .submitAnswer(),
           throwsStateError,
         );
       });
 
-      test('propagates API exceptions', () async {
+      test('throws StateError when not composing', () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        // Don't call updateInput - still in AwaitingInput state
+
+        expect(
+          () => container
+              .read(quizSessionProvider(testKey).notifier)
+              .submitAnswer(),
+          throwsStateError,
+        );
+      });
+
+      test('throws ArgumentError when input is empty', () async {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        // Update with whitespace-only input (invalid)
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('   '));
+
+        expect(
+          () => container
+              .read(quizSessionProvider(testKey).notifier)
+              .submitAnswer(),
+          throwsArgumentError,
+        );
+      });
+
+      test('propagates API exceptions and returns to Composing', () async {
         // Arrange
         const quiz = Quiz(
           id: 'quiz-1',
@@ -494,21 +606,48 @@ void main() {
         );
         addTearDown(container.dispose);
 
-        container.read(quizSessionProvider.notifier).start(quiz);
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('my answer'));
 
         // Act & Assert
-        expect(
+        await expectLater(
           () => container
-              .read(quizSessionProvider.notifier)
-              .submitAnswer('room-1', 'my answer'),
+              .read(quizSessionProvider(testKey).notifier)
+              .submitAnswer(),
           throwsA(isA<NetworkException>()),
         );
+
+        // Verify state returned to Composing with input preserved
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
+        expect(session.questionState, isA<Composing>());
+        final composing = session.questionState as Composing;
+        expect(composing.input, isA<TextInput>());
+        expect((composing.input as TextInput).text, 'my answer');
       });
     });
 
     group('nextQuestion', () {
-      test('increments currentIndex', () {
-        final container = ProviderContainer();
+      late MockSoliplexApi mockApi;
+
+      setUp(() {
+        mockApi = MockSoliplexApi();
+      });
+
+      test('increments currentIndex after answering', () async {
+        const answerResult = QuizAnswerResult(
+          isCorrect: true,
+          expectedAnswer: 'A',
+        );
+        when(
+          () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
+        ).thenAnswer((_) async => answerResult);
+
+        final container = ProviderContainer(
+          overrides: [apiProvider.overrideWithValue(mockApi)],
+        );
         addTearDown(container.dispose);
 
         const quiz = Quiz(
@@ -519,15 +658,33 @@ void main() {
             QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm()),
           ],
         );
-        container.read(quizSessionProvider.notifier).start(quiz);
-        container.read(quizSessionProvider.notifier).nextQuestion();
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
+        await container
+            .read(quizSessionProvider(testKey).notifier)
+            .submitAnswer();
+        container.read(quizSessionProvider(testKey).notifier).nextQuestion();
 
-        final session = container.read(quizSessionProvider) as QuizInProgress;
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
         expect(session.currentIndex, 1);
+        expect(session.questionState, isA<AwaitingInput>());
       });
 
-      test('transitions to QuizCompleted when on last question', () {
-        final container = ProviderContainer();
+      test('transitions to QuizCompleted when on last question', () async {
+        const answerResult = QuizAnswerResult(
+          isCorrect: true,
+          expectedAnswer: 'A',
+        );
+        when(
+          () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
+        ).thenAnswer((_) async => answerResult);
+
+        final container = ProviderContainer(
+          overrides: [apiProvider.overrideWithValue(mockApi)],
+        );
         addTearDown(container.dispose);
 
         const quiz = Quiz(
@@ -537,15 +694,31 @@ void main() {
             QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
           ],
         );
-        container.read(quizSessionProvider.notifier).start(quiz);
-        container.read(quizSessionProvider.notifier).nextQuestion();
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
+        await container
+            .read(quizSessionProvider(testKey).notifier)
+            .submitAnswer();
+        container.read(quizSessionProvider(testKey).notifier).nextQuestion();
 
-        final session = container.read(quizSessionProvider);
+        final session = container.read(quizSessionProvider(testKey));
         expect(session, isA<QuizCompleted>());
       });
 
-      test('preserves results when transitioning to QuizCompleted', () {
-        final container = ProviderContainer();
+      test('preserves results when transitioning to QuizCompleted', () async {
+        const answerResult = QuizAnswerResult(
+          isCorrect: true,
+          expectedAnswer: 'A',
+        );
+        when(
+          () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
+        ).thenAnswer((_) async => answerResult);
+
+        final container = ProviderContainer(
+          overrides: [apiProvider.overrideWithValue(mockApi)],
+        );
         addTearDown(container.dispose);
 
         const quiz = Quiz(
@@ -556,15 +729,19 @@ void main() {
           ],
         );
 
-        // Start and manually set state with results
-        container.read(quizSessionProvider.notifier).start(quiz);
-        // Simulate having answered (normally done via submitAnswer)
-        // We can test by going to nextQuestion and checking completed state
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
+        await container
+            .read(quizSessionProvider(testKey).notifier)
+            .submitAnswer();
+        container.read(quizSessionProvider(testKey).notifier).nextQuestion();
 
-        container.read(quizSessionProvider.notifier).nextQuestion();
-
-        final session = container.read(quizSessionProvider) as QuizCompleted;
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizCompleted;
         expect(session.quiz.id, 'quiz-1');
+        expect(session.results['q1'], equals(answerResult));
       });
 
       test('throws StateError when not in progress', () {
@@ -572,7 +749,31 @@ void main() {
         addTearDown(container.dispose);
 
         expect(
-          () => container.read(quizSessionProvider.notifier).nextQuestion(),
+          () => container
+              .read(quizSessionProvider(testKey).notifier)
+              .nextQuestion(),
+          throwsStateError,
+        );
+      });
+
+      test('throws StateError when not answered yet', () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        // Don't answer - should throw
+
+        expect(
+          () => container
+              .read(quizSessionProvider(testKey).notifier)
+              .nextQuestion(),
           throwsStateError,
         );
       });
@@ -590,14 +791,121 @@ void main() {
             QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
           ],
         );
-        container.read(quizSessionProvider.notifier).start(quiz);
-        container.read(quizSessionProvider.notifier).reset();
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container.read(quizSessionProvider(testKey).notifier).reset();
 
-        final session = container.read(quizSessionProvider);
+        final session = container.read(quizSessionProvider(testKey));
         expect(session, isA<QuizNotStarted>());
       });
 
-      test('can reset from QuizCompleted', () {
+      test('can reset from QuizCompleted', () async {
+        late MockSoliplexApi mockApi;
+        mockApi = MockSoliplexApi();
+
+        const answerResult = QuizAnswerResult(
+          isCorrect: true,
+          expectedAnswer: 'A',
+        );
+        when(
+          () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
+        ).thenAnswer((_) async => answerResult);
+
+        final container = ProviderContainer(
+          overrides: [apiProvider.overrideWithValue(mockApi)],
+        );
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
+        await container
+            .read(quizSessionProvider(testKey).notifier)
+            .submitAnswer();
+        container.read(quizSessionProvider(testKey).notifier).nextQuestion();
+
+        expect(
+          container.read(quizSessionProvider(testKey)),
+          isA<QuizCompleted>(),
+        );
+
+        container.read(quizSessionProvider(testKey).notifier).reset();
+
+        expect(
+          container.read(quizSessionProvider(testKey)),
+          isA<QuizNotStarted>(),
+        );
+      });
+    });
+
+    group('retake', () {
+      test('restarts quiz from QuizCompleted', () async {
+        late MockSoliplexApi mockApi;
+        mockApi = MockSoliplexApi();
+
+        const answerResult = QuizAnswerResult(
+          isCorrect: true,
+          expectedAnswer: 'A',
+        );
+        when(
+          () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
+        ).thenAnswer((_) async => answerResult);
+
+        final container = ProviderContainer(
+          overrides: [apiProvider.overrideWithValue(mockApi)],
+        );
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
+        await container
+            .read(quizSessionProvider(testKey).notifier)
+            .submitAnswer();
+        container.read(quizSessionProvider(testKey).notifier).nextQuestion();
+
+        expect(
+          container.read(quizSessionProvider(testKey)),
+          isA<QuizCompleted>(),
+        );
+
+        container.read(quizSessionProvider(testKey).notifier).retake();
+
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
+        expect(session.currentIndex, 0);
+        expect(session.results, isEmpty);
+        expect(session.questionState, isA<AwaitingInput>());
+      });
+
+      test('throws StateError when quiz not started', () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        expect(
+          () => container.read(quizSessionProvider(testKey).notifier).retake(),
+          throwsStateError,
+        );
+      });
+    });
+
+    group('updateInput', () {
+      test('transitions from AwaitingInput to Composing', () {
         final container = ProviderContainer();
         addTearDown(container.dispose);
 
@@ -608,15 +916,155 @@ void main() {
             QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
           ],
         );
-        container.read(quizSessionProvider.notifier).start(quiz);
-        container.read(quizSessionProvider.notifier).nextQuestion();
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
 
-        expect(container.read(quizSessionProvider), isA<QuizCompleted>());
-
-        container.read(quizSessionProvider.notifier).reset();
-
-        expect(container.read(quizSessionProvider), isA<QuizNotStarted>());
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
+        expect(session.questionState, isA<Composing>());
+        final composing = session.questionState as Composing;
+        expect((composing.input as TextInput).text, 'answer');
       });
+
+      test('multiple choice input is valid for submission', () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        final quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(
+              id: 'q1',
+              text: 'Q1',
+              type: MultipleChoice(const ['A', 'B', 'C']),
+            ),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const MultipleChoiceInput('A'));
+
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
+        final composing = session.questionState as Composing;
+        expect(composing.canSubmit, isTrue);
+      });
+
+      test('empty text input is not valid for submission', () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput(''));
+
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
+        final composing = session.questionState as Composing;
+        expect(composing.canSubmit, isFalse);
+      });
+    });
+
+    group('clearInput', () {
+      test('transitions from Composing back to AwaitingInput', () {
+        final container = ProviderContainer();
+        addTearDown(container.dispose);
+
+        const quiz = Quiz(
+          id: 'quiz-1',
+          title: 'Test',
+          questions: [
+            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+          ],
+        );
+        container.read(quizSessionProvider(testKey).notifier).start(quiz);
+        container
+            .read(quizSessionProvider(testKey).notifier)
+            .updateInput(const TextInput('answer'));
+        container.read(quizSessionProvider(testKey).notifier).clearInput();
+
+        final session =
+            container.read(quizSessionProvider(testKey)) as QuizInProgress;
+        expect(session.questionState, isA<AwaitingInput>());
+      });
+    });
+
+    test('isolates state per quiz key', () async {
+      final mockApi = MockSoliplexApi();
+      const answerResult = QuizAnswerResult(
+        isCorrect: true,
+        expectedAnswer: 'A',
+      );
+      when(
+        () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
+      ).thenAnswer((_) async => answerResult);
+
+      final container = ProviderContainer(
+        overrides: [apiProvider.overrideWithValue(mockApi)],
+      );
+      addTearDown(container.dispose);
+
+      const key1 = (roomId: 'room-1', quizId: 'quiz-1');
+      const key2 = (roomId: 'room-1', quizId: 'quiz-2');
+
+      const quiz1 = Quiz(
+        id: 'quiz-1',
+        title: 'Quiz 1',
+        questions: [
+          QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+        ],
+      );
+      const quiz2 = Quiz(
+        id: 'quiz-2',
+        title: 'Quiz 2',
+        questions: [
+          QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm()),
+        ],
+      );
+
+      // Start quiz 1
+      container.read(quizSessionProvider(key1).notifier).start(quiz1);
+
+      // Start quiz 2
+      container.read(quizSessionProvider(key2).notifier).start(quiz2);
+
+      // Verify both have independent state
+      final session1 =
+          container.read(quizSessionProvider(key1)) as QuizInProgress;
+      final session2 =
+          container.read(quizSessionProvider(key2)) as QuizInProgress;
+
+      expect(session1.quiz.id, 'quiz-1');
+      expect(session2.quiz.id, 'quiz-2');
+
+      // Progress quiz 1 without affecting quiz 2
+      container
+          .read(quizSessionProvider(key1).notifier)
+          .updateInput(const TextInput('answer'));
+      await container.read(quizSessionProvider(key1).notifier).submitAnswer();
+      container.read(quizSessionProvider(key1).notifier).nextQuestion();
+
+      // Quiz 1 completed, quiz 2 still in progress
+      expect(
+        container.read(quizSessionProvider(key1)),
+        isA<QuizCompleted>(),
+      );
+      expect(
+        container.read(quizSessionProvider(key2)),
+        isA<QuizInProgress>(),
+      );
     });
   });
 }
