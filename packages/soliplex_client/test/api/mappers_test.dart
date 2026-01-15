@@ -1,4 +1,5 @@
 import 'package:soliplex_client/src/api/mappers.dart';
+import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -486,6 +487,292 @@ void main() {
     test('returns pending for unknown status', () {
       expect(runStatusFromString('unknown'), equals(RunStatus.pending));
       expect(runStatusFromString('invalid'), equals(RunStatus.pending));
+    });
+  });
+
+  group('Quiz mappers', () {
+    group('questionTypeFromJson', () {
+      test('parses multiple-choice with options', () {
+        final json = <String, dynamic>{
+          'type': 'multiple-choice',
+          'uuid': 'q-1',
+          'options': ['A', 'B', 'C', 'D'],
+        };
+
+        final type = questionTypeFromJson(json);
+
+        expect(type, isA<MultipleChoice>());
+        expect((type as MultipleChoice).options, equals(['A', 'B', 'C', 'D']));
+      });
+
+      test('parses fill-blank', () {
+        final json = <String, dynamic>{
+          'type': 'fill-blank',
+          'uuid': 'q-1',
+        };
+
+        final type = questionTypeFromJson(json);
+
+        expect(type, isA<FillBlank>());
+      });
+
+      test('parses qa as FreeForm', () {
+        final json = <String, dynamic>{
+          'type': 'qa',
+          'uuid': 'q-1',
+        };
+
+        final type = questionTypeFromJson(json);
+
+        expect(type, isA<FreeForm>());
+      });
+
+      test('defaults unknown type to FreeForm', () {
+        final json = <String, dynamic>{
+          'type': 'unknown-type',
+          'uuid': 'q-1',
+        };
+
+        final type = questionTypeFromJson(json);
+
+        expect(type, isA<FreeForm>());
+      });
+    });
+
+    group('quizQuestionFromJson', () {
+      test('parses question with multiple-choice', () {
+        final json = <String, dynamic>{
+          'inputs': 'What is the capital of France?',
+          'expected_output': 'Paris',
+          'metadata': {
+            'type': 'multiple-choice',
+            'uuid': 'q-123',
+            'options': ['London', 'Paris', 'Berlin', 'Madrid'],
+          },
+        };
+
+        final question = quizQuestionFromJson(json);
+
+        expect(question.id, equals('q-123'));
+        expect(question.text, equals('What is the capital of France?'));
+        // Note: answer is intentionally not exposed in QuizQuestion
+        expect(question.type, isA<MultipleChoice>());
+        final options = (question.type as MultipleChoice).options;
+        expect(options, equals(['London', 'Paris', 'Berlin', 'Madrid']));
+      });
+
+      test('parses question with fill-blank', () {
+        final json = <String, dynamic>{
+          'inputs': 'The sky is ____.',
+          'expected_output': 'blue',
+          'metadata': {
+            'type': 'fill-blank',
+            'uuid': 'q-456',
+          },
+        };
+
+        final question = quizQuestionFromJson(json);
+
+        expect(question.id, equals('q-456'));
+        expect(question.text, equals('The sky is ____.'));
+        expect(question.type, isA<FillBlank>());
+      });
+
+      test('parses question with qa (free-form)', () {
+        final json = <String, dynamic>{
+          'inputs': 'Explain photosynthesis.',
+          'expected_output': 'Process by which plants convert sunlight.',
+          'metadata': {
+            'type': 'qa',
+            'uuid': 'q-789',
+          },
+        };
+
+        final question = quizQuestionFromJson(json);
+
+        expect(question.id, equals('q-789'));
+        expect(question.text, equals('Explain photosynthesis.'));
+        expect(question.type, isA<FreeForm>());
+      });
+    });
+
+    group('questionLimitFromJson', () {
+      test('returns AllQuestions for null', () {
+        final limit = questionLimitFromJson(null);
+
+        expect(limit, isA<AllQuestions>());
+      });
+
+      test('returns LimitedQuestions for positive int', () {
+        final limit = questionLimitFromJson(5);
+
+        expect(limit, isA<LimitedQuestions>());
+        expect((limit as LimitedQuestions).count, equals(5));
+      });
+    });
+
+    group('quizFromJson', () {
+      test('parses quiz with all fields', () {
+        final json = <String, dynamic>{
+          'id': 'quiz-1',
+          'title': 'Geography Quiz',
+          'randomize': true,
+          'max_questions': 3,
+          'questions': [
+            {
+              'inputs': 'What is the capital of France?',
+              'expected_output': 'Paris',
+              'metadata': {
+                'type': 'multiple-choice',
+                'uuid': 'q-1',
+                'options': ['London', 'Paris', 'Berlin'],
+              },
+            },
+            {
+              'inputs': 'The largest ocean is ____.',
+              'expected_output': 'Pacific',
+              'metadata': {
+                'type': 'fill-blank',
+                'uuid': 'q-2',
+              },
+            },
+          ],
+        };
+
+        final quiz = quizFromJson(json);
+
+        expect(quiz.id, equals('quiz-1'));
+        expect(quiz.title, equals('Geography Quiz'));
+        expect(quiz.randomize, isTrue);
+        expect(quiz.questionLimit, isA<LimitedQuestions>());
+        expect((quiz.questionLimit as LimitedQuestions).count, equals(3));
+        expect(quiz.questions, hasLength(2));
+        expect(quiz.questions[0].id, equals('q-1'));
+        expect(quiz.questions[1].id, equals('q-2'));
+      });
+
+      test('parses quiz with minimal fields', () {
+        final json = <String, dynamic>{
+          'id': 'quiz-2',
+          'title': 'Simple Quiz',
+          'questions': <Map<String, dynamic>>[],
+        };
+
+        final quiz = quizFromJson(json);
+
+        expect(quiz.id, equals('quiz-2'));
+        expect(quiz.title, equals('Simple Quiz'));
+        expect(quiz.randomize, isFalse);
+        expect(quiz.questionLimit, isA<AllQuestions>());
+        expect(quiz.questions, isEmpty);
+      });
+
+      test('handles null randomize', () {
+        final json = <String, dynamic>{
+          'id': 'quiz-3',
+          'title': 'Quiz',
+          'randomize': null,
+          'questions': <Map<String, dynamic>>[],
+        };
+
+        final quiz = quizFromJson(json);
+
+        expect(quiz.randomize, isFalse);
+      });
+    });
+
+    group('quizAnswerResultFromJson', () {
+      test('parses correct answer', () {
+        final json = <String, dynamic>{
+          'correct': 'true',
+          'expected_output': 'The correct answer',
+        };
+
+        final result = quizAnswerResultFromJson(json);
+
+        expect(result.isCorrect, isTrue);
+        expect(result.expectedAnswer, equals('The correct answer'));
+      });
+
+      test('parses incorrect answer', () {
+        final json = <String, dynamic>{
+          'correct': 'false',
+          'expected_output': 'The correct answer',
+        };
+
+        final result = quizAnswerResultFromJson(json);
+
+        expect(result.isCorrect, isFalse);
+        expect(result.expectedAnswer, equals('The correct answer'));
+      });
+
+      test('throws on invalid correct value', () {
+        final json = <String, dynamic>{
+          'correct': 'maybe',
+          'expected_output': 'Answer',
+        };
+
+        expect(
+          () => quizAnswerResultFromJson(json),
+          throwsA(isA<FormatException>()),
+        );
+      });
+    });
+
+    group('roomFromJson with quizIds', () {
+      test('extracts quiz IDs from quizzes map', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'quizzes': {
+            'quiz-1': {'id': 'quiz-1', 'title': 'Quiz 1'},
+            'quiz-2': {'id': 'quiz-2', 'title': 'Quiz 2'},
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));
+        expect(room.hasQuizzes, isTrue);
+      });
+
+      test('handles missing quizzes field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.quizIds, isEmpty);
+        expect(room.hasQuizzes, isFalse);
+      });
+
+      test('handles null quizzes field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'quizzes': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.quizIds, isEmpty);
+        expect(room.hasQuizzes, isFalse);
+      });
+
+      test('handles empty quizzes map', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'quizzes': <String, dynamic>{},
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.quizIds, isEmpty);
+        expect(room.hasQuizzes, isFalse);
+      });
     });
   });
 }

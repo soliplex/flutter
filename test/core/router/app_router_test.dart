@@ -14,6 +14,7 @@ import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
+import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
@@ -134,6 +135,15 @@ Widget createRouterAppAt(
                 final roomId = state.pathParameters['roomId']!;
                 final threadId = state.uri.queryParameters['thread'];
                 return RoomScreen(roomId: roomId, initialThreadId: threadId);
+              },
+            ),
+            GoRoute(
+              path: '/rooms/:roomId/quiz/:quizId',
+              name: 'quiz',
+              builder: (context, state) {
+                final roomId = state.pathParameters['roomId']!;
+                final quizId = state.pathParameters['quizId']!;
+                return QuizScreen(roomId: roomId, quizId: quizId);
               },
             ),
             GoRoute(

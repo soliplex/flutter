@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
+import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
@@ -74,6 +75,7 @@ const _publicRoutes = {'/', '/login', '/auth/callback'};
 /// - `/auth/callback` - OAuth callback (public, authenticated users redirect to /rooms)
 /// - `/rooms` - List of rooms (requires auth)
 /// - `/rooms/:roomId` - Room with thread selection (requires auth)
+/// - `/rooms/:roomId/quiz/:quizId` - Quiz screen (requires auth)
 /// - `/rooms/:roomId/thread/:threadId` - Redirects to query param format
 /// - `/settings` - Settings screen (requires auth)
 ///
@@ -173,6 +175,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           final threadId = state.uri.queryParameters['thread'];
           return NoTransitionPage(
             child: RoomScreen(roomId: roomId, initialThreadId: threadId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/quiz/:quizId',
+        name: 'quiz',
+        pageBuilder: (context, state) {
+          final roomId = state.pathParameters['roomId']!;
+          final quizId = state.pathParameters['quizId']!;
+          return NoTransitionPage(
+            child: QuizScreen(roomId: roomId, quizId: quizId),
           );
         },
       ),

@@ -9,6 +9,7 @@ class Room {
     required this.name,
     this.description = '',
     this.metadata = const {},
+    this.quizzes = const {},
   });
 
   /// Unique identifier for the room.
@@ -23,8 +24,17 @@ class Room {
   /// Metadata for the room (empty map if not provided).
   final Map<String, dynamic> metadata;
 
+  /// Quizzes available in this room, keyed by quiz ID with title as value.
+  final Map<String, String> quizzes;
+
+  /// Quiz IDs available in this room.
+  List<String> get quizIds => quizzes.keys.toList();
+
   /// Whether the room has a description.
   bool get hasDescription => description.isNotEmpty;
+
+  /// Whether the room has any quizzes.
+  bool get hasQuizzes => quizzes.isNotEmpty;
 
   /// Creates a copy of this room with the given fields replaced.
   Room copyWith({
@@ -32,12 +42,14 @@ class Room {
     String? name,
     String? description,
     Map<String, dynamic>? metadata,
+    Map<String, String>? quizzes,
   }) {
     return Room(
       id: id ?? this.id,
       name: name ?? this.name,
       description: description ?? this.description,
       metadata: metadata ?? this.metadata,
+      quizzes: quizzes ?? this.quizzes,
     );
   }
 
