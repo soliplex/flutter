@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/build_config.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
 
@@ -18,7 +19,7 @@ class SoliplexApp extends ConsumerWidget {
     // avoiding wasted work and premature provider side effects.
     if (authState is AuthLoading) {
       return MaterialApp(
-        title: 'Soliplex',
+        title: appName,
         theme: soliplexLightTheme(),
         darkTheme: soliplexDarkTheme(),
         themeMode: ThemeMode.light,
@@ -30,7 +31,7 @@ class SoliplexApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'Soliplex',
+      title: appName,
       theme: soliplexLightTheme(),
       darkTheme: soliplexDarkTheme(),
       themeMode: ThemeMode.light,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/build_config.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
@@ -153,7 +154,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/',
         name: 'home',
         pageBuilder: (context, state) => _staticPage(
-          title: const Text('Soliplex'),
+          title: const Text(appName),
           body: const HomeScreen(),
           actions: const [_SettingsButton()],
         ),

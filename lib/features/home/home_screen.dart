@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
+import 'package:soliplex_frontend/core/build_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
@@ -173,7 +174,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Soliplex',
+                appName,
                 style: theme.textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),
