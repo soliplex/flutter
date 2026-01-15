@@ -231,8 +231,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }) {
     final isAnswered = questionState is Answered;
     final result = questionState is Answered ? questionState.result : null;
-
     final isDisabled = isAnswered || questionState is Submitting;
+
+    final radii = SoliplexTheme.of(context).radii;
+    final colorScheme = Theme.of(context).colorScheme;
 
     return RadioGroup<String>(
       groupValue: selectedOption,
@@ -243,45 +245,52 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           final isCorrect = isAnswered && result!.expectedAnswer == option;
           final isWrong = isAnswered && isSelected && !result!.isCorrect;
 
+          final backgroundColor = isCorrect
+              ? colorScheme.primaryContainer
+              : isWrong
+                  ? colorScheme.errorContainer
+                  : isSelected
+                      ? colorScheme.secondaryContainer
+                      : colorScheme.surface;
+          final foregroundColor = isCorrect
+              ? colorScheme.onPrimaryContainer
+              : isWrong
+                  ? colorScheme.onErrorContainer
+                  : isSelected
+                      ? colorScheme.onSecondaryContainer
+                      : colorScheme.onSurface;
+
           return Padding(
             padding: const EdgeInsets.only(bottom: SoliplexSpacing.s2),
             child: Material(
-              color: isCorrect
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : isWrong
-                      ? Theme.of(context).colorScheme.errorContainer
-                      : isSelected
-                          ? Theme.of(context).colorScheme.secondaryContainer
-                          : Theme.of(context).colorScheme.surface,
-              borderRadius: BorderRadius.circular(soliplexRadii.md),
+              color: backgroundColor,
+              borderRadius: BorderRadius.circular(radii.md),
               child: InkWell(
                 onTap: isDisabled ? null : () => _selectOption(option),
-                borderRadius: BorderRadius.circular(soliplexRadii.md),
+                borderRadius: BorderRadius.circular(radii.md),
                 child: Container(
                   padding: const EdgeInsets.all(SoliplexSpacing.s4),
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: isSelected
-                          ? Theme.of(context).colorScheme.primary
-                          : Theme.of(context).colorScheme.outline,
+                          ? colorScheme.primary
+                          : colorScheme.outline,
                       width: isSelected ? 2 : 1,
                     ),
-                    borderRadius: BorderRadius.circular(soliplexRadii.md),
+                    borderRadius: BorderRadius.circular(radii.md),
                   ),
                   child: Row(
                     children: [
                       Radio<String>(value: option, enabled: !isDisabled),
-                      Expanded(child: Text(option)),
+                      Expanded(
+                        child: Text(
+                          option,
+                          style: TextStyle(color: foregroundColor),
+                        ),
+                      ),
                       if (isCorrect)
-                        Icon(
-                          Icons.check_circle,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      if (isWrong)
-                        Icon(
-                          Icons.cancel,
-                          color: Theme.of(context).colorScheme.error,
-                        ),
+                        Icon(Icons.check_circle, color: foregroundColor),
+                      if (isWrong) Icon(Icons.cancel, color: foregroundColor),
                     ],
                   ),
                 ),
@@ -301,11 +310,21 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }) {
     final isDisabled = questionState is Answered || questionState is Submitting;
 
+    // Sync controller from provider state (provider is source of truth)
+    final providerText = switch (questionState) {
+      Composing(input: TextInput(:final text)) => text,
+      Submitting(input: TextInput(:final text)) => text,
+      Answered(input: TextInput(:final text)) => text,
+      _ => '',
+    };
+    if (_answerController.text != providerText) {
+      _answerController.text = providerText;
+    }
+
     return TextField(
       controller: _answerController,
       enabled: !isDisabled,
       maxLines: maxLines,
-      // Sync text changes to provider state for canSubmit evaluation
       onChanged: (text) {
         ref
             .read(quizSessionProvider(_sessionKey).notifier)
@@ -319,21 +338,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Widget _buildFeedback(BuildContext context, QuizAnswerResult result) {
+    final radii = SoliplexTheme.of(context).radii;
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    final isCorrect = result.isCorrect;
+    final containerColor =
+        isCorrect ? colorScheme.primaryContainer : colorScheme.errorContainer;
+    final contentColor = isCorrect
+        ? colorScheme.onPrimaryContainer
+        : colorScheme.onErrorContainer;
+    final iconColor = isCorrect ? colorScheme.primary : colorScheme.error;
+
     return Container(
       padding: const EdgeInsets.all(SoliplexSpacing.s4),
       decoration: BoxDecoration(
-        color: result.isCorrect
-            ? Theme.of(context).colorScheme.primaryContainer
-            : Theme.of(context).colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(soliplexRadii.md),
+        color: containerColor,
+        borderRadius: BorderRadius.circular(radii.md),
       ),
       child: Row(
         children: [
           Icon(
-            result.isCorrect ? Icons.check_circle : Icons.cancel,
-            color: result.isCorrect
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.error,
+            isCorrect ? Icons.check_circle : Icons.cancel,
+            color: iconColor,
           ),
           const SizedBox(width: SoliplexSpacing.s2),
           Expanded(
@@ -341,20 +368,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  result.isCorrect ? 'Correct!' : 'Incorrect',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: result.isCorrect
-                            ? Theme.of(context).colorScheme.onPrimaryContainer
-                            : Theme.of(context).colorScheme.onErrorContainer,
-                      ),
+                  isCorrect ? 'Correct!' : 'Incorrect',
+                  style: textTheme.titleMedium?.copyWith(color: contentColor),
                 ),
-                if (!result.isCorrect) ...[
+                if (!isCorrect) ...[
                   const SizedBox(height: SoliplexSpacing.s1),
                   Text(
                     'Expected: ${result.expectedAnswer}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                        ),
+                    style: textTheme.bodyMedium?.copyWith(color: contentColor),
                   ),
                 ],
               ],

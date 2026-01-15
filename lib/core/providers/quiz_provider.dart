@@ -271,7 +271,7 @@ class QuizInProgress extends QuizSession {
     required this.currentIndex,
     required this.results,
     required this.questionState,
-  })  : assert(currentIndex >= 0, 'currentIndex must be non-negative');
+  }) : assert(currentIndex >= 0, 'currentIndex must be non-negative');
 
   /// The quiz being taken.
   final Quiz quiz;
