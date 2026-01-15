@@ -110,10 +110,16 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final isDesktop =
         MediaQuery.of(context).size.width >= SoliplexBreakpoints.desktop;
 
+    final currentRoom = ref.watch(currentRoomProvider);
+    final quizIds = currentRoom?.quizIds ?? [];
+
     return AppShell(
       config: ShellConfig(
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
+        actions: [
+          if (quizIds.isNotEmpty) _buildQuizButton(quizIds),
+        ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
@@ -126,6 +132,40 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       tooltip: 'Back to rooms',
       onPressed: () => context.go('/rooms'),
     );
+  }
+
+  Widget _buildQuizButton(List<String> quizIds) {
+    return IconButton(
+      icon: const Icon(Icons.quiz),
+      tooltip: 'Take quiz',
+      onPressed: () {
+        if (quizIds.length == 1) {
+          context.go('/rooms/${widget.roomId}/quiz/${quizIds.first}');
+        } else {
+          _showQuizPicker(quizIds);
+        }
+      },
+    );
+  }
+
+  Future<void> _showQuizPicker(List<String> quizIds) async {
+    final selectedQuizId = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Select Quiz'),
+        children: [
+          for (var i = 0; i < quizIds.length; i++)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, quizIds[i]),
+              child: Text('Quiz ${i + 1}'),
+            ),
+        ],
+      ),
+    );
+
+    if (selectedQuizId != null && mounted) {
+      context.go('/rooms/${widget.roomId}/quiz/$selectedQuizId');
+    }
   }
 
   Widget _buildSidebarToggle() {
