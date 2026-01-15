@@ -1,7 +1,7 @@
 name: soliplex_frontend
 description: Cross-platform Flutter frontend for Soliplex AI-powered RAG system
 publish_to: 'none'
-version: 0.50.2+9
+version: 0.50.3+10
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
