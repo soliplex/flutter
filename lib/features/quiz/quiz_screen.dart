@@ -228,9 +228,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     required String? selectedOption,
     required QuestionState questionState,
   }) {
-    final isAnswered = questionState is Answered;
-    final result = questionState is Answered ? questionState.result : null;
-    final isDisabled = isAnswered || questionState is Submitting;
+    final isDisabled = questionState is Answered || questionState is Submitting;
+
+    // Extract result from Answered state via pattern matching
+    final answeredResult = switch (questionState) {
+      Answered(:final result) => result,
+      _ => null,
+    };
 
     final radii = SoliplexTheme.of(context).radii;
     final colorScheme = Theme.of(context).colorScheme;
@@ -241,8 +245,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       child: Column(
         children: options.map((option) {
           final isSelected = selectedOption == option;
-          final isCorrect = isAnswered && result!.expectedAnswer == option;
-          final isWrong = isAnswered && isSelected && !result!.isCorrect;
+          final isCorrect = answeredResult?.expectedAnswer == option;
+          final isWrong =
+              answeredResult != null && isSelected && !answeredResult.isCorrect;
 
           final backgroundColor = isCorrect
               ? colorScheme.primaryContainer
@@ -499,10 +504,34 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   Future<void> _submitAnswer() async {
     try {
       await ref.read(quizSessionProvider(_sessionKey).notifier).submitAnswer();
-    } catch (e) {
+    } on NetworkException catch (e, stackTrace) {
+      debugPrint('Quiz submit failed: Network error - ${e.message}');
+      debugPrint(stackTrace.toString());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit answer: $e')),
+          SnackBar(
+            content: Text('Network error: ${e.message}. Please try again.'),
+          ),
+        );
+      }
+    } on AuthException catch (e, stackTrace) {
+      debugPrint('Quiz submit failed: Auth error - ${e.message}');
+      debugPrint(stackTrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Session expired. Please sign in again.'),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Quiz submit failed: $e');
+      debugPrint(stackTrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit answer: $e'),
+          ),
         );
       }
     }

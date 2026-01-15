@@ -79,10 +79,10 @@ void main() {
 
     testWidgets('shows start screen when quiz loaded', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question 1', type: FreeForm()),
         ],
       );
@@ -103,10 +103,10 @@ void main() {
 
     testWidgets('starts quiz and shows first question', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'What is 2+2?', type: FreeForm()),
         ],
       );
@@ -160,10 +160,10 @@ void main() {
 
     testWidgets('submit button disabled until answer provided', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
@@ -196,10 +196,10 @@ void main() {
 
     testWidgets('submits answer and shows feedback', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
@@ -233,10 +233,10 @@ void main() {
     testWidgets('shows incorrect feedback with expected answer',
         (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
@@ -269,10 +269,10 @@ void main() {
 
     testWidgets('shows results screen after completing quiz', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
@@ -314,10 +314,10 @@ void main() {
 
     testWidgets('shows snackbar on submit error', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
@@ -355,10 +355,10 @@ void main() {
 
     testWidgets('can retake quiz after completion', (tester) async {
       // Arrange
-      const quiz = Quiz(
+      final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: [
+        questions: const [
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );

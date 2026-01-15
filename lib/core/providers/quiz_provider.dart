@@ -266,12 +266,15 @@ class QuizNotStarted extends QuizSession {
 @immutable
 class QuizInProgress extends QuizSession {
   /// Creates a quiz in progress state.
-  const QuizInProgress({
+  ///
+  /// The [results] map is made unmodifiable to preserve immutability.
+  QuizInProgress({
     required this.quiz,
     required this.currentIndex,
-    required this.results,
+    required Map<String, QuizAnswerResult> results,
     required this.questionState,
-  }) : assert(currentIndex >= 0, 'currentIndex must be non-negative');
+  })  : assert(currentIndex >= 0, 'currentIndex must be non-negative'),
+        results = Map.unmodifiable(results);
 
   /// The quiz being taken.
   final Quiz quiz;
@@ -279,7 +282,7 @@ class QuizInProgress extends QuizSession {
   /// Index of the current question (0-based).
   final int currentIndex;
 
-  /// Results for answered questions, keyed by question ID.
+  /// Results for answered questions, keyed by question ID (unmodifiable).
   final Map<String, QuizAnswerResult> results;
 
   /// Current question's answer state machine.
@@ -338,15 +341,17 @@ class QuizInProgress extends QuizSession {
 @immutable
 class QuizCompleted extends QuizSession {
   /// Creates a completed quiz state.
-  const QuizCompleted({
+  ///
+  /// The [results] map is made unmodifiable to preserve immutability.
+  QuizCompleted({
     required this.quiz,
-    required this.results,
-  });
+    required Map<String, QuizAnswerResult> results,
+  }) : results = Map.unmodifiable(results);
 
   /// The completed quiz.
   final Quiz quiz;
 
-  /// Results for all answered questions, keyed by question ID.
+  /// Results for all answered questions, keyed by question ID (unmodifiable).
   final Map<String, QuizAnswerResult> results;
 
   /// Number of correct answers.
@@ -520,7 +525,10 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
       );
 
       return result;
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Quiz submitAnswer failed: ${e.runtimeType} - $e');
+      debugPrint(stackTrace.toString());
+
       // Re-read state after async gap
       final afterState = state;
       if (afterState is! QuizInProgress) {
