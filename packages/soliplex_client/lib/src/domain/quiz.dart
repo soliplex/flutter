@@ -87,8 +87,17 @@ sealed class QuestionType {
 final class MultipleChoice extends QuestionType {
   /// Creates a multiple choice type with the given [options].
   ///
+  /// Throws [ArgumentError] if fewer than 2 options are provided.
   /// The options list is made unmodifiable to preserve immutability.
-  MultipleChoice(List<String> options) : options = List.unmodifiable(options);
+  MultipleChoice(List<String> options) : options = List.unmodifiable(options) {
+    if (options.length < 2) {
+      throw ArgumentError.value(
+        options.length,
+        'options',
+        'Multiple choice requires at least 2 options',
+      );
+    }
+  }
 
   /// Available answer options (unmodifiable).
   final List<String> options;
@@ -193,13 +202,15 @@ class QuizQuestion {
 @immutable
 class Quiz {
   /// Creates a quiz.
-  const Quiz({
+  ///
+  /// The [questions] list is made unmodifiable to preserve immutability.
+  Quiz({
     required this.id,
     required this.title,
-    required this.questions,
+    required List<QuizQuestion> questions,
     this.randomize = false,
     this.questionLimit = const AllQuestions(),
-  });
+  }) : questions = List.unmodifiable(questions);
 
   /// Unique identifier for this quiz.
   final String id;
@@ -213,7 +224,7 @@ class Quiz {
   /// Limit on how many questions to show.
   final QuestionLimit questionLimit;
 
-  /// Questions in this quiz.
+  /// Questions in this quiz (unmodifiable).
   final List<QuizQuestion> questions;
 
   /// Number of questions in this quiz.
