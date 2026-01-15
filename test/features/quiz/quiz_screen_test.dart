@@ -435,5 +435,97 @@ void main() {
       );
       expect(submitButton.onPressed, isNotNull);
     });
+
+    testWidgets('shows error display when quiz not found', (tester) async {
+      // Arrange - API throws NotFoundException
+      when(() => mockApi.getQuiz('room-1', 'bad-quiz'))
+          .thenThrow(const NotFoundException(message: 'Quiz not found'));
+
+      await tester.pumpWidget(
+        buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'bad-quiz'),
+      );
+      await tester.pumpAndSettle();
+
+      // Assert - error display shown with search_off icon
+      expect(find.byIcon(Icons.search_off), findsOneWidget);
+      expect(find.text('Back to Room'), findsOneWidget);
+    });
+
+    testWidgets('navigates between multiple questions', (tester) async {
+      // Arrange - quiz with two questions
+      final quiz = Quiz(
+        id: 'quiz-1',
+        title: 'Multi Question Quiz',
+        questions: const [
+          QuizQuestion(id: 'q1', text: 'Question 1?', type: FreeForm()),
+          QuizQuestion(id: 'q2', text: 'Question 2?', type: FreeForm()),
+        ],
+      );
+      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
+          .thenAnswer((_) async => quiz);
+      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'a1'))
+          .thenAnswer(
+        (_) async =>
+            const QuizAnswerResult(isCorrect: true, expectedAnswer: 'a1'),
+      );
+      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q2', 'a2'))
+          .thenAnswer(
+        (_) async =>
+            const QuizAnswerResult(isCorrect: false, expectedAnswer: 'correct'),
+      );
+
+      await tester.pumpWidget(
+        buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
+      );
+      await tester.pumpAndSettle();
+
+      // Verify start screen shows "2 questions"
+      expect(find.text('2 questions'), findsOneWidget);
+
+      // Start quiz
+      await tester.tap(find.text('Start Quiz'));
+      await tester.pumpAndSettle();
+
+      // Verify first question
+      expect(find.text('Question 1 of 2'), findsOneWidget);
+      expect(find.text('Question 1?'), findsOneWidget);
+
+      // Answer first question
+      await tester.enterText(find.byType(TextField), 'a1');
+      await tester.pump();
+      await tester.tap(find.text('Submit Answer'));
+      await tester.pumpAndSettle();
+
+      // Verify "Next Question" button appears (not "See Results")
+      expect(find.text('Next Question'), findsOneWidget);
+      expect(find.text('See Results'), findsNothing);
+
+      // Navigate to second question
+      await tester.tap(find.text('Next Question'));
+      await tester.pumpAndSettle();
+
+      // Verify second question
+      expect(find.text('Question 2 of 2'), findsOneWidget);
+      expect(find.text('Question 2?'), findsOneWidget);
+
+      // Answer second question
+      await tester.enterText(find.byType(TextField), 'a2');
+      await tester.pump();
+      await tester.tap(find.text('Submit Answer'));
+      await tester.pumpAndSettle();
+
+      // Verify "See Results" button appears (last question)
+      expect(find.text('See Results'), findsOneWidget);
+      expect(find.text('Next Question'), findsNothing);
+
+      // Navigate to results
+      await tester.tap(find.text('See Results'));
+      await tester.pumpAndSettle();
+
+      // Verify results (1 correct out of 2 = 50%)
+      expect(find.text('Quiz Complete!'), findsOneWidget);
+      expect(find.text('50%'), findsOneWidget);
+      expect(find.text('1 of 2 correct'), findsOneWidget);
+    });
   });
 }

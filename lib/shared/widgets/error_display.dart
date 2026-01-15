@@ -17,10 +17,16 @@ import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 /// Includes a collapsible "Show details" section with full technical
 /// information for debugging and bug reports.
 class ErrorDisplay extends StatelessWidget {
-  const ErrorDisplay({required this.error, this.onRetry, super.key});
+  const ErrorDisplay({
+    required this.error,
+    this.onRetry,
+    this.retryLabel = 'Retry',
+    super.key,
+  });
 
   final Object error;
   final VoidCallback? onRetry;
+  final String retryLabel;
 
   /// Unwraps wrapper exceptions to get the underlying cause.
   Object _unwrapError() {
@@ -126,7 +132,7 @@ class ErrorDisplay extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(retryLabel),
               ),
             ],
           ],

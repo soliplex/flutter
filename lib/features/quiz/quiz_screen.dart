@@ -63,10 +63,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       body: quizAsync.when(
         data: (quiz) => _buildQuizContent(context, quiz),
         loading: () => const LoadingIndicator(),
-        error: (error, stack) => ErrorDisplay(
-          error: error.toString(),
-          onRetry: () => ref.invalidate(quizProvider(_sessionKey)),
-        ),
+        error: (error, stack) => switch (error) {
+          NotFoundException() => ErrorDisplay(
+              error: error,
+              onRetry: _handleBack,
+              retryLabel: 'Back to Room',
+            ),
+          _ => ErrorDisplay(
+              error: error,
+              onRetry: () => ref.invalidate(quizProvider(_sessionKey)),
+            ),
+        },
       ),
     );
   }
