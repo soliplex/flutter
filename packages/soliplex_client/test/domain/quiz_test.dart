@@ -34,32 +34,63 @@ void main() {
 
     group('LimitedQuestions', () {
       test('creates with count', () {
-        const limit = LimitedQuestions(5);
+        final limit = LimitedQuestions(5);
         expect(limit, isA<QuestionLimit>());
         expect(limit.count, equals(5));
       });
 
+      test('allows count of 1 (boundary)', () {
+        final limit = LimitedQuestions(1);
+        expect(limit.count, equals(1));
+      });
+
+      test('throws ArgumentError for count of 0', () {
+        expect(
+          () => LimitedQuestions(0),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.invalidValue,
+              'invalidValue',
+              0,
+            ),
+          ),
+        );
+      });
+
+      test('throws ArgumentError for negative count', () {
+        expect(
+          () => LimitedQuestions(-1),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.invalidValue,
+              'invalidValue',
+              -1,
+            ),
+          ),
+        );
+      });
+
       test('equality based on count', () {
-        const limit1 = LimitedQuestions(5);
-        const limit2 = LimitedQuestions(5);
-        const limit3 = LimitedQuestions(10);
+        final limit1 = LimitedQuestions(5);
+        final limit2 = LimitedQuestions(5);
+        final limit3 = LimitedQuestions(10);
         expect(limit1, equals(limit2));
         expect(limit1, isNot(equals(limit3)));
       });
 
       test('hashCode consistent', () {
-        const limit1 = LimitedQuestions(5);
-        const limit2 = LimitedQuestions(5);
+        final limit1 = LimitedQuestions(5);
+        final limit2 = LimitedQuestions(5);
         expect(limit1.hashCode, equals(limit2.hashCode));
       });
 
       test('toString', () {
-        const limit = LimitedQuestions(5);
+        final limit = LimitedQuestions(5);
         expect(limit.toString(), equals('LimitedQuestions(5)'));
       });
 
       test('identical returns true', () {
-        const limit = LimitedQuestions(5);
+        final limit = LimitedQuestions(5);
         expect(limit == limit, isTrue);
       });
     });
@@ -304,7 +335,7 @@ void main() {
         id: 'quiz-1',
         title: 'Test Quiz',
         randomize: true,
-        questionLimit: const LimitedQuestions(5),
+        questionLimit: LimitedQuestions(5),
         questions: questions,
       );
 

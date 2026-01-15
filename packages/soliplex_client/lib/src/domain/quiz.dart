@@ -42,8 +42,12 @@ final class AllQuestions extends QuestionLimit {
 final class LimitedQuestions extends QuestionLimit {
   /// Creates a limit with the given [count].
   ///
-  /// [count] must be greater than zero.
-  const LimitedQuestions(this.count) : assert(count > 0, 'count must be > 0');
+  /// Throws [ArgumentError] if [count] is not greater than zero.
+  LimitedQuestions(this.count) {
+    if (count <= 0) {
+      throw ArgumentError.value(count, 'count', 'must be greater than 0');
+    }
+  }
 
   /// Maximum number of questions to show.
   final int count;

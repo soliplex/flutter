@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
@@ -9,16 +11,23 @@ import 'package:soliplex_client/src/domain/thread_info.dart';
 
 /// Creates a [Room] from JSON.
 Room roomFromJson(Map<String, dynamic> json) {
-  // Extract quiz IDs from quizzes map (keys are quiz IDs)
-  final quizzes = json['quizzes'] as Map<String, dynamic>?;
-  final quizIds = quizzes?.keys.toList() ?? const <String>[];
+  // Extract quizzes map: {quizId: {title: "...", ...}}
+  final quizzesJson = json['quizzes'] as Map<String, dynamic>?;
+  final quizzes = <String, String>{};
+  if (quizzesJson != null) {
+    for (final entry in quizzesJson.entries) {
+      final quizData = entry.value as Map<String, dynamic>?;
+      final title = (quizData?['title'] as String?) ?? 'Quiz';
+      quizzes[entry.key] = title;
+    }
+  }
 
   return Room(
     id: json['id'] as String,
     name: json['name'] as String,
     description: (json['description'] as String?) ?? '',
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
-    quizIds: quizIds,
+    quizzes: quizzes,
   );
 }
 
@@ -37,9 +46,11 @@ Map<String, dynamic> roomToJson(Room room) {
 // ============================================================
 
 /// Creates a [ThreadInfo] from JSON.
+///
+/// Throws [FormatException] if date fields contain malformed values.
 ThreadInfo threadInfoFromJson(Map<String, dynamic> json) {
   final createdAt = json['created_at'] != null
-      ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+      ? DateTime.parse(json['created_at'] as String)
       : DateTime.now();
   return ThreadInfo(
     id: json['id'] as String? ?? json['thread_id'] as String,
@@ -49,7 +60,7 @@ ThreadInfo threadInfoFromJson(Map<String, dynamic> json) {
     description: (json['description'] as String?) ?? '',
     createdAt: createdAt,
     updatedAt: json['updated_at'] != null
-        ? DateTime.tryParse(json['updated_at'] as String) ?? createdAt
+        ? DateTime.parse(json['updated_at'] as String)
         : createdAt,
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
   );
@@ -74,18 +85,18 @@ Map<String, dynamic> threadInfoToJson(ThreadInfo thread) {
 // ============================================================
 
 /// Creates a [RunInfo] from JSON.
+///
+/// Throws [FormatException] if date fields contain malformed values.
 RunInfo runInfoFromJson(Map<String, dynamic> json) {
   return RunInfo(
     id: json['id'] as String? ?? json['run_id'] as String,
     threadId: json['thread_id'] as String? ?? '',
     label: (json['label'] as String?) ?? '',
     createdAt: json['created_at'] != null
-        ? DateTime.tryParse(json['created_at'] as String) ?? DateTime.now()
+        ? DateTime.parse(json['created_at'] as String)
         : DateTime.now(),
     completion: json['completed_at'] != null
-        ? CompletedAt(
-            DateTime.tryParse(json['completed_at'] as String) ?? DateTime.now(),
-          )
+        ? CompletedAt(DateTime.parse(json['completed_at'] as String))
         : const NotCompleted(),
     status: runStatusFromString(json['status'] as String?),
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
@@ -107,11 +118,14 @@ Map<String, dynamic> runInfoToJson(RunInfo run) {
 }
 
 /// Creates a [RunStatus] from a string value.
+///
+/// Returns [RunStatus.pending] if value is null.
+/// Returns [RunStatus.unknown] if value doesn't match any known status.
 RunStatus runStatusFromString(String? value) {
   if (value == null) return RunStatus.pending;
   return RunStatus.values.firstWhere(
     (e) => e.name == value.toLowerCase(),
-    orElse: () => RunStatus.pending,
+    orElse: () => RunStatus.unknown,
   );
 }
 
@@ -134,10 +148,11 @@ QuestionType questionTypeFromJson(Map<String, dynamic> json) {
     'qa' => const FreeForm(),
     _ => () {
         // Log warning for observability when backend adds new types.
-        // Uses print() since soliplex_client is pure Dart without logging deps.
-        // ignore: avoid_print
-        print('Warning: Unknown question type "$type", '
-            'falling back to FreeForm');
+        developer.log(
+          'Unknown question type "$type", falling back to FreeForm',
+          name: 'soliplex_client.mappers',
+          level: 900, // Warning level
+        );
         return const FreeForm();
       }(),
   };
