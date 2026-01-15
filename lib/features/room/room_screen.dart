@@ -111,14 +111,14 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         MediaQuery.of(context).size.width >= SoliplexBreakpoints.desktop;
 
     final currentRoom = ref.watch(currentRoomProvider);
-    final quizIds = currentRoom?.quizIds ?? [];
+    final quizzes = currentRoom?.quizzes ?? const <String, String>{};
 
     return AppShell(
       config: ShellConfig(
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
         actions: [
-          if (quizIds.isNotEmpty) _buildQuizButton(quizIds),
+          if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
         ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
@@ -134,30 +134,30 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     );
   }
 
-  Widget _buildQuizButton(List<String> quizIds) {
+  Widget _buildQuizButton(Map<String, String> quizzes) {
     return IconButton(
       icon: const Icon(Icons.quiz),
       tooltip: 'Take quiz',
       onPressed: () {
-        if (quizIds.length == 1) {
-          context.go('/rooms/${widget.roomId}/quiz/${quizIds.first}');
+        if (quizzes.length == 1) {
+          context.go('/rooms/${widget.roomId}/quiz/${quizzes.keys.first}');
         } else {
-          _showQuizPicker(quizIds);
+          _showQuizPicker(quizzes);
         }
       },
     );
   }
 
-  Future<void> _showQuizPicker(List<String> quizIds) async {
+  Future<void> _showQuizPicker(Map<String, String> quizzes) async {
     final selectedQuizId = await showDialog<String>(
       context: context,
       builder: (context) => SimpleDialog(
         title: const Text('Select Quiz'),
         children: [
-          for (var i = 0; i < quizIds.length; i++)
+          for (final entry in quizzes.entries)
             SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, quizIds[i]),
-              child: Text('Quiz ${i + 1}'),
+              onPressed: () => Navigator.pop(context, entry.key),
+              child: Text(entry.value),
             ),
         ],
       ),

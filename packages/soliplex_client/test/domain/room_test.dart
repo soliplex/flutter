@@ -10,7 +10,8 @@ void main() {
       expect(room.name, equals('Test Room'));
       expect(room.description, equals(''));
       expect(room.metadata, equals(const <String, dynamic>{}));
-      expect(room.quizIds, equals(const <String>[]));
+      expect(room.quizzes, equals(const <String, String>{}));
+      expect(room.quizIds, isEmpty);
       expect(room.hasDescription, isFalse);
       expect(room.hasQuizzes, isFalse);
     });
@@ -21,14 +22,18 @@ void main() {
         name: 'Test Room',
         description: 'A test room',
         metadata: {'key': 'value'},
-        quizIds: ['quiz-1', 'quiz-2'],
+        quizzes: {'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'},
       );
 
       expect(room.id, equals('room-1'));
       expect(room.name, equals('Test Room'));
       expect(room.description, equals('A test room'));
       expect(room.metadata, equals({'key': 'value'}));
-      expect(room.quizIds, equals(['quiz-1', 'quiz-2']));
+      expect(
+        room.quizzes,
+        equals({'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'}),
+      );
+      expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));
       expect(room.hasDescription, isTrue);
       expect(room.hasQuizzes, isTrue);
     });
@@ -50,13 +55,14 @@ void main() {
           name: 'New Room',
           description: 'New description',
           metadata: {'new': 'data'},
-          quizIds: ['quiz-1'],
+          quizzes: {'quiz-1': 'Quiz One'},
         );
 
         expect(modified.id, equals('room-2'));
         expect(modified.name, equals('New Room'));
         expect(modified.description, equals('New description'));
         expect(modified.metadata, equals({'new': 'data'}));
+        expect(modified.quizzes, equals({'quiz-1': 'Quiz One'}));
         expect(modified.quizIds, equals(['quiz-1']));
       });
 
@@ -66,7 +72,7 @@ void main() {
           name: 'Test Room',
           description: 'A description',
           metadata: {'key': 'value'},
-          quizIds: ['quiz-1'],
+          quizzes: {'quiz-1': 'Quiz One'},
         );
         final copy = room.copyWith();
 
@@ -74,6 +80,7 @@ void main() {
         expect(copy.name, equals(room.name));
         expect(copy.description, equals(room.description));
         expect(copy.metadata, equals(room.metadata));
+        expect(copy.quizzes, equals(room.quizzes));
         expect(copy.quizIds, equals(room.quizIds));
       });
     });
