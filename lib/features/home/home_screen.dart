@@ -145,8 +145,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       debugPrint('HomeScreen: Not found: ${e.message}');
       if (mounted) {
         setState(
-          () => _error =
-              'Server found but login endpoint missing. '
+          () => _error = 'Server found but login endpoint missing. '
               'Is this a Soliplex backend?',
         );
       }
