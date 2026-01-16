@@ -267,7 +267,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Cannot reach server. Check the URL and try again.'),
+          find.text(
+            'Cannot reach server. '
+            'Verify the URL is correct and the server is running.',
+          ),
           findsOneWidget,
         );
       });
@@ -302,7 +305,13 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Server error: 500'), findsOneWidget);
+        expect(
+          find.text(
+            'Server error (500). '
+            'Please try again later or verify the backend URL is correct.',
+          ),
+          findsOneWidget,
+        );
       });
 
       testWidgets('shows generic error for unknown exceptions', (tester) async {
@@ -334,7 +343,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Connection failed. Please try again.'),
+          find.text('Connection failed: Exception: Unknown error'),
           findsOneWidget,
         );
       });
