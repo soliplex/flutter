@@ -141,16 +141,15 @@ RunStatus runStatusFromString(String? value) {
 QuestionType questionTypeFromJson(Map<String, dynamic> json) {
   final type = json['type'] as String;
   return switch (type) {
-    'multiple-choice' => MultipleChoice(
+    'multiple-choice' || 'multiple_choice' => MultipleChoice(
         (json['options'] as List<dynamic>).cast<String>(),
       ),
-    'fill-blank' => const FillBlank(),
+    'fill-blank' || 'fill_blank' => const FillBlank(),
     'qa' => const FreeForm(),
     _ => () {
-        // Log warning for observability when backend adds new types.
         developer.log(
           'Unknown question type "$type", falling back to FreeForm',
-          name: 'soliplex_client.mappers',
+          name: 'soliplex_client.quiz',
           level: 900, // Warning level
         );
         return const FreeForm();
@@ -195,12 +194,21 @@ Quiz quizFromJson(Map<String, dynamic> json) {
 /// Creates a [QuizAnswerResult] from JSON.
 QuizAnswerResult quizAnswerResultFromJson(Map<String, dynamic> json) {
   final correct = json['correct'] as String;
-  return QuizAnswerResult(
-    isCorrect: switch (correct) {
-      'true' => true,
-      'false' => false,
-      _ => throw FormatException('Invalid correct value: $correct'),
-    },
-    expectedAnswer: json['expected_output'] as String,
-  );
+  final expectedOutput = json['expected_output'] as String?;
+
+  return switch (correct) {
+    'true' => const CorrectAnswer(),
+    'false' => IncorrectAnswer(
+        expectedAnswer: expectedOutput ??
+            () {
+              developer.log(
+                'Missing expected_output for incorrect answer',
+                name: 'soliplex_client.quiz',
+                level: 900, // Warning level
+              );
+              return '(correct answer not provided)';
+            }(),
+      ),
+    _ => throw FormatException('Invalid correct value: $correct'),
+  };
 }
