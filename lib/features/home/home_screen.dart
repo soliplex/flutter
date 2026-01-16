@@ -138,15 +138,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       debugPrint('HomeScreen: Auth error: ${e.message}');
       if (mounted) {
         setState(
-          () => _error = 'Access denied. This server may require credentials.',
+          () => _error = 'Access denied. The server rejected the connection.',
         );
       }
     } on NotFoundException catch (e) {
       debugPrint('HomeScreen: Not found: ${e.message}');
       if (mounted) {
         setState(
-          () => _error = 'Server found but login endpoint missing. '
-              'Is this a Soliplex backend?',
+          () => _error = 'Server reached, but login endpoint not found. '
+              'Please verify the URL.',
         );
       }
     } on CancelledException {
@@ -160,18 +160,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         setState(() {
           _error = e.isTimeout
               ? 'Request timed out. Please try again.'
-              : 'Cannot reach server. Check the URL and try again.';
+              : 'Cannot reach server. '
+                  'Verify the URL is correct and the server is running.';
         });
       }
     } on ApiException catch (e) {
       debugPrint('HomeScreen: API error: ${e.statusCode} - ${e.message}');
       if (mounted) {
-        setState(() => _error = 'Server error: ${e.statusCode}');
+        setState(
+          () => _error = 'Server error (${e.statusCode}). '
+              'Please try again later or verify the backend URL is correct.',
+        );
       }
     } on Exception catch (e) {
       debugPrint('HomeScreen: Unexpected exception: ${e.runtimeType} - $e');
       if (mounted) {
-        setState(() => _error = 'Connection failed. Please try again.');
+        setState(() => _error = 'Connection failed: $e');
       }
     } finally {
       if (mounted) {
