@@ -1,8 +1,20 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 
 const _baseUrlKey = 'backend_base_url';
+
+/// Returns the default backend URL based on platform.
+///
+/// Web: Uses same origin as the client (Uri.base.origin)
+/// Native: Uses localhost:8000
+String defaultBaseUrl() {
+  if (kIsWeb) {
+    return Uri.base.origin;
+  }
+  return 'http://localhost:8000';
+}
 
 /// Initial config loaded before app starts.
 ///
@@ -27,8 +39,7 @@ Future<void> initializeConfig() async {
 class ConfigNotifier extends Notifier<AppConfig> {
   @override
   AppConfig build() {
-    return _preloadedConfig ??
-        const AppConfig(baseUrl: 'http://localhost:8000');
+    return _preloadedConfig ?? AppConfig(baseUrl: defaultBaseUrl());
   }
 
   /// Update the backend URL and persist to storage.

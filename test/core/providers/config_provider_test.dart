@@ -123,4 +123,12 @@ void main() {
       await initializeConfig();
     });
   });
+
+  group('defaultBaseUrl', () {
+    test('returns localhost URL on native platforms', () {
+      // Tests run as native Dart, so this tests the native branch.
+      // Web behavior (Uri.base.origin) is tested via web build integration.
+      expect(defaultBaseUrl(), 'http://localhost:8000');
+    });
+  });
 }
