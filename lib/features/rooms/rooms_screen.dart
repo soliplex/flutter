@@ -1,13 +1,36 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/features/rooms/widgets/room_grid_card.dart';
+import 'package:soliplex_frontend/features/rooms/widgets/room_list_tile.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 import 'package:soliplex_frontend/shared/widgets/loading_indicator.dart';
+
+final isGridViewProvider = StateProvider<bool>((ref) => false);
+
+final roomSearchQueryProvider = StateProvider<String>((ref) => '');
+
+final filteredRoomsProvider = Provider<AsyncValue<List<Room>>>((ref) {
+  final roomsAsync = ref.watch(roomsProvider);
+  final query = ref.watch(roomSearchQueryProvider).toLowerCase().trim();
+
+  return roomsAsync.whenData((rooms) {
+    if (query.isEmpty) return rooms;
+
+    return rooms.where((room) {
+      return room.name.toLowerCase().contains(query) ||
+          (room.hasDescription &&
+              room.description.toLowerCase().contains(query));
+    }).toList();
+  });
+});
 
 /// Screen displaying list of available rooms.
 ///
@@ -17,14 +40,16 @@ class RoomsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final roomsAsync = ref.watch(roomsProvider);
+    final roomsAsync = ref.watch(filteredRoomsProvider);
+    final isGridView = ref.watch(isGridViewProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final isMobile = width < SoliplexBreakpoints.tablet;
 
         final maxContentWidth =
-            width >= SoliplexBreakpoints.desktop ? width * 2 / 3 : width;
+            width >= SoliplexBreakpoints.desktop ? width * 2 / 3 : width - 32;
 
         return Align(
           alignment: AlignmentDirectional.topCenter,
@@ -32,39 +57,114 @@ class RoomsScreen extends ConsumerWidget {
             constraints: BoxConstraints(
               maxWidth: maxContentWidth,
             ),
-            child: roomsAsync.when(
-              data: (rooms) {
-                if (rooms.isEmpty) {
-                  return const EmptyState(
-                    message: 'No rooms available',
-                    icon: Icons.meeting_room_outlined,
-                  );
-                }
+            child: Column(
+              spacing: SoliplexSpacing.s4,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(
+                    top: SoliplexSpacing.s4,
+                    bottom: SoliplexSpacing.s2,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: isMobile
+                        ? MainAxisAlignment.center
+                        : MainAxisAlignment.spaceBetween,
+                    spacing: SoliplexSpacing.s2,
+                    children: [
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxWidth: 450,
+                        ),
+                        child: TextField(
+                          decoration: InputDecoration(
+                            hintText: 'Search rooms...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: ref
+                                    .watch(roomSearchQueryProvider)
+                                    .isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      ref
+                                          .read(
+                                            roomSearchQueryProvider.notifier,
+                                          )
+                                          .state = '';
+                                    },
+                                  )
+                                : null,
+                            border: const OutlineInputBorder(),
+                            isDense: true,
+                          ),
+                          onChanged: (value) {
+                            ref.read(roomSearchQueryProvider.notifier).state =
+                                value;
+                          },
+                        ),
+                      ),
+                      if (!isMobile)
+                        IconButton.filledTonal(
+                          icon: Icon(
+                            isGridView ? Icons.view_list : Icons.grid_view,
+                          ),
+                          onPressed: () {
+                            ref.read(isGridViewProvider.notifier).state =
+                                !isGridView;
+                          },
+                          tooltip: isGridView ? 'Show as list' : 'Show as grid',
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: roomsAsync.when(
+                    data: (rooms) {
+                      if (rooms.isEmpty) {
+                        return const EmptyState(
+                          message: 'No rooms available',
+                          icon: Icons.meeting_room_outlined,
+                        );
+                      }
 
-                return ListView.builder(
-                  itemCount: rooms.length,
-                  itemBuilder: (context, index) {
-                    final room = rooms[index];
-                    return ListTile(
-                      leading: const Icon(Icons.meeting_room),
-                      title: Text(room.name),
-                      subtitle:
-                          room.hasDescription ? Text(room.description) : null,
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () {
-                        ref.read(currentRoomIdProvider.notifier).set(room.id);
-                        context.push('/rooms/${room.id}');
-                      },
-                    );
-                  },
-                );
-              },
-              loading: () =>
-                  const LoadingIndicator(message: 'Loading rooms...'),
-              error: (error, stack) => ErrorDisplay(
-                error: error,
-                onRetry: () => ref.invalidate(roomsProvider),
-              ),
+                      if (isGridView && !isMobile) {
+                        return GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                            maxCrossAxisExtent: 300,
+                            childAspectRatio: 3 / 2,
+                            crossAxisSpacing: 10,
+                            mainAxisSpacing: 10,
+                          ),
+                          itemCount: rooms.length + 1,
+                          itemBuilder: (context, index) => index == rooms.length
+                              ? RoomGridCard.ghost(context: context)
+                              : RoomGridCard(room: rooms[index]),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: rooms.length + 1,
+                        itemBuilder: (context, index) {
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: SoliplexSpacing.s1,
+                            ),
+                            child: index == rooms.length
+                                ? RoomListTile.ghost(context: context)
+                                : RoomListTile(room: rooms[index]),
+                          );
+                        },
+                      );
+                    },
+                    loading: () =>
+                        const LoadingIndicator(message: 'Loading rooms...'),
+                    error: (error, stack) => ErrorDisplay(
+                      error: error,
+                      onRetry: () => ref.invalidate(roomsProvider),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         );
