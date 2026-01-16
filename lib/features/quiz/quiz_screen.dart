@@ -247,7 +247,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       child: Column(
         children: options.map((option) {
           final isSelected = selectedOption == option;
-          final isCorrect = answeredResult?.expectedAnswer == option;
+          final isCorrect = switch (answeredResult) {
+            CorrectAnswer() => isSelected, // selected option is correct
+            IncorrectAnswer(:final expectedAnswer) =>
+              expectedAnswer.trim().toLowerCase() ==
+                  option.trim().toLowerCase(),
+            _ => false,
+          };
           final isWrong =
               answeredResult != null && isSelected && !answeredResult.isCorrect;
 
@@ -375,10 +381,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                   isCorrect ? 'Correct!' : 'Incorrect',
                   style: textTheme.titleMedium?.copyWith(color: contentColor),
                 ),
-                if (!isCorrect) ...[
+                if (result case IncorrectAnswer(:final expectedAnswer)) ...[
                   const SizedBox(height: SoliplexSpacing.s1),
                   Text(
-                    'Expected: ${result.expectedAnswer}',
+                    'Expected: $expectedAnswer',
                     style: textTheme.bodyMedium?.copyWith(color: contentColor),
                   ),
                 ],
@@ -534,6 +540,20 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Something went wrong: $e\nPlease try again.'),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Quiz submit failed: $e');
+      debugPrint(stackTrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Unexpected error: $e'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _submitAnswer,
+            ),
           ),
         );
       }
