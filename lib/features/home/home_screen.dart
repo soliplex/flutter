@@ -188,12 +188,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final soliplexTheme = SoliplexTheme.of(context);
-    final config = ref.watch(configProvider);
-
-    // Update text field if config changes externally
-    if (_urlController.text != config.baseUrl && !_isConnecting) {
-      _urlController.text = config.baseUrl;
-    }
 
     return Center(
       child: SingleChildScrollView(
