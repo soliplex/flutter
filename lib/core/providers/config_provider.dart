@@ -7,13 +7,17 @@ const _baseUrlKey = 'backend_base_url';
 
 /// Returns the default backend URL based on platform.
 ///
-/// Web: Uses same origin as the client (Uri.base.origin)
-/// Native: Uses localhost:8000
+/// Native: localhost:8000
+/// Web + localhost/127.0.0.1: localhost:8000 (local dev server)
+/// Web + production: same origin as client
 String defaultBaseUrl() {
-  if (kIsWeb) {
-    return Uri.base.origin;
+  if (!kIsWeb) return 'http://localhost:8000';
+
+  final host = Uri.base.host;
+  if (host == 'localhost' || host == '127.0.0.1') {
+    return 'http://localhost:8000';
   }
-  return 'http://localhost:8000';
+  return Uri.base.origin;
 }
 
 /// Initial config loaded before app starts.
