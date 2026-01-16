@@ -166,7 +166,7 @@ final class FreeForm extends QuestionType {
 /// Note: The correct answer is intentionally not included in this model.
 /// The backend returns it, but exposing it to UI code would defeat the
 /// purpose of a quiz. Users see the correct answer only after submitting
-/// via [QuizAnswerResult.expectedAnswer].
+/// via [IncorrectAnswer.expectedAnswer].
 @immutable
 class QuizQuestion {
   /// Creates a quiz question.
@@ -257,31 +257,53 @@ class Quiz {
 
 /// Result of submitting an answer to a quiz question.
 @immutable
-class QuizAnswerResult {
-  /// Creates an answer result.
-  const QuizAnswerResult({
-    required this.isCorrect,
-    required this.expectedAnswer,
-  });
+sealed class QuizAnswerResult {
+  const QuizAnswerResult();
 
   /// Whether the submitted answer was correct.
-  final bool isCorrect;
+  bool get isCorrect;
+}
+
+/// Result when the submitted answer was correct.
+@immutable
+final class CorrectAnswer extends QuizAnswerResult {
+  /// Creates a correct answer result.
+  const CorrectAnswer();
+
+  @override
+  bool get isCorrect => true;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is CorrectAnswer;
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  String toString() => 'CorrectAnswer()';
+}
+
+/// Result when the submitted answer was incorrect.
+@immutable
+final class IncorrectAnswer extends QuizAnswerResult {
+  /// Creates an incorrect answer result with the expected answer.
+  const IncorrectAnswer({required this.expectedAnswer});
 
   /// The expected correct answer.
   final String expectedAnswer;
 
   @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is QuizAnswerResult &&
-        other.isCorrect == isCorrect &&
-        other.expectedAnswer == expectedAnswer;
-  }
+  bool get isCorrect => false;
 
   @override
-  int get hashCode => Object.hash(isCorrect, expectedAnswer);
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is IncorrectAnswer && other.expectedAnswer == expectedAnswer);
 
   @override
-  String toString() => 'QuizAnswerResult('
-      'isCorrect: $isCorrect, expectedAnswer: $expectedAnswer)';
+  int get hashCode => Object.hash(runtimeType, expectedAnswer);
+
+  @override
+  String toString() => 'IncorrectAnswer(expectedAnswer: $expectedAnswer)';
 }
