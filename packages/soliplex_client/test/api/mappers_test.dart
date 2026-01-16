@@ -690,8 +690,8 @@ void main() {
 
         final result = quizAnswerResultFromJson(json);
 
+        expect(result, isA<CorrectAnswer>());
         expect(result.isCorrect, isTrue);
-        expect(result.expectedAnswer, equals('The correct answer'));
       });
 
       test('parses incorrect answer', () {
@@ -702,8 +702,26 @@ void main() {
 
         final result = quizAnswerResultFromJson(json);
 
+        expect(result, isA<IncorrectAnswer>());
         expect(result.isCorrect, isFalse);
-        expect(result.expectedAnswer, equals('The correct answer'));
+        expect(
+          (result as IncorrectAnswer).expectedAnswer,
+          equals('The correct answer'),
+        );
+      });
+
+      test('handles missing expected_output for incorrect answer', () {
+        final json = <String, dynamic>{
+          'correct': 'false',
+        };
+
+        final result = quizAnswerResultFromJson(json);
+
+        expect(result, isA<IncorrectAnswer>());
+        expect(
+          (result as IncorrectAnswer).expectedAnswer,
+          equals('(correct answer not provided)'),
+        );
       });
 
       test('throws on invalid correct value', () {

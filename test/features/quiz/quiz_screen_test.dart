@@ -203,10 +203,7 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
-      const result = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'correct',
-      );
+      const result = CorrectAnswer();
       when(() => mockApi.getQuiz('room-1', 'quiz-1'))
           .thenAnswer((_) async => quiz);
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'correct'))
@@ -240,10 +237,7 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
-      const result = QuizAnswerResult(
-        isCorrect: false,
-        expectedAnswer: 'correct answer',
-      );
+      const result = IncorrectAnswer(expectedAnswer: 'correct answer');
       when(() => mockApi.getQuiz('room-1', 'quiz-1'))
           .thenAnswer((_) async => quiz);
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'wrong'))
@@ -276,10 +270,7 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
-      const result = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'answer',
-      );
+      const result = CorrectAnswer();
       when(() => mockApi.getQuiz('room-1', 'quiz-1'))
           .thenAnswer((_) async => quiz);
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
@@ -360,10 +351,7 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
-      const result = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'answer',
-      );
+      const result = CorrectAnswer();
       when(() => mockApi.getQuiz('room-1', 'quiz-1'))
           .thenAnswer((_) async => quiz);
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
@@ -465,13 +453,11 @@ void main() {
           .thenAnswer((_) async => quiz);
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'a1'))
           .thenAnswer(
-        (_) async =>
-            const QuizAnswerResult(isCorrect: true, expectedAnswer: 'a1'),
+        (_) async => const CorrectAnswer(),
       );
       when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q2', 'a2'))
           .thenAnswer(
-        (_) async =>
-            const QuizAnswerResult(isCorrect: false, expectedAnswer: 'correct'),
+        (_) async => const IncorrectAnswer(expectedAnswer: 'correct'),
       );
 
       await tester.pumpWidget(

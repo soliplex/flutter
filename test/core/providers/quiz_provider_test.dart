@@ -224,8 +224,8 @@ void main() {
           quiz: quiz,
           currentIndex: 2,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-            'q2': QuizAnswerResult(isCorrect: false, expectedAnswer: 'B'),
+            'q1': CorrectAnswer(),
+            'q2': IncorrectAnswer(expectedAnswer: 'B'),
           },
           questionState: const AwaitingInput(),
         );
@@ -259,7 +259,7 @@ void main() {
           quiz: quiz,
           currentIndex: 0,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
+            'q1': CorrectAnswer(),
           },
           questionState: const AwaitingInput(),
         );
@@ -325,7 +325,7 @@ void main() {
         final session = QuizCompleted(
           quiz: quiz,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
+            'q1': CorrectAnswer(),
           },
         );
 
@@ -338,9 +338,9 @@ void main() {
         final session = QuizCompleted(
           quiz: quiz,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-            'q2': QuizAnswerResult(isCorrect: false, expectedAnswer: 'B'),
-            'q3': QuizAnswerResult(isCorrect: true, expectedAnswer: 'C'),
+            'q1': CorrectAnswer(),
+            'q2': IncorrectAnswer(expectedAnswer: 'B'),
+            'q3': CorrectAnswer(),
           },
         );
 
@@ -353,15 +353,15 @@ void main() {
         final allCorrect = QuizCompleted(
           quiz: quiz,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-            'q2': QuizAnswerResult(isCorrect: true, expectedAnswer: 'B'),
+            'q1': CorrectAnswer(),
+            'q2': CorrectAnswer(),
           },
         );
         final halfCorrect = QuizCompleted(
           quiz: quiz,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-            'q2': QuizAnswerResult(isCorrect: false, expectedAnswer: 'B'),
+            'q1': CorrectAnswer(),
+            'q2': IncorrectAnswer(expectedAnswer: 'B'),
           },
         );
         final noAnswers = QuizCompleted(quiz: quiz, results: const {});
@@ -380,7 +380,7 @@ void main() {
         final d = QuizCompleted(
           quiz: quiz1,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
+            'q1': CorrectAnswer(),
           },
         );
 
@@ -403,8 +403,8 @@ void main() {
         final session = QuizCompleted(
           quiz: quiz,
           results: const {
-            'q1': QuizAnswerResult(isCorrect: true, expectedAnswer: 'A'),
-            'q2': QuizAnswerResult(isCorrect: false, expectedAnswer: 'B'),
+            'q1': CorrectAnswer(),
+            'q2': IncorrectAnswer(expectedAnswer: 'B'),
           },
         );
 
@@ -483,10 +483,7 @@ void main() {
             QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
           ],
         );
-        const answerResult = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'correct answer',
-        );
+        const answerResult = CorrectAnswer();
         when(
           () => mockApi.submitQuizAnswer(
             testKey.roomId,
@@ -512,8 +509,8 @@ void main() {
             .submitAnswer();
 
         // Assert
+        expect(result, isA<CorrectAnswer>());
         expect(result.isCorrect, isTrue);
-        expect(result.expectedAnswer, 'correct answer');
 
         final session =
             container.read(quizSessionProvider(testKey)) as QuizInProgress;
@@ -637,10 +634,7 @@ void main() {
       });
 
       test('increments currentIndex after answering', () async {
-        const answerResult = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
+        const answerResult = CorrectAnswer();
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer((_) async => answerResult);
@@ -674,10 +668,7 @@ void main() {
       });
 
       test('transitions to QuizCompleted when on last question', () async {
-        const answerResult = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
+        const answerResult = CorrectAnswer();
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer((_) async => answerResult);
@@ -708,10 +699,7 @@ void main() {
       });
 
       test('preserves results when transitioning to QuizCompleted', () async {
-        const answerResult = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
+        const answerResult = CorrectAnswer();
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer((_) async => answerResult);
@@ -802,10 +790,7 @@ void main() {
         late MockSoliplexApi mockApi;
         mockApi = MockSoliplexApi();
 
-        const answerResult = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
+        const answerResult = CorrectAnswer();
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer((_) async => answerResult);
@@ -850,10 +835,7 @@ void main() {
         late MockSoliplexApi mockApi;
         mockApi = MockSoliplexApi();
 
-        const answerResult = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
+        const answerResult = CorrectAnswer();
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer((_) async => answerResult);
@@ -1029,12 +1011,7 @@ void main() {
         expect((submitting.input as TextInput).text, 'original answer');
 
         // Complete the submission
-        completer.complete(
-          const QuizAnswerResult(
-            isCorrect: true,
-            expectedAnswer: 'original answer',
-          ),
-        );
+        completer.complete(const CorrectAnswer());
         await submitFuture;
 
         // Verify final state shows original answer, not changed
@@ -1049,8 +1026,7 @@ void main() {
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer(
-          (_) async =>
-              const QuizAnswerResult(isCorrect: true, expectedAnswer: 'answer'),
+          (_) async => const CorrectAnswer(),
         );
 
         final container = ProviderContainer(
@@ -1172,7 +1148,7 @@ void main() {
 
         // Cleanup
         completer.complete(
-          const QuizAnswerResult(isCorrect: true, expectedAnswer: 'answer'),
+          const CorrectAnswer(),
         );
       });
 
@@ -1180,8 +1156,7 @@ void main() {
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
         ).thenAnswer(
-          (_) async =>
-              const QuizAnswerResult(isCorrect: true, expectedAnswer: 'answer'),
+          (_) async => const CorrectAnswer(),
         );
 
         final container = ProviderContainer(
@@ -1273,7 +1248,7 @@ void main() {
 
         // Complete the API call
         completer.complete(
-          const QuizAnswerResult(isCorrect: true, expectedAnswer: 'answer'),
+          const CorrectAnswer(),
         );
 
         // Await should complete without throwing
@@ -1290,10 +1265,7 @@ void main() {
 
     test('isolates state per quiz key', () async {
       final mockApi = MockSoliplexApi();
-      const answerResult = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'A',
-      );
+      const answerResult = CorrectAnswer();
       when(
         () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
       ).thenAnswer((_) async => answerResult);

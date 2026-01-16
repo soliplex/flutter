@@ -407,82 +407,72 @@ void main() {
   });
 
   group('QuizAnswerResult', () {
-    test('creates correct result', () {
-      const result = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'The answer',
-      );
+    group('CorrectAnswer', () {
+      test('creates correct result', () {
+        const result = CorrectAnswer();
 
-      expect(result.isCorrect, isTrue);
-      expect(result.expectedAnswer, equals('The answer'));
+        expect(result.isCorrect, isTrue);
+      });
+
+      test('equality', () {
+        const result1 = CorrectAnswer();
+        const result2 = CorrectAnswer();
+
+        expect(result1, equals(result2));
+        expect(result1 == result1, isTrue); // identical
+      });
+
+      test('hashCode consistent', () {
+        const result1 = CorrectAnswer();
+        const result2 = CorrectAnswer();
+
+        expect(result1.hashCode, equals(result2.hashCode));
+      });
+
+      test('toString', () {
+        const result = CorrectAnswer();
+
+        expect(result.toString(), equals('CorrectAnswer()'));
+      });
     });
 
-    test('creates incorrect result', () {
-      const result = QuizAnswerResult(
-        isCorrect: false,
-        expectedAnswer: 'The answer',
-      );
+    group('IncorrectAnswer', () {
+      test('creates incorrect result with expected answer', () {
+        const result = IncorrectAnswer(expectedAnswer: 'The answer');
 
-      expect(result.isCorrect, isFalse);
-      expect(result.expectedAnswer, equals('The answer'));
-    });
+        expect(result.isCorrect, isFalse);
+        expect(result.expectedAnswer, equals('The answer'));
+      });
 
-    group('equality', () {
-      test('equal based on all fields', () {
-        const result1 = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
-        const result2 = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
-        const result3 = QuizAnswerResult(
-          isCorrect: false,
-          expectedAnswer: 'A',
-        );
-        const result4 = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'B',
-        );
+      test('equality based on expectedAnswer', () {
+        const result1 = IncorrectAnswer(expectedAnswer: 'A');
+        const result2 = IncorrectAnswer(expectedAnswer: 'A');
+        const result3 = IncorrectAnswer(expectedAnswer: 'B');
 
         expect(result1, equals(result2));
         expect(result1, isNot(equals(result3)));
-        expect(result1, isNot(equals(result4)));
+        expect(result1 == result1, isTrue); // identical
       });
 
-      test('identical returns true', () {
-        const result = QuizAnswerResult(
-          isCorrect: true,
-          expectedAnswer: 'A',
-        );
-        expect(result == result, isTrue);
+      test('hashCode consistent', () {
+        const result1 = IncorrectAnswer(expectedAnswer: 'A');
+        const result2 = IncorrectAnswer(expectedAnswer: 'A');
+
+        expect(result1.hashCode, equals(result2.hashCode));
+      });
+
+      test('toString includes expectedAnswer', () {
+        const result = IncorrectAnswer(expectedAnswer: 'The answer');
+
+        expect(result.toString(), contains('The answer'));
       });
     });
 
-    test('hashCode consistent', () {
-      const result1 = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'A',
-      );
-      const result2 = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'A',
-      );
+    test('CorrectAnswer and IncorrectAnswer are not equal', () {
+      const correct = CorrectAnswer();
+      const incorrect = IncorrectAnswer(expectedAnswer: 'A');
 
-      expect(result1.hashCode, equals(result2.hashCode));
-    });
-
-    test('toString includes isCorrect and expectedAnswer', () {
-      const result = QuizAnswerResult(
-        isCorrect: true,
-        expectedAnswer: 'The answer',
-      );
-
-      final str = result.toString();
-
-      expect(str, contains('true'));
-      expect(str, contains('The answer'));
+      expect(correct, isNot(equals(incorrect)));
     });
   });
 }
