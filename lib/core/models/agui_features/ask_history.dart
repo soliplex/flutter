@@ -29,20 +29,20 @@ class AskHistory {
   });
 
   factory AskHistory.fromJson(Map<String, dynamic> json) => AskHistory(
-    questions: json["questions"] == null
-        ? []
-        : List<QuestionResponseCitations>.from(
-            json["questions"]!.map(
-              (x) => QuestionResponseCitations.fromJson(x),
-            ),
-          ),
-  );
+        questions: json["questions"] == null
+            ? []
+            : List<QuestionResponseCitations>.from(
+                json["questions"]!.map(
+                  (x) => QuestionResponseCitations.fromJson(x),
+                ),
+              ),
+      );
 
   Map<String, dynamic> toJson() => {
-    "questions": questions == null
-        ? []
-        : List<dynamic>.from(questions!.map((x) => x.toJson())),
-  };
+        "questions": questions == null
+            ? []
+            : List<dynamic>.from(questions!.map((x) => x.toJson())),
+      };
 }
 
 ///Single question to the 'ask_with_rich_citations' tool
@@ -71,12 +71,12 @@ class QuestionResponseCitations {
       );
 
   Map<String, dynamic> toJson() => {
-    "citations": citations == null
-        ? []
-        : List<dynamic>.from(citations!.map((x) => x.toJson())),
-    "question": question,
-    "response": response,
-  };
+        "citations": citations == null
+            ? []
+            : List<dynamic>.from(citations!.map((x) => x.toJson())),
+        "question": question,
+        "response": response,
+      };
 }
 
 ///Resolved citation with full metadata for display/visual grounding.
@@ -100,30 +100,29 @@ class Citation {
   });
 
   factory Citation.fromJson(Map<String, dynamic> json) => Citation(
-    chunkId: json["chunk_id"],
-    content: json["content"],
-    documentId: json["document_id"],
-    documentTitle: json["document_title"],
-    documentUri: json["document_uri"],
-    headings: json["headings"] == null
-        ? []
-        : List<String>.from(json["headings"]!.map((x) => x)),
-    pageNumbers: json["page_numbers"] == null
-        ? []
-        : List<int>.from(json["page_numbers"]!.map((x) => x)),
-  );
+        chunkId: json["chunk_id"],
+        content: json["content"],
+        documentId: json["document_id"],
+        documentTitle: json["document_title"],
+        documentUri: json["document_uri"],
+        headings: json["headings"] == null
+            ? []
+            : List<String>.from(json["headings"]!.map((x) => x)),
+        pageNumbers: json["page_numbers"] == null
+            ? []
+            : List<int>.from(json["page_numbers"]!.map((x) => x)),
+      );
 
   Map<String, dynamic> toJson() => {
-    "chunk_id": chunkId,
-    "content": content,
-    "document_id": documentId,
-    "document_title": documentTitle,
-    "document_uri": documentUri,
-    "headings": headings == null
-        ? []
-        : List<dynamic>.from(headings!.map((x) => x)),
-    "page_numbers": pageNumbers == null
-        ? []
-        : List<dynamic>.from(pageNumbers!.map((x) => x)),
-  };
+        "chunk_id": chunkId,
+        "content": content,
+        "document_id": documentId,
+        "document_title": documentTitle,
+        "document_uri": documentUri,
+        "headings":
+            headings == null ? [] : List<dynamic>.from(headings!.map((x) => x)),
+        "page_numbers": pageNumbers == null
+            ? []
+            : List<dynamic>.from(pageNumbers!.map((x) => x)),
+      };
 }

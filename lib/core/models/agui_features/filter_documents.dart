@@ -40,8 +40,8 @@ class FilterDocuments {
       );
 
   Map<String, dynamic> toJson() => {
-    "document_ids": documentIds == null
-        ? []
-        : List<dynamic>.from(documentIds!.map((x) => x)),
-  };
+        "document_ids": documentIds == null
+            ? []
+            : List<dynamic>.from(documentIds!.map((x) => x)),
+      };
 }
