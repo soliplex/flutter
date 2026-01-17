@@ -277,11 +277,8 @@ class ChatMessageWidget extends StatelessWidget {
     try {
       await Clipboard.setData(ClipboardData(text: text));
       showSnackBar('Copied to clipboard');
-    } on PlatformException catch (e) {
-      debugPrint('Clipboard copy failed: $e');
-      showSnackBar('Could not copy to clipboard');
-    } catch (e) {
-      debugPrint('Clipboard copy failed unexpectedly: $e');
+    } on PlatformException catch (e, stackTrace) {
+      debugPrint('Clipboard copy failed: $e\n$stackTrace');
       showSnackBar('Could not copy to clipboard');
     }
   }
