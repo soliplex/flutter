@@ -38,6 +38,7 @@ class RoomListTile extends StatefulWidget {
             spacing: SoliplexSpacing.s2,
             children: [
               const Icon(Icons.add, size: 48, color: Colors.grey),
+              const SizedBox(width: SoliplexSpacing.s2),
               Text(
                 'New Room',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(
