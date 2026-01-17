@@ -179,7 +179,7 @@ class ChatMessageWidget extends StatelessWidget {
                 tooltip: 'View previous edit',
                 icon: Icons.chevron_left,
                 onTap: () {
-                  // TODO: Implement branch selection logic
+                  // TODO(chat): Implement branch selection logic
                 },
               ),
             if (selectedBranch < totalBranches)
@@ -187,7 +187,7 @@ class ChatMessageWidget extends StatelessWidget {
                 tooltip: 'View next edit',
                 icon: Icons.chevron_right,
                 onTap: () {
-                  // TODO: Implement branch selection logic
+                  // TODO(chat): Implement branch selection logic
                 },
               ),
           ],
@@ -195,7 +195,7 @@ class ChatMessageWidget extends StatelessWidget {
             tooltip: 'Edit message',
             icon: Icons.edit,
             onTap: () {
-              // TODO: Implement edit message logic
+              // TODO(chat): Implement edit message logic
             },
           ),
         ],
@@ -226,7 +226,7 @@ class ChatMessageWidget extends StatelessWidget {
             tooltip: 'Regenerate response',
             icon: Icons.repeat,
             onTap: () {
-              // TODO: Implement regeneration logic
+              // TODO(chat): Implement regeneration logic
             },
           ),
           if (totalBranches != 0) ...[
@@ -235,7 +235,7 @@ class ChatMessageWidget extends StatelessWidget {
                 tooltip: 'View previous response',
                 icon: Icons.chevron_left,
                 onTap: () {
-                  // TODO: Implement branch selection logic
+                  // TODO(chat): Implement branch selection logic
                 },
               ),
             if (selectedBranch < totalBranches)
@@ -243,7 +243,7 @@ class ChatMessageWidget extends StatelessWidget {
                 tooltip: 'View next response',
                 icon: Icons.chevron_right,
                 onTap: () {
-                  // TODO: Implement branch selection logic
+                  // TODO(chat): Implement branch selection logic
                 },
               ),
           ],
@@ -251,14 +251,14 @@ class ChatMessageWidget extends StatelessWidget {
             tooltip: 'Mark as helpful',
             icon: Icons.thumb_up,
             onTap: () {
-              // TODO: Implement feedback logic
+              // TODO(chat): Implement feedback logic
             },
           ),
           _ActionButton(
             tooltip: 'Mark as unhelpful',
             icon: Icons.thumb_down,
             onTap: () {
-              // TODO: Implement feedback logic
+              // TODO(chat): Implement feedback logic
             },
           ),
         ],
