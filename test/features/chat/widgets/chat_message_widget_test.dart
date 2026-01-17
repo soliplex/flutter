@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -7,6 +8,23 @@ import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart
 import '../../../helpers/test_helpers.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    // Mock clipboard for tests
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (message) async {
+      if (message.method == 'Clipboard.setData') {
+        return null;
+      }
+      return null;
+    });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
   group('ChatMessageWidget', () {
     group('User Messages', () {
       testWidgets('displays user message with right alignment', (tester) async {
@@ -305,6 +323,109 @@ void main() {
 
         // Assert
         expect(find.text('Something went wrong'), findsOneWidget);
+      });
+    });
+
+    group('Action Buttons', () {
+      testWidgets('user message shows copy and edit buttons', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(text: 'Hello');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // Assert
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+        expect(find.byIcon(Icons.edit), findsOneWidget);
+        expect(find.byIcon(Icons.repeat), findsNothing);
+        expect(find.byIcon(Icons.thumb_up), findsNothing);
+      });
+
+      testWidgets('agent message shows copy, regenerate, and feedback buttons',
+          (
+        tester,
+      ) async {
+        // Arrange
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: 'Hello',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // Assert
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+        expect(find.byIcon(Icons.repeat), findsOneWidget);
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+        expect(find.byIcon(Icons.thumb_down), findsOneWidget);
+        expect(find.byIcon(Icons.edit), findsNothing);
+      });
+
+      testWidgets('agent message hides action buttons while streaming', (
+        tester,
+      ) async {
+        // Arrange
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: 'Thinking...',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: message, isStreaming: true),
+            ),
+          ),
+        );
+
+        // Assert - no action buttons while streaming
+        expect(find.byIcon(Icons.copy), findsNothing);
+        expect(find.byIcon(Icons.repeat), findsNothing);
+        expect(find.byIcon(Icons.thumb_up), findsNothing);
+      });
+
+      testWidgets('copy button shows success snackbar', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(text: 'Copy me');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.copy));
+        await tester.pump(); // Allow async clipboard operation to complete
+        await tester.pump(); // Allow snackbar to appear
+
+        // Assert
+        expect(find.text('Copied to clipboard'), findsOneWidget);
+      });
+
+      testWidgets('action buttons have tooltips', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(text: 'Test');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // Assert - verify Tooltip widgets exist
+        expect(find.byType(Tooltip), findsWidgets);
       });
     });
 

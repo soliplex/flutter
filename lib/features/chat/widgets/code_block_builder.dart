@@ -14,17 +14,16 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final code = element.textContent;
-    var language = '';
+    var language = 'plaintext';
 
     // Get language from class attribute (e.g., "language-dart")
-    if (element.attributes['class'] != null) {
-      final className = element.attributes['class']!;
+    final className = element.attributes['class'];
+    if (className != null && className.startsWith('language-')) {
       language = className.replaceFirst('language-', '');
     }
 
-    final semanticLabel = language.isEmpty || language == 'plaintext'
-        ? 'Code block'
-        : 'Code block in $language';
+    final semanticLabel =
+        language == 'plaintext' ? 'Code block' : 'Code block in $language';
 
     return Semantics(
       label: semanticLabel,
@@ -32,10 +31,10 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
         padding: const EdgeInsets.all(12),
         child: HighlightView(
           code,
-          language: language.isEmpty ? 'plaintext' : language,
+          language: language,
           theme: githubTheme,
           padding: EdgeInsets.zero,
-          textStyle: preferredStyle,
+          textStyle: this.preferredStyle,
         ),
       ),
     );

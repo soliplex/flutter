@@ -104,13 +104,11 @@ class ChatMessageWidget extends StatelessWidget {
           if (isUser)
             _buildUserMessageActionsRow(
               context,
-              theme,
               messageText: text,
             )
           else if (!isUser && !isStreaming)
             _buildAgentMessageActionsRow(
               context,
-              theme,
               messageText: text,
             ),
         ],
@@ -156,8 +154,7 @@ class ChatMessageWidget extends StatelessWidget {
   // Revisit when: reused elsewhere, needs own state, or branching logic grows.
 
   Widget _buildUserMessageActionsRow(
-    BuildContext context,
-    ThemeData theme, {
+    BuildContext context, {
     required String messageText,
     int selectedBranch = 0,
     int totalBranches = 0,
@@ -207,8 +204,7 @@ class ChatMessageWidget extends StatelessWidget {
   }
 
   Widget _buildAgentMessageActionsRow(
-    BuildContext context,
-    ThemeData theme, {
+    BuildContext context, {
     required String messageText,
     int selectedBranch = 0,
     int totalBranches = 0,
@@ -271,19 +267,22 @@ class ChatMessageWidget extends StatelessWidget {
   }
 
   Future<void> _copyToClipboard(BuildContext context, String text) async {
+    void showSnackBar(String message) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    }
+
     try {
       await Clipboard.setData(ClipboardData(text: text));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Copied to clipboard')),
-        );
-      }
-    } on PlatformException {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not copy to clipboard')),
-        );
-      }
+      showSnackBar('Copied to clipboard');
+    } on PlatformException catch (e) {
+      debugPrint('Clipboard copy failed: $e');
+      showSnackBar('Could not copy to clipboard');
+    } catch (e) {
+      debugPrint('Clipboard copy failed unexpectedly: $e');
+      showSnackBar('Could not copy to clipboard');
     }
   }
 
