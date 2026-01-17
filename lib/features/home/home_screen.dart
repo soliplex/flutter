@@ -46,6 +46,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  void _setError(String detail, {String? serverDetail}) {
+    if (!mounted) return;
+    setState(() {
+      _error =
+          serverDetail != null ? '$detail\n\nDetails: $serverDetail' : detail;
+    });
+  }
+
   String? _validateUrl(String? value) {
     if (value == null || value.trim().isEmpty) {
       return 'Please enter a server URL';
@@ -136,47 +144,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     } on AuthException catch (e) {
       debugPrint('HomeScreen: Auth error: ${e.message}');
-      if (mounted) {
-        setState(
-          () => _error = 'Access denied. The server rejected the connection.',
-        );
-      }
+      final detail = e.statusCode == 401
+          ? 'Authentication required. This server requires login credentials. '
+              '(${e.statusCode})'
+          : 'Access denied by server. The server may require additional '
+              'configuration or may be blocking this connection. '
+              '(${e.statusCode})';
+      _setError(detail, serverDetail: e.serverMessage);
     } on NotFoundException catch (e) {
       debugPrint('HomeScreen: Not found: ${e.message}');
-      if (mounted) {
-        setState(
-          () => _error = 'Server reached, but login endpoint not found. '
-              'Please verify the URL.',
-        );
-      }
-    } on CancelledException {
+      const detail = 'Server reached, but the expected API endpoint was not '
+          'found. The server version may be incompatible. (404)';
+      _setError(detail, serverDetail: e.serverMessage);
+    } on CancelledException catch (e) {
       debugPrint('HomeScreen: Request cancelled');
-      if (mounted) {
-        setState(() => _error = 'Request cancelled.');
-      }
+      final detail = e.reason != null
+          ? 'Request cancelled: ${e.reason}'
+          : 'Request cancelled.';
+      _setError(detail);
     } on NetworkException catch (e) {
       debugPrint('HomeScreen: Network error: ${e.message}');
-      if (mounted) {
-        setState(() {
-          _error = e.isTimeout
-              ? 'Request timed out. Please try again.'
-              : 'Cannot reach server. '
-                  'Verify the URL is correct and the server is running.';
-        });
-      }
+      final detail = e.isTimeout
+          ? 'Connection timed out. The server may be slow or unreachable.'
+          : 'Cannot reach server. Check the URL and your network connection.';
+      _setError(detail, serverDetail: e.isTimeout ? null : e.message);
     } on ApiException catch (e) {
       debugPrint('HomeScreen: API error: ${e.statusCode} - ${e.message}');
-      if (mounted) {
-        setState(
-          () => _error = 'Server error (${e.statusCode}). '
-              'Please try again later or verify the backend URL is correct.',
-        );
-      }
+      final detail = e.statusCode >= 500
+          ? 'Server error. Please try again later. (${e.statusCode})'
+          : 'Unexpected response from server. (${e.statusCode})';
+      _setError(detail, serverDetail: e.serverMessage);
     } on Exception catch (e) {
       debugPrint('HomeScreen: Unexpected exception: ${e.runtimeType} - $e');
-      if (mounted) {
-        setState(() => _error = 'Connection failed: $e');
-      }
+      _setError('Connection failed: $e');
     } finally {
       if (mounted) {
         setState(() => _isConnecting = false);

@@ -225,20 +225,30 @@ class HttpTransport {
     }
 
     final body = response.body;
-    final message = _extractErrorMessage(body) ?? 'HTTP $statusCode';
+    final serverMessage = _extractErrorMessage(body);
+    final message = serverMessage ?? 'HTTP $statusCode';
 
     if (statusCode == 401 || statusCode == 403) {
-      throw AuthException(message: message, statusCode: statusCode);
+      throw AuthException(
+        message: message,
+        statusCode: statusCode,
+        serverMessage: serverMessage,
+      );
     }
 
     if (statusCode == 404) {
-      throw NotFoundException(message: message, resource: uri.path);
+      throw NotFoundException(
+        message: message,
+        resource: uri.path,
+        serverMessage: serverMessage,
+      );
     }
 
     // All other 4xx and 5xx errors
     throw ApiException(
       message: message,
       statusCode: statusCode,
+      serverMessage: serverMessage,
       body: body.isNotEmpty ? body : null,
     );
   }
