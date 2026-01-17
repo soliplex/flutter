@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -11,74 +11,10 @@ import 'package:soliplex_frontend/core/providers/config_provider.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _showUrlEditDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String currentUrl,
-  ) async {
-    final controller = TextEditingController(text: currentUrl);
-    final formKey = GlobalKey<FormState>();
-
-    final newUrl = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Backend URL'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'URL',
-              hintText: 'http://localhost:8000',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.url,
-            autofocus: true,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter a URL';
-              }
-              final trimmed = value.trim();
-              if (!trimmed.startsWith('http://') &&
-                  !trimmed.startsWith('https://')) {
-                return 'URL must start with http:// or https://';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.of(context).pop(controller.text.trim());
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    controller.dispose();
-
-    if (newUrl != null && newUrl != currentUrl) {
-      await ref.read(configProvider.notifier).setBaseUrl(newUrl);
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Backend URL updated')));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configProvider);
+    final packageInfo = ref.watch(packageInfoProvider);
     final authState = ref.watch(authProvider);
 
     return ListView(
@@ -86,14 +22,12 @@ class SettingsScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('App Version'),
-          subtitle: Text(config.version),
+          subtitle: Text('${packageInfo.version}+${packageInfo.buildNumber}'),
         ),
         ListTile(
           leading: const Icon(Icons.dns),
           title: const Text('Backend URL'),
           subtitle: Text(config.baseUrl),
-          trailing: const Icon(Icons.edit),
-          onTap: () => _showUrlEditDialog(context, ref, config.baseUrl),
         ),
         const Divider(),
         _AuthSection(authState: authState),
@@ -157,7 +91,6 @@ class _AuthSection extends ConsumerWidget {
 
   void _disconnect(BuildContext context, WidgetRef ref) {
     ref.read(authProvider.notifier).exitNoAuthMode();
-    context.go('/');
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
@@ -180,11 +113,6 @@ class _AuthSection extends ConsumerWidget {
     );
 
     if ((confirmed ?? false) && context.mounted) {
-      // Navigate BEFORE signOut - signOut changes auth state which triggers
-      // router redirect. If we're at /settings (non-public), we'd get
-      // redirected to /login. By navigating to / (public) first, the
-      // redirect doesn't kick in.
-      context.go('/');
       await ref.read(authProvider.notifier).signOut();
     }
   }

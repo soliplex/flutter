@@ -107,7 +107,7 @@ Widget _createAppWithRouter({
 
   return UncontrolledProviderScope(
     container: ProviderContainer(overrides: overrides.cast()),
-    child: MaterialApp.router(routerConfig: router),
+    child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
 
@@ -288,6 +288,64 @@ void main() {
         // Should not show error - redirect is expected on web
         expect(find.text('Authentication failed'), findsNothing);
       });
+    });
+  });
+
+  group('Back navigation', () {
+    testWidgets('shows change backend server button', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const LoginScreen(),
+          overrides: [
+            oidcIssuersProvider.overrideWith(
+              (ref) async => [_createIssuer()],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Change server'), findsOneWidget);
+      expect(
+        find.widgetWithText(TextButton, 'Change server'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('change backend server button navigates to home', (
+      tester,
+    ) async {
+      final router = GoRouter(
+        initialLocation: '/login',
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, __) => const Scaffold(body: Text('Home Screen')),
+          ),
+          GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: ProviderContainer(
+            overrides: [
+              oidcIssuersProvider.overrideWith(
+                (ref) async => [_createIssuer()],
+              ),
+            ],
+          ),
+          child: MaterialApp.router(theme: testThemeData, routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Change server'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Home Screen'), findsOneWidget);
     });
   });
 }

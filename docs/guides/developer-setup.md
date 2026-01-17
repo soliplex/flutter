@@ -43,8 +43,10 @@ Your `Local.xcconfig` should contain:
 
 ```text
 DEVELOPMENT_TEAM = YOUR_TEAM_ID_HERE
-CODE_SIGN_IDENTITY = Apple Development
 ```
+
+Both iOS and macOS use Xcode's automatic signing, which selects the correct
+identity based on build type (development vs release).
 
 **Finding your Team ID:**
 
@@ -88,6 +90,36 @@ DEVELOPMENT_TEAM = YOUR_TEAM_ID_HERE
 - **Simulator:** No signing required for debug builds
 - **Physical device:** Requires `Local.xcconfig` with valid `DEVELOPMENT_TEAM`
 
+#### Building for TestFlight/App Store
+
+**CRITICAL:** Use Flutter **stable** channel for production builds. Beta/dev
+channels can produce binaries that fail App Store validation.
+
+```bash
+# Verify you're on stable channel
+flutter channel stable
+flutter upgrade
+
+# Build release IPA
+flutter build ipa --release
+
+# Upload using Transporter app
+open -a Transporter build/ios/ipa/soliplex_frontend.ipa
+
+# Or use command line (requires API key)
+xcrun altool --upload-app --type ios -f build/ios/ipa/soliplex_frontend.ipa \
+  --apiKey YOUR_API_KEY --apiIssuer YOUR_ISSUER_ID
+```
+
+The `flutter build ipa --release` command automatically:
+
+- Uses `Apple Distribution` signing identity
+- Includes debug symbols (dSYM files)
+- Creates properly encrypted binary for App Store submission
+
+**Troubleshooting validation errors:** If you get "binary not built with Apple's
+linker" errors, ensure you're on Flutter stable channel, not beta or dev.
+
 ### Web
 
 No special setup required. Run with:
@@ -104,10 +136,9 @@ flutter run -d chrome
 "Runner" has entitlements that require signing with a development certificate
 ```
 
-**Cause:** Missing `Local.xcconfig` or `CODE_SIGN_IDENTITY` not set.
+**Cause:** Missing `Local.xcconfig` or `DEVELOPMENT_TEAM` not set.
 
-**Fix:** Create `Local.xcconfig` with both `DEVELOPMENT_TEAM` and
-`CODE_SIGN_IDENTITY` as shown above.
+**Fix:** Create `Local.xcconfig` with `DEVELOPMENT_TEAM` as shown above.
 
 ### Keychain errors on macOS
 

@@ -4,6 +4,7 @@ import 'package:soliplex_client/src/application/agui_event_processor.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
+import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -443,6 +444,80 @@ class SoliplexApi {
 
         return DateTime.parse(aCreated).compareTo(DateTime.parse(bCreated));
       });
+  }
+
+  // ============================================================
+  // Quizzes
+  // ============================================================
+
+  /// Gets a quiz by ID.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  /// - [quizId]: The quiz ID (must not be empty)
+  ///
+  /// Returns the [Quiz] with the given ID.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if [roomId] or [quizId] is empty
+  /// - [NotFoundException] if quiz not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<Quiz> getQuiz(
+    String roomId,
+    String quizId, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+    _requireNonEmpty(quizId, 'quizId');
+
+    return _transport.request<Quiz>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['rooms', roomId, 'quiz', quizId]),
+      cancelToken: cancelToken,
+      fromJson: quizFromJson,
+    );
+  }
+
+  /// Submits an answer for a quiz question.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  /// - [quizId]: The quiz ID (must not be empty)
+  /// - [questionId]: The question UUID (must not be empty)
+  /// - [answer]: The user's answer text
+  ///
+  /// Returns a [QuizAnswerResult] indicating if the answer was correct.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if any ID is empty
+  /// - [NotFoundException] if quiz or question not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<QuizAnswerResult> submitQuizAnswer(
+    String roomId,
+    String quizId,
+    String questionId,
+    String answer, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+    _requireNonEmpty(quizId, 'quizId');
+    _requireNonEmpty(questionId, 'questionId');
+
+    return _transport.request<QuizAnswerResult>(
+      'POST',
+      _urlBuilder.build(
+        pathSegments: ['rooms', roomId, 'quiz', quizId, questionId],
+      ),
+      body: {'text': answer},
+      cancelToken: cancelToken,
+      fromJson: quizAnswerResultFromJson,
+    );
   }
 
   // ============================================================

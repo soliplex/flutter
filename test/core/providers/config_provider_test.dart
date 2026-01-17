@@ -18,7 +18,6 @@ void main() {
       final config = container.read(configProvider);
 
       expect(config.baseUrl, 'http://localhost:8000');
-      expect(config.appName, 'Soliplex');
     });
 
     test('setBaseUrl persists URL to SharedPreferences', () async {
@@ -95,17 +94,11 @@ void main() {
       addTearDown(container.dispose);
 
       container.read(configProvider.notifier).set(
-            const AppConfig(
-              baseUrl: 'https://custom.example.com',
-              appName: 'Custom App',
-              version: '2.0.0',
-            ),
+            const AppConfig(baseUrl: 'https://custom.example.com'),
           );
 
       final config = container.read(configProvider);
       expect(config.baseUrl, 'https://custom.example.com');
-      expect(config.appName, 'Custom App');
-      expect(config.version, '2.0.0');
     });
   });
 
@@ -128,6 +121,14 @@ void main() {
 
       // Should not throw
       await initializeConfig();
+    });
+  });
+
+  group('defaultBaseUrl', () {
+    test('returns localhost URL on native platforms', () {
+      // Tests run as native Dart, so this tests the native branch.
+      // Web behavior (Uri.base.origin) is tested via web build integration.
+      expect(defaultBaseUrl(), 'http://localhost:8000');
     });
   });
 }

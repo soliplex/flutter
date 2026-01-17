@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
 
 /// Widget for chat message input.
 ///
@@ -61,17 +62,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     final canSend = ref.watch(canSendMessageProvider);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(SoliplexSpacing.s4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -94,9 +85,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                     hintText: canSend
                         ? 'Type a message...'
                         : 'Select a room to start chatting',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,

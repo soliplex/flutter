@@ -421,30 +421,6 @@ void main() {
     });
 
     group('Visual Styling', () {
-      testWidgets('displays with rounded border', (tester) async {
-        // Arrange
-        final mockRoom = TestData.createRoom();
-        final mockThread = TestData.createThread();
-
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: Scaffold(body: ChatInput(onSend: (_) {})),
-            overrides: [
-              currentRoomProvider.overrideWith((ref) => mockRoom),
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              activeRunNotifierOverride(const IdleState()),
-            ],
-          ),
-        );
-
-        // Assert
-        final textField = tester.widget<TextField>(find.byType(TextField));
-        final decoration = textField.decoration!;
-        final border = decoration.border! as OutlineInputBorder;
-        expect(border.borderRadius, BorderRadius.circular(24));
-      });
-
       testWidgets('send button has primary color when enabled', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();

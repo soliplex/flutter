@@ -515,7 +515,8 @@ void main() {
     });
 
     group('request - exception mapping', () {
-      test('throws AuthException for 401 response', () async {
+      test('throws AuthException for 401 response with server message',
+          () async {
         when(
           () => mockClient.request(
             any(),
@@ -533,7 +534,36 @@ void main() {
           throwsA(
             isA<AuthException>()
                 .having((e) => e.statusCode, 'statusCode', 401)
-                .having((e) => e.message, 'message', 'Unauthorized'),
+                .having((e) => e.message, 'message', 'Unauthorized')
+                .having(
+                  (e) => e.serverMessage,
+                  'serverMessage',
+                  'Unauthorized',
+                ),
+          ),
+        );
+      });
+
+      test('throws AuthException for 401 without server message', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(statusCode: 401, bodyBytes: Uint8List(0)),
+        );
+
+        await expectLater(
+          transport.request<void>('GET', Uri.parse('https://api.example.com')),
+          throwsA(
+            isA<AuthException>()
+                .having((e) => e.statusCode, 'statusCode', 401)
+                .having((e) => e.message, 'message', 'HTTP 401')
+                .having((e) => e.serverMessage, 'serverMessage', isNull),
           ),
         );
       });
@@ -556,12 +586,14 @@ void main() {
           throwsA(
             isA<AuthException>()
                 .having((e) => e.statusCode, 'statusCode', 403)
-                .having((e) => e.message, 'message', 'Forbidden'),
+                .having((e) => e.message, 'message', 'Forbidden')
+                .having((e) => e.serverMessage, 'serverMessage', 'Forbidden'),
           ),
         );
       });
 
-      test('throws NotFoundException for 404 response', () async {
+      test('throws NotFoundException for 404 response with server message',
+          () async {
         when(
           () => mockClient.request(
             any(),
@@ -583,12 +615,18 @@ void main() {
           throwsA(
             isA<NotFoundException>()
                 .having((e) => e.resource, 'resource', '/items/999')
-                .having((e) => e.message, 'message', 'Resource not found'),
+                .having((e) => e.message, 'message', 'Resource not found')
+                .having(
+                  (e) => e.serverMessage,
+                  'serverMessage',
+                  'Resource not found',
+                ),
           ),
         );
       });
 
-      test('throws ApiException for 400 Bad Request', () async {
+      test('throws ApiException for 400 Bad Request with server message',
+          () async {
         when(
           () => mockClient.request(
             any(),
@@ -606,7 +644,12 @@ void main() {
           throwsA(
             isA<ApiException>()
                 .having((e) => e.statusCode, 'statusCode', 400)
-                .having((e) => e.message, 'message', 'Invalid input'),
+                .having((e) => e.message, 'message', 'Invalid input')
+                .having(
+                  (e) => e.serverMessage,
+                  'serverMessage',
+                  'Invalid input',
+                ),
           ),
         );
       });
@@ -629,7 +672,12 @@ void main() {
           throwsA(
             isA<ApiException>()
                 .having((e) => e.statusCode, 'statusCode', 500)
-                .having((e) => e.message, 'message', 'Server error'),
+                .having((e) => e.message, 'message', 'Server error')
+                .having(
+                  (e) => e.serverMessage,
+                  'serverMessage',
+                  'Server error',
+                ),
           ),
         );
       });
@@ -667,7 +715,9 @@ void main() {
         await expectLater(
           transport.request<void>('GET', Uri.parse('https://api.example.com')),
           throwsA(
-            isA<ApiException>().having((e) => e.message, 'message', 'HTTP 500'),
+            isA<ApiException>()
+                .having((e) => e.message, 'message', 'HTTP 500')
+                .having((e) => e.serverMessage, 'serverMessage', isNull),
           ),
         );
       });

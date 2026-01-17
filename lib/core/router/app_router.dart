@@ -4,9 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/build_config.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
+import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
@@ -69,10 +71,12 @@ const _publicRoutes = {'/', '/login', '/auth/callback'};
 /// shouldn't cause navigation).
 ///
 /// Routes:
-/// - `/login` - Login screen (public)
-/// - `/` - Home screen (requires auth)
+/// - `/login` - Login screen (public, authenticated users redirect to /rooms)
+/// - `/` - Home screen (public, authenticated users redirect to /rooms)
+/// - `/auth/callback` - OAuth callback (public, authenticated users redirect to /rooms)
 /// - `/rooms` - List of rooms (requires auth)
 /// - `/rooms/:roomId` - Room with thread selection (requires auth)
+/// - `/rooms/:roomId/quiz/:quizId` - Quiz screen (requires auth)
 /// - `/rooms/:roomId/thread/:threadId` - Redirects to query param format
 /// - `/settings` - Settings screen (requires auth)
 ///
@@ -110,14 +114,19 @@ final routerProvider = Provider<GoRouter>((ref) {
         'Router: hasAccess=$hasAccess, isPublic=$isPublicRoute',
       );
 
-      // Users without access go to login (except for public routes)
+      // Redirect based on auth state reason (Unauthenticated) or default to
+      // /login (AuthLoading). Public routes are exempt.
       if (!hasAccess && !isPublicRoute) {
-        debugPrint('Router: redirecting to /login');
-        return '/login';
+        final target = switch (authState) {
+          Unauthenticated(reason: UnauthenticatedReason.explicitSignOut) => '/',
+          _ => '/login',
+        };
+        debugPrint('Router: redirecting to $target');
+        return target;
       }
 
-      // Users with access on login page go to rooms
-      if (hasAccess && state.matchedLocation == '/login') {
+      // Public routes are for guests only - redirect to rooms if authenticated
+      if (hasAccess && isPublicRoute) {
         debugPrint('Router: redirecting to /rooms');
         return '/rooms';
       }
@@ -145,7 +154,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/',
         name: 'home',
         pageBuilder: (context, state) => _staticPage(
-          title: const Text('Soliplex'),
+          title: const Text(appName),
           body: const HomeScreen(),
           actions: const [_SettingsButton()],
         ),
@@ -167,6 +176,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           final threadId = state.uri.queryParameters['thread'];
           return NoTransitionPage(
             child: RoomScreen(roomId: roomId, initialThreadId: threadId),
+          );
+        },
+      ),
+      GoRoute(
+        path: '/rooms/:roomId/quiz/:quizId',
+        name: 'quiz',
+        pageBuilder: (context, state) {
+          final roomId = state.pathParameters['roomId']!;
+          final quizId = state.pathParameters['quizId']!;
+          return NoTransitionPage(
+            child: QuizScreen(roomId: roomId, quizId: quizId),
           );
         },
       ),

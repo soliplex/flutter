@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soliplex_frontend/shared/widgets/platform_adaptive_progress_indicator.dart';
 
 /// Standard loading indicator widget.
 class LoadingIndicator extends StatelessWidget {
@@ -14,7 +15,7 @@ class LoadingIndicator extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const CircularProgressIndicator(),
+            const PlatformAdaptiveProgressIndicator(),
             if (message != null) ...[
               const SizedBox(height: 16),
               Text(message!, style: Theme.of(context).textTheme.bodyMedium),

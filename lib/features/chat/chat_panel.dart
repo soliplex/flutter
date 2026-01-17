@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
@@ -37,47 +40,77 @@ class ChatPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final runState = ref.watch(activeRunNotifierProvider);
 
-    return Column(
-      children: [
-        // App bar with cancel button
-        if (runState.isRunning)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              border: Border(
-                bottom: BorderSide(
-                  color: Theme.of(context).colorScheme.outlineVariant,
-                ),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+        final maxContentWidth =
+            width >= SoliplexBreakpoints.desktop ? width * 2 / 3 : width;
+
+        return Align(
+          alignment: AlignmentDirectional.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: maxContentWidth,
             ),
-            child: Row(
-              children: [
-                const Expanded(child: Text('Streaming response...')),
-                TextButton.icon(
-                  onPressed: () => _handleCancel(ref),
-                  icon: const Icon(Icons.cancel),
-                  label: const Text('Cancel'),
-                ),
-              ],
+            child: AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.only(bottom: bottomInset),
+              child: Column(
+                children: [
+                  // App bar with cancel button
+                  if (runState.isRunning)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest,
+                        border: Border(
+                          bottom: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(child: Text('Streaming response...')),
+                          TextButton.icon(
+                            onPressed: () => _handleCancel(ref),
+                            icon: const Icon(Icons.cancel),
+                            label: const Text('Cancel'),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Message list
+                  Expanded(
+                    child: switch (runState) {
+                      CompletedState(
+                        result: FailedResult(:final errorMessage)
+                      ) =>
+                        ErrorDisplay(
+                          error: errorMessage,
+                          onRetry: () => _handleRetry(ref),
+                        ),
+                      _ => const MessageList(),
+                    },
+                  ),
+
+                  // Input
+                  ChatInput(onSend: (text) => _handleSend(context, ref, text)),
+                ],
+              ),
             ),
           ),
-
-        // Message list
-        Expanded(
-          child: switch (runState) {
-            CompletedState(result: FailedResult(:final errorMessage)) =>
-              ErrorDisplay(
-                error: errorMessage,
-                onRetry: () => _handleRetry(ref),
-              ),
-            _ => const MessageList(),
-          },
-        ),
-
-        // Input
-        ChatInput(onSend: (text) => _handleSend(context, ref, text)),
-      ],
+        );
+      },
     );
   }
 
