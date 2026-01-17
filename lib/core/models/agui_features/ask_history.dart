@@ -30,17 +30,19 @@ class AskHistory {
 
   factory AskHistory.fromJson(Map<String, dynamic> json) => AskHistory(
         questions: json["questions"] == null
-            ? []
+            ? <QuestionResponseCitations>[]
             : List<QuestionResponseCitations>.from(
-                json["questions"]!.map(
-                  (x) => QuestionResponseCitations.fromJson(x),
+                (json["questions"]! as List).map<QuestionResponseCitations>(
+                  (dynamic x) => QuestionResponseCitations.fromJson(
+                    x as Map<String, dynamic>,
+                  ),
                 ),
               ),
       );
 
   Map<String, dynamic> toJson() => {
         "questions": questions == null
-            ? []
+            ? <dynamic>[]
             : List<dynamic>.from(questions!.map((x) => x.toJson())),
       };
 }
@@ -62,9 +64,11 @@ class QuestionResponseCitations {
   factory QuestionResponseCitations.fromJson(Map<String, dynamic> json) =>
       QuestionResponseCitations(
         citations: json["citations"] == null
-            ? []
+            ? <Citation>[]
             : List<Citation>.from(
-                json["citations"]!.map((x) => Citation.fromJson(x)),
+                (json["citations"]! as List).map<Citation>(
+                  (dynamic x) => Citation.fromJson(x as Map<String, dynamic>),
+                ),
               ),
         question: json["question"],
         response: json["response"],
@@ -72,7 +76,7 @@ class QuestionResponseCitations {
 
   Map<String, dynamic> toJson() => {
         "citations": citations == null
-            ? []
+            ? <dynamic>[]
             : List<dynamic>.from(citations!.map((x) => x.toJson())),
         "question": question,
         "response": response,
@@ -106,11 +110,11 @@ class Citation {
         documentTitle: json["document_title"],
         documentUri: json["document_uri"],
         headings: json["headings"] == null
-            ? []
-            : List<String>.from(json["headings"]!.map((x) => x)),
+            ? <String>[]
+            : (json["headings"]! as List).cast<String>(),
         pageNumbers: json["page_numbers"] == null
-            ? []
-            : List<int>.from(json["page_numbers"]!.map((x) => x)),
+            ? <int>[]
+            : (json["page_numbers"]! as List).cast<int>(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -119,10 +123,7 @@ class Citation {
         "document_id": documentId,
         "document_title": documentTitle,
         "document_uri": documentUri,
-        "headings":
-            headings == null ? [] : List<dynamic>.from(headings!.map((x) => x)),
-        "page_numbers": pageNumbers == null
-            ? []
-            : List<dynamic>.from(pageNumbers!.map((x) => x)),
+        "headings": headings ?? <String>[],
+        "page_numbers": pageNumbers ?? <int>[],
       };
 }

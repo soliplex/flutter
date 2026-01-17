@@ -35,13 +35,11 @@ class FilterDocuments {
   factory FilterDocuments.fromJson(Map<String, dynamic> json) =>
       FilterDocuments(
         documentIds: json["document_ids"] == null
-            ? []
-            : List<String>.from(json["document_ids"]!.map((x) => x)),
+            ? <String>[]
+            : (json["document_ids"]! as List).cast<String>(),
       );
 
   Map<String, dynamic> toJson() => {
-        "document_ids": documentIds == null
-            ? []
-            : List<dynamic>.from(documentIds!.map((x) => x)),
+        "document_ids": documentIds ?? <String>[],
       };
 }
