@@ -14,8 +14,6 @@ class RoomListTile extends StatefulWidget {
   State<RoomListTile> createState() => _RoomListTileState();
 
   /// Placeholder tile for creating a new room.
-  ///
-  /// The [onTap] callback will be wired to room creation when implemented.
   static Widget ghost({
     required BuildContext context,
     VoidCallback? onTap,
@@ -40,7 +38,6 @@ class RoomListTile extends StatefulWidget {
             spacing: SoliplexSpacing.s2,
             children: [
               const Icon(Icons.add, size: 48, color: Colors.grey),
-              const SizedBox(width: SoliplexSpacing.s2),
               Text(
                 'New Room',
                 style: Theme.of(context).textTheme.labelLarge?.copyWith(

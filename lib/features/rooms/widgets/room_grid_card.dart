@@ -14,8 +14,6 @@ class RoomGridCard extends StatefulWidget {
   State<RoomGridCard> createState() => _RoomGridCardState();
 
   /// Placeholder card for creating a new room.
-  ///
-  /// The [onTap] callback will be wired to room creation when implemented.
   static Widget ghost({
     required BuildContext context,
     VoidCallback? onTap,
@@ -86,43 +84,36 @@ class _RoomGridCardState extends State<RoomGridCard> {
                   width: divider.thickness! * (isHovered ? 2 : 1),
                 ),
               ),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: SoliplexSpacing.s2,
                 children: [
-                  /// Header
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: SoliplexSpacing.s2,
-                    children: [
-                      const Icon(Icons.meeting_room, size: 32),
-                      const SizedBox(width: SoliplexSpacing.s2),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              room.name,
-                              style: Theme.of(context).textTheme.titleMedium,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (room.hasDescription)
-                              Text(
-                                room.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant,
-                                    ),
-                              ),
-                          ],
+                  const Icon(Icons.meeting_room, size: 32),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          room.name,
+                          style: Theme.of(context).textTheme.titleMedium,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
+                        if (room.hasDescription)
+                          Text(
+                            room.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
