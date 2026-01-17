@@ -9,9 +9,8 @@ import 'package:soliplex_client/src/http/soliplex_http_client.dart';
 
 /// Default HTTP client using `package:http`.
 ///
-/// Works on all Dart platforms except web (which requires a different client).
-/// Provides timeout handling, automatic body encoding, and exception
-/// conversion.
+/// Works on all Dart platforms including web. Provides timeout handling,
+/// automatic body encoding, and exception conversion.
 ///
 /// Example:
 /// ```dart
@@ -103,8 +102,7 @@ class DartHttpClient implements SoliplexHttpClient {
         stackTrace: stackTrace,
       );
     } on Exception catch (e, stackTrace) {
-      // Generic fallback for platform-specific exceptions (SocketException on
-      // native, browser exceptions on web)
+      // Generic fallback for platform-specific exceptions
       throw NetworkException(
         message: 'Network error: $e',
         originalError: e,
