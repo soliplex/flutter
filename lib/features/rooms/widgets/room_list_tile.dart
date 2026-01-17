@@ -2,6 +2,7 @@ import 'package:dashed_border/dashed_border.dart';
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 
+import 'package:soliplex_frontend/design/tokens/radii.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 
 class RoomListTile extends StatefulWidget {
@@ -26,7 +27,7 @@ class RoomListTile extends StatefulWidget {
         child: Container(
           height: 86,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(soliplexRadii.md),
             border: DashedBorder(
               color: Theme.of(context).dividerTheme.color!,
               width: 2,
@@ -80,7 +81,7 @@ class _RoomListTileState extends State<RoomListTile> {
               padding: const EdgeInsets.all(SoliplexSpacing.s6),
               foregroundDecoration: BoxDecoration(
                 color: Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(soliplexRadii.md),
                 border: Border.all(
                   color: divider.color!,
                   width: divider.thickness! * (isHovered ? 2 : 1),

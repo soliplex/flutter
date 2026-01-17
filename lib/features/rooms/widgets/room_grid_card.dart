@@ -2,6 +2,7 @@ import 'package:dashed_border/dashed_border.dart';
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 
+import 'package:soliplex_frontend/design/tokens/radii.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 
 class RoomGridCard extends StatefulWidget {
@@ -25,7 +26,7 @@ class RoomGridCard extends StatefulWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(soliplexRadii.lg),
             border: DashedBorder(
               color: Theme.of(context).dividerTheme.color!,
               width: 2,
@@ -78,7 +79,7 @@ class _RoomGridCardState extends State<RoomGridCard> {
               padding: const EdgeInsets.all(SoliplexSpacing.s6),
               foregroundDecoration: BoxDecoration(
                 color: Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(soliplexRadii.lg),
                 border: Border.all(
                   color: divider.color!,
                   width: divider.thickness! * (isHovered ? 2 : 1),
