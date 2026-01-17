@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
@@ -9,6 +10,7 @@ import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/rooms/widgets/room_grid_card.dart';
 import 'package:soliplex_frontend/features/rooms/widgets/room_list_tile.dart';
+import 'package:soliplex_frontend/features/rooms/widgets/room_search_toolbar.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 import 'package:soliplex_frontend/shared/widgets/loading_indicator.dart';
@@ -60,61 +62,14 @@ class RoomsScreen extends ConsumerWidget {
             child: Column(
               spacing: SoliplexSpacing.s4,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(
-                    top: SoliplexSpacing.s4,
-                    bottom: SoliplexSpacing.s2,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: isMobile
-                        ? MainAxisAlignment.center
-                        : MainAxisAlignment.spaceBetween,
-                    spacing: SoliplexSpacing.s2,
-                    children: [
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: 450,
-                        ),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Search rooms...',
-                            prefixIcon: const Icon(Icons.search),
-                            suffixIcon: ref
-                                    .watch(roomSearchQueryProvider)
-                                    .isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear),
-                                    onPressed: () {
-                                      ref
-                                          .read(
-                                            roomSearchQueryProvider.notifier,
-                                          )
-                                          .state = '';
-                                    },
-                                  )
-                                : null,
-                            border: const OutlineInputBorder(),
-                            isDense: true,
-                          ),
-                          onChanged: (value) {
-                            ref.read(roomSearchQueryProvider.notifier).state =
-                                value;
-                          },
-                        ),
-                      ),
-                      if (!isMobile)
-                        IconButton.filledTonal(
-                          icon: Icon(
-                            isGridView ? Icons.view_list : Icons.grid_view,
-                          ),
-                          onPressed: () {
-                            ref.read(isGridViewProvider.notifier).state =
-                                !isGridView;
-                          },
-                          tooltip: isGridView ? 'Show as list' : 'Show as grid',
-                        ),
-                    ],
-                  ),
+                RoomSearchToolbar(
+                  query: ref.watch(roomSearchQueryProvider),
+                  isGridView: isGridView,
+                  showViewToggle: !isMobile,
+                  onQueryChanged: (value) =>
+                      ref.read(roomSearchQueryProvider.notifier).state = value,
+                  onToggleView: () =>
+                      ref.read(isGridViewProvider.notifier).state = !isGridView,
                 ),
                 Expanded(
                   child: roomsAsync.when(
@@ -136,22 +91,49 @@ class RoomsScreen extends ConsumerWidget {
                             mainAxisSpacing: 10,
                           ),
                           itemCount: rooms.length + 1,
-                          itemBuilder: (context, index) => index == rooms.length
-                              ? RoomGridCard.ghost(context: context)
-                              : RoomGridCard(room: rooms[index]),
+                          itemBuilder: (context, index) {
+                            if (index == rooms.length) {
+                              return RoomGridCard.ghost(context: context);
+                            }
+                            final room = rooms[index];
+                            return RoomGridCard(
+                              room: room,
+                              onTap: () {
+                                ref
+                                    .read(currentRoomIdProvider.notifier)
+                                    .set(room.id);
+                                context.push('/rooms/${room.id}');
+                              },
+                            );
+                          },
                         );
                       }
 
                       return ListView.builder(
                         itemCount: rooms.length + 1,
                         itemBuilder: (context, index) {
+                          if (index == rooms.length) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                vertical: SoliplexSpacing.s1,
+                              ),
+                              child: RoomListTile.ghost(context: context),
+                            );
+                          }
+                          final room = rooms[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(
                               vertical: SoliplexSpacing.s1,
                             ),
-                            child: index == rooms.length
-                                ? RoomListTile.ghost(context: context)
-                                : RoomListTile(room: rooms[index]),
+                            child: RoomListTile(
+                              room: room,
+                              onTap: () {
+                                ref
+                                    .read(currentRoomIdProvider.notifier)
+                                    .set(room.id);
+                                context.push('/rooms/${room.id}');
+                              },
+                            ),
                           );
                         },
                       );
