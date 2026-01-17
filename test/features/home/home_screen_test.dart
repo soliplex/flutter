@@ -233,7 +233,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Request timed out. Please try again.'),
+          find.text(
+            'Connection timed out. The server may be slow or unreachable.',
+          ),
           findsOneWidget,
         );
       });
@@ -268,14 +270,15 @@ void main() {
 
         expect(
           find.text(
-            'Cannot reach server. '
-            'Verify the URL is correct and the server is running.',
+            'Cannot reach server. Check the URL and your network '
+            'connection.\n\nDetails: connection refused',
           ),
           findsOneWidget,
         );
       });
 
-      testWidgets('shows server error for ApiException', (tester) async {
+      testWidgets('shows server error for ApiException without server message',
+          (tester) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -288,7 +291,48 @@ void main() {
             fromJson: any(named: 'fromJson'),
           ),
         ).thenThrow(
-          const ApiException(statusCode: 500, message: 'Server error'),
+          const ApiException(statusCode: 500, message: 'HTTP 500'),
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+            ],
+          ),
+        );
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.tap(find.text('Connect'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text('Server error. Please try again later. (500)'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('shows server error for ApiException with server message',
+          (tester) async {
+        final mockTransport = MockHttpTransport();
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            any(),
+            any(),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+          ),
+        ).thenThrow(
+          const ApiException(
+            statusCode: 500,
+            message: 'Database connection failed',
+            serverMessage: 'Database connection failed',
+          ),
         );
 
         await tester.pumpWidget(
@@ -307,8 +351,8 @@ void main() {
 
         expect(
           find.text(
-            'Server error (500). '
-            'Please try again later or verify the backend URL is correct.',
+            'Server error. Please try again later. (500)\n\n'
+            'Details: Database connection failed',
           ),
           findsOneWidget,
         );
