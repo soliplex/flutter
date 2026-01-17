@@ -70,8 +70,9 @@ class RoomsScreen extends ConsumerWidget {
         final width = constraints.maxWidth;
         final isMobile = width < SoliplexBreakpoints.tablet;
 
-        final maxContentWidth =
-            width >= SoliplexBreakpoints.desktop ? width * 2 / 3 : width - 32;
+        final maxContentWidth = width >= SoliplexBreakpoints.desktop
+            ? width * 2 / 3
+            : width - SoliplexSpacing.s4 * 2;
 
         return Align(
           alignment: AlignmentDirectional.topCenter,

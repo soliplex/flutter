@@ -75,7 +75,7 @@ class _RoomGridCardState extends State<RoomGridCard> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(SoliplexSpacing.s6),
               foregroundDecoration: BoxDecoration(
                 color: Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
