@@ -148,9 +148,12 @@ class ChatMessageWidget extends StatelessWidget {
     );
   }
 
-  // TODO: Remove this comment
-  // NOTE: I stubbed branch selection both for user and agent messages because 
-  // user can trigger branching both with edits and regeneration.
+  // Kept as methods (not widget classes) because:
+  // 1. No reuse - each called exactly once
+  // 2. Thin composition - just layout + _ActionButton instances
+  // 3. Unstable interface - TODOs indicate features will change the API
+  // 4. _copyToClipboard dependency - extracting would require callbacks
+  // Revisit when: reused elsewhere, needs own state, or branching logic grows.
 
   Widget _buildUserMessageActionsRow(
     BuildContext context,
@@ -168,54 +171,35 @@ class ChatMessageWidget extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.end,
         spacing: SoliplexSpacing.s2,
         children: [
-          InkWell(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: messageText));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Message copied to clipboard'),
-                ),
-              );
-            },
-            child: Icon(
-              Icons.copy,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
+          _ActionButton(
+            tooltip: 'Copy message',
+            icon: Icons.copy,
+            onTap: () => _copyToClipboard(context, messageText),
           ),
           if (totalBranches != 0) ...[
             if (selectedBranch > 0)
-              InkWell(
-                onTap: () => {
+              _ActionButton(
+                tooltip: 'View previous edit',
+                icon: Icons.chevron_left,
+                onTap: () {
                   // TODO: Implement branch selection logic
                 },
-                child: Icon(
-                  Icons.chevron_left,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               ),
             if (selectedBranch < totalBranches)
-              InkWell(
-                onTap: () => {
+              _ActionButton(
+                tooltip: 'View next edit',
+                icon: Icons.chevron_right,
+                onTap: () {
                   // TODO: Implement branch selection logic
                 },
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               ),
           ],
-          InkWell(
-            onTap: () => {
+          _ActionButton(
+            tooltip: 'Edit message',
+            icon: Icons.edit,
+            onTap: () {
               // TODO: Implement edit message logic
             },
-            child: Icon(
-              Icons.edit,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
           ),
         ],
       ),
@@ -237,78 +221,70 @@ class ChatMessageWidget extends StatelessWidget {
       child: Row(
         spacing: SoliplexSpacing.s2,
         children: [
-          InkWell(
-            onTap: () {
-              Clipboard.setData(ClipboardData(text: messageText));
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Message copied to clipboard'),
-                ),
-              );
-            },
-            child: Icon(
-              Icons.copy,
-              size: 20,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+          _ActionButton(
+            tooltip: 'Copy message',
+            icon: Icons.copy,
+            onTap: () => _copyToClipboard(context, messageText),
           ),
-          InkWell(
-            onTap: () => {
+          _ActionButton(
+            tooltip: 'Regenerate response',
+            icon: Icons.repeat,
+            onTap: () {
               // TODO: Implement regeneration logic
             },
-            child: Icon(
-              Icons.repeat,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
           ),
           if (totalBranches != 0) ...[
             if (selectedBranch > 0)
-              InkWell(
-                onTap: () => {
+              _ActionButton(
+                tooltip: 'View previous response',
+                icon: Icons.chevron_left,
+                onTap: () {
                   // TODO: Implement branch selection logic
                 },
-                child: Icon(
-                  Icons.chevron_left,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               ),
             if (selectedBranch < totalBranches)
-              InkWell(
-                onTap: () => {
+              _ActionButton(
+                tooltip: 'View next response',
+                icon: Icons.chevron_right,
+                onTap: () {
                   // TODO: Implement branch selection logic
                 },
-                child: Icon(
-                  Icons.chevron_right,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
               ),
           ],
-          InkWell(
-            onTap: () => {
+          _ActionButton(
+            tooltip: 'Mark as helpful',
+            icon: Icons.thumb_up,
+            onTap: () {
               // TODO: Implement feedback logic
             },
-            child: Icon(
-              Icons.thumb_up,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
           ),
-          InkWell(
-            onTap: () => {
+          _ActionButton(
+            tooltip: 'Mark as unhelpful',
+            icon: Icons.thumb_down,
+            onTap: () {
               // TODO: Implement feedback logic
             },
-            child: Icon(
-              Icons.thumb_down,
-              size: 20,
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _copyToClipboard(BuildContext context, String text) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Copied to clipboard')),
+        );
+      }
+    } on PlatformException {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not copy to clipboard')),
+        );
+      }
+    }
   }
 
   Widget _buildStreamingIndicator(BuildContext context, ThemeData theme) {
@@ -336,6 +312,41 @@ class ChatMessageWidget extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({
+    required this.tooltip,
+    required this.icon,
+    this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  static const double _iconSize = 20;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: tooltip,
+      child: Tooltip(
+        message: tooltip,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(4),
+          child: Icon(
+            icon,
+            size: _iconSize,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
     );
   }
 }
