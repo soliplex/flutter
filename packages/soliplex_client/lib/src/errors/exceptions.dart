@@ -28,12 +28,18 @@ class AuthException extends SoliplexException {
   const AuthException({
     required super.message,
     this.statusCode,
+    this.serverMessage,
     super.originalError,
     super.stackTrace,
   });
 
   /// The HTTP status code that triggered this exception.
   final int? statusCode;
+
+  /// The error message from the server, if any.
+  ///
+  /// Null when the server didn't provide a meaningful error message.
+  final String? serverMessage;
 
   @override
   String toString() {
@@ -76,6 +82,7 @@ class ApiException extends SoliplexException {
   const ApiException({
     required super.message,
     required this.statusCode,
+    this.serverMessage,
     this.body,
     super.originalError,
     super.stackTrace,
@@ -83,6 +90,11 @@ class ApiException extends SoliplexException {
 
   /// The HTTP status code.
   final int statusCode;
+
+  /// The error message from the server, if any.
+  ///
+  /// Null when the server didn't provide a meaningful error message.
+  final String? serverMessage;
 
   /// The response body, if available.
   final String? body;
@@ -99,12 +111,18 @@ class NotFoundException extends SoliplexException {
   const NotFoundException({
     required super.message,
     this.resource,
+    this.serverMessage,
     super.originalError,
     super.stackTrace,
   });
 
   /// The resource that was not found.
   final String? resource;
+
+  /// The error message from the server, if any.
+  ///
+  /// Null when the server didn't provide a meaningful error message.
+  final String? serverMessage;
 
   @override
   String toString() {
