@@ -8,41 +8,49 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 void main() {
   group('shellConfigProvider', () {
-    test('provides default SoliplexConfig before initialization', () {
+    test('throws when not overridden', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final config = container.read(shellConfigProvider);
-
-      expect(config.appName, equals('Soliplex'));
-    });
-
-    test('provides custom config after initialization', () {
-      initializeShellConfig(
-        config: const SoliplexConfig(
-          appName: 'TestApp',
-          defaultBackendUrl: 'https://test.example.com',
+      // Riverpod 3.0 wraps provider errors, so check the error message
+      expect(
+        () => container.read(shellConfigProvider),
+        throwsA(
+          predicate(
+            (e) =>
+                e.toString().contains('shellConfigProvider must be overridden'),
+          ),
         ),
       );
+    });
 
-      final container = ProviderContainer();
+    test('provides config when overridden via ProviderScope', () {
+      const customConfig = SoliplexConfig(
+        appName: 'TestApp',
+        defaultBackendUrl: 'https://test.example.com',
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(customConfig),
+        ],
+      );
       addTearDown(container.dispose);
 
       final config = container.read(shellConfigProvider);
 
       expect(config.appName, equals('TestApp'));
       expect(config.defaultBackendUrl, equals('https://test.example.com'));
-
-      // Reset for other tests
-      initializeShellConfig();
     });
   });
 
   group('registryProvider', () {
     test('provides EmptyRegistry by default', () {
-      initializeShellConfig();
-
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final registry = container.read(registryProvider);
@@ -53,42 +61,41 @@ void main() {
       expect(registry.routes, isEmpty);
     });
 
-    test('provides custom registry after initialization', () {
+    test('provides custom registry when overridden', () {
       final customRegistry = _TestRegistry();
 
-      initializeShellConfig(registry: customRegistry);
-
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          registryProvider.overrideWithValue(customRegistry),
+        ],
+      );
       addTearDown(container.dispose);
 
       final registry = container.read(registryProvider);
 
       expect(registry, equals(customRegistry));
       expect(registry.panels, hasLength(1));
-
-      // Reset for other tests
-      initializeShellConfig();
     });
   });
 
   group('featuresProvider', () {
     test('provides features from shell config', () {
-      initializeShellConfig(
-        config: const SoliplexConfig(
-          features: Features(enableHttpInspector: false),
-        ),
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(
+              features: Features(enableHttpInspector: false),
+            ),
+          ),
+        ],
       );
-
-      final container = ProviderContainer();
       addTearDown(container.dispose);
 
       final features = container.read(featuresProvider);
 
       expect(features.enableHttpInspector, isFalse);
       expect(features.enableQuizzes, isTrue);
-
-      // Reset for other tests
-      initializeShellConfig();
     });
   });
 }

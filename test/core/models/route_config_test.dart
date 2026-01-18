@@ -43,7 +43,7 @@ void main() {
     test('equality works correctly', () {
       const a = RouteConfig();
       const b = RouteConfig();
-      const c = RouteConfig(showHomeRoute: false);
+      const c = RouteConfig(showHomeRoute: false, initialRoute: '/rooms');
 
       expect(a, equals(b));
       expect(a, isNot(equals(c)));
@@ -52,17 +52,61 @@ void main() {
     test('hashCode is consistent with equality', () {
       const a = RouteConfig();
       const b = RouteConfig();
-      const c = RouteConfig(showHomeRoute: false);
+      const c = RouteConfig(showHomeRoute: false, initialRoute: '/rooms');
 
       expect(a.hashCode, equals(b.hashCode));
       expect(a.hashCode, isNot(equals(c.hashCode)));
     });
 
     test('toString returns readable representation', () {
-      const config = RouteConfig(showHomeRoute: false);
+      const config = RouteConfig(showHomeRoute: false, initialRoute: '/rooms');
 
       expect(config.toString(), contains('showHomeRoute: false'));
-      expect(config.toString(), contains('initialRoute: /'));
+      expect(config.toString(), contains('initialRoute: /rooms'));
+    });
+
+    group('initialRoute validation', () {
+      test('allows / when showHomeRoute is true', () {
+        expect(
+          () => const RouteConfig(),
+          returnsNormally,
+        );
+      });
+
+      test('allows /rooms when showRoomsRoute is true', () {
+        expect(
+          () => const RouteConfig(initialRoute: '/rooms'),
+          returnsNormally,
+        );
+      });
+
+      test('allows /settings when showSettingsRoute is true', () {
+        expect(
+          () => const RouteConfig(initialRoute: '/settings'),
+          returnsNormally,
+        );
+      });
+
+      test('allows custom routes regardless of visibility flags', () {
+        expect(
+          () => const RouteConfig(
+            showHomeRoute: false,
+            showRoomsRoute: false,
+            initialRoute: '/custom-route',
+          ),
+          returnsNormally,
+        );
+      });
+
+      test('allows room-specific routes', () {
+        expect(
+          () => const RouteConfig(
+            showRoomsRoute: false,
+            initialRoute: '/rooms/123',
+          ),
+          returnsNormally,
+        );
+      });
     });
   });
 }

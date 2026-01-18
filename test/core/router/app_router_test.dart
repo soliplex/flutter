@@ -7,8 +7,10 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
@@ -89,6 +91,7 @@ Widget createRouterAppAt(
   return ProviderScope(
     overrides: [
       packageInfoProvider.overrideWithValue(testPackageInfo),
+      shellConfigProvider.overrideWithValue(const SoliplexConfig()),
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
         final currentAuthState = ref.watch(authProvider);
@@ -353,6 +356,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -394,6 +398,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -433,6 +438,7 @@ void main() {
     testWidgets('token refresh preserves navigation location', (tester) async {
       final container = ProviderContainer(
         overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -476,6 +482,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           capturedCallbackParamsProvider.overrideWithValue(
             const NoCallbackParams(),
           ),
@@ -539,6 +546,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           packageInfoProvider.overrideWithValue(testPackageInfo),
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),

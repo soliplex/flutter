@@ -40,9 +40,6 @@ Future<void> runSoliplexApp({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize shell configuration FIRST
-  initializeShellConfig(config: config, registry: registry);
-
   // Capture OAuth callback params BEFORE GoRouter initializes.
   // GoRouter may modify the URL, losing the callback tokens.
   final callbackParams = CallbackParamsCapture.captureNow();
@@ -59,7 +56,12 @@ Future<void> runSoliplexApp({
   await clearAuthStorageOnReinstall();
 
   // Load saved config BEFORE app starts to avoid race conditions.
-  await initializeConfig();
+  // Wrapped in try/catch to ensure app launches even if config load fails.
+  try {
+    await initializeConfig();
+  } catch (e) {
+    debugPrint('Failed to load user config: $e');
+  }
 
   // Load package info for version display.
   final packageInfo = await PackageInfo.fromPlatform();
@@ -67,6 +69,9 @@ Future<void> runSoliplexApp({
   runApp(
     ProviderScope(
       overrides: [
+        // Inject shell configuration via ProviderScope (no global state)
+        shellConfigProvider.overrideWithValue(config),
+        registryProvider.overrideWithValue(registry),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
         packageInfoProvider.overrideWithValue(packageInfo),
       ],

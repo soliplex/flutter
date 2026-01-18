@@ -18,11 +18,13 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
 
@@ -88,6 +90,7 @@ void registerMocktailFallbacks() {
       authFlowProvider.overrideWithValue(authFlow),
       authStorageProvider.overrideWithValue(storage),
       tokenRefreshServiceProvider.overrideWithValue(refreshService),
+      shellConfigProvider.overrideWithValue(const SoliplexConfig()),
     ],
     authFlow: authFlow,
     storage: storage,
@@ -495,7 +498,8 @@ final testThemeData = soliplexLightTheme();
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
 /// Automatically includes [packageInfoProvider] override with [testPackageInfo]
-/// since it must always be overridden (throws UnimplementedError by default).
+/// and [shellConfigProvider] override with default [SoliplexConfig] since both
+/// must always be overridden (they throw UnimplementedError by default).
 ///
 /// [onContainerCreated] is called with the [ProviderContainer] after it's
 /// created, allowing tests to read provider state.
@@ -509,6 +513,7 @@ Widget createTestApp({
     container: ProviderContainer(
       overrides: [
         packageInfoProvider.overrideWithValue(testPackageInfo),
+        shellConfigProvider.overrideWithValue(const SoliplexConfig()),
         ...overrides.cast<Override>(),
       ],
     )..also(onContainerCreated),

@@ -13,6 +13,9 @@ void main() {
       const bodyKey = Key('body');
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          ],
           child: MaterialApp(
             home: AppShell(
               config: const ShellConfig(),
@@ -28,8 +31,11 @@ void main() {
 
     testWidgets('renders title from config', (tester) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          ],
+          child: const MaterialApp(
             home: AppShell(
               config: ShellConfig(title: Text('My Title')),
               body: SizedBox.shrink(),
@@ -45,6 +51,9 @@ void main() {
       const leadingKey = Key('leading');
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          ],
           child: MaterialApp(
             home: AppShell(
               config: ShellConfig(
@@ -67,6 +76,9 @@ void main() {
       const actionKey = Key('action');
       await tester.pumpWidget(
         ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          ],
           child: MaterialApp(
             home: AppShell(
               config: ShellConfig(
@@ -91,8 +103,11 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        const ProviderScope(
-          child: MaterialApp(
+        ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          ],
+          child: const MaterialApp(
             home: AppShell(
               config: ShellConfig(),
               body: Center(child: Text('Content')),
@@ -108,8 +123,11 @@ void main() {
     group('HTTP inspector', () {
       testWidgets('shows inspector button in app bar', (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
                 config: ShellConfig(),
                 body: Center(child: Text('Content')),
@@ -123,8 +141,11 @@ void main() {
 
       testWidgets('inspector button has tooltip', (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
                 config: ShellConfig(),
                 body: Center(child: Text('Content')),
@@ -146,6 +167,9 @@ void main() {
       ) async {
         await tester.pumpWidget(
           ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
             child: MaterialApp(
               home: AppShell(
                 config: ShellConfig(
@@ -170,8 +194,11 @@ void main() {
 
       testWidgets('inspector button opens endDrawer', (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
                 config: ShellConfig(),
                 body: Center(child: Text('Content')),
@@ -188,8 +215,11 @@ void main() {
 
       testWidgets('endDrawer has Semantics label', (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
                 config: ShellConfig(),
                 body: Center(child: Text('Content')),
@@ -214,8 +244,11 @@ void main() {
       testWidgets('shows drawer when config provides one', (tester) async {
         const drawerContent = Text('Drawer Content');
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
                 config: ShellConfig(drawer: Drawer(child: drawerContent)),
                 body: SizedBox.shrink(),
@@ -232,8 +265,11 @@ void main() {
 
       testWidgets('drawer is wrapped in Semantics', (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
                 config: ShellConfig(drawer: Drawer(child: Text('Nav'))),
                 body: SizedBox.shrink(),
@@ -255,8 +291,11 @@ void main() {
 
       testWidgets('no drawer when config does not provide one', (tester) async {
         await tester.pumpWidget(
-          const ProviderScope(
-            child: MaterialApp(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(config: ShellConfig(), body: SizedBox.shrink()),
             ),
           ),
@@ -271,15 +310,16 @@ void main() {
       testWidgets(
         'hides inspector button when enableHttpInspector is false',
         (tester) async {
-          initializeShellConfig(
-            config: const SoliplexConfig(
-              features: Features(enableHttpInspector: false),
-            ),
-          );
-
           await tester.pumpWidget(
-            const ProviderScope(
-              child: MaterialApp(
+            ProviderScope(
+              overrides: [
+                shellConfigProvider.overrideWithValue(
+                  const SoliplexConfig(
+                    features: Features(enableHttpInspector: false),
+                  ),
+                ),
+              ],
+              child: const MaterialApp(
                 home: AppShell(
                   config: ShellConfig(),
                   body: Center(child: Text('Content')),
@@ -289,24 +329,22 @@ void main() {
           );
 
           expect(find.byIcon(Icons.bug_report), findsNothing);
-
-          // Reset for other tests
-          initializeShellConfig();
         },
       );
 
       testWidgets(
         'hides endDrawer when enableHttpInspector is false',
         (tester) async {
-          initializeShellConfig(
-            config: const SoliplexConfig(
-              features: Features(enableHttpInspector: false),
-            ),
-          );
-
           await tester.pumpWidget(
-            const ProviderScope(
-              child: MaterialApp(
+            ProviderScope(
+              overrides: [
+                shellConfigProvider.overrideWithValue(
+                  const SoliplexConfig(
+                    features: Features(enableHttpInspector: false),
+                  ),
+                ),
+              ],
+              child: const MaterialApp(
                 home: AppShell(
                   config: ShellConfig(),
                   body: Center(child: Text('Content')),
@@ -317,9 +355,6 @@ void main() {
 
           final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
           expect(scaffold.endDrawer, isNull);
-
-          // Reset for other tests
-          initializeShellConfig();
         },
       );
     });
@@ -330,11 +365,14 @@ void main() {
       ) async {
         await tester.pumpWidget(
           ProviderScope(
-            child: MaterialApp(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
-                config: const ShellConfig(),
-                body: const Center(child: Text('Content')),
-                customEndDrawer: const Text('Custom Drawer Content'),
+                config: ShellConfig(),
+                body: Center(child: Text('Content')),
+                customEndDrawer: Text('Custom Drawer Content'),
               ),
             ),
           ),
@@ -353,11 +391,14 @@ void main() {
       testWidgets('custom end drawer has Semantics label', (tester) async {
         await tester.pumpWidget(
           ProviderScope(
-            child: MaterialApp(
+            overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            ],
+            child: const MaterialApp(
               home: AppShell(
-                config: const ShellConfig(),
-                body: const Center(child: Text('Content')),
-                customEndDrawer: const Text('Custom'),
+                config: ShellConfig(),
+                body: Center(child: Text('Content')),
+                customEndDrawer: Text('Custom'),
               ),
             ),
           ),

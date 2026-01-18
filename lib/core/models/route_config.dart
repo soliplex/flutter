@@ -7,13 +7,22 @@ import 'package:meta/meta.dart';
 @immutable
 class RouteConfig {
   /// Creates a route configuration with all routes visible by default.
+  ///
+  /// In debug mode, asserts that [initialRoute] points to a visible route.
   const RouteConfig({
     this.showHomeRoute = true,
     this.showRoomsRoute = true,
     this.showSettingsRoute = true,
     this.showQuizRoute = true,
     this.initialRoute = '/',
-  });
+  }) : assert(
+          // Validate initialRoute is not hidden by visibility flags
+          (initialRoute != '/' || showHomeRoute) &&
+              (initialRoute != '/rooms' || showRoomsRoute) &&
+              (initialRoute != '/settings' || showSettingsRoute),
+          'initialRoute points to a hidden route. '
+          'Ensure the route is visible or change initialRoute.',
+        );
 
   /// Whether the home route ('/') is accessible.
   final bool showHomeRoute;
