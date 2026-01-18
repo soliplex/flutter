@@ -49,6 +49,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     super.dispose();
   }
 
+  /// Handles sending the message.
   void _handleSend() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -57,9 +58,15 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     _controller.clear();
   }
 
+  /// Handles cancelling the active run.
+  Future<void> _handleCancel() async {
+    await ref.read(activeRunNotifierProvider.notifier).cancelRun();
+  }
+
   @override
   Widget build(BuildContext context) {
     final canSend = ref.watch(canSendMessageProvider);
+    final runState = ref.watch(activeRunNotifierProvider);
 
     return Container(
       padding: const EdgeInsets.all(SoliplexSpacing.s4),
@@ -97,21 +104,32 @@ class _ChatInputState extends ConsumerState<ChatInput> {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Send message',
-            onPressed: canSend && _controller.text.trim().isNotEmpty
-                ? _handleSend
-                : null,
-            icon: const Icon(Icons.send),
-            style: IconButton.styleFrom(
-              backgroundColor: canSend && _controller.text.trim().isNotEmpty
-                  ? Theme.of(context).colorScheme.primary
+          if (runState.isRunning)
+            IconButton(
+              tooltip: 'Abort message generation',
+              onPressed: _handleCancel,
+              icon: const Icon(Icons.stop),
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'Send message',
+              onPressed: canSend && _controller.text.trim().isNotEmpty
+                  ? _handleSend
                   : null,
-              foregroundColor: canSend && _controller.text.trim().isNotEmpty
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : null,
+              icon: const Icon(Icons.send),
+              style: IconButton.styleFrom(
+                backgroundColor: canSend && _controller.text.trim().isNotEmpty
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+                foregroundColor: canSend && _controller.text.trim().isNotEmpty
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : null,
+              ),
             ),
-          ),
         ],
       ),
     );
