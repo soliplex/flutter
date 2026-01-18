@@ -17,7 +17,7 @@ result relevance and reduce noise.
 
 ### Functional Requirements
 
-1. Users can trigger a document selection UI by typing a trigger symbol (`@`) in
+1. Users can trigger a document selection UI by typing a trigger symbol (`#`) in
    the prompt input.
 2. The UI displays an autocomplete list of available documents in the current
    room.
@@ -45,7 +45,7 @@ result relevance and reduce noise.
 2. Frontend sends request to `/api/v1/rooms/{room_id}/agui`.
 3. Backend responds with a new thread and the first (empty) Run.
 4. John starts typing a prompt.
-5. John types the file selection symbol `@`.
+5. John types the file selection symbol `#`.
 6. Frontend requests documents via `/api/v1/rooms/{room_id}/documents`.
 7. Backend responds with the document list.
 8. Frontend displays autocomplete widget, filtering as John types.
@@ -76,12 +76,12 @@ runs—John may select documents again (same or different).
 
 ### User Experience
 
-**Trigger:** Typing `@` in the prompt input opens an autocomplete popup.
+**Trigger:** Typing `#` in the prompt input opens an autocomplete popup.
 
 **Autocomplete popup:**
 
 - Shows all available documents initially.
-- Filters list as user types characters after `@`.
+- Filters list as user types characters after `#`.
 - Keyboard navigable (up/down arrows, enter to select, escape to dismiss).
 - Touch/click selection on mobile.
 
@@ -94,15 +94,15 @@ runs—John may select documents again (same or different).
 **Example prompt:**
 
 ```text
-Which symbol indicates an issue with oil level? Use @mercedes_c330_manual.pdf
-and @mercedes_c330_troubleshooting.pdf
+Which symbol indicates an issue with oil level? Use #mercedes_c330_manual.pdf
+and #mercedes_c330_troubleshooting.pdf
 ```
 
 ## Acceptance Criteria
 
-- [ ] Typing `@` in prompt input triggers document autocomplete popup.
+- [ ] Typing `#` in prompt input triggers document autocomplete popup.
 - [ ] Autocomplete shows documents available in the current room.
-- [ ] Autocomplete filters as user types after `@`.
+- [ ] Autocomplete filters as user types after `#`.
 - [ ] User can select document via keyboard (arrows + enter).
 - [ ] User can select document via mouse click or touch.
 - [ ] Selected document appears as a chip in the input.
