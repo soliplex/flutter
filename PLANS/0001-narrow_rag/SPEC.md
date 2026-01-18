@@ -76,7 +76,8 @@ runs—John may select documents again (same or different).
 
 ### User Experience
 
-**Trigger:** Typing `#` in the prompt input opens an autocomplete popup.
+**Trigger:** Typing `#` in the prompt input opens an autocomplete popup. We use
+`#` rather than `@` to reserve `@` for a hypothetical user-mention feature.
 
 **Autocomplete popup:**
 
