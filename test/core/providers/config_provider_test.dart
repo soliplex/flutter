@@ -11,13 +11,43 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('build returns default config when no preloaded config', () {
+    test('build returns platform default when no overrides', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       final config = container.read(configProvider);
 
+      // Platform default for native is localhost:8000
       expect(config.baseUrl, 'http://localhost:8000');
+    });
+
+    test('build returns defaultBackendUrlProvider when overridden', () {
+      final container = ProviderContainer(
+        overrides: [
+          defaultBackendUrlProvider.overrideWithValue('https://api.test.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final config = container.read(configProvider);
+
+      expect(config.baseUrl, 'https://api.test.com');
+    });
+
+    test('build returns preloaded URL when available', () {
+      final container = ProviderContainer(
+        overrides: [
+          defaultBackendUrlProvider
+              .overrideWithValue('https://api.default.com'),
+          preloadedBaseUrlProvider.overrideWithValue('https://saved.user.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final config = container.read(configProvider);
+
+      // Preloaded URL takes precedence over default
+      expect(config.baseUrl, 'https://saved.user.com');
     });
 
     test('setBaseUrl persists URL to SharedPreferences', () async {
@@ -102,33 +132,79 @@ void main() {
     });
   });
 
-  group('initializeConfig', () {
-    test('loads saved URL from SharedPreferences', () async {
+  group('loadSavedBaseUrl', () {
+    test('returns saved URL from SharedPreferences', () async {
       SharedPreferences.setMockInitialValues({
         'backend_base_url': 'https://saved.example.com',
       });
 
-      await initializeConfig();
+      final savedUrl = await loadSavedBaseUrl();
 
-      // Note: initializeConfig sets _preloadedConfig which affects
-      // subsequent builds. Since _preloadedConfig is module-level,
-      // we can't easily test the effect without creating a new container
-      // after the config is initialized.
+      expect(savedUrl, 'https://saved.example.com');
     });
 
-    test('handles empty SharedPreferences gracefully', () async {
+    test('returns null when no URL saved', () async {
       SharedPreferences.setMockInitialValues({});
 
-      // Should not throw
-      await initializeConfig();
+      final savedUrl = await loadSavedBaseUrl();
+
+      expect(savedUrl, isNull);
+    });
+
+    test('returns null for empty saved URL', () async {
+      SharedPreferences.setMockInitialValues({
+        'backend_base_url': '',
+      });
+
+      final savedUrl = await loadSavedBaseUrl();
+
+      expect(savedUrl, isNull);
     });
   });
 
-  group('defaultBaseUrl', () {
-    test('returns localhost URL on native platforms', () {
-      // Tests run as native Dart, so this tests the native branch.
-      // Web behavior (Uri.base.origin) is tested via web build integration.
-      expect(defaultBaseUrl(), 'http://localhost:8000');
+  group('preloadedBaseUrlProvider', () {
+    test('defaults to null', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(container.read(preloadedBaseUrlProvider), isNull);
+    });
+
+    test('can be overridden with saved URL', () {
+      final container = ProviderContainer(
+        overrides: [
+          preloadedBaseUrlProvider.overrideWithValue('https://override.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(preloadedBaseUrlProvider), 'https://override.com');
+    });
+  });
+
+  group('defaultBackendUrlProvider', () {
+    test('defaults to platform URL (localhost for native)', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(defaultBackendUrlProvider),
+        'http://localhost:8000',
+      );
+    });
+
+    test('can be overridden with custom URL', () {
+      final container = ProviderContainer(
+        overrides: [
+          defaultBackendUrlProvider.overrideWithValue('https://api.custom.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(defaultBackendUrlProvider),
+        'https://api.custom.com',
+      );
     });
   });
 }

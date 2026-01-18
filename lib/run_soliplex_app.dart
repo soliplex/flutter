@@ -55,12 +55,13 @@ Future<void> runSoliplexApp({
   // iOS preserves Keychain across uninstall/reinstall.
   await clearAuthStorageOnReinstall();
 
-  // Load saved config BEFORE app starts to avoid race conditions.
-  // Wrapped in try/catch to ensure app launches even if config load fails.
+  // Load saved base URL BEFORE app starts to avoid race conditions.
+  // Returns null if user hasn't saved a custom URL yet.
+  String? savedBaseUrl;
   try {
-    await initializeConfig();
+    savedBaseUrl = await loadSavedBaseUrl();
   } catch (e) {
-    debugPrint('Failed to load user config: $e');
+    debugPrint('Failed to load saved base URL: $e');
   }
 
   // Load package info for version display.
@@ -74,6 +75,11 @@ Future<void> runSoliplexApp({
         registryProvider.overrideWithValue(registry),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
         packageInfoProvider.overrideWithValue(packageInfo),
+        // Inject default backend URL from shell config
+        defaultBackendUrlProvider.overrideWithValue(config.defaultBackendUrl),
+        // Inject user's saved base URL if available
+        if (savedBaseUrl != null)
+          preloadedBaseUrlProvider.overrideWithValue(savedBaseUrl),
       ],
       child: const SoliplexApp(),
     ),
