@@ -43,62 +43,79 @@ class ChatMessageWidget extends StatelessWidget {
             isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         spacing: SoliplexSpacing.s2,
         children: [
-          Container(
-            constraints: BoxConstraints(
-              maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: isUser
-                  ? theme.colorScheme.primaryContainer
-                  : theme.colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(
-                soliplexTheme.radii.lg,
+          SelectionArea(
+            child: Container(
+              constraints: BoxConstraints(
+                maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isUser)
-                  Text(
-                    text,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: message is ErrorMessage
-                          ? theme.colorScheme.error
-                          : theme.colorScheme.onPrimaryContainer,
-                    ),
-                  )
-                else
-                  MarkdownBody(
-                    data: text,
-                    styleSheet: MarkdownStyleSheet(
-                      p: theme.textTheme.bodyLarge?.copyWith(
-                        color: message is ErrorMessage
-                            ? theme.colorScheme.error
-                            : theme.colorScheme.onSurface,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(
+                  soliplexTheme.radii.lg,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isUser)
+                    TextSelectionTheme(
+                      data: TextSelectionThemeData(
+                        selectionColor:
+                            theme.colorScheme.onPrimaryContainer.withAlpha(
+                          (0.4 * 255).toInt(),
+                        ),
+                        selectionHandleColor:
+                            theme.colorScheme.onPrimaryContainer,
                       ),
-                      code: context.monospace.copyWith(
-                        backgroundColor: theme.colorScheme.surfaceContainerHigh,
-                      ),
-                      codeblockDecoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(
-                          soliplexTheme.radii.sm,
+                      child: Text(
+                        text,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: message is ErrorMessage
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.onPrimaryContainer,
                         ),
                       ),
-                    ),
-                    builders: {
-                      'code': CodeBlockBuilder(
-                        preferredStyle:
-                            context.monospace.copyWith(fontSize: 14),
+                    )
+                  else
+                    // NOTE: Do not set selectable: true here
+                    // The markdown is rendered as separate widgets,
+                    // if you set selectable: true, you'll have to select
+                    // each widget separately.
+                    MarkdownBody(
+                      data: text,
+                      styleSheet: MarkdownStyleSheet(
+                        p: theme.textTheme.bodyLarge?.copyWith(
+                          color: message is ErrorMessage
+                              ? theme.colorScheme.error
+                              : theme.colorScheme.onSurface,
+                        ),
+                        code: context.monospace.copyWith(
+                          backgroundColor:
+                              theme.colorScheme.surfaceContainerHigh,
+                        ),
+                        codeblockDecoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(
+                            soliplexTheme.radii.sm,
+                          ),
+                        ),
                       ),
-                    },
-                  ),
-                if (isStreaming) ...[
-                  const SizedBox(height: 8),
-                  _buildStreamingIndicator(context, theme),
+                      builders: {
+                        'code': CodeBlockBuilder(
+                          preferredStyle:
+                              context.monospace.copyWith(fontSize: 14),
+                        ),
+                      },
+                    ),
+                  if (isStreaming) ...[
+                    const SizedBox(height: 8),
+                    _buildStreamingIndicator(context, theme),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           if (isUser)
