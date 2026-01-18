@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:soliplex_frontend/core/extension/soliplex_registry.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 
@@ -29,14 +28,6 @@ final shellConfigProvider = Provider<SoliplexConfig>((ref) {
     'shellConfigProvider must be overridden in ProviderScope. '
     'Use runSoliplexApp() or manually override in ProviderScope.',
   );
-});
-
-/// Provider for the extension registry.
-///
-/// Provides access to custom panels, commands, and routes registered
-/// by white-label apps. Defaults to [EmptyRegistry] if not overridden.
-final registryProvider = Provider<SoliplexRegistry>((ref) {
-  return const EmptyRegistry();
 });
 
 /// Provider for feature flags.

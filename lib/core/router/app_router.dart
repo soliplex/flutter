@@ -91,7 +91,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   final shellConfig = ref.read(shellConfigProvider);
   final routeConfig = shellConfig.routes;
   final features = shellConfig.features;
-  final registry = ref.read(registryProvider);
 
   // Check if this is an OAuth callback (tokens in URL from backend BFF)
   final capturedParams = ref.read(capturedCallbackParamsProvider);
@@ -226,18 +225,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             body: const SettingsScreen(),
           ),
         ),
-      // Custom routes from registry
-      ...registry.routes.map(
-        (routeDef) => GoRoute(
-          path: routeDef.path,
-          redirect: routeDef.redirect != null
-              ? (context, state) => routeDef.redirect!(context)
-              : null,
-          pageBuilder: (context, state) => NoTransitionPage(
-            child: routeDef.builder(context, state.pathParameters),
-          ),
-        ),
-      ),
     ],
     errorBuilder: (context, state) => _staticShell(
       title: const Text('Error'),

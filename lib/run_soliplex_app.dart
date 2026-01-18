@@ -5,7 +5,6 @@ import 'package:soliplex_frontend/app.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
-import 'package:soliplex_frontend/core/extension/soliplex_registry.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
@@ -31,12 +30,8 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 ///   );
 /// }
 /// ```
-///
-/// For advanced customization, provide a [registry] with custom panels,
-/// commands, and routes.
 Future<void> runSoliplexApp({
   SoliplexConfig config = const SoliplexConfig(),
-  SoliplexRegistry registry = const EmptyRegistry(),
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -72,7 +67,6 @@ Future<void> runSoliplexApp({
       overrides: [
         // Inject shell configuration via ProviderScope (no global state)
         shellConfigProvider.overrideWithValue(config),
-        registryProvider.overrideWithValue(registry),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
         packageInfoProvider.overrideWithValue(packageInfo),
         // Inject default backend URL from shell config

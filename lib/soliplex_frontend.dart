@@ -26,16 +26,7 @@
 /// - Theme colors (`ThemeConfig`)
 /// - Route visibility (`RouteConfig`)
 ///
-/// ## Extension
-///
-/// Implement `SoliplexRegistry` to add:
-/// - Custom panels (`PanelDefinition`)
-/// - Slash commands (`CommandDefinition`)
-/// - Additional routes (`RouteDefinition`)
 library soliplex_frontend;
-
-// Extension registry
-export 'package:soliplex_frontend/core/extension/soliplex_registry.dart';
 
 // Configuration models
 export 'package:soliplex_frontend/core/models/features.dart';
