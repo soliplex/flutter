@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:soliplex_frontend/core/models/features.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
@@ -261,6 +264,113 @@ void main() {
 
         final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
         expect(scaffold.drawer, isNull);
+      });
+    });
+
+    group('feature flags', () {
+      testWidgets(
+        'hides inspector button when enableHttpInspector is false',
+        (tester) async {
+          initializeShellConfig(
+            config: const SoliplexConfig(
+              features: Features(enableHttpInspector: false),
+            ),
+          );
+
+          await tester.pumpWidget(
+            const ProviderScope(
+              child: MaterialApp(
+                home: AppShell(
+                  config: ShellConfig(),
+                  body: Center(child: Text('Content')),
+                ),
+              ),
+            ),
+          );
+
+          expect(find.byIcon(Icons.bug_report), findsNothing);
+
+          // Reset for other tests
+          initializeShellConfig();
+        },
+      );
+
+      testWidgets(
+        'hides endDrawer when enableHttpInspector is false',
+        (tester) async {
+          initializeShellConfig(
+            config: const SoliplexConfig(
+              features: Features(enableHttpInspector: false),
+            ),
+          );
+
+          await tester.pumpWidget(
+            const ProviderScope(
+              child: MaterialApp(
+                home: AppShell(
+                  config: ShellConfig(),
+                  body: Center(child: Text('Content')),
+                ),
+              ),
+            ),
+          );
+
+          final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+          expect(scaffold.endDrawer, isNull);
+
+          // Reset for other tests
+          initializeShellConfig();
+        },
+      );
+    });
+
+    group('custom end drawer', () {
+      testWidgets('shows custom end drawer instead of inspector', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: AppShell(
+                config: const ShellConfig(),
+                body: const Center(child: Text('Content')),
+                customEndDrawer: const Text('Custom Drawer Content'),
+              ),
+            ),
+          ),
+        );
+
+        // Inspector button should be hidden
+        expect(find.byIcon(Icons.bug_report), findsNothing);
+
+        // Open drawer via scaffold
+        tester.state<ScaffoldState>(find.byType(Scaffold)).openEndDrawer();
+        await tester.pumpAndSettle();
+
+        expect(find.text('Custom Drawer Content'), findsOneWidget);
+      });
+
+      testWidgets('custom end drawer has Semantics label', (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              home: AppShell(
+                config: const ShellConfig(),
+                body: const Center(child: Text('Content')),
+                customEndDrawer: const Text('Custom'),
+              ),
+            ),
+          ),
+        );
+
+        tester.state<ScaffoldState>(find.byType(Scaffold)).openEndDrawer();
+        await tester.pumpAndSettle();
+
+        final semanticsFinder = find.byWidgetPredicate(
+          (widget) =>
+              widget is Semantics && widget.properties.label == 'Custom panel',
+        );
+        expect(semanticsFinder, findsOneWidget);
       });
     });
   });

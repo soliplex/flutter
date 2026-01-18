@@ -1,0 +1,51 @@
+/// Soliplex Frontend - A white-label Flutter chat application shell.
+///
+/// This library provides the core components for building a customizable
+/// AI chat application based on the Soliplex architecture.
+///
+/// ## Quick Start
+///
+/// ```dart
+/// import 'package:soliplex_frontend/soliplex_frontend.dart';
+///
+/// void main() {
+///   runSoliplexApp(
+///     config: SoliplexConfig(
+///       appName: 'MyBrand',
+///       features: Features(enableHttpInspector: false),
+///     ),
+///   );
+/// }
+/// ```
+///
+/// ## Configuration
+///
+/// Use `SoliplexConfig` to customize:
+/// - App name and branding
+/// - Feature flags (`Features`)
+/// - Theme colors (`ThemeConfig`)
+/// - Route visibility (`RouteConfig`)
+///
+/// ## Extension
+///
+/// Implement `SoliplexRegistry` to add:
+/// - Custom panels (`PanelDefinition`)
+/// - Slash commands (`CommandDefinition`)
+/// - Additional routes (`RouteDefinition`)
+library soliplex_frontend;
+
+// Extension registry
+export 'package:soliplex_frontend/core/extension/soliplex_registry.dart';
+
+// Configuration models
+export 'package:soliplex_frontend/core/models/features.dart';
+export 'package:soliplex_frontend/core/models/route_config.dart';
+export 'package:soliplex_frontend/core/models/soliplex_config.dart';
+export 'package:soliplex_frontend/core/models/theme_config.dart';
+
+// Design tokens (for custom themes)
+export 'package:soliplex_frontend/design/tokens/colors.dart'
+    show SoliplexColors, darkSoliplexColors, lightSoliplexColors;
+
+// Entry point
+export 'package:soliplex_frontend/run_soliplex_app.dart';

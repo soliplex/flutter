@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
-import 'package:soliplex_frontend/core/build_config.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
@@ -88,14 +88,20 @@ final routerProvider = Provider<GoRouter>((ref) {
   // recreating the router on every auth state change (including token refresh).
   // The listenable only fires on actual login/logout transitions.
   final authStatusListenable = ref.watch(authStatusListenableProvider);
+  final shellConfig = ref.read(shellConfigProvider);
+  final routeConfig = shellConfig.routes;
+  final features = shellConfig.features;
+  final registry = ref.read(registryProvider);
 
   // Check if this is an OAuth callback (tokens in URL from backend BFF)
   final capturedParams = ref.read(capturedCallbackParamsProvider);
   final isOAuthCallback = capturedParams is WebCallbackParams;
   debugPrint('Router: isOAuthCallback = $isOAuthCallback');
 
+  // Use configured initial route or default to /
+  final configuredInitial = routeConfig.initialRoute;
   // Route to callback screen if we have OAuth tokens to process
-  final initialPath = isOAuthCallback ? '/auth/callback' : '/';
+  final initialPath = isOAuthCallback ? '/auth/callback' : configuredInitial;
 
   return GoRouter(
     initialLocation: initialPath.split('?').first, // Strip query params
@@ -150,62 +156,86 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: AuthCallbackScreen()),
       ),
-      GoRoute(
-        path: '/',
-        name: 'home',
-        pageBuilder: (context, state) => _staticPage(
-          title: const Text(appName),
-          body: const HomeScreen(),
-          actions: const [_SettingsButton()],
+      if (routeConfig.showHomeRoute)
+        GoRoute(
+          path: '/',
+          name: 'home',
+          pageBuilder: (context, state) {
+            return _staticPage(
+              title: Text(shellConfig.appName),
+              body: const HomeScreen(),
+              actions: [
+                if (features.enableSettings) const _SettingsButton(),
+              ],
+            );
+          },
         ),
-      ),
-      GoRoute(
-        path: '/rooms',
-        name: 'rooms',
-        pageBuilder: (context, state) => _staticPage(
-          title: const Text('Rooms'),
-          body: const RoomsScreen(),
-          actions: const [_SettingsButton()],
+      if (routeConfig.showRoomsRoute)
+        GoRoute(
+          path: '/rooms',
+          name: 'rooms',
+          pageBuilder: (context, state) => _staticPage(
+            title: const Text('Rooms'),
+            body: const RoomsScreen(),
+            actions: [
+              if (features.enableSettings) const _SettingsButton(),
+            ],
+          ),
         ),
-      ),
-      GoRoute(
-        path: '/rooms/:roomId',
-        name: 'room',
-        pageBuilder: (context, state) {
-          final roomId = state.pathParameters['roomId']!;
-          final threadId = state.uri.queryParameters['thread'];
-          return NoTransitionPage(
-            child: RoomScreen(roomId: roomId, initialThreadId: threadId),
-          );
-        },
-      ),
-      GoRoute(
-        path: '/rooms/:roomId/quiz/:quizId',
-        name: 'quiz',
-        pageBuilder: (context, state) {
-          final roomId = state.pathParameters['roomId']!;
-          final quizId = state.pathParameters['quizId']!;
-          return NoTransitionPage(
-            child: QuizScreen(roomId: roomId, quizId: quizId),
-          );
-        },
-      ),
-      // Migration redirect: old thread URLs -> new query param format
-      GoRoute(
-        path: '/rooms/:roomId/thread/:threadId',
-        name: 'thread-redirect',
-        redirect: (context, state) {
-          final roomId = state.pathParameters['roomId']!;
-          final threadId = state.pathParameters['threadId']!;
-          return '/rooms/$roomId?thread=$threadId';
-        },
-      ),
-      GoRoute(
-        path: '/settings',
-        name: 'settings',
-        pageBuilder: (context, state) => _staticPage(
-          title: const Text('Settings'),
-          body: const SettingsScreen(),
+      if (routeConfig.showRoomsRoute)
+        GoRoute(
+          path: '/rooms/:roomId',
+          name: 'room',
+          pageBuilder: (context, state) {
+            final roomId = state.pathParameters['roomId']!;
+            final threadId = state.uri.queryParameters['thread'];
+            return NoTransitionPage(
+              child: RoomScreen(roomId: roomId, initialThreadId: threadId),
+            );
+          },
+        ),
+      if (routeConfig.showQuizRoute && features.enableQuizzes)
+        GoRoute(
+          path: '/rooms/:roomId/quiz/:quizId',
+          name: 'quiz',
+          pageBuilder: (context, state) {
+            final roomId = state.pathParameters['roomId']!;
+            final quizId = state.pathParameters['quizId']!;
+            return NoTransitionPage(
+              child: QuizScreen(roomId: roomId, quizId: quizId),
+            );
+          },
+        ),
+      if (routeConfig.showRoomsRoute)
+        // Migration redirect: old thread URLs -> new query param format
+        GoRoute(
+          path: '/rooms/:roomId/thread/:threadId',
+          name: 'thread-redirect',
+          redirect: (context, state) {
+            final roomId = state.pathParameters['roomId']!;
+            final threadId = state.pathParameters['threadId']!;
+            return '/rooms/$roomId?thread=$threadId';
+          },
+        ),
+      if (routeConfig.showSettingsRoute && features.enableSettings)
+        GoRoute(
+          path: '/settings',
+          name: 'settings',
+          pageBuilder: (context, state) => _staticPage(
+            title: const Text('Settings'),
+            body: const SettingsScreen(),
+          ),
+        ),
+      // Custom routes from registry
+      ...registry.routes.map(
+        (routeDef) => GoRoute(
+          path: routeDef.path,
+          redirect: routeDef.redirect != null
+              ? (context, state) => routeDef.redirect!(context)
+              : null,
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: routeDef.builder(context, state.pathParameters),
+          ),
         ),
       ),
     ],

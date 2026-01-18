@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/inspector/http_inspector_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
@@ -7,16 +9,30 @@ import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 ///
 /// Provides:
 /// - Single Scaffold to avoid nested Scaffold drawer issues
-/// - HTTP inspector drawer accessible from all screens
-/// - Consistent AppBar with inspector button
-class AppShell extends StatelessWidget {
-  const AppShell({required this.config, required this.body, super.key});
+/// - HTTP inspector drawer accessible from all screens (if enabled)
+/// - Consistent AppBar with configurable actions
+/// - Support for custom end drawers
+///
+/// The HTTP inspector can be disabled via `Features.enableHttpInspector`.
+class AppShell extends ConsumerWidget {
+  const AppShell({
+    required this.config,
+    required this.body,
+    this.customEndDrawer,
+    super.key,
+  });
 
   /// Configuration for the AppBar and drawers.
   final ShellConfig config;
 
   /// The screen's body content.
   final Widget body;
+
+  /// Optional custom end drawer to replace the HTTP inspector.
+  ///
+  /// If provided, this drawer is shown instead of the HTTP inspector.
+  /// The HTTP inspector button is also hidden when a custom drawer is set.
+  final Widget? customEndDrawer;
 
   double _getDrawerWidth(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -30,7 +46,11 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final features = ref.watch(featuresProvider);
+    final showInspector =
+        features.enableHttpInspector && customEndDrawer == null;
+
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -43,10 +63,11 @@ class AppShell extends StatelessWidget {
         ),
         actions: [
           ...config.actions,
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
-            child: _InspectorButton(),
-          ),
+          if (showInspector)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+              child: _InspectorButton(),
+            ),
         ],
       ),
       drawer: config.drawer != null
@@ -61,7 +82,30 @@ class AppShell extends StatelessWidget {
               ),
             )
           : null,
-      endDrawer: Semantics(
+      endDrawer: _buildEndDrawer(context, showInspector),
+      body: SafeArea(child: body),
+    );
+  }
+
+  Widget? _buildEndDrawer(BuildContext context, bool showInspector) {
+    if (customEndDrawer != null) {
+      return Semantics(
+        label: 'Custom panel',
+        child: SizedBox(
+          width: _getDrawerWidth(context),
+          child: Drawer(
+            child: SafeArea(
+              left: false,
+              right: false,
+              child: customEndDrawer!,
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (showInspector) {
+      return Semantics(
         label: 'HTTP traffic inspector panel',
         child: SizedBox(
           width: _getDrawerWidth(context),
@@ -73,9 +117,10 @@ class AppShell extends StatelessWidget {
             ),
           ),
         ),
-      ),
-      body: SafeArea(child: body),
-    );
+      );
+    }
+
+    return null;
   }
 }
 
