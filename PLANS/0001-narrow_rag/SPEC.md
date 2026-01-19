@@ -30,6 +30,7 @@ result relevance and reduce noise.
 7. Users can deselect/remove documents before submitting.
 8. The prompt submission includes the selected document references, instructing
    the backend to limit RAG scope.
+9. Already-selected documents do not appear in the autocomplete suggestions.
 
 ### Non-Functional Requirements
 
@@ -81,7 +82,7 @@ runs—John may select documents again (same or different).
 
 **Autocomplete popup:**
 
-- Shows all available documents initially.
+- Shows all available documents initially (excluding already-selected ones).
 - Filters list as user types characters after `#`.
 - Keyboard navigable (up/down arrows, enter to select, escape to dismiss).
 - Touch/click selection on mobile.
@@ -108,6 +109,7 @@ and #mercedes_c330_troubleshooting.pdf
 - [ ] User can select document via mouse click or touch.
 - [ ] Selected document appears as a chip in the input.
 - [ ] User can select multiple documents.
+- [ ] Already-selected documents are excluded from the autocomplete suggestions.
 - [ ] User can remove a selected document before submitting.
 - [ ] Submitted prompt includes selected document references in request payload.
 - [ ] Works on desktop, web, iOS, and Android.
