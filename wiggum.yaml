@@ -3,8 +3,8 @@ project_name: soliplex-flutter
 language: dart
 
 commands:
-  # Dart/Flutter static analysis
-  lint: "flutter analyze --no-pub"
+  # Format, then analyze
+  lint: "dart format . && flutter analyze --no-pub"
   # Run all unit tests
   unit: "flutter test"
   # Integration tests (when available)
