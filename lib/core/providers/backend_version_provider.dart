@@ -4,8 +4,8 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Provider for backend version information.
 ///
-/// Fetches version info from the backend's `/api/v1/installation/versions`
-/// endpoint. The result is cached for the session.
+/// Fetches version info from the backend installation endpoint.
+/// The result is cached for the session.
 ///
 /// **Usage Example**:
 /// ```dart
@@ -13,7 +13,10 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 /// versionAsync.when(
 ///   data: (info) => Text(info.soliplexVersion),
 ///   loading: () => const Text('Loading...'),
-///   error: (_, __) => const Text('Unavailable'),
+///   error: (error, stack) {
+///     debugPrint('Failed to load: $error');
+///     return const Text('Unavailable');
+///   },
 /// );
 /// ```
 final backendVersionInfoProvider = FutureProvider<BackendVersionInfo>((ref) {
