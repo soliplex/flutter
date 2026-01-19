@@ -321,7 +321,11 @@ void main() {
         );
         const state = RunningState(
           conversation: conversation,
-          streaming: Streaming(messageId: 'msg-1', text: 'Hello'),
+          streaming: Streaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hello',
+          ),
         );
 
         expect(state.isStreaming, isTrue);

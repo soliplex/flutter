@@ -162,7 +162,11 @@ final apiProvider = Provider<SoliplexApi>((ref) {
   // would close the shared transport. The transport is managed by
   // httpTransportProvider, and the underlying client is managed by
   // baseHttpClientProvider.
-  return SoliplexApi(transport: transport, urlBuilder: urlBuilder);
+  return SoliplexApi(
+    transport: transport,
+    urlBuilder: urlBuilder,
+    onWarning: debugPrint,
+  );
 });
 
 /// Provider for the Soliplex HTTP client.

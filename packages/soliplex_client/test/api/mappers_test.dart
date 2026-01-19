@@ -234,19 +234,17 @@ void main() {
         expect(thread.roomId, equals(''));
       });
 
-      test('handles invalid created_at DateTime', () {
+      test('throws FormatException for invalid created_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
           'created_at': 'invalid-date',
         };
 
-        final thread = threadInfoFromJson(json);
-
-        expect(thread.createdAt, isNotNull);
+        expect(() => threadInfoFromJson(json), throwsFormatException);
       });
 
-      test('handles invalid updated_at DateTime', () {
+      test('throws FormatException for invalid updated_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
@@ -254,10 +252,7 @@ void main() {
           'updated_at': 'invalid-date',
         };
 
-        final thread = threadInfoFromJson(json);
-
-        expect(thread.updatedAt, isNotNull);
-        expect(thread.updatedAt, equals(thread.createdAt));
+        expect(() => threadInfoFromJson(json), throwsFormatException);
       });
 
       test('handles null optional fields', () {
@@ -412,29 +407,24 @@ void main() {
         expect(run.threadId, equals(''));
       });
 
-      test('handles invalid completed_at DateTime', () {
+      test('throws FormatException for invalid completed_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
           'completed_at': 'invalid-date',
         };
 
-        final run = runInfoFromJson(json);
-
-        expect(run.completion, isA<CompletedAt>());
-        expect((run.completion as CompletedAt).time, isNotNull);
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
-      test('handles invalid created_at DateTime', () {
+      test('throws FormatException for invalid created_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
           'created_at': 'invalid-date',
         };
 
-        final run = runInfoFromJson(json);
-
-        expect(run.createdAt, isNotNull);
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
       test('handles null label', () {
@@ -551,9 +541,12 @@ void main() {
       expect(runStatusFromString(null), equals(RunStatus.pending));
     });
 
-    test('returns pending for unknown status', () {
-      expect(runStatusFromString('unknown'), equals(RunStatus.pending));
-      expect(runStatusFromString('invalid'), equals(RunStatus.pending));
+    test('returns unknown for unrecognized status', () {
+      // 'unknown' is now a valid enum value, so it maps to itself
+      expect(runStatusFromString('unknown'), equals(RunStatus.unknown));
+      // Truly unrecognized values also map to unknown
+      expect(runStatusFromString('invalid'), equals(RunStatus.unknown));
+      expect(runStatusFromString('foobar'), equals(RunStatus.unknown));
     });
   });
 
