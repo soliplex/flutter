@@ -1,0 +1,20 @@
+# Wiggum configuration for Soliplex Flutter project
+project_name: soliplex-flutter
+language: dart
+
+commands:
+  # Dart/Flutter static analysis
+  lint: "flutter analyze --no-pub"
+  # Run all unit tests
+  unit: "flutter test"
+  # Integration tests (when available)
+  integration: "flutter test integration_test/ || echo 'No integration tests yet'"
+
+milestones: milestones/
+
+review:
+  model: gemini-3-pro-preview
+  tool: mcp__gemini__read_files
+
+# Per-milestone iteration limit
+max_iterations: 10
