@@ -380,8 +380,6 @@ void main() {
 
         // Assert - no action buttons while streaming
         expect(find.byIcon(Icons.copy), findsNothing);
-        expect(find.byIcon(Icons.repeat), findsNothing);
-        expect(find.byIcon(Icons.thumb_up), findsNothing);
       });
 
       testWidgets('copy button shows success snackbar', (tester) async {

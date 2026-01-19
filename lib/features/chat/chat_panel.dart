@@ -20,7 +20,6 @@ import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 /// - Displays messages from the current thread
 /// - Provides input for sending new messages
 /// - Handles thread creation for new conversations
-/// - Shows cancel button during streaming
 /// - Handles errors with ErrorDisplay
 ///
 /// The panel integrates with:
@@ -60,7 +59,6 @@ class ChatPanel extends ConsumerWidget {
               padding: EdgeInsets.only(bottom: bottomInset),
               child: Column(
                 children: [
-                  // Message list
                   Expanded(
                     child: switch (runState) {
                       CompletedState(
@@ -73,8 +71,6 @@ class ChatPanel extends ConsumerWidget {
                       _ => const MessageList(),
                     },
                   ),
-
-                  // Input
                   ChatInput(onSend: (text) => _handleSend(context, ref, text)),
                 ],
               ),

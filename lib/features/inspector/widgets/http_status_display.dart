@@ -2,14 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:soliplex_frontend/features/inspector/models/http_event_group.dart';
 import 'package:soliplex_frontend/shared/utils/format_utils.dart';
 
-/// Extension on [ColorScheme] to provide warning color.
+/// Extension on [ColorScheme] to provide status colors.
 ///
-/// Material Design 3 ColorScheme doesn't include a warning color.
-/// This extension derives one that adapts to light/dark themes.
+/// Material Design 3 ColorScheme doesn't include warning or success colors.
+/// This extension derives ones that adapt to light/dark themes.
 extension StatusColors on ColorScheme {
   /// Warning color that adapts to the current theme brightness.
   Color get warning =>
       brightness == Brightness.light ? Colors.orange : Colors.orange.shade300;
+
+  /// Success color that adapts to the current theme brightness.
   Color get success =>
       brightness == Brightness.light ? Colors.green : Colors.green.shade300;
 }
