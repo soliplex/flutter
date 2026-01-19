@@ -1,4 +1,5 @@
 import 'package:meta/meta.dart';
+import 'package:soliplex_client/src/domain/chat_message.dart';
 
 /// Ephemeral streaming state (application layer, not domain).
 ///
@@ -40,12 +41,19 @@ class NotStreaming extends StreamingState {
 /// A message is currently streaming.
 @immutable
 class Streaming extends StreamingState {
-  /// Creates a streaming state with the given [messageId] and accumulated
-  /// [text].
-  const Streaming({required this.messageId, required this.text});
+  /// Creates a streaming state with the given [messageId], [user], and
+  /// accumulated [text].
+  const Streaming({
+    required this.messageId,
+    required this.user,
+    required this.text,
+  });
 
   /// The ID of the message being streamed.
   final String messageId;
+
+  /// The user role for this message.
+  final ChatUser user;
 
   /// The text accumulated so far.
   final String text;
@@ -55,7 +63,7 @@ class Streaming extends StreamingState {
   // Streaming as pure data would be cleaner.
   /// Creates a copy with the delta appended to text.
   Streaming appendDelta(String delta) {
-    return Streaming(messageId: messageId, text: text + delta);
+    return Streaming(messageId: messageId, user: user, text: text + delta);
   }
 
   @override
@@ -64,12 +72,13 @@ class Streaming extends StreamingState {
       other is Streaming &&
           runtimeType == other.runtimeType &&
           messageId == other.messageId &&
+          user == other.user &&
           text == other.text;
 
   @override
-  int get hashCode => Object.hash(runtimeType, messageId, text);
+  int get hashCode => Object.hash(runtimeType, messageId, user, text);
 
   @override
-  String toString() =>
-      'Streaming(messageId: $messageId, text: ${text.length} chars)';
+  String toString() => 'Streaming('
+      'messageId: $messageId, user: $user, text: ${text.length} chars)';
 }

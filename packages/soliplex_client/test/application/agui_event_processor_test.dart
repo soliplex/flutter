@@ -6,6 +6,8 @@ import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
 import 'package:test/test.dart';
 
+const _defaultUser = ChatUser.assistant;
+
 void main() {
   group('processEvent', () {
     late Conversation conversation;
@@ -86,6 +88,7 @@ void main() {
       test('TextMessageContentEvent appends delta to streaming text', () {
         const streamingState = app_streaming.Streaming(
           messageId: 'msg-1',
+          user: _defaultUser,
           text: 'Hello',
         );
         const event = TextMessageContentEvent(
@@ -106,6 +109,7 @@ void main() {
         () {
           const streamingState = app_streaming.Streaming(
             messageId: 'msg-1',
+            user: _defaultUser,
             text: 'Hello',
           );
           const event = TextMessageContentEvent(
@@ -122,6 +126,7 @@ void main() {
       test('TextMessageEndEvent finalizes message and resets streaming', () {
         const streamingState = app_streaming.Streaming(
           messageId: 'msg-1',
+          user: _defaultUser,
           text: 'Hello world',
         );
         const event = TextMessageEndEvent(messageId: 'msg-1');
@@ -139,6 +144,7 @@ void main() {
         () {
           const streamingState = app_streaming.Streaming(
             messageId: 'msg-1',
+            user: _defaultUser,
             text: 'Hello',
           );
           const event = TextMessageEndEvent(messageId: 'msg-other');
