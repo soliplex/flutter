@@ -226,13 +226,52 @@ dependencies:
       ref: feat/appshell-extraction  # or main after merge
 ```
 
-## What's NOT Included
+## What's NOT Included (v1)
 
 This branch focuses on the shell extraction. The following are out of scope:
 
 - Documentation generation (dartdoc)
 - Example app within this repo
-- Registry pattern for runtime customization
-- Plugin architecture
+- Custom route injection
+- Screen replacement via builders
+- Provider injection for analytics/services
 
-These may be added in future iterations.
+## Roadmap: Configuration vs Composition
+
+### Current: v1 Configuration-Based (Skinning)
+
+The current architecture is **configuration-based whitelabeling**. Consumers can:
+
+- Customize branding (app name, colors, theme)
+- Toggle features on/off
+- Configure backend URL
+- Control which routes are visible
+
+This covers ~80% of typical whitelabel needs.
+
+### Future: v2 Composition-Based (Framework)
+
+If customer demand requires it, v2 will evolve to **composition-based whitelabeling**
+where consumers can inject custom functionality:
+
+| Capability | v1 (Current) | v2 (Future) |
+|------------|--------------|-------------|
+| Custom theme/colors | ✅ | ✅ |
+| Feature toggles | ✅ | ✅ |
+| Backend URL | ✅ | ✅ |
+| Hide/show routes | ✅ | ✅ |
+| Add custom routes | ❌ | ✅ |
+| Replace core screens | ❌ | ✅ |
+| Inject providers (analytics, etc.) | ❌ | ✅ |
+| Own `runApp()` entry point | ❌ | ✅ |
+
+### v2 Migration Path
+
+When v2 is needed, the changes involve:
+
+1. **Invert control**: Return `Widget` instead of calling `runApp()`, letting
+   consumers wrap with their own `ProviderScope`
+2. **Open the router**: Add `additionalRoutes` parameter to `SoliplexConfig`
+3. **Widget builders**: Add `ScreenBuilders` for replacing Login, Home, etc.
+4. **Provider injection**: Define interfaces (e.g., `AnalyticsService`) that
+   consumers can override
