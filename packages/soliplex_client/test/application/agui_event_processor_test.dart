@@ -155,6 +155,42 @@ void main() {
           expect(result.conversation.messages, isEmpty);
         },
       );
+
+      test('TextMessageStartEvent maps user role to ChatUser.user', () {
+        const event = TextMessageStartEvent(
+          messageId: 'msg-1',
+          role: TextMessageRole.user,
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        final streamingState = result.streaming as app_streaming.Streaming;
+        expect(streamingState.user, equals(ChatUser.user));
+      });
+
+      test('TextMessageStartEvent maps system role to ChatUser.system', () {
+        const event = TextMessageStartEvent(
+          messageId: 'msg-1',
+          role: TextMessageRole.system,
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        final streamingState = result.streaming as app_streaming.Streaming;
+        expect(streamingState.user, equals(ChatUser.system));
+      });
+
+      test('TextMessageStartEvent maps developer role to ChatUser.system', () {
+        const event = TextMessageStartEvent(
+          messageId: 'msg-1',
+          role: TextMessageRole.developer,
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        final streamingState = result.streaming as app_streaming.Streaming;
+        expect(streamingState.user, equals(ChatUser.system));
+      });
     });
 
     group('tool call events', () {

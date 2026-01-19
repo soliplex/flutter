@@ -43,6 +43,99 @@ void main() {
 
         verify(() => mockTransport.close()).called(1);
       });
+
+      test('clears the run events cache', () async {
+        // Thread endpoint
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        // Run endpoint
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'msg-1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-1',
+                'delta': 'Hello',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
+            ],
+          },
+        );
+
+        // First call populates cache
+        await api.getThreadMessages('room-123', 'thread-456');
+
+        // Close clears the cache
+        api.close();
+
+        // Create new API instance (simulates reconnection)
+        final api2 = SoliplexApi(
+          transport: mockTransport,
+          urlBuilder: urlBuilder,
+        );
+
+        // Second call should fetch from network (cache was cleared)
+        await api2.getThreadMessages('room-123', 'thread-456');
+
+        // Run endpoint should be called twice (once per API instance)
+        verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(2);
+
+        api2.close();
+      });
     });
 
     // ============================================================
@@ -1474,6 +1567,90 @@ void main() {
         expect(messages.length, equals(2));
         expect(messages[0].id, equals('user-msg-1'));
         expect(messages[1].id, equals('assistant-new'));
+      });
+
+      test('uses fallback values for missing fields in run_input.messages',
+          () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'run_input': {
+              // Message without id or role - should use fallbacks
+              'messages': [
+                {'content': 'Message without id or role'},
+                {'id': 'has-id', 'content': 'Message with id, no role'},
+                {
+                  'role': 'assistant',
+                  'content': 'Assistant message (should be skipped)',
+                },
+              ],
+            },
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'm1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'm1',
+                'delta': 'Response',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'm1'},
+            ],
+          },
+        );
+
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+
+        // Two user messages (with fallback ids) + one assistant from events
+        expect(messages.length, equals(3));
+        // First message uses index-based fallback id
+        expect(messages[0].id, equals('user-0'));
+        expect(messages[0].user, equals(ChatUser.user));
+        // Second message uses provided id, fallback role
+        expect(messages[1].id, equals('has-id'));
+        expect(messages[1].user, equals(ChatUser.user));
+        // Third is from events
+        expect(messages[2].id, equals('m1'));
       });
 
       test('calls onWarning callback on partial failure', () async {
