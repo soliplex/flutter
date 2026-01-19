@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/shared/utils/platform_resolver.dart';
 
 class PlatformAdaptiveDropdownItem<T> {
@@ -35,7 +36,7 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
   Widget _buildMaterialDropdown(BuildContext context) {
     return DropdownMenu<T>(
       initialSelection: initialSelection,
-      hintText: hint,
+      hintText: hint ?? 'Select',
       onSelected: onSelected,
       dropdownMenuEntries: items
           .map(
@@ -49,30 +50,40 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
   }
 
   Widget _buildCupertinoPicker(BuildContext context) {
-    final selectedItem = items.firstWhere(
-      (element) => element.value == initialSelection,
-      orElse: () => items.first,
-    );
+    final selectedItem =
+        items.cast<PlatformAdaptiveDropdownItem<T>?>().firstWhere(
+              (element) => element?.value == initialSelection,
+              orElse: () => null,
+            );
 
-    return GestureDetector(
-      onTap: () => _showCupertinoModal(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-        decoration: const BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
-          ),
-        ),
+    final displayText = selectedItem?.text ?? hint ?? 'Select';
+    final isPlaceholder = selectedItem == null;
+
+    return Semantics(
+      button: true,
+      label: displayText,
+      child: GestureDetector(
+        onTap: () => _showCupertinoModal(context),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              hint ?? 'Select',
-              style: const TextStyle(color: CupertinoColors.inactiveGray),
+            Flexible(
+              child: Text(
+                displayText,
+                overflow: TextOverflow.ellipsis,
+                style: isPlaceholder
+                    ? TextStyle(
+                        color: CupertinoColors.placeholderText
+                            .resolveFrom(context),
+                      )
+                    : null,
+              ),
             ),
-            Text(
-              selectedItem.text,
-              style: const TextStyle(color: CupertinoColors.activeBlue),
+            const SizedBox(width: SoliplexSpacing.s1),
+            Icon(
+              CupertinoIcons.chevron_down,
+              size: 16,
+              color: CupertinoColors.secondaryLabel.resolveFrom(context),
             ),
           ],
         ),
