@@ -96,7 +96,11 @@ Widget _createAppWithRouter({
     container: ProviderContainer(
       overrides: [
         packageInfoProvider.overrideWithValue(testPackageInfo),
-        shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        // Use localhost:8000 as default to match test URLs so connecting
+        // is not treated as a backend change (which triggers signOut).
+        shellConfigProvider.overrideWithValue(
+          const SoliplexConfig(defaultBackendUrl: 'http://localhost:8000'),
+        ),
         ...overrides.cast(),
       ],
     ),

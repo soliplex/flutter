@@ -7,34 +7,20 @@ import 'package:meta/meta.dart';
 @immutable
 class RouteConfig {
   /// Creates a route configuration with all routes visible by default.
-  ///
-  /// In debug mode, asserts that [initialRoute] points to a visible route.
   const RouteConfig({
     this.showHomeRoute = true,
     this.showRoomsRoute = true,
-    this.showSettingsRoute = true,
-    this.showQuizRoute = true,
     this.initialRoute = '/',
   }) : assert(
-          // Validate initialRoute is not hidden by visibility flags
-          (initialRoute != '/' || showHomeRoute) &&
-              (initialRoute != '/rooms' || showRoomsRoute) &&
-              (initialRoute != '/settings' || showSettingsRoute),
-          'initialRoute points to a hidden route. '
-          'Ensure the route is visible or change initialRoute.',
-        );
+         showHomeRoute || showRoomsRoute,
+         'At least one main route (home or rooms) must be enabled',
+       );
 
   /// Whether the home route ('/') is accessible.
   final bool showHomeRoute;
 
   /// Whether the rooms route ('/rooms') is accessible.
   final bool showRoomsRoute;
-
-  /// Whether the settings route ('/settings') is accessible.
-  final bool showSettingsRoute;
-
-  /// Whether quiz routes ('/rooms/:roomId/quiz/:quizId') are accessible.
-  final bool showQuizRoute;
 
   /// The initial route to navigate to on app launch.
   ///
@@ -46,15 +32,11 @@ class RouteConfig {
   RouteConfig copyWith({
     bool? showHomeRoute,
     bool? showRoomsRoute,
-    bool? showSettingsRoute,
-    bool? showQuizRoute,
     String? initialRoute,
   }) {
     return RouteConfig(
       showHomeRoute: showHomeRoute ?? this.showHomeRoute,
       showRoomsRoute: showRoomsRoute ?? this.showRoomsRoute,
-      showSettingsRoute: showSettingsRoute ?? this.showSettingsRoute,
-      showQuizRoute: showQuizRoute ?? this.showQuizRoute,
       initialRoute: initialRoute ?? this.initialRoute,
     );
   }
@@ -66,24 +48,14 @@ class RouteConfig {
           runtimeType == other.runtimeType &&
           showHomeRoute == other.showHomeRoute &&
           showRoomsRoute == other.showRoomsRoute &&
-          showSettingsRoute == other.showSettingsRoute &&
-          showQuizRoute == other.showQuizRoute &&
           initialRoute == other.initialRoute;
 
   @override
-  int get hashCode => Object.hash(
-        showHomeRoute,
-        showRoomsRoute,
-        showSettingsRoute,
-        showQuizRoute,
-        initialRoute,
-      );
+  int get hashCode => Object.hash(showHomeRoute, showRoomsRoute, initialRoute);
 
   @override
   String toString() => 'RouteConfig('
       'showHomeRoute: $showHomeRoute, '
       'showRoomsRoute: $showRoomsRoute, '
-      'showSettingsRoute: $showSettingsRoute, '
-      'showQuizRoute: $showQuizRoute, '
       'initialRoute: $initialRoute)';
 }

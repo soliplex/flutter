@@ -8,8 +8,6 @@ void main() {
 
       expect(config.showHomeRoute, isTrue);
       expect(config.showRoomsRoute, isTrue);
-      expect(config.showSettingsRoute, isTrue);
-      expect(config.showQuizRoute, isTrue);
       expect(config.initialRoute, equals('/'));
     });
 
@@ -22,14 +20,12 @@ void main() {
     test('copyWith creates copy with replaced values', () {
       const original = RouteConfig();
       final modified = original.copyWith(
-        showSettingsRoute: false,
+        showHomeRoute: false,
         initialRoute: '/rooms',
       );
 
-      expect(modified.showHomeRoute, isTrue);
+      expect(modified.showHomeRoute, isFalse);
       expect(modified.showRoomsRoute, isTrue);
-      expect(modified.showSettingsRoute, isFalse);
-      expect(modified.showQuizRoute, isTrue);
       expect(modified.initialRoute, equals('/rooms'));
     });
 
@@ -80,20 +76,23 @@ void main() {
         );
       });
 
-      test('allows /settings when showSettingsRoute is true', () {
+      test('asserts when both main routes disabled', () {
         expect(
-          () => const RouteConfig(initialRoute: '/settings'),
+          () => RouteConfig(showHomeRoute: false, showRoomsRoute: false),
+          throwsA(isA<AssertionError>()),
+        );
+      });
+
+      test('allows only home route', () {
+        expect(
+          () => const RouteConfig(showRoomsRoute: false),
           returnsNormally,
         );
       });
 
-      test('allows custom routes regardless of visibility flags', () {
+      test('allows only rooms route', () {
         expect(
-          () => const RouteConfig(
-            showHomeRoute: false,
-            showRoomsRoute: false,
-            initialRoute: '/custom-route',
-          ),
+          () => const RouteConfig(showHomeRoute: false),
           returnsNormally,
         );
       });

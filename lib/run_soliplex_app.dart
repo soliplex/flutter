@@ -69,8 +69,6 @@ Future<void> runSoliplexApp({
         shellConfigProvider.overrideWithValue(config),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
         packageInfoProvider.overrideWithValue(packageInfo),
-        // Inject default backend URL from shell config
-        defaultBackendUrlProvider.overrideWithValue(config.defaultBackendUrl),
         // Inject user's saved base URL if available
         if (savedBaseUrl != null)
           preloadedBaseUrlProvider.overrideWithValue(savedBaseUrl),

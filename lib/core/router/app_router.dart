@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart'; // For kDebugMode, @visibleForTesting
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/models/features.dart';
+import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
@@ -57,6 +60,86 @@ NoTransitionPage<void> _staticPage({
   );
 }
 
+/// Logs router messages only in debug mode.
+void _log(String message) {
+  if (kDebugMode) debugPrint('Router: $message');
+}
+
+/// Checks if a route is visible given current config.
+///
+/// Handles routes with query parameters and trailing slashes correctly by
+/// parsing the URI and using pathSegments for consistent matching.
+/// Also checks quiz-specific routes when relevant feature flags are set.
+///
+/// Returns false for malformed URIs or invalid path structures (safe fallback).
+/// Only validates known route patterns - unknown segments return false.
+@visibleForTesting
+bool isRouteVisible(String route, Features features, RouteConfig routes) {
+  final uri = Uri.tryParse(route);
+  if (uri == null) return false; // Malformed URI - safe fallback
+
+  final segments = uri.pathSegments;
+
+  // Root path (empty segments means '/')
+  if (segments.isEmpty) return routes.showHomeRoute;
+
+  // Settings route - exactly one segment
+  if (segments.length == 1 && segments.first == 'settings') {
+    return features.enableSettings;
+  }
+
+  // Rooms routes with strict segment validation:
+  // - /rooms (1 segment)
+  // - /rooms/:roomId (2 segments)
+  // - /rooms/:roomId/quiz/:quizId (4 segments, segments[2] == 'quiz')
+  if (segments.first == 'rooms') {
+    if (!routes.showRoomsRoute) return false;
+
+    // /rooms - exactly 1 segment
+    if (segments.length == 1) return true;
+
+    // /rooms/:roomId - exactly 2 segments
+    if (segments.length == 2) return true;
+
+    // /rooms/:roomId/quiz/:quizId - exactly 4 segments with 'quiz' at [2]
+    if (segments.length == 4 && segments[2] == 'quiz') {
+      return features.enableQuizzes;
+    }
+
+    // Any other structure under /rooms is invalid
+    return false;
+  }
+
+  return false;
+}
+
+/// Returns the default route for authenticated users.
+///
+/// Falls back through available routes: initialRoute -> /rooms -> / -> /settings.
+/// If no routes are configured, returns '/login' as a safe landing that will
+/// handle re-authentication if needed.
+@visibleForTesting
+String getDefaultAuthenticatedRoute(Features features, RouteConfig routes) {
+  final initial = routes.initialRoute;
+  if (isRouteVisible(initial, features, routes)) return initial;
+
+  if (routes.showRoomsRoute) return '/rooms';
+  if (routes.showHomeRoute) return '/';
+  if (features.enableSettings) return '/settings';
+
+  // Fallback to /login - always exists and handles authenticated users gracefully
+  // This case should rarely occur with default RouteConfig values
+  return '/login';
+}
+
+/// Normalizes a path by removing trailing slashes (except for root).
+///
+/// Examples: '/rooms/' -> '/rooms', '/' -> '/', '/settings/' -> '/settings'
+String _normalizePath(String path) {
+  if (path == '/' || path.isEmpty) return '/';
+  return path.endsWith('/') ? path.substring(0, path.length - 1) : path;
+}
+
 /// Routes that don't require authentication.
 /// Home is public so users can configure the backend URL before auth.
 const _publicRoutes = {'/', '/login', '/auth/callback'};
@@ -95,48 +178,52 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Check if this is an OAuth callback (tokens in URL from backend BFF)
   final capturedParams = ref.read(capturedCallbackParamsProvider);
   final isOAuthCallback = capturedParams is WebCallbackParams;
-  debugPrint('Router: isOAuthCallback = $isOAuthCallback');
+  _log('isOAuthCallback = $isOAuthCallback');
 
   // Use configured initial route or default to /
   final configuredInitial = routeConfig.initialRoute;
+  final validatedInitial =
+      isRouteVisible(configuredInitial, features, routeConfig)
+          ? configuredInitial
+          : getDefaultAuthenticatedRoute(features, routeConfig);
   // Route to callback screen if we have OAuth tokens to process
-  final initialPath = isOAuthCallback ? '/auth/callback' : configuredInitial;
+  final initialPath = isOAuthCallback ? '/auth/callback' : validatedInitial;
 
   return GoRouter(
-    initialLocation: initialPath.split('?').first, // Strip query params
+    initialLocation: initialPath, // Preserve query params for OAuth/deep links
     // Triggers redirect re-evaluation on auth transitions without
     // recreating the router.
     refreshListenable: authStatusListenable,
     redirect: (context, state) {
-      debugPrint('Router: redirect called for ${state.matchedLocation}');
+      // Normalize path to prevent trailing slash mismatches
+      final currentPath = _normalizePath(state.uri.path);
+      _log('redirect called for $currentPath');
       // CRITICAL: Use ref.read() for fresh auth state, not a captured variable.
       // This ensures the redirect always sees current auth status.
       final authState = ref.read(authProvider);
       final hasAccess =
           authState is Authenticated || authState is NoAuthRequired;
-      final isPublicRoute = _publicRoutes.contains(state.matchedLocation);
-      debugPrint(
-        'Router: hasAccess=$hasAccess, isPublic=$isPublicRoute',
-      );
+      final isPublicRoute = _publicRoutes.contains(currentPath);
+      _log('hasAccess=$hasAccess, isPublic=$isPublicRoute');
 
       // Redirect based on auth state reason (Unauthenticated) or default to
       // /login (AuthLoading). Public routes are exempt.
       if (!hasAccess && !isPublicRoute) {
-        final target = switch (authState) {
-          Unauthenticated(reason: UnauthenticatedReason.explicitSignOut) => '/',
-          _ => '/login',
-        };
-        debugPrint('Router: redirecting to $target');
+        const target = '/login'; // Always safe - login is always available
+        _log('redirecting to $target');
         return target;
       }
 
       // Public routes are for guests only - redirect to rooms if authenticated
       if (hasAccess && isPublicRoute) {
-        debugPrint('Router: redirecting to /rooms');
-        return '/rooms';
+        final target = getDefaultAuthenticatedRoute(features, routeConfig);
+        if (target != currentPath) {
+          _log('redirecting to $target');
+          return target;
+        }
       }
 
-      debugPrint('Router: no redirect');
+      _log('no redirect');
       return null;
     },
     routes: [
@@ -193,7 +280,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             );
           },
         ),
-      if (routeConfig.showQuizRoute && features.enableQuizzes)
+      if (features.enableQuizzes)
         GoRoute(
           path: '/rooms/:roomId/quiz/:quizId',
           name: 'quiz',
@@ -216,7 +303,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             return '/rooms/$roomId?thread=$threadId';
           },
         ),
-      if (routeConfig.showSettingsRoute && features.enableSettings)
+      if (features.enableSettings)
         GoRoute(
           path: '/settings',
           name: 'settings',
@@ -237,7 +324,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             Text('Page not found: ${state.uri}'),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => context.go('/'),
+              onPressed: () => context.go(
+                getDefaultAuthenticatedRoute(features, routeConfig),
+              ),
               child: const Text('Go Home'),
             ),
           ],

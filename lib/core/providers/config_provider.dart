@@ -1,43 +1,17 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 const _baseUrlKey = 'backend_base_url';
-
-/// Returns the default backend URL based on platform.
-///
-/// Used as fallback when shellConfigProvider is not available (e.g., in tests
-/// that don't override it).
-///
-/// Native: localhost:8000
-/// Web + localhost/127.0.0.1: localhost:8000 (local dev server)
-/// Web + production: same origin as client
-String _platformDefaultUrl() {
-  if (!kIsWeb) return 'http://localhost:8000';
-
-  final host = Uri.base.host;
-  if (host == 'localhost' || host == '127.0.0.1') {
-    return 'http://localhost:8000';
-  }
-  return Uri.base.origin;
-}
 
 /// Provider for preloaded base URL from SharedPreferences.
 ///
 /// Override this in ProviderScope if a saved URL exists (loaded before app
 /// starts). When null, [ConfigNotifier] falls back to
-/// [defaultBackendUrlProvider].
+/// `shellConfigProvider.defaultBackendUrl`.
 final preloadedBaseUrlProvider = Provider<String?>((ref) => null);
-
-/// Provider for the default backend URL.
-///
-/// Override this in ProviderScope to set the white-label app's default URL.
-/// Falls back to platform-specific default (localhost:8000 for native).
-final defaultBackendUrlProvider = Provider<String>((ref) {
-  return _platformDefaultUrl();
-});
 
 /// Loads saved base URL from SharedPreferences.
 ///
@@ -58,12 +32,12 @@ Future<String?> loadSavedBaseUrl() async {
 ///
 /// Persists baseUrl to SharedPreferences for cross-session persistence.
 /// Uses [preloadedBaseUrlProvider] (user's saved preference) if available,
-/// otherwise falls back to [defaultBackendUrlProvider].
+/// otherwise falls back to `shellConfigProvider.defaultBackendUrl`.
 class ConfigNotifier extends Notifier<AppConfig> {
   @override
   AppConfig build() {
     // Priority: 1) User's saved URL from SharedPreferences
-    //           2) Default backend URL from provider
+    //           2) Default backend URL from shellConfigProvider
     //
     // Use ref.watch() per Riverpod best practices. While these values are
     // typically static, watch enables proper rebuilding in tests.
@@ -72,7 +46,7 @@ class ConfigNotifier extends Notifier<AppConfig> {
       return AppConfig(baseUrl: preloadedUrl);
     }
 
-    return AppConfig(baseUrl: ref.watch(defaultBackendUrlProvider));
+    return AppConfig(baseUrl: ref.watch(shellConfigProvider).defaultBackendUrl);
   }
 
   /// Update the backend URL and persist to storage.

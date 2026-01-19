@@ -5,6 +5,7 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -72,7 +73,16 @@ void main() {
     });
 
     testWidgets('displays backend URL', (tester) async {
-      await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
+      await tester.pumpWidget(
+        createTestApp(
+          home: const SettingsScreen(),
+          overrides: [
+            configProviderOverride(
+              const AppConfig(baseUrl: 'http://localhost:8000'),
+            ),
+          ],
+        ),
+      );
 
       expect(find.text('Backend URL'), findsOneWidget);
       expect(find.text('http://localhost:8000'), findsOneWidget);

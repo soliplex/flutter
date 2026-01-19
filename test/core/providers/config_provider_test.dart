@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 void main() {
   group('ConfigNotifier', () {
@@ -11,20 +13,26 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('build returns platform default when no overrides', () {
-      final container = ProviderContainer();
+    test('build returns shellConfig default when no overrides', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final config = container.read(configProvider);
 
-      // Platform default for native is localhost:8000
-      expect(config.baseUrl, 'http://localhost:8000');
+      // SoliplexConfig default is https://api.soliplex.ai
+      expect(config.baseUrl, 'https://api.soliplex.ai');
     });
 
-    test('build returns defaultBackendUrlProvider when overridden', () {
+    test('build returns shellConfigProvider URL when overridden', () {
       final container = ProviderContainer(
         overrides: [
-          defaultBackendUrlProvider.overrideWithValue('https://api.test.com'),
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(defaultBackendUrl: 'https://api.test.com'),
+          ),
         ],
       );
       addTearDown(container.dispose);
@@ -37,8 +45,9 @@ void main() {
     test('build returns preloaded URL when available', () {
       final container = ProviderContainer(
         overrides: [
-          defaultBackendUrlProvider
-              .overrideWithValue('https://api.default.com'),
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(defaultBackendUrl: 'https://api.default.com'),
+          ),
           preloadedBaseUrlProvider.overrideWithValue('https://saved.user.com'),
         ],
       );
@@ -51,7 +60,11 @@ void main() {
     });
 
     test('setBaseUrl persists URL to SharedPreferences', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(configProvider.notifier).setBaseUrl(
@@ -63,7 +76,11 @@ void main() {
     });
 
     test('setBaseUrl updates state', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(configProvider.notifier).setBaseUrl(
@@ -75,7 +92,11 @@ void main() {
     });
 
     test('setBaseUrl trims whitespace', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(configProvider.notifier).setBaseUrl(
@@ -87,7 +108,11 @@ void main() {
     });
 
     test('setBaseUrl ignores empty URL', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final initialUrl = container.read(configProvider).baseUrl;
@@ -99,7 +124,11 @@ void main() {
     });
 
     test('setBaseUrl ignores same URL', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       // Set a URL first
@@ -120,7 +149,11 @@ void main() {
     });
 
     test('set directly updates state', () {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       container.read(configProvider.notifier).set(
@@ -182,29 +215,4 @@ void main() {
     });
   });
 
-  group('defaultBackendUrlProvider', () {
-    test('defaults to platform URL (localhost for native)', () {
-      final container = ProviderContainer();
-      addTearDown(container.dispose);
-
-      expect(
-        container.read(defaultBackendUrlProvider),
-        'http://localhost:8000',
-      );
-    });
-
-    test('can be overridden with custom URL', () {
-      final container = ProviderContainer(
-        overrides: [
-          defaultBackendUrlProvider.overrideWithValue('https://api.custom.com'),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      expect(
-        container.read(defaultBackendUrlProvider),
-        'https://api.custom.com',
-      );
-    });
-  });
 }
