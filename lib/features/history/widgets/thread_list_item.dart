@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/shared/utils/date_formatter.dart';
+import 'package:soliplex_frontend/shared/widgets/platform_adaptive_context_menu.dart';
 
 /// A list item widget that displays a thread's information.
 ///
@@ -59,7 +60,6 @@ class ThreadListItem extends StatelessWidget {
 
     return ListTile(
       selected: isSelected,
-      selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
       onTap: onTap,
       leading: hasActiveRun
           ? Semantics(
@@ -94,15 +94,46 @@ class ThreadListItem extends StatelessWidget {
               : colorScheme.onSurfaceVariant,
         ),
       ),
-      trailing: isSelected
-          ? ExcludeSemantics(
-              child: Icon(
-                Icons.check_circle,
-                color: colorScheme.primary,
-                size: 20,
-              ),
-            )
-          : null,
+      trailing: PlatformAdaptiveContextMenu<String>(
+        actions: [
+          PlatformAdaptiveContextMenuAction(
+            child: const Row(
+              children: [
+                Icon(Icons.info_outline, size: 16),
+                SizedBox(width: 8),
+                Text('Details'),
+              ],
+            ),
+            onPressed: () {
+              // TODO: Implement thread details action
+            },
+          ),
+          PlatformAdaptiveContextMenuAction(
+            child: const Row(
+              children: [
+                Icon(Icons.edit_outlined, size: 16),
+                SizedBox(width: 8),
+                Text('Edit'),
+              ],
+            ),
+            onPressed: () {
+              // TODO: Implement edit action
+            },
+          ),
+          PlatformAdaptiveContextMenuAction(
+            child: const Row(
+              children: [
+                Icon(Icons.delete_outline, size: 16),
+                SizedBox(width: 8),
+                Text('Delete'),
+              ],
+            ),
+            onPressed: () {
+              // TODO: Implement delete action
+            },
+          ),
+        ],
+      ),
     );
   }
 }

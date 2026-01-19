@@ -164,6 +164,13 @@ ThemeData soliplexLightTheme() {
         border: OutlineInputBorder(),
       ),
     ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: colors.onPrimary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(soliplexRadii.md),
+      ),
+      textStyle: textTheme.bodyMedium,
+    ),
     scaffoldBackgroundColor: colors.background,
     useMaterial3: true,
     textTheme: textTheme,
@@ -344,6 +351,13 @@ ThemeData soliplexDarkTheme() {
         isDense: true,
         border: OutlineInputBorder(),
       ),
+    ),
+    popupMenuTheme: PopupMenuThemeData(
+      color: colors.onPrimary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(soliplexRadii.md),
+      ),
+      textStyle: textTheme.bodyMedium,
     ),
     scaffoldBackgroundColor: colors.background,
     useMaterial3: true,
