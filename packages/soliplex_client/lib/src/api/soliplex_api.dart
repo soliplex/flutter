@@ -424,14 +424,11 @@ class SoliplexApi {
           _onWarning?.call('Failed to fetch events for run $runId: $e');
           return (runId: runId, events: <Map<String, dynamic>>[]);
         },
-        // Only catch transient network/API errors. Let these propagate:
-        // - CancelledException: user cancelled, stop all work
-        // - AuthException: auth invalid, user needs to re-login
-        // - NotFoundException: run/thread deleted, stale data
-        test: (e) =>
-            e is! CancelledException &&
-            e is! AuthException &&
-            e is! NotFoundException,
+        // Only catch transient errors - show partial results for batch ops:
+        // - NetworkException: network blip, retry might succeed
+        // - NotFoundException: run deleted between list and fetch (race)
+        // Let ApiException propagate - systemic problem (500, 429, 400)
+        test: (e) => e is NetworkException || e is NotFoundException,
       );
     });
 
@@ -494,7 +491,9 @@ class SoliplexApi {
     final syntheticEvents = <Map<String, dynamic>>[];
 
     for (var i = 0; i < messages.length; i++) {
-      final msgMap = messages[i] as Map<String, dynamic>;
+      final raw = messages[i];
+      if (raw is! Map<String, dynamic>) continue; // Skip malformed entries
+      final msgMap = raw;
       final role = msgMap['role'] as String? ?? 'user';
 
       // Only process user messages - assistant messages come from events
@@ -580,7 +579,11 @@ class SoliplexApi {
         if (aCreated == null) return 1;
         if (bCreated == null) return -1;
 
-        return DateTime.parse(aCreated).compareTo(DateTime.parse(bCreated));
+        // Use tryParse to handle malformed timestamps gracefully
+        final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+        final aTime = DateTime.tryParse(aCreated) ?? epoch;
+        final bTime = DateTime.tryParse(bCreated) ?? epoch;
+        return aTime.compareTo(bTime);
       });
   }
 
