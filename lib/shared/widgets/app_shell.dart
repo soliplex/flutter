@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/inspector/http_inspector_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
@@ -17,25 +18,63 @@ class AppShell extends StatelessWidget {
   /// The screen's body content.
   final Widget body;
 
+  double _getDrawerWidth(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    if (screenWidth >= SoliplexBreakpoints.desktop) {
+      return 600;
+    } else if (screenWidth >= SoliplexBreakpoints.tablet) {
+      return 400;
+    } else {
+      return screenWidth * 0.8;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: config.leading,
-        title: config.title,
-        actions: [...config.actions, const _InspectorButton()],
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: SoliplexSpacing.s6,
+          children: [
+            if (config.leading != null) config.leading!,
+            if (config.title != null) Flexible(child: config.title!),
+          ],
+        ),
+        actions: [
+          ...config.actions,
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+            child: _InspectorButton(),
+          ),
+        ],
       ),
       drawer: config.drawer != null
-          ? Semantics(label: 'Navigation drawer', child: config.drawer)
+          ? Semantics(
+              label: 'Navigation drawer',
+              child: Drawer(
+                child: SafeArea(
+                  left: false,
+                  right: false,
+                  child: config.drawer!,
+                ),
+              ),
+            )
           : null,
       endDrawer: Semantics(
         label: 'HTTP traffic inspector panel',
-        child: const SizedBox(
-          width: 400,
-          child: Drawer(child: HttpInspectorPanel()),
+        child: SizedBox(
+          width: _getDrawerWidth(context),
+          child: const Drawer(
+            child: SafeArea(
+              left: false,
+              right: false,
+              child: HttpInspectorPanel(),
+            ),
+          ),
         ),
       ),
-      body: body,
+      body: SafeArea(child: body),
     );
   }
 }

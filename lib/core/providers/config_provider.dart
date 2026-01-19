@@ -1,8 +1,24 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 
 const _baseUrlKey = 'backend_base_url';
+
+/// Returns the default backend URL based on platform.
+///
+/// Native: localhost:8000
+/// Web + localhost/127.0.0.1: localhost:8000 (local dev server)
+/// Web + production: same origin as client
+String defaultBaseUrl() {
+  if (!kIsWeb) return 'http://localhost:8000';
+
+  final host = Uri.base.host;
+  if (host == 'localhost' || host == '127.0.0.1') {
+    return 'http://localhost:8000';
+  }
+  return Uri.base.origin;
+}
 
 /// Initial config loaded before app starts.
 ///
@@ -16,15 +32,8 @@ AppConfig? _preloadedConfig;
 Future<void> initializeConfig() async {
   final prefs = await SharedPreferences.getInstance();
   final savedUrl = prefs.getString(_baseUrlKey);
-  // ignore: avoid_print
-  print('Config: loaded savedUrl from storage: $savedUrl');
   if (savedUrl != null && savedUrl.isNotEmpty) {
-    _preloadedConfig = AppConfig.defaults().copyWith(baseUrl: savedUrl);
-    // ignore: avoid_print
-    print('Config: using saved URL: $savedUrl');
-  } else {
-    // ignore: avoid_print
-    print('Config: no saved URL, using default');
+    _preloadedConfig = AppConfig(baseUrl: savedUrl);
   }
 }
 
@@ -34,19 +43,19 @@ Future<void> initializeConfig() async {
 class ConfigNotifier extends Notifier<AppConfig> {
   @override
   AppConfig build() {
-    return _preloadedConfig ?? AppConfig.defaults();
+    return _preloadedConfig ?? AppConfig(baseUrl: defaultBaseUrl());
   }
 
   /// Update the backend URL and persist to storage.
   Future<void> setBaseUrl(String url) async {
     final trimmed = url.trim();
-    if (trimmed.isEmpty || trimmed == state.baseUrl) return;
+    if (trimmed.isEmpty || trimmed == state.baseUrl) {
+      return;
+    }
 
-    // Persist first
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_baseUrlKey, trimmed);
 
-    // Update state - this triggers rebuild of dependent providers
     state = state.copyWith(baseUrl: trimmed);
   }
 

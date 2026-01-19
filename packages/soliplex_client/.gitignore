@@ -105,3 +105,8 @@ app.*.symbols
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
+
+# dart2js output
+out.js
+out.js.deps
+out.js.map

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -7,6 +8,23 @@ import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart
 import '../../../helpers/test_helpers.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    // Mock clipboard for tests
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (message) async {
+      if (message.method == 'Clipboard.setData') {
+        return null;
+      }
+      return null;
+    });
+  });
+
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
   group('ChatMessageWidget', () {
     group('User Messages', () {
       testWidgets('displays user message with right alignment', (tester) async {
@@ -23,9 +41,16 @@ void main() {
         // Assert
         expect(find.text('Hello, assistant!'), findsOneWidget);
 
-        // Check right alignment
-        final row = tester.widget<Row>(find.byType(Row));
-        expect(row.mainAxisAlignment, MainAxisAlignment.end);
+        // Check right alignment via Column's crossAxisAlignment
+        final column = tester.widget<Column>(
+          find
+              .descendant(
+                of: find.byType(ChatMessageWidget),
+                matching: find.byType(Column),
+              )
+              .first,
+        );
+        expect(column.crossAxisAlignment, CrossAxisAlignment.end);
       });
 
       testWidgets('displays user message with blue background', (tester) async {
@@ -111,9 +136,16 @@ void main() {
         // Assert
         expect(find.text('Hello, user!'), findsOneWidget);
 
-        // Check left alignment
-        final row = tester.widget<Row>(find.byType(Row));
-        expect(row.mainAxisAlignment, MainAxisAlignment.start);
+        // Check left alignment via Column's crossAxisAlignment
+        final column = tester.widget<Column>(
+          find
+              .descendant(
+                of: find.byType(ChatMessageWidget),
+                matching: find.byType(Column),
+              )
+              .first,
+        );
+        expect(column.crossAxisAlignment, CrossAxisAlignment.start);
       });
 
       testWidgets('displays assistant message with grey background', (
@@ -294,6 +326,97 @@ void main() {
       });
     });
 
+    group('Action Buttons', () {
+      testWidgets('user message shows copy button', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(text: 'Hello');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // Assert
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+      });
+
+      testWidgets('agent message shows copy button', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: 'Hello',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // Assert
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+      });
+
+      testWidgets('agent message hides action buttons while streaming', (
+        tester,
+      ) async {
+        // Arrange
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: 'Thinking...',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: message, isStreaming: true),
+            ),
+          ),
+        );
+
+        // Assert - no action buttons while streaming
+        expect(find.byIcon(Icons.copy), findsNothing);
+      });
+
+      testWidgets('copy button shows success snackbar', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(text: 'Copy me');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.copy));
+        await tester.pump(); // Allow async clipboard operation to complete
+        await tester.pump(); // Allow snackbar to appear
+
+        // Assert
+        expect(find.text('Copied to clipboard'), findsOneWidget);
+      });
+
+      testWidgets('action buttons have tooltips', (tester) async {
+        // Arrange
+        final message = TestData.createMessage(text: 'Test');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // Assert - verify Tooltip widgets exist
+        expect(find.byType(Tooltip), findsWidgets);
+      });
+    });
+
     group('Edge Cases', () {
       testWidgets('handles empty text message', (tester) async {
         // Arrange
@@ -328,25 +451,27 @@ void main() {
 
       testWidgets('respects maxWidth constraint', (tester) async {
         // Arrange
-        final message = TestData.createMessage();
+        final message = TestData.createMessage(text: 'A' * 100);
 
         // Act
         await tester.pumpWidget(
           createTestApp(
             home: Scaffold(
               body: SizedBox(
-                width: 800,
+                width: 1200,
                 child: ChatMessageWidget(message: message),
               ),
             ),
           ),
         );
 
-        // Assert
+        // Assert - find the message bubble container by its BoxDecoration
         final container = tester.widget<Container>(
           find.descendant(
-            of: find.byType(Flexible),
-            matching: find.byType(Container).first,
+            of: find.byType(ChatMessageWidget),
+            matching: find.byWidgetPredicate(
+              (w) => w is Container && w.decoration is BoxDecoration,
+            ),
           ),
         );
         final constraints = container.constraints!;

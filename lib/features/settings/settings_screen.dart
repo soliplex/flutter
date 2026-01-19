@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 
@@ -16,6 +18,7 @@ class SettingsScreen extends ConsumerWidget {
     final config = ref.watch(configProvider);
     final packageInfo = ref.watch(packageInfoProvider);
     final authState = ref.watch(authProvider);
+    final backendVersion = ref.watch(backendVersionInfoProvider);
 
     return ListView(
       children: [
@@ -28,6 +31,23 @@ class SettingsScreen extends ConsumerWidget {
           leading: const Icon(Icons.dns),
           title: const Text('Backend URL'),
           subtitle: Text(config.baseUrl),
+        ),
+        ListTile(
+          leading: const Icon(Icons.cloud_outlined),
+          title: const Text('Backend Version'),
+          subtitle: backendVersion.when(
+            data: (info) => Text(info.soliplexVersion),
+            loading: () => const Text('Loading...'),
+            error: (error, stack) {
+              debugPrint('Failed to load backend version: $error');
+              debugPrint('$stack');
+              return const Text('Unavailable');
+            },
+          ),
+          trailing: TextButton(
+            onPressed: () => context.push('/settings/backend-versions'),
+            child: const Text('View All'),
+          ),
         ),
         const Divider(),
         _AuthSection(authState: authState),

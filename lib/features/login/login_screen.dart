@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/build_config.dart';
+import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/shared/widgets/platform_adaptive_progress_indicator.dart';
 
 /// Login screen with OIDC provider selection.
 ///
@@ -51,58 +55,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final soliplexTheme = SoliplexTheme.of(context);
     final issuersAsync = ref.watch(oidcIssuersProvider);
     // Note: auth redirect handled by router (app_router.dart)
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 400),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Soliplex',
-                    style: Theme.of(context).textTheme.headlineLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sign in to continue',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
-                  issuersAsync.when(
-                    data: _buildIssuerList,
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => _buildError(error.toString()),
-                  ),
-                  if (_errorMessage != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.errorContainer,
-                        borderRadius: BorderRadius.circular(8),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.all(SoliplexSpacing.s6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  appName,
+                  style: Theme.of(context).textTheme.headlineLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in to continue',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      child: Text(
-                        _errorMessage!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onErrorContainer,
-                        ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 48),
+                issuersAsync.when(
+                  data: _buildIssuerList,
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (error, _) => _buildError(error.toString()),
+                ),
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(
+                        soliplexTheme.radii.sm,
                       ),
                     ),
-                  ],
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onErrorContainer,
+                      ),
+                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
           ),
         ),
@@ -133,7 +138,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (_isAuthenticating)
           const Padding(
             padding: EdgeInsets.only(top: 8),
-            child: LinearProgressIndicator(),
+            child: PlatformAdaptiveProgressIndicator(),
           ),
         const SizedBox(height: 24),
         TextButton(

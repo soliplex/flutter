@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 
 /// Standard error display widget with retry button.
 ///
@@ -16,10 +17,16 @@ import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
 /// Includes a collapsible "Show details" section with full technical
 /// information for debugging and bug reports.
 class ErrorDisplay extends StatelessWidget {
-  const ErrorDisplay({required this.error, this.onRetry, super.key});
+  const ErrorDisplay({
+    required this.error,
+    this.onRetry,
+    this.retryLabel = 'Retry',
+    super.key,
+  });
 
   final Object error;
   final VoidCallback? onRetry;
+  final String retryLabel;
 
   /// Unwraps wrapper exceptions to get the underlying cause.
   Object _unwrapError() {
@@ -125,7 +132,7 @@ class ErrorDisplay extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+                label: Text(retryLabel),
               ),
             ],
           ],
@@ -226,11 +233,12 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final soliplexTheme = SoliplexTheme.of(context);
 
     return Column(
       children: [
         InkWell(
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
           onTap: () => setState(() => _expanded = !_expanded),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
@@ -279,13 +287,16 @@ class _DetailsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final soliplexTheme = SoliplexTheme.of(context);
 
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(
+          soliplexTheme.radii.sm,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

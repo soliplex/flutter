@@ -85,7 +85,7 @@ void main() {
         expect(sendButton.onPressed, isNull);
       });
 
-      testWidgets('is disabled during active run', (tester) async {
+      testWidgets('shows stop button during active run', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -108,14 +108,45 @@ void main() {
           ),
         );
 
-        await tester.enterText(find.byType(TextField), 'Hello');
+        await tester.pump();
+
+        // Assert - stop button shown instead of send button during active run
+        expect(find.byIcon(Icons.stop), findsOneWidget);
+        expect(find.byIcon(Icons.send), findsNothing);
+      });
+
+      testWidgets('tapping stop button calls cancelRun', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        const conversation = domain.Conversation(
+          threadId: 'test-thread',
+          status: domain.Running(runId: 'test-run'),
+        );
+        final (override, mockNotifier) = activeRunNotifierOverrideWithMock(
+          const RunningState(conversation: conversation),
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatInput(onSend: (_) {})),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              override,
+            ],
+          ),
+        );
+
+        await tester.pump();
+
+        // Tap stop button
+        await tester.tap(find.byIcon(Icons.stop));
         await tester.pump();
 
         // Assert
-        final sendButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.send),
-        );
-        expect(sendButton.onPressed, isNull);
+        expect(mockNotifier.cancelRunCalled, isTrue);
       });
     });
 
@@ -421,30 +452,6 @@ void main() {
     });
 
     group('Visual Styling', () {
-      testWidgets('displays with rounded border', (tester) async {
-        // Arrange
-        final mockRoom = TestData.createRoom();
-        final mockThread = TestData.createThread();
-
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: Scaffold(body: ChatInput(onSend: (_) {})),
-            overrides: [
-              currentRoomProvider.overrideWith((ref) => mockRoom),
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              activeRunNotifierOverride(const IdleState()),
-            ],
-          ),
-        );
-
-        // Assert
-        final textField = tester.widget<TextField>(find.byType(TextField));
-        final decoration = textField.decoration!;
-        final border = decoration.border! as OutlineInputBorder;
-        expect(border.borderRadius, BorderRadius.circular(24));
-      });
-
       testWidgets('send button has primary color when enabled', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();

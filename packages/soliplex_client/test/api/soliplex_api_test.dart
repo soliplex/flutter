@@ -1102,5 +1102,118 @@ void main() {
         );
       });
     });
+
+    // ============================================================
+    // Installation Info
+    // ============================================================
+
+    group('getBackendVersionInfo', () {
+      test('returns version info', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'soliplex': {'version': '0.36.dev0'},
+            'fastapi': {'version': '0.124.0'},
+          },
+        );
+
+        final info = await api.getBackendVersionInfo();
+
+        expect(info.soliplexVersion, equals('0.36.dev0'));
+        expect(info.packageVersions, hasLength(2));
+        expect(info.packageVersions['fastapi'], equals('0.124.0'));
+      });
+
+      test('propagates exceptions', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(
+          const ApiException(message: 'Server error', statusCode: 500),
+        );
+
+        expect(
+          () => api.getBackendVersionInfo(),
+          throwsA(isA<ApiException>()),
+        );
+      });
+
+      test('uses correct URL', () async {
+        Uri? capturedUri;
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedUri = invocation.positionalArguments[1] as Uri;
+          return {
+            'soliplex': {'version': '0.36.dev0'},
+          };
+        });
+
+        await api.getBackendVersionInfo();
+
+        expect(
+          capturedUri?.path,
+          equals('/api/v1/installation/versions'),
+        );
+      });
+
+      test('supports cancellation', () async {
+        final cancelToken = CancelToken();
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: cancelToken,
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'soliplex': {'version': '0.36.dev0'},
+          },
+        );
+
+        await api.getBackendVersionInfo(cancelToken: cancelToken);
+
+        verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: cancelToken,
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(1);
+      });
+    });
   });
 }

@@ -20,7 +20,7 @@ void main() {
     testWidgets('shows desktop layout with sidebar on wide screens', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(800, 600);
+      tester.view.physicalSize = const Size(1024, 768);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -32,6 +32,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
@@ -57,6 +60,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
@@ -70,7 +76,7 @@ void main() {
 
   group('RoomScreen sidebar toggle', () {
     testWidgets('toggle button hides sidebar on desktop', (tester) async {
-      tester.view.physicalSize = const Size(800, 600);
+      tester.view.physicalSize = const Size(1024, 768);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -82,6 +88,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
@@ -102,7 +111,7 @@ void main() {
     });
 
     testWidgets('toggle button shows sidebar after hiding', (tester) async {
-      tester.view.physicalSize = const Size(800, 600);
+      tester.view.physicalSize = const Size(1024, 768);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -114,6 +123,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
@@ -152,6 +164,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const HasLastViewed('thread-1')),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -180,6 +195,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const HasLastViewed('thread-2')),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -210,6 +228,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -233,6 +254,9 @@ void main() {
             lastViewedThreadProvider(
               'empty-room',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'empty-room')],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -264,6 +288,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -297,6 +324,9 @@ void main() {
             lastViewedThreadProvider(
               'room-abc',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'room-abc')],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -334,6 +364,12 @@ void main() {
             lastViewedThreadProvider(
               'room-b',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [
+                TestData.createRoom(id: 'room-a'),
+                TestData.createRoom(id: 'room-b'),
+              ],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -355,6 +391,12 @@ void main() {
             lastViewedThreadProvider(
               'room-b',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [
+                TestData.createRoom(id: 'room-a'),
+                TestData.createRoom(id: 'room-b'),
+              ],
+            ),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -394,8 +436,8 @@ void main() {
   });
 
   group('RoomScreen back navigation', () {
-    testWidgets('shows back button on desktop', (tester) async {
-      tester.view.physicalSize = const Size(800, 600);
+    testWidgets('shows sidebar toggle on desktop', (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -407,14 +449,17 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
 
       await tester.pumpAndSettle();
 
-      expect(find.byIcon(Icons.adaptive.arrow_back), findsOneWidget);
-      expect(find.byTooltip('Back to rooms'), findsOneWidget);
+      expect(find.byIcon(Icons.menu_open), findsOneWidget);
+      expect(find.byTooltip('Hide threads'), findsOneWidget);
     });
 
     testWidgets('shows back button on mobile', (tester) async {
@@ -430,6 +475,9 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
@@ -441,7 +489,7 @@ void main() {
     });
 
     testWidgets('back button navigates to rooms list', (tester) async {
-      tester.view.physicalSize = const Size(800, 600);
+      tester.view.physicalSize = const Size(600, 800);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -469,9 +517,12 @@ void main() {
               lastViewedThreadProvider(
                 'general',
               ).overrideWith((ref) async => const NoLastViewed()),
+              roomsProvider.overrideWith(
+                (ref) async => [TestData.createRoom(id: 'general')],
+              ),
             ],
           ),
-          child: MaterialApp.router(routerConfig: router),
+          child: MaterialApp.router(theme: testThemeData, routerConfig: router),
         ),
       );
 
@@ -483,8 +534,8 @@ void main() {
       expect(find.text('Rooms List'), findsOneWidget);
     });
 
-    testWidgets('sidebar toggle is in actions slot on desktop', (tester) async {
-      tester.view.physicalSize = const Size(800, 600);
+    testWidgets('sidebar toggle changes icon when collapsed', (tester) async {
+      tester.view.physicalSize = const Size(1024, 768);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
 
@@ -496,15 +547,26 @@ void main() {
             lastViewedThreadProvider(
               'general',
             ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
           ],
         ),
       );
 
       await tester.pumpAndSettle();
 
-      // Both back button and sidebar toggle should be visible on desktop
-      expect(find.byIcon(Icons.adaptive.arrow_back), findsOneWidget);
+      // Initially shows menu_open (sidebar expanded)
       expect(find.byIcon(Icons.menu_open), findsOneWidget);
+      expect(find.byIcon(Icons.menu), findsNothing);
+
+      // Tap to collapse
+      await tester.tap(find.byIcon(Icons.menu_open));
+      await tester.pumpAndSettle();
+
+      // Now shows menu (sidebar collapsed)
+      expect(find.byIcon(Icons.menu), findsOneWidget);
+      expect(find.byIcon(Icons.menu_open), findsNothing);
     });
   });
 }
