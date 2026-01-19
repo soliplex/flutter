@@ -139,6 +139,21 @@ void main() {
         expect(message.id, equals('msg-1'));
       });
 
+      test('TextMessageEndEvent preserves user role from streaming state', () {
+        // Verify role propagation: user from streaming state goes into message
+        const streamingState = app_streaming.Streaming(
+          messageId: 'msg-1',
+          user: ChatUser.user, // User role, not assistant
+          text: 'User message',
+        );
+        const event = TextMessageEndEvent(messageId: 'msg-1');
+
+        final result = processEvent(conversation, streamingState, event);
+
+        final message = result.conversation.messages.first;
+        expect(message.user, equals(ChatUser.user));
+      });
+
       test(
         'TextMessageEndEvent ignores if messageId does not match streaming',
         () {

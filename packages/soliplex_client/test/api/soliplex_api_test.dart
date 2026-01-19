@@ -1712,6 +1712,211 @@ void main() {
         apiWithWarning.close();
       });
 
+      test('catches NotFoundException gracefully for deleted runs', () async {
+        // NotFoundException indicates run deleted between list and fetch
+        // (race condition) - should skip gracefully, not fail entire load
+        final warnings = <String>[];
+        final apiWithWarning = SoliplexApi(
+          transport: mockTransport,
+          urlBuilder: urlBuilder,
+          onWarning: warnings.add,
+        );
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const NotFoundException(message: 'Run not found'));
+
+        // Should not throw - returns empty list gracefully
+        final messages =
+            await apiWithWarning.getThreadMessages('room-123', 'thread-456');
+
+        expect(messages, isEmpty);
+        expect(warnings, hasLength(1));
+        expect(warnings[0], contains('run-1'));
+
+        apiWithWarning.close();
+      });
+
+      test('propagates ApiException for server errors', () async {
+        // ApiException (500, 429, etc.) indicates systemic problem - propagate
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(
+          const ApiException(statusCode: 500, message: 'Server error'),
+        );
+
+        expect(
+          () => api.getThreadMessages('room-123', 'thread-456'),
+          throwsA(isA<ApiException>()),
+        );
+      });
+
+      test('propagates CancelledException when user cancels', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const CancelledException());
+
+        expect(
+          () => api.getThreadMessages('room-123', 'thread-456'),
+          throwsA(isA<CancelledException>()),
+        );
+      });
+
+      test('propagates AuthException when authentication fails', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const AuthException(message: 'Token expired'));
+
+        expect(
+          () => api.getThreadMessages('room-123', 'thread-456'),
+          throwsA(isA<AuthException>()),
+        );
+      });
+
       test('evicts oldest entries when cache exceeds limit', () async {
         // This test verifies LRU eviction by filling the cache beyond capacity.
         // We use a smaller number of runs (5) to keep the test fast, but the
