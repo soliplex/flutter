@@ -8,7 +8,7 @@ environment:
   flutter: '>=3.35.0'
 
 dependencies:
-  dashed_border: ^1.0.2
+  cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
 

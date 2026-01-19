@@ -327,7 +327,7 @@ void main() {
     });
 
     group('Action Buttons', () {
-      testWidgets('user message shows copy and edit buttons', (tester) async {
+      testWidgets('user message shows copy button', (tester) async {
         // Arrange
         final message = TestData.createMessage(text: 'Hello');
 
@@ -340,15 +340,9 @@ void main() {
 
         // Assert
         expect(find.byIcon(Icons.copy), findsOneWidget);
-        expect(find.byIcon(Icons.edit), findsOneWidget);
-        expect(find.byIcon(Icons.repeat), findsNothing);
-        expect(find.byIcon(Icons.thumb_up), findsNothing);
       });
 
-      testWidgets('agent message shows copy, regenerate, and feedback buttons',
-          (
-        tester,
-      ) async {
+      testWidgets('agent message shows copy button', (tester) async {
         // Arrange
         final message = TestData.createMessage(
           user: ChatUser.assistant,
@@ -364,10 +358,6 @@ void main() {
 
         // Assert
         expect(find.byIcon(Icons.copy), findsOneWidget);
-        expect(find.byIcon(Icons.repeat), findsOneWidget);
-        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
-        expect(find.byIcon(Icons.thumb_down), findsOneWidget);
-        expect(find.byIcon(Icons.edit), findsNothing);
       });
 
       testWidgets('agent message hides action buttons while streaming', (
@@ -390,8 +380,6 @@ void main() {
 
         // Assert - no action buttons while streaming
         expect(find.byIcon(Icons.copy), findsNothing);
-        expect(find.byIcon(Icons.repeat), findsNothing);
-        expect(find.byIcon(Icons.thumb_up), findsNothing);
       });
 
       testWidgets('copy button shows success snackbar', (tester) async {

@@ -20,7 +20,6 @@ import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 /// - Displays messages from the current thread
 /// - Provides input for sending new messages
 /// - Handles thread creation for new conversations
-/// - Shows cancel button during streaming
 /// - Handles errors with ErrorDisplay
 ///
 /// The panel integrates with:
@@ -60,36 +59,6 @@ class ChatPanel extends ConsumerWidget {
               padding: EdgeInsets.only(bottom: bottomInset),
               child: Column(
                 children: [
-                  // App bar with cancel button
-                  if (runState.isRunning)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest,
-                        border: Border(
-                          bottom: BorderSide(
-                            color: Theme.of(context).colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Expanded(child: Text('Streaming response...')),
-                          TextButton.icon(
-                            onPressed: () => _handleCancel(ref),
-                            icon: const Icon(Icons.cancel),
-                            label: const Text('Cancel'),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // Message list
                   Expanded(
                     child: switch (runState) {
                       CompletedState(
@@ -102,8 +71,6 @@ class ChatPanel extends ConsumerWidget {
                       _ => const MessageList(),
                     },
                   ),
-
-                  // Input
                   ChatInput(onSend: (text) => _handleSend(context, ref, text)),
                 ],
               ),
@@ -222,11 +189,6 @@ class ChatPanel extends ConsumerWidget {
       }
       return Err('$e');
     }
-  }
-
-  /// Handles cancelling the active run.
-  Future<void> _handleCancel(WidgetRef ref) async {
-    await ref.read(activeRunNotifierProvider.notifier).cancelRun();
   }
 
   /// Handles retrying after an error.

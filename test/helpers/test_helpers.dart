@@ -137,12 +137,16 @@ class MockSoliplexApi extends Mock implements SoliplexApi {}
 /// Mock ActiveRunNotifier for testing.
 ///
 /// Allows overriding activeRunNotifierProvider with a fixed state.
+/// Tracks method calls for verification in tests.
 class MockActiveRunNotifier extends Notifier<ActiveRunState>
     implements ActiveRunNotifier {
   /// Creates a mock notifier with an initial state.
   MockActiveRunNotifier({required this.initialState});
 
   final ActiveRunState initialState;
+
+  /// Whether [cancelRun] was called.
+  bool cancelRunCalled = false;
 
   @override
   ActiveRunState build() => initialState;
@@ -157,7 +161,9 @@ class MockActiveRunNotifier extends Notifier<ActiveRunState>
   }) async {}
 
   @override
-  Future<void> cancelRun() async {}
+  Future<void> cancelRun() async {
+    cancelRunCalled = true;
+  }
 
   @override
   Future<void> reset() async {}
@@ -168,6 +174,23 @@ Override activeRunNotifierOverride(ActiveRunState mockState) {
   return activeRunNotifierProvider.overrideWith(
     () => MockActiveRunNotifier(initialState: mockState),
   );
+}
+
+/// Creates an override with a mock notifier and returns both for verification.
+///
+/// Use when you need to verify methods like [MockActiveRunNotifier.cancelRun]
+/// were called:
+/// ```dart
+/// final (override, mockNotifier) = activeRunNotifierOverrideWithMock(state);
+/// // ... tap stop button ...
+/// expect(mockNotifier.cancelRunCalled, isTrue);
+/// ```
+(Override, MockActiveRunNotifier) activeRunNotifierOverrideWithMock(
+  ActiveRunState mockState,
+) {
+  final mockNotifier = MockActiveRunNotifier(initialState: mockState);
+  final override = activeRunNotifierProvider.overrideWith(() => mockNotifier);
+  return (override, mockNotifier);
 }
 
 /// Mock ConfigNotifier for testing.

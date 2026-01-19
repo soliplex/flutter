@@ -59,7 +59,6 @@ class ThreadListItem extends StatelessWidget {
 
     return ListTile(
       selected: isSelected,
-      selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
       onTap: onTap,
       leading: hasActiveRun
           ? Semantics(
@@ -94,15 +93,6 @@ class ThreadListItem extends StatelessWidget {
               : colorScheme.onSurfaceVariant,
         ),
       ),
-      trailing: isSelected
-          ? ExcludeSemantics(
-              child: Icon(
-                Icons.check_circle,
-                color: colorScheme.primary,
-                size: 20,
-              ),
-            )
-          : null,
     );
   }
 }
