@@ -7,8 +7,8 @@ commands:
   lint: "dart format . && flutter analyze --no-pub"
   # Run all unit tests
   unit: "flutter test"
-  # Integration tests (when available)
-  integration: "flutter test integration_test/ || echo 'No integration tests yet'"
+  # Integration tests (run on Chrome)
+  integration: "flutter test integration_test/ -d chrome || echo 'No integration tests yet'"
 
 milestones: milestones/
 
