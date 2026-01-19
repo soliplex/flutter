@@ -9,6 +9,7 @@ import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
+import 'package:soliplex_frontend/shared/widgets/platform_adaptive_dropdown.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Screen displaying threads within a specific room.
@@ -191,13 +192,13 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         label: 'Room selector, current: ${currentRoom?.name ?? 'none'}',
         child: Tooltip(
           message: 'Switch to another room',
-          child: DropdownMenu<String>(
+          child: PlatformAdaptiveDropdown<String>(
             initialSelection: currentRoom?.id,
-            dropdownMenuEntries: rooms
+            items: rooms
                 .map(
-                  (r) => DropdownMenuEntry(
+                  (r) => PlatformAdaptiveDropdownItem(
                     value: r.id,
-                    label: trimRoomName(r.name),
+                    text: trimRoomName(r.name),
                   ),
                 )
                 .toList(),
