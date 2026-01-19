@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/shared/utils/date_formatter.dart';
-import 'package:soliplex_frontend/shared/widgets/platform_adaptive_context_menu.dart';
 
 /// A list item widget that displays a thread's information.
 ///
@@ -93,46 +92,6 @@ class ThreadListItem extends StatelessWidget {
               ? colorScheme.primary.withValues(alpha: 0.7)
               : colorScheme.onSurfaceVariant,
         ),
-      ),
-      trailing: PlatformAdaptiveContextMenu<String>(
-        actions: [
-          PlatformAdaptiveContextMenuAction(
-            child: const Row(
-              children: [
-                Icon(Icons.info_outline, size: 16),
-                SizedBox(width: 8),
-                Text('Details'),
-              ],
-            ),
-            onPressed: () {
-              // TODO: Implement thread details action
-            },
-          ),
-          PlatformAdaptiveContextMenuAction(
-            child: const Row(
-              children: [
-                Icon(Icons.edit_outlined, size: 16),
-                SizedBox(width: 8),
-                Text('Edit'),
-              ],
-            ),
-            onPressed: () {
-              // TODO: Implement edit action
-            },
-          ),
-          PlatformAdaptiveContextMenuAction(
-            child: const Row(
-              children: [
-                Icon(Icons.delete_outline, size: 16),
-                SizedBox(width: 8),
-                Text('Delete'),
-              ],
-            ),
-            onPressed: () {
-              // TODO: Implement delete action
-            },
-          ),
-        ],
       ),
     );
   }
