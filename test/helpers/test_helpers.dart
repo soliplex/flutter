@@ -20,6 +20,7 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
@@ -224,6 +225,12 @@ final testPackageInfo = PackageInfo(
   packageName: 'com.soliplex.frontend',
   version: '1.0.0',
   buildNumber: '1',
+);
+
+/// Default test BackendVersionInfo for widget tests.
+const testBackendVersionInfo = BackendVersionInfo(
+  soliplexVersion: '0.36.dev0',
+  packageVersions: {'soliplex': '0.36.dev0'},
 );
 
 /// Creates an override for packageInfoProvider.
@@ -517,8 +524,12 @@ final testThemeData = soliplexLightTheme();
 /// Wraps the widget in a Scaffold since screens no longer provide their own.
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
-/// Automatically includes [packageInfoProvider] override with [testPackageInfo]
-/// since it must always be overridden (throws UnimplementedError by default).
+/// Automatically includes default overrides for:
+/// - [packageInfoProvider] with [testPackageInfo]
+/// - [backendVersionInfoProvider] with [testBackendVersionInfo]
+///
+/// Set [skipBackendVersionOverride] to true when providing a custom override
+/// for [backendVersionInfoProvider] in [overrides].
 ///
 /// [onContainerCreated] is called with the [ProviderContainer] after it's
 /// created, allowing tests to read provider state.
@@ -527,11 +538,17 @@ Widget createTestApp({
   // Using dynamic list since Override type is internal in Riverpod 3.0
   List<dynamic> overrides = const [],
   void Function(ProviderContainer)? onContainerCreated,
+  bool skipBackendVersionOverride = false,
 }) {
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
         packageInfoProvider.overrideWithValue(testPackageInfo),
+        if (!skipBackendVersionOverride)
+          // Use AsyncValue.data for immediate value without pending Futures
+          backendVersionInfoProvider.overrideWithValue(
+            const AsyncValue.data(testBackendVersionInfo),
+          ),
         ...overrides.cast<Override>(),
       ],
     )..also(onContainerCreated),

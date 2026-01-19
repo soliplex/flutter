@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -539,6 +540,9 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           packageInfoProvider.overrideWithValue(testPackageInfo),
+          backendVersionInfoProvider.overrideWithValue(
+            const AsyncValue.data(testBackendVersionInfo),
+          ),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
