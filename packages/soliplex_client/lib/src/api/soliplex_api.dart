@@ -50,6 +50,11 @@ class SoliplexApi {
   final HttpTransport _transport;
   final UrlBuilder _urlBuilder;
 
+  /// Cache for run events. Completed runs are immutable, so cache indefinitely.
+  final _runEventsCache = <String, List<Map<String, dynamic>>>{};
+
+  String _runCacheKey(String threadId, String runId) => '$threadId:$runId';
+
   // ============================================================
   // Rooms
   // ============================================================
@@ -341,9 +346,9 @@ class SoliplexApi {
   /// Messages are ordered chronologically (oldest first) based on run creation
   /// time.
   ///
-  /// This method fetches all runs for a thread, sorts them by creation time,
-  /// and replays their events to reconstruct the message history. Use this
-  /// when loading a thread that already has conversation history.
+  /// This method fetches events from individual run endpoints in parallel,
+  /// caches them (completed runs are immutable), and replays them to
+  /// reconstruct the message history.
   ///
   /// Throws:
   /// - [ArgumentError] if [roomId] or [threadId] is empty
@@ -360,6 +365,7 @@ class SoliplexApi {
     _requireNonEmpty(roomId, 'roomId');
     _requireNonEmpty(threadId, 'threadId');
 
+    // 1. Get thread to list runs
     final response = await _transport.request<Map<String, dynamic>>(
       'GET',
       _urlBuilder.build(pathSegments: ['rooms', roomId, 'agui', threadId]),
@@ -367,51 +373,149 @@ class SoliplexApi {
     );
 
     final runs = response['runs'] as Map<String, dynamic>? ?? {};
-    return _extractMessagesFromRuns(runs, threadId);
-  }
+    if (runs.isEmpty) return [];
 
-  /// Extracts messages from runs by replaying events in chronological order.
-  List<ChatMessage> _extractMessagesFromRuns(
-    Map<String, dynamic> runs,
-    String threadId,
-  ) {
-    if (runs.isEmpty) {
-      return [];
+    // 2. Get completed runs sorted by creation time
+    final completedRuns = _sortRunsByCreationTime(runs)
+        .where((e) => (e.value as Map<String, dynamic>)['finished'] != null)
+        .toList();
+
+    if (completedRuns.isEmpty) return [];
+
+    // 3. Fetch all run events in parallel (cache handles duplicates)
+    final eventFutures = completedRuns.map((entry) {
+      final runData = entry.value as Map<String, dynamic>;
+      final runId = runData['run_id'] as String;
+      return _fetchRunEvents(roomId, threadId, runId, cancelToken: cancelToken)
+          .then((events) => (runId: runId, events: events))
+          .catchError((Object e) {
+        // Log failure but continue with other runs
+        // ignore: avoid_print
+        print('Warning: Failed to fetch events for run $runId: $e');
+        return (runId: runId, events: <Map<String, dynamic>>[]);
+      });
+    });
+
+    final results = await Future.wait(eventFutures);
+
+    // 4. Collect events in run order (results may arrive out of order)
+    final runIdToEvents = {for (final r in results) r.runId: r.events};
+    final allEvents = <Map<String, dynamic>>[];
+    for (final entry in completedRuns) {
+      final runId = (entry.value as Map<String, dynamic>)['run_id'] as String;
+      allEvents.addAll(runIdToEvents[runId] ?? []);
     }
 
-    // Sort runs by creation time
-    final sortedRuns = _sortRunsByCreationTime(runs);
+    // 5. Replay events to reconstruct messages
+    return _replayEventsToMessages(allEvents, threadId);
+  }
 
-    // Replay events to reconstruct messages
+  /// Fetches events for a single run, using cache for completed runs.
+  ///
+  /// Returns events including synthetic user message events extracted from
+  /// run_input.messages. The backend stores user input separately from
+  /// streamed events, so we synthesize TEXT_MESSAGE events for them.
+  Future<List<Map<String, dynamic>>> _fetchRunEvents(
+    String roomId,
+    String threadId,
+    String runId, {
+    CancelToken? cancelToken,
+  }) async {
+    final cacheKey = _runCacheKey(threadId, runId);
+    final cached = _runEventsCache[cacheKey];
+    if (cached != null) return cached;
+
+    final rawRun = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(
+        pathSegments: ['rooms', roomId, 'agui', threadId, runId],
+      ),
+      cancelToken: cancelToken,
+    );
+
+    // Extract user messages from run_input and create synthetic events
+    final userMessageEvents = _extractUserMessageEvents(rawRun);
+
+    final events =
+        (rawRun['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+
+    // Combine: user message events first, then actual streamed events
+    final allEvents = [...userMessageEvents, ...events];
+    _runEventsCache[cacheKey] = allEvents;
+    return allEvents;
+  }
+
+  /// Extracts user messages from run_input and creates synthetic events.
+  List<Map<String, dynamic>> _extractUserMessageEvents(
+    Map<String, dynamic> rawRun,
+  ) {
+    final runInput = rawRun['run_input'] as Map<String, dynamic>?;
+    if (runInput == null) return [];
+
+    final messages = runInput['messages'] as List<dynamic>? ?? [];
+    final syntheticEvents = <Map<String, dynamic>>[];
+
+    for (final msg in messages) {
+      final msgMap = msg as Map<String, dynamic>;
+      final id = msgMap['id'] as String? ?? 'user-${messages.indexOf(msg)}';
+      final role = msgMap['role'] as String? ?? 'user';
+      final content = msgMap['content'] as String? ?? '';
+
+      // Only process user messages - assistant messages come from events
+      if (role != 'user') continue;
+
+      // Create synthetic TEXT_MESSAGE events (START, CONTENT, END)
+      syntheticEvents
+        ..add({
+          'type': 'TEXT_MESSAGE_START',
+          'messageId': id,
+          'role': role,
+        })
+        ..add({
+          'type': 'TEXT_MESSAGE_CONTENT',
+          'messageId': id,
+          'delta': content,
+        })
+        ..add({
+          'type': 'TEXT_MESSAGE_END',
+          'messageId': id,
+        });
+    }
+
+    return syntheticEvents;
+  }
+
+  /// Replays events to reconstruct messages.
+  List<ChatMessage> _replayEventsToMessages(
+    List<Map<String, dynamic>> events,
+    String threadId,
+  ) {
+    if (events.isEmpty) return [];
+
     var conversation = Conversation.empty(threadId: threadId);
     var streaming = const NotStreaming() as StreamingState;
     const decoder = EventDecoder();
     var skippedEventCount = 0;
 
-    for (final runEntry in sortedRuns) {
-      final runData = runEntry.value as Map<String, dynamic>;
-      final events = runData['events'] as List<dynamic>? ?? [];
-
-      for (final eventJson in events) {
-        try {
-          final event = decoder.decodeJson(eventJson as Map<String, dynamic>);
-          final result = processEvent(conversation, streaming, event);
-          conversation = result.conversation;
-          streaming = result.streaming;
-        } catch (e) {
-          // Skip malformed events - don't fail entire history for one bad
-          // event. This can happen if the backend stores events from a newer
-          // protocol version or if data corruption occurs.
-          skippedEventCount++;
-          assert(
-            () {
-              // ignore: avoid_print
-              print('Skipped malformed event during replay: $e');
-              return true;
-            }(),
-            'Debug logging for malformed events',
-          );
-        }
+    for (final eventJson in events) {
+      try {
+        final event = decoder.decodeJson(eventJson);
+        final result = processEvent(conversation, streaming, event);
+        conversation = result.conversation;
+        streaming = result.streaming;
+      } catch (e) {
+        // Skip malformed events - don't fail entire history for one bad
+        // event. This can happen if the backend stores events from a newer
+        // protocol version or if data corruption occurs.
+        skippedEventCount++;
+        assert(
+          () {
+            // ignore: avoid_print
+            print('Skipped malformed event during replay: $e');
+            return true;
+          }(),
+          'Debug logging for malformed events',
+        );
       }
     }
 
@@ -554,6 +658,7 @@ class SoliplexApi {
   ///
   /// After calling this method, no further requests should be made.
   void close() {
+    _runEventsCache.clear();
     _transport.close();
   }
 

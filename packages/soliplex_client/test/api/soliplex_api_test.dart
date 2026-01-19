@@ -737,11 +737,14 @@ void main() {
     // ============================================================
 
     group('getThreadMessages', () {
-      test('returns messages reconstructed from events', () async {
+      test('fetches events from individual run endpoints', () async {
+        // Thread endpoint returns run metadata (no events)
         when(
           () => mockTransport.request<Map<String, dynamic>>(
             'GET',
-            any(),
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
             cancelToken: any(named: 'cancelToken'),
             fromJson: any(named: 'fromJson'),
             body: any(named: 'body'),
@@ -754,27 +757,48 @@ void main() {
             'thread_id': 'thread-456',
             'runs': {
               'run-1': {
+                'run_id': 'run-1',
                 'created': '2026-01-07T01:00:00.000Z',
-                'events': [
-                  {
-                    'type': 'TEXT_MESSAGE_START',
-                    'messageId': 'msg-1',
-                    'role': 'assistant',
-                  },
-                  {
-                    'type': 'TEXT_MESSAGE_CONTENT',
-                    'messageId': 'msg-1',
-                    'delta': 'Hello ',
-                  },
-                  {
-                    'type': 'TEXT_MESSAGE_CONTENT',
-                    'messageId': 'msg-1',
-                    'delta': 'World',
-                  },
-                  {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
-                ],
+                'finished': '2026-01-07T01:01:00.000Z',
               },
             },
+          },
+        );
+
+        // Individual run endpoint returns events
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'msg-1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-1',
+                'delta': 'Hello ',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-1',
+                'delta': 'World',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
+            ],
           },
         );
 
@@ -785,11 +809,15 @@ void main() {
         expect((messages[0] as TextMessage).text, equals('Hello World'));
       });
 
-      test('processes runs in chronological order', () async {
+      test('fetches multiple runs in parallel and orders by creation time',
+          () async {
+        // Thread endpoint returns two completed runs
         when(
           () => mockTransport.request<Map<String, dynamic>>(
             'GET',
-            any(),
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
             cancelToken: any(named: 'cancelToken'),
             fromJson: any(named: 'fromJson'),
             body: any(named: 'body'),
@@ -803,38 +831,80 @@ void main() {
             'runs': {
               // Note: Map order is not guaranteed, so we rely on timestamps
               'run-2': {
+                'run_id': 'run-2',
                 'created': '2026-01-07T02:00:00.000Z',
-                'events': [
-                  {
-                    'type': 'TEXT_MESSAGE_START',
-                    'messageId': 'msg-2',
-                    'role': 'assistant',
-                  },
-                  {
-                    'type': 'TEXT_MESSAGE_CONTENT',
-                    'messageId': 'msg-2',
-                    'delta': 'Second',
-                  },
-                  {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-2'},
-                ],
+                'finished': '2026-01-07T02:01:00.000Z',
               },
               'run-1': {
+                'run_id': 'run-1',
                 'created': '2026-01-07T01:00:00.000Z',
-                'events': [
-                  {
-                    'type': 'TEXT_MESSAGE_START',
-                    'messageId': 'msg-1',
-                    'role': 'assistant',
-                  },
-                  {
-                    'type': 'TEXT_MESSAGE_CONTENT',
-                    'messageId': 'msg-1',
-                    'delta': 'First',
-                  },
-                  {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
-                ],
+                'finished': '2026-01-07T01:01:00.000Z',
               },
             },
+          },
+        );
+
+        // Run 1 events
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'msg-1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-1',
+                'delta': 'First',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
+            ],
+          },
+        );
+
+        // Run 2 events
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-2',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-2',
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'msg-2',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-2',
+                'delta': 'Second',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-2'},
+            ],
           },
         );
 
@@ -844,6 +914,266 @@ void main() {
         // First message should be from run-1 (earlier timestamp)
         expect((messages[0] as TextMessage).text, equals('First'));
         expect((messages[1] as TextMessage).text, equals('Second'));
+
+        // Verify both run endpoints were called
+        verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(1);
+        verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-2',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(1);
+      });
+
+      test('caches run events for subsequent calls', () async {
+        // Thread endpoint
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        // Run endpoint
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'msg-1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-1',
+                'delta': 'Cached',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
+            ],
+          },
+        );
+
+        // First call
+        await api.getThreadMessages('room-123', 'thread-456');
+
+        // Second call - should use cache for run events
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+
+        expect(messages.length, equals(1));
+        expect((messages[0] as TextMessage).text, equals('Cached'));
+
+        // Thread endpoint called twice, but run endpoint only once (cached)
+        verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(2);
+        verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(1);
+      });
+
+      test('skips runs without finished timestamp (in-progress)', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                // No 'finished' - run is still in progress
+              },
+            },
+          },
+        );
+
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+
+        expect(messages, isEmpty);
+
+        // Run endpoint should not be called for in-progress runs
+        verifyNever(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        );
+      });
+
+      test('handles partial failure gracefully', () async {
+        // Thread endpoint returns two runs
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+              'run-2': {
+                'run_id': 'run-2',
+                'created': '2026-01-07T02:00:00.000Z',
+                'finished': '2026-01-07T02:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        // Run 1 succeeds
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'msg-1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'msg-1',
+                'delta': 'First',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
+            ],
+          },
+        );
+
+        // Run 2 fails
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-2',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const NetworkException(message: 'Connection failed'));
+
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+
+        // Should still return messages from successful run
+        expect(messages.length, equals(1));
+        expect((messages[0] as TextMessage).text, equals('First'));
       });
 
       test('returns empty list when no runs', () async {
@@ -862,35 +1192,6 @@ void main() {
             'room_id': 'room-123',
             'thread_id': 'thread-456',
             'runs': <String, dynamic>{},
-          },
-        );
-
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
-
-        expect(messages, isEmpty);
-      });
-
-      test('returns empty list when runs have no events', () async {
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            any(),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async => {
-            'room_id': 'room-123',
-            'thread_id': 'thread-456',
-            'runs': {
-              'run-1': {
-                'created': '2026-01-07T01:00:00.000Z',
-                'events': <dynamic>[],
-              },
-            },
           },
         );
 
@@ -937,7 +1238,7 @@ void main() {
         );
       });
 
-      test('uses correct URL', () async {
+      test('uses correct URL for thread endpoint', () async {
         Uri? capturedUri;
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -1004,6 +1305,175 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).called(1);
+      });
+
+      test('extracts user messages from run_input.messages', () async {
+        // Thread endpoint returns run metadata
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        // Run endpoint returns events AND run_input with user message
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'run_input': {
+              'messages': [
+                {
+                  'id': 'user-msg-1',
+                  'role': 'user',
+                  'content': 'Hello from user',
+                },
+              ],
+            },
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'assistant-msg-1',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'assistant-msg-1',
+                'delta': 'Hello from assistant',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'assistant-msg-1'},
+            ],
+          },
+        );
+
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+
+        // Should have both user and assistant messages
+        expect(messages.length, equals(2));
+
+        // User message comes first (from run_input.messages)
+        final userMessage = messages[0] as TextMessage;
+        expect(userMessage.id, equals('user-msg-1'));
+        expect(userMessage.user, equals(ChatUser.user));
+        expect(userMessage.text, equals('Hello from user'));
+
+        // Assistant message comes second (from events)
+        final assistantMessage = messages[1] as TextMessage;
+        expect(assistantMessage.id, equals('assistant-msg-1'));
+        expect(assistantMessage.user, equals(ChatUser.assistant));
+        expect(assistantMessage.text, equals('Hello from assistant'));
+      });
+
+      test('skips non-user messages from run_input.messages', () async {
+        // Thread endpoint
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        // Run endpoint with assistant message in run_input (should be skipped)
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'run_id': 'run-1',
+            'run_input': {
+              'messages': [
+                {
+                  'id': 'user-msg-1',
+                  'role': 'user',
+                  'content': 'User message',
+                },
+                {
+                  'id': 'assistant-old',
+                  'role': 'assistant',
+                  'content': 'Old assistant message (should be skipped)',
+                },
+              ],
+            },
+            'events': [
+              {
+                'type': 'TEXT_MESSAGE_START',
+                'messageId': 'assistant-new',
+                'role': 'assistant',
+              },
+              {
+                'type': 'TEXT_MESSAGE_CONTENT',
+                'messageId': 'assistant-new',
+                'delta': 'New response',
+              },
+              {'type': 'TEXT_MESSAGE_END', 'messageId': 'assistant-new'},
+            ],
+          },
+        );
+
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+
+        // Only user message from run_input + assistant from events
+        expect(messages.length, equals(2));
+        expect(messages[0].id, equals('user-msg-1'));
+        expect(messages[1].id, equals('assistant-new'));
       });
     });
 
