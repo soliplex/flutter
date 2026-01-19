@@ -60,7 +60,17 @@ class _ChatInputState extends ConsumerState<ChatInput> {
 
   /// Handles cancelling the active run.
   Future<void> _handleCancel() async {
-    await ref.read(activeRunNotifierProvider.notifier).cancelRun();
+    try {
+      await ref.read(activeRunNotifierProvider.notifier).cancelRun();
+    } catch (e, stackTrace) {
+      debugPrint('Failed to cancel run: $e');
+      debugPrint(stackTrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to cancel: $e')),
+        );
+      }
+    }
   }
 
   @override
