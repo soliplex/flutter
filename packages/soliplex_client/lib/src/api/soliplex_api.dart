@@ -406,24 +406,33 @@ class SoliplexApi {
     final runs = response['runs'] as Map<String, dynamic>? ?? {};
     if (runs.isEmpty) return [];
 
-    // 2. Get completed runs sorted by creation time
-    final completedRuns = _sortRunsByCreationTime(runs)
+    // 2. Get completed run IDs sorted by creation time
+    final completedRunIds = _sortRunsByCreationTime(runs)
         .where((e) => (e.value as Map<String, dynamic>)['finished'] != null)
+        .map((e) => (e.value as Map<String, dynamic>)['run_id'] as String)
         .toList();
 
-    if (completedRuns.isEmpty) return [];
+    if (completedRunIds.isEmpty) return [];
 
     // 3. Fetch all run events in parallel (cache handles duplicates)
-    final eventFutures = completedRuns.map((entry) {
-      final runData = entry.value as Map<String, dynamic>;
-      final runId = runData['run_id'] as String;
+    final eventFutures = completedRunIds.map((runId) {
       return _fetchRunEvents(roomId, threadId, runId, cancelToken: cancelToken)
           .then((events) => (runId: runId, events: events))
-          .catchError((Object e) {
-        // Log failure but continue with other runs
-        _onWarning?.call('Failed to fetch events for run $runId: $e');
-        return (runId: runId, events: <Map<String, dynamic>>[]);
-      });
+          .catchError(
+        (Object e) {
+          // Log transient failure but continue with other runs
+          _onWarning?.call('Failed to fetch events for run $runId: $e');
+          return (runId: runId, events: <Map<String, dynamic>>[]);
+        },
+        // Only catch transient network/API errors. Let these propagate:
+        // - CancelledException: user cancelled, stop all work
+        // - AuthException: auth invalid, user needs to re-login
+        // - NotFoundException: run/thread deleted, stale data
+        test: (e) =>
+            e is! CancelledException &&
+            e is! AuthException &&
+            e is! NotFoundException,
+      );
     });
 
     final results = await Future.wait(eventFutures);
@@ -431,8 +440,7 @@ class SoliplexApi {
     // 4. Collect events in run order (results may arrive out of order)
     final runIdToEvents = {for (final r in results) r.runId: r.events};
     final allEvents = <Map<String, dynamic>>[];
-    for (final entry in completedRuns) {
-      final runId = (entry.value as Map<String, dynamic>)['run_id'] as String;
+    for (final runId in completedRunIds) {
       allEvents.addAll(runIdToEvents[runId] ?? []);
     }
 
@@ -485,14 +493,15 @@ class SoliplexApi {
     final messages = runInput['messages'] as List<dynamic>? ?? [];
     final syntheticEvents = <Map<String, dynamic>>[];
 
-    for (final msg in messages) {
-      final msgMap = msg as Map<String, dynamic>;
-      final id = msgMap['id'] as String? ?? 'user-${messages.indexOf(msg)}';
+    for (var i = 0; i < messages.length; i++) {
+      final msgMap = messages[i] as Map<String, dynamic>;
       final role = msgMap['role'] as String? ?? 'user';
-      final content = msgMap['content'] as String? ?? '';
 
       // Only process user messages - assistant messages come from events
       if (role != 'user') continue;
+
+      final id = msgMap['id'] as String? ?? 'user-$i';
+      final content = msgMap['content'] as String? ?? '';
 
       // Create synthetic TEXT_MESSAGE events (START, CONTENT, END)
       syntheticEvents
@@ -506,10 +515,7 @@ class SoliplexApi {
           'messageId': id,
           'delta': content,
         })
-        ..add({
-          'type': 'TEXT_MESSAGE_END',
-          'messageId': id,
-        });
+        ..add({'type': 'TEXT_MESSAGE_END', 'messageId': id});
     }
 
     return syntheticEvents;
@@ -533,7 +539,7 @@ class SoliplexApi {
         final result = processEvent(conversation, streaming, event);
         conversation = result.conversation;
         streaming = result.streaming;
-      } catch (e) {
+      } on DecodeError {
         // Skip malformed events - don't fail entire history for one bad
         // event. This can happen if the backend stores events from a newer
         // protocol version or if data corruption occurs.
@@ -541,7 +547,7 @@ class SoliplexApi {
         assert(
           () {
             // ignore: avoid_print
-            print('Skipped malformed event during replay: $e');
+            print('Skipped malformed event during replay: $eventJson');
             return true;
           }(),
           'Debug logging for malformed events',
