@@ -6,10 +6,12 @@ import 'package:soliplex_frontend/shared/utils/format_utils.dart';
 ///
 /// Material Design 3 ColorScheme doesn't include a warning color.
 /// This extension derives one that adapts to light/dark themes.
-extension WarningColors on ColorScheme {
+extension StatusColors on ColorScheme {
   /// Warning color that adapts to the current theme brightness.
   Color get warning =>
       brightness == Brightness.light ? Colors.orange : Colors.orange.shade300;
+  Color get success =>
+      brightness == Brightness.light ? Colors.green : Colors.green.shade300;
 }
 
 /// Builds status display widget based on event group status.
@@ -41,7 +43,7 @@ class HttpStatusDisplay extends StatelessWidget {
   Color _colorForStatus(HttpEventStatus status, ColorScheme colorScheme) {
     return switch (status) {
       HttpEventStatus.pending => colorScheme.onSurfaceVariant,
-      HttpEventStatus.success => colorScheme.tertiary,
+      HttpEventStatus.success => colorScheme.success,
       HttpEventStatus.clientError => colorScheme.warning,
       HttpEventStatus.serverError => colorScheme.error,
       HttpEventStatus.networkError => colorScheme.error,
