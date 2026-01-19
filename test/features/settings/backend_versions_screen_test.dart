@@ -197,5 +197,66 @@ void main() {
 
       expect(find.text('3 packages'), findsOneWidget);
     });
+
+    testWidgets('displays packages in alphabetical order', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const BackendVersionsScreen(),
+          skipBackendVersionOverride: true,
+          overrides: [
+            backendVersionInfoProvider.overrideWithValue(
+              const AsyncValue.data(
+                BackendVersionInfo(
+                  soliplexVersion: '0.36.dev0',
+                  // Provide in non-alphabetical order
+                  packageVersions: {
+                    'zebra': '1.0.0',
+                    'alpha': '2.0.0',
+                    'mango': '3.0.0',
+                  },
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      // Find all ListTile widgets with package names
+      final listTiles = find.byType(ListTile);
+      final titles = <String>[];
+      for (final element in tester.widgetList<ListTile>(listTiles)) {
+        final title = element.title;
+        if (title is Text) {
+          titles.add(title.data ?? '');
+        }
+      }
+
+      // Verify alphabetical order
+      expect(titles, equals(['alpha', 'mango', 'zebra']));
+    });
+
+    testWidgets('handles empty packageVersions', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const BackendVersionsScreen(),
+          skipBackendVersionOverride: true,
+          overrides: [
+            backendVersionInfoProvider.overrideWithValue(
+              const AsyncValue.data(
+                BackendVersionInfo(
+                  soliplexVersion: 'Unknown',
+                  packageVersions: {},
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('0 packages'), findsOneWidget);
+      expect(find.text('No packages match your search'), findsOneWidget);
+    });
   });
 }
