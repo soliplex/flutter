@@ -6,6 +6,73 @@ import 'package:soliplex_client/src/domain/thread_info.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('BackendVersionInfo mappers', () {
+    group('backendVersionInfoFromJson', () {
+      test('parses correctly with all fields', () {
+        final json = <String, dynamic>{
+          'soliplex': {
+            'version': '0.36.dev0',
+            'editable_project_location': '/path',
+          },
+          'fastapi': {'version': '0.124.0'},
+          'pydantic': {'version': '2.12.5'},
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('0.36.dev0'));
+        expect(info.packageVersions, hasLength(3));
+        expect(info.packageVersions['soliplex'], equals('0.36.dev0'));
+        expect(info.packageVersions['fastapi'], equals('0.124.0'));
+        expect(info.packageVersions['pydantic'], equals('2.12.5'));
+      });
+
+      test('returns Unknown when soliplex key is missing', () {
+        final json = <String, dynamic>{
+          'fastapi': {'version': '0.124.0'},
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('Unknown'));
+        expect(info.packageVersions['fastapi'], equals('0.124.0'));
+      });
+
+      test('returns Unknown when soliplex version is null', () {
+        final json = <String, dynamic>{
+          'soliplex': {'version': null},
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('Unknown'));
+      });
+
+      test('handles empty response', () {
+        final json = <String, dynamic>{};
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('Unknown'));
+        expect(info.packageVersions, isEmpty);
+      });
+
+      test('skips entries without version field', () {
+        final json = <String, dynamic>{
+          'soliplex': {'version': '0.36.dev0'},
+          'invalid': {'no_version': 'here'},
+          'also_invalid': 'not a map',
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.packageVersions, hasLength(1));
+        expect(info.packageVersions.containsKey('invalid'), isFalse);
+        expect(info.packageVersions.containsKey('also_invalid'), isFalse);
+      });
+    });
+  });
+
   group('Room mappers', () {
     group('roomFromJson', () {
       test('parses correctly with all fields', () {
