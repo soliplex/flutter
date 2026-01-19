@@ -38,7 +38,11 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: backendVersion.when(
             data: (info) => Text(info.soliplexVersion),
             loading: () => const Text('Loading...'),
-            error: (_, __) => const Text('Unavailable'),
+            error: (error, stack) {
+              debugPrint('Failed to load backend version: $error');
+              debugPrint('$stack');
+              return const Text('Unavailable');
+            },
           ),
           trailing: TextButton(
             onPressed: () => context.push('/settings/backend-versions'),

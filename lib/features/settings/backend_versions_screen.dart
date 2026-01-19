@@ -30,9 +30,13 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
       body: versionInfo.when(
         data: (info) => _buildContent(info.packageVersions),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(
-          child: Text('Failed to load version information'),
-        ),
+        error: (error, stack) {
+          debugPrint('Failed to load backend versions: $error');
+          debugPrint('$stack');
+          return const Center(
+            child: Text('Failed to load version information'),
+          );
+        },
       ),
     );
   }
