@@ -163,18 +163,9 @@ class ChatMessageWidget extends StatelessWidget {
     );
   }
 
-  // Kept as methods (not widget classes) because:
-  // 1. No reuse - each called exactly once
-  // 2. Thin composition - just layout + _ActionButton instances
-  // 3. Unstable interface - TODOs indicate features will change the API
-  // 4. _copyToClipboard dependency - extracting would require callbacks
-  // Revisit when: reused elsewhere, needs own state, or branching logic grows.
-
   Widget _buildUserMessageActionsRow(
     BuildContext context, {
     required String messageText,
-    int selectedBranch = 0,
-    int totalBranches = 0,
   }) {
     return Padding(
       padding: const EdgeInsets.only(
@@ -190,31 +181,6 @@ class ChatMessageWidget extends StatelessWidget {
             icon: Icons.copy,
             onTap: () => _copyToClipboard(context, messageText),
           ),
-          if (totalBranches != 0) ...[
-            if (selectedBranch > 0)
-              _ActionButton(
-                tooltip: 'View previous edit',
-                icon: Icons.chevron_left,
-                onTap: () {
-                  // TODO(chat): Implement branch selection logic
-                },
-              ),
-            if (selectedBranch < totalBranches)
-              _ActionButton(
-                tooltip: 'View next edit',
-                icon: Icons.chevron_right,
-                onTap: () {
-                  // TODO(chat): Implement branch selection logic
-                },
-              ),
-          ],
-          _ActionButton(
-            tooltip: 'Edit message',
-            icon: Icons.edit,
-            onTap: () {
-              // TODO(chat): Implement edit message logic
-            },
-          ),
         ],
       ),
     );
@@ -223,8 +189,6 @@ class ChatMessageWidget extends StatelessWidget {
   Widget _buildAgentMessageActionsRow(
     BuildContext context, {
     required String messageText,
-    int selectedBranch = 0,
-    int totalBranches = 0,
   }) {
     return Padding(
       padding: const EdgeInsets.only(
@@ -238,45 +202,6 @@ class ChatMessageWidget extends StatelessWidget {
             tooltip: 'Copy message',
             icon: Icons.copy,
             onTap: () => _copyToClipboard(context, messageText),
-          ),
-          _ActionButton(
-            tooltip: 'Regenerate response',
-            icon: Icons.repeat,
-            onTap: () {
-              // TODO(chat): Implement regeneration logic
-            },
-          ),
-          if (totalBranches != 0) ...[
-            if (selectedBranch > 0)
-              _ActionButton(
-                tooltip: 'View previous response',
-                icon: Icons.chevron_left,
-                onTap: () {
-                  // TODO(chat): Implement branch selection logic
-                },
-              ),
-            if (selectedBranch < totalBranches)
-              _ActionButton(
-                tooltip: 'View next response',
-                icon: Icons.chevron_right,
-                onTap: () {
-                  // TODO(chat): Implement branch selection logic
-                },
-              ),
-          ],
-          _ActionButton(
-            tooltip: 'Mark as helpful',
-            icon: Icons.thumb_up,
-            onTap: () {
-              // TODO(chat): Implement feedback logic
-            },
-          ),
-          _ActionButton(
-            tooltip: 'Mark as unhelpful',
-            icon: Icons.thumb_down,
-            onTap: () {
-              // TODO(chat): Implement feedback logic
-            },
           ),
         ],
       ),
