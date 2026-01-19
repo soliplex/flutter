@@ -1,7 +1,6 @@
 # Soliplex Frontend Codebase Analysis
 
 **Last updated:** January 2026
-**Current Milestone:** AM7 (Authentication) ✅
 
 > **Note:** File counts and structure in this document reflect the codebase as of the last update.
 > Run `find lib -name "*.dart" | wc -l` to get current counts.
@@ -10,7 +9,7 @@
 
 ```text
 frontend/
-├── lib/                              # Main Flutter app (~57 Dart files)
+├── lib/                              # Main Flutter app (~79 Dart files)
 │   ├── main.dart                     # Entry point with ProviderScope
 │   ├── app.dart                      # Root SoliplexApp widget
 │   ├── core/                         # Infrastructure layer
@@ -24,7 +23,7 @@ frontend/
 │   │   ├── models/                   # Core data models
 │   │   │   ├── active_run_state.dart # Sealed class: IdleState|RunningState|CompletedState
 │   │   │   └── app_config.dart       # App configuration (baseUrl)
-│   │   ├── providers/                # Riverpod state management (10 providers)
+│   │   ├── providers/                # Riverpod state management (12 providers)
 │   │   │   ├── api_provider.dart     # SoliplexApi with HTTP transport
 │   │   │   ├── active_run_provider.dart
 │   │   │   ├── active_run_notifier.dart
@@ -33,8 +32,10 @@ frontend/
 │   │   │   ├── threads_provider.dart
 │   │   │   ├── thread_message_cache.dart
 │   │   │   ├── backend_health_provider.dart
+│   │   │   ├── backend_version_provider.dart
 │   │   │   ├── http_log_provider.dart
-│   │   │   └── package_info_provider.dart
+│   │   │   ├── package_info_provider.dart
+│   │   │   └── quiz_provider.dart
 │   │   ├── router/
 │   │   │   └── app_router.dart       # GoRouter (8 routes)
 │   │   └── constants/
@@ -78,63 +79,72 @@ frontend/
 
 ### 2.1 Three-Layer Design
 
-```text
-┌─────────────────────────────────────────────┐
-│              UI Components                   │
-│  (Chat, History, Detail, Canvas)            │
-└──────────────────┬──────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────┐
-│              Core Frontend                   │
-│  Providers │ Navigation │ AG-UI Processing  │
-└──────────────────┬──────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────┐
-│      soliplex_client (Pure Dart package)    │
-└─────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["UI Components<br/>(Chat, History, HttpInspector)"]
+    B["Core Frontend<br/>Providers | Navigation | AG-UI Processing"]
+    C["soliplex_client<br/>(Pure Dart package)"]
+
+    A --> B
+    B --> C
+
+    style A fill:#e1f5ff
+    style B fill:#fff4e1
+    style C fill:#e8f5e9
 ```
 
 ### 2.2 State Management: Riverpod
 
 **Provider Hierarchy:**
 
-```text
-configProvider (StateProvider)
-    │
-    ├── urlBuilderProvider
-    └── httpTransportProvider
-            │
-        apiProvider
-            │
-    ┌───────┴────────┐
-    │                │
-roomsProvider  threadsProvider(roomId)
-    │                │
-    └────┬───────────┘
-         │
-currentRoomIdProvider / currentThreadIdProvider
-         │
-activeRunNotifierProvider ← Main streaming orchestration
-         │
-Derived: canSendMessageProvider, allMessagesProvider, isStreamingProvider
+```mermaid
+flowchart TD
+    config["configProvider<br/>(StateProvider)"]
+    url["urlBuilderProvider"]
+    transport["httpTransportProvider"]
+    api["apiProvider"]
+    rooms["roomsProvider"]
+    threads["threadsProvider(roomId)"]
+    current["currentRoomIdProvider /<br/>currentThreadIdProvider"]
+    activeRun["activeRunNotifierProvider<br/>(Main streaming orchestration)"]
+    derived["Derived: canSendMessageProvider,<br/>allMessagesProvider, isStreamingProvider"]
+
+    config --> url
+    config --> transport
+    transport --> api
+    api --> rooms
+    api --> threads
+    rooms --> current
+    threads --> current
+    current --> activeRun
+    activeRun --> derived
+
+    style config fill:#e1f5ff
+    style api fill:#fff4e1
+    style activeRun fill:#ffe1f5
+    style derived fill:#e8f5e9
 ```
 
 ### 2.3 HTTP Layer Architecture
 
-```text
-┌────────────────────────────────────────────────┐
-│         SoliplexApi (REST client)              │  Layer 3: Business Logic
-└───────────────┬────────────────────────────────┘
-                │
-┌───────────────▼────────────────────────────────┐
-│      HttpTransport (JSON + Error Mapping)      │  Layer 2: Transport
-└───────────────┬────────────────────────────────┘
-                │
-┌───────────────▼────────────────────────────────┐
-│   SoliplexHttpClient (Platform abstractions)   │  Layer 1: Clients
-│  - DartHttpClient (dart:http)                  │
-│  - CupertinoHttpClient (NSURLSession)          │
-└────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    api["SoliplexApi (REST client)<br/>Layer 3: Business Logic"]
+    transport["HttpTransport<br/>(JSON + Error Mapping)<br/>Layer 2: Transport"]
+    client["SoliplexHttpClient<br/>(Platform abstractions)<br/>Layer 1: Clients"]
+    dart["DartHttpClient (dart:http)"]
+    cupertino["CupertinoHttpClient (NSURLSession)"]
+
+    api --> transport
+    transport --> client
+    client --> dart
+    client --> cupertino
+
+    style api fill:#e1f5ff
+    style transport fill:#fff4e1
+    style client fill:#ffe1f5
+    style dart fill:#e8f5e9
+    style cupertino fill:#e8f5e9
 ```
 
 ### 2.4 Navigation: GoRouter
@@ -207,45 +217,65 @@ class CompletedState extends ActiveRunState {   // Run finished
 
 **Streaming Pipeline:**
 
-```text
-SSE Stream → Thread.run() → Event parsing → Buffers → ActiveRunNotifier → UI
+```mermaid
+flowchart LR
+    A[SSE Stream] --> B[Thread.run]
+    B --> C[Event parsing]
+    C --> D[Buffers]
+    D --> E[ActiveRunNotifier]
+    E --> F[UI]
+
+    style A fill:#e1f5ff
+    style F fill:#e8f5e9
 ```
 
 ### 3.3 Chat Flow
 
-```text
-User types message
-    ↓
-ChatInput.onSend(text)
-    ↓
-ChatPanel._handleSend()
-    ├─ Create thread if needed (api.createThread)
-    └─ activeRunNotifier.startRun(roomId, threadId, userMessage)
-         ├─ Creates Thread
-         ├─ Subscribes to eventStream
-         └─ Updates ActiveRunState
-    ↓
-MessageList watches allMessagesProvider
-    ├─ Merges history + run messages
-    └─ Auto-scrolls to bottom
+```mermaid
+flowchart TD
+    A[User types message]
+    B[ChatInput.onSend text]
+    C[ChatPanel._handleSend]
+    D[Create thread if needed<br/>api.createThread]
+    E[activeRunNotifier.startRun<br/>roomId, threadId, userMessage]
+    F[Creates Thread]
+    G[Subscribes to eventStream]
+    H[Updates ActiveRunState]
+    I[MessageList watches<br/>allMessagesProvider]
+    J[Merges history + run messages]
+    K[Auto-scrolls to bottom]
+
+    A --> B
+    B --> C
+    C --> D
+    C --> E
+    E --> F
+    E --> G
+    E --> H
+    H --> I
+    I --> J
+    I --> K
+
+    style A fill:#e1f5ff
+    style E fill:#ffe1f5
+    style I fill:#fff4e1
+    style K fill:#e8f5e9
 ```
 
 ## 4. soliplex_client Package
 
 **Pure Dart** - no Flutter dependency. Reusable on web, server, or desktop.
 
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| DM1 | Models & errors | ✅ |
-| DM2 | HTTP adapter interface + DartHttpAdapter | ✅ |
-| DM3 | HttpObserver + ObservableHttpAdapter | ✅ |
-| DM4 | HttpTransport, UrlBuilder, CancelToken | ✅ |
-| DM5 | API layer (SoliplexApi) | ✅ |
-| DM6 | AG-UI protocol (Thread, buffers, tool registry) | ✅ |
-| DM7 | Sessions (ConnectionManager, RoomSession) | Not Started |
-| DM8 | Facade (SoliplexClient) | Not Started |
+**Implemented Components:**
 
-**Test Coverage:** 587 tests, 100% coverage
+- Models & errors
+- HTTP adapter interface + DartHttpAdapter
+- HttpObserver + ObservableHttpAdapter
+- HttpTransport, UrlBuilder, CancelToken
+- API layer (SoliplexApi)
+- AG-UI protocol (Thread, buffers, tool registry)
+
+**Test Coverage:** ~600 tests, near 100% coverage
 
 ## 5. UI Components
 
@@ -259,6 +289,8 @@ MessageList watches allMessagesProvider
 | RoomsScreen | List rooms from API |
 | RoomScreen | Room view with thread selection |
 | SettingsScreen | App config and auth status |
+| BackendVersionsScreen | Backend version information |
+| QuizScreen | Quiz feature |
 
 ### Panels
 
@@ -393,20 +425,7 @@ flutter: >= 3.10.0
 http: ^1.2.0
 ```
 
-## 10. Milestone Progress
-
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| AM1 | App shell, navigation | ✅ |
-| AM2 | Real API integration | ✅ |
-| AM3 | Working chat with streaming | ✅ |
-| AM4 | Full chat (markdown, streaming) | ✅ |
-| AM5 | HTTP Inspector panel | ✅ |
-| AM6 | Canvas components | Pending |
-| AM7 | Authentication (OIDC) | ✅ |
-| AM8 | Multi-room package extraction | Pending |
-
-## 11. Key Architectural Decisions
+## 10. Key Architectural Decisions
 
 1. **Pure Dart client package** - Reusable across platforms without Flutter dependency
 2. **Sealed classes for state** - Type-safe exhaustive pattern matching (ActiveRunState, AuthState, CompletionResult)
@@ -416,7 +435,7 @@ http: ^1.2.0
 6. **Manual Riverpod providers** - Explicit control over provider lifecycle
 7. **Responsive dual-panel layout** - Desktop sidebar with mobile fallback
 
-## 12. Summary
+## 11. Summary
 
 This is a well-architected, production-quality Flutter frontend featuring:
 

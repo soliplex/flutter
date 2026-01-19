@@ -34,7 +34,7 @@ packages/
 ├── soliplex_client/         # Pure Dart: REST API, AG-UI protocol
 └── soliplex_client_native/  # Platform HTTP adapters (Cupertino)
 
-docs/planning/               # Design specs and work logs (see ROADMAP.md)
+docs/                        # Documentation (see index.md)
 ```
 
 ## Architecture
@@ -62,8 +62,7 @@ docs/planning/               # Design specs and work logs (see ROADMAP.md)
 
 - History → Room scope (thread list, auto-selection)
 - Chat → Thread scope (messages, streaming, input)
-- Detail → Thread scope (events, thinking, tools, state)
-- Canvas → Global scope (pinned items)
+- HttpInspector → Request/response traffic monitoring
 
 ## Development Rules
 
