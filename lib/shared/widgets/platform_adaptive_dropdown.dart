@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/shared/utils/platform_resolver.dart';
 
+/// An item for [PlatformAdaptiveDropdown].
 class PlatformAdaptiveDropdownItem<T> {
   const PlatformAdaptiveDropdownItem({
     required this.text,
@@ -13,6 +14,10 @@ class PlatformAdaptiveDropdownItem<T> {
   final T value;
 }
 
+/// A dropdown that adapts between Material and Cupertino styles.
+///
+/// On Material platforms, shows a [DropdownMenu].
+/// On Cupertino platforms, shows a modal [CupertinoPicker].
 class PlatformAdaptiveDropdown<T> extends StatelessWidget {
   const PlatformAdaptiveDropdown({
     required this.items,
@@ -20,7 +25,7 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
     this.initialSelection,
     this.hint,
     super.key,
-  });
+  }) : assert(items.length > 0, 'items must not be empty');
 
   final List<PlatformAdaptiveDropdownItem<T>> items;
   final ValueChanged<T?> onSelected;
@@ -96,21 +101,44 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
         items.indexWhere((item) => item.value == initialSelection);
     if (selectedIndex == -1) selectedIndex = 0;
 
-    showCupertinoModalPopup<T>(
+    // Track local selection - only commit on Done tap
+    var pendingIndex = selectedIndex;
+
+    showCupertinoModalPopup<void>(
       context: context,
       builder: (context) => Container(
         height: 250,
         color: CupertinoColors.systemBackground.resolveFrom(context),
         child: Column(
           children: [
-            _buildPickerHeader(context),
+            Container(
+              decoration: const BoxDecoration(
+                color: CupertinoColors.tertiarySystemFill,
+                border: Border(
+                  bottom:
+                      BorderSide(color: CupertinoColors.separator, width: 0.5),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  CupertinoButton(
+                    child: const Text('Done'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onSelected(items[pendingIndex].value);
+                    },
+                  ),
+                ],
+              ),
+            ),
             Expanded(
               child: CupertinoPicker(
                 scrollController:
                     FixedExtentScrollController(initialItem: selectedIndex),
                 itemExtent: 32,
                 onSelectedItemChanged: (index) {
-                  onSelected(items[index].value);
+                  pendingIndex = index;
                 },
                 children: items
                     .map((item) => Center(child: Text(item.text)))
@@ -119,26 +147,6 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPickerHeader(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: CupertinoColors.tertiarySystemFill,
-        border: Border(
-          bottom: BorderSide(color: CupertinoColors.separator, width: 0.5),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          CupertinoButton(
-            child: const Text('Done'),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
       ),
     );
   }
