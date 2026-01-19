@@ -116,11 +116,8 @@ class RoomsScreen extends ConsumerWidget {
                             crossAxisSpacing: SoliplexSpacing.s2,
                             mainAxisSpacing: SoliplexSpacing.s2,
                           ),
-                          itemCount: rooms.length + 1,
+                          itemCount: rooms.length,
                           itemBuilder: (context, index) {
-                            if (index == rooms.length) {
-                              return RoomGridCard.ghost(context: context);
-                            }
                             final room = rooms[index];
                             return RoomGridCard(
                               room: room,
@@ -131,16 +128,8 @@ class RoomsScreen extends ConsumerWidget {
                       }
 
                       return ListView.builder(
-                        itemCount: rooms.length + 1,
+                        itemCount: rooms.length,
                         itemBuilder: (context, index) {
-                          if (index == rooms.length) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: SoliplexSpacing.s1,
-                              ),
-                              child: RoomListTile.ghost(context: context),
-                            );
-                          }
                           final room = rooms[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(
