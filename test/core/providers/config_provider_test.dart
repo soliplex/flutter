@@ -214,5 +214,4 @@ void main() {
       expect(container.read(preloadedBaseUrlProvider), 'https://override.com');
     });
   });
-
 }

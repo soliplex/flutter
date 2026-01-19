@@ -12,9 +12,9 @@ class RouteConfig {
     this.showRoomsRoute = true,
     this.initialRoute = '/',
   }) : assert(
-         showHomeRoute || showRoomsRoute,
-         'At least one main route (home or rooms) must be enabled',
-       );
+          showHomeRoute || showRoomsRoute,
+          'At least one main route (home or rooms) must be enabled',
+        );
 
   /// Whether the home route ('/') is accessible.
   final bool showHomeRoute;
