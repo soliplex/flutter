@@ -2,6 +2,7 @@ import 'package:ag_ui/ag_ui.dart' hide CancelToken;
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/application/agui_event_processor.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
+import 'package:soliplex_client/src/domain/backend_version_info.dart';
 import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
@@ -518,6 +519,31 @@ class SoliplexApi {
       cancelToken: cancelToken,
       fromJson: quizAnswerResultFromJson,
     );
+  }
+
+  // ============================================================
+  // Installation Info
+  // ============================================================
+
+  /// Gets backend version information.
+  ///
+  /// Returns [BackendVersionInfo] containing the soliplex version
+  /// and all installed package versions.
+  ///
+  /// Throws:
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<BackendVersionInfo> getBackendVersionInfo({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['installation', 'versions']),
+      cancelToken: cancelToken,
+    );
+
+    return backendVersionInfoFromJson(response);
   }
 
   // ============================================================
