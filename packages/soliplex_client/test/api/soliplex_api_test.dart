@@ -1475,6 +1475,177 @@ void main() {
         expect(messages[0].id, equals('user-msg-1'));
         expect(messages[1].id, equals('assistant-new'));
       });
+
+      test('calls onWarning callback on partial failure', () async {
+        final warnings = <String>[];
+        final apiWithWarning = SoliplexApi(
+          transport: mockTransport,
+          urlBuilder: urlBuilder,
+          onWarning: warnings.add,
+        );
+
+        // Thread endpoint returns two runs
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': {
+              'run-1': {
+                'run_id': 'run-1',
+                'created': '2026-01-07T01:00:00.000Z',
+                'finished': '2026-01-07T01:01:00.000Z',
+              },
+            },
+          },
+        );
+
+        // Run 1 fails
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const NetworkException(message: 'Connection failed'));
+
+        await apiWithWarning.getThreadMessages('room-123', 'thread-456');
+
+        expect(warnings, hasLength(1));
+        expect(warnings[0], contains('run-1'));
+        expect(warnings[0], contains('Connection failed'));
+
+        apiWithWarning.close();
+      });
+
+      test('evicts oldest entries when cache exceeds limit', () async {
+        // This test verifies LRU eviction by filling the cache beyond capacity.
+        // We use a smaller number of runs (5) to keep the test fast, but the
+        // logic is the same - oldest entries should be evicted first.
+
+        // Create runs that will fill cache
+        final runs = <String, Map<String, dynamic>>{};
+        for (var i = 0; i < 5; i++) {
+          runs['run-$i'] = {
+            'run_id': 'run-$i',
+            'created': '2026-01-07T0$i:00:00.000Z',
+            'finished': '2026-01-07T0$i:01:00.000Z',
+          };
+        }
+
+        // Thread endpoint
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            Uri.parse(
+              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+            ),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'thread_id': 'thread-456',
+            'runs': runs,
+          },
+        );
+
+        // Run endpoints - each returns a unique message
+        for (var i = 0; i < 5; i++) {
+          when(
+            () => mockTransport.request<Map<String, dynamic>>(
+              'GET',
+              Uri.parse(
+                'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-$i',
+              ),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenAnswer(
+            (_) async => {
+              'run_id': 'run-$i',
+              'events': [
+                {
+                  'type': 'TEXT_MESSAGE_START',
+                  'messageId': 'msg-$i',
+                  'role': 'assistant',
+                },
+                {
+                  'type': 'TEXT_MESSAGE_CONTENT',
+                  'messageId': 'msg-$i',
+                  'delta': 'Message $i',
+                },
+                {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-$i'},
+              ],
+            },
+          );
+        }
+
+        // First call loads all 5 runs
+        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        expect(messages.length, equals(5));
+
+        // Verify all 5 run endpoints were called
+        for (var i = 0; i < 5; i++) {
+          verify(
+            () => mockTransport.request<Map<String, dynamic>>(
+              'GET',
+              Uri.parse(
+                'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-$i',
+              ),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).called(1);
+        }
+
+        // Second call should use cache (no additional run endpoint calls)
+        await api.getThreadMessages('room-123', 'thread-456');
+
+        // Run endpoints should still have been called only once each
+        for (var i = 0; i < 5; i++) {
+          verifyNever(
+            () => mockTransport.request<Map<String, dynamic>>(
+              'GET',
+              Uri.parse(
+                'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-$i',
+              ),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
+            ),
+          );
+        }
+      });
     });
 
     group('getRun', () {

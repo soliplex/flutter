@@ -41,19 +41,50 @@ class SoliplexApi {
   /// Parameters:
   /// - [transport]: HTTP transport for making requests
   /// - [urlBuilder]: URL builder configured with the API base URL
+  /// - [onWarning]: Optional callback for warning messages (e.g., partial
+  ///   failures during history loading). If not provided, warnings are silent.
   SoliplexApi({
     required HttpTransport transport,
     required UrlBuilder urlBuilder,
+    void Function(String message)? onWarning,
   })  : _transport = transport,
-        _urlBuilder = urlBuilder;
+        _urlBuilder = urlBuilder,
+        _onWarning = onWarning;
 
   final HttpTransport _transport;
   final UrlBuilder _urlBuilder;
+  final void Function(String message)? _onWarning;
 
-  /// Cache for run events. Completed runs are immutable, so cache indefinitely.
+  /// Maximum number of runs to cache. Covers ~5-10 threads of history.
+  static const _maxCacheSize = 100;
+
+  /// LRU cache for run events. Completed runs are immutable, so safe to cache.
+  /// Uses insertion order - oldest entries are at the front.
   final _runEventsCache = <String, List<Map<String, dynamic>>>{};
 
   String _runCacheKey(String threadId, String runId) => '$threadId:$runId';
+
+  /// Adds to cache with LRU eviction.
+  void _cacheRunEvents(String key, List<Map<String, dynamic>> events) {
+    // Remove if exists (to update position for LRU)
+    _runEventsCache.remove(key);
+
+    // Evict oldest entries if at capacity
+    while (_runEventsCache.length >= _maxCacheSize) {
+      _runEventsCache.remove(_runEventsCache.keys.first);
+    }
+
+    _runEventsCache[key] = events;
+  }
+
+  /// Gets from cache and updates LRU position.
+  List<Map<String, dynamic>>? _getCachedRunEvents(String key) {
+    final events = _runEventsCache.remove(key);
+    if (events != null) {
+      _runEventsCache[key] = events; // Re-add to move to end (most recent)
+    }
+    return events;
+  }
 
   // ============================================================
   // Rooms
@@ -390,8 +421,7 @@ class SoliplexApi {
           .then((events) => (runId: runId, events: events))
           .catchError((Object e) {
         // Log failure but continue with other runs
-        // ignore: avoid_print
-        print('Warning: Failed to fetch events for run $runId: $e');
+        _onWarning?.call('Failed to fetch events for run $runId: $e');
         return (runId: runId, events: <Map<String, dynamic>>[]);
       });
     });
@@ -422,7 +452,7 @@ class SoliplexApi {
     CancelToken? cancelToken,
   }) async {
     final cacheKey = _runCacheKey(threadId, runId);
-    final cached = _runEventsCache[cacheKey];
+    final cached = _getCachedRunEvents(cacheKey);
     if (cached != null) return cached;
 
     final rawRun = await _transport.request<Map<String, dynamic>>(
@@ -441,7 +471,7 @@ class SoliplexApi {
 
     // Combine: user message events first, then actual streamed events
     final allEvents = [...userMessageEvents, ...events];
-    _runEventsCache[cacheKey] = allEvents;
+    _cacheRunEvents(cacheKey, allEvents);
     return allEvents;
   }
 
@@ -520,11 +550,8 @@ class SoliplexApi {
     }
 
     if (skippedEventCount > 0) {
-      // Log skipped events for observability. Uses print() since
-      // soliplex_client is pure Dart without logging dependencies.
-      // ignore: avoid_print
-      print(
-        'Warning: Skipped $skippedEventCount malformed event(s) '
+      _onWarning?.call(
+        'Skipped $skippedEventCount malformed event(s) '
         'while loading thread $threadId',
       );
     }
