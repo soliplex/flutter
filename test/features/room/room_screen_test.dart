@@ -409,6 +409,30 @@ void main() {
     });
   });
 
+  group('RoomScreen settings button', () {
+    testWidgets('shows settings button in app bar', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomScreen(roomId: 'general'),
+          overrides: [
+            threadsProvider('general').overrideWith((ref) async => []),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [TestData.createRoom(id: 'general')],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.settings), findsOneWidget);
+      expect(find.byTooltip('Open settings'), findsOneWidget);
+    });
+  });
+
   group('RoomScreen room dropdown', () {
     testWidgets('shows room dropdown', (tester) async {
       await tester.pumpWidget(

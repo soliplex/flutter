@@ -101,6 +101,29 @@ void main() {
       expect(find.text('Start Quiz'), findsOneWidget);
     });
 
+    testWidgets('shows settings button in app bar', (tester) async {
+      // Arrange
+      final quiz = Quiz(
+        id: 'quiz-1',
+        title: 'Test Quiz',
+        questions: const [
+          QuizQuestion(id: 'q1', text: 'Question 1', type: FreeForm()),
+        ],
+      );
+      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
+          .thenAnswer((_) async => quiz);
+
+      // Act
+      await tester.pumpWidget(
+        buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
+      );
+      await tester.pumpAndSettle();
+
+      // Assert
+      expect(find.byIcon(Icons.settings), findsOneWidget);
+      expect(find.byTooltip('Open settings'), findsOneWidget);
+    });
+
     testWidgets('starts quiz and shows first question', (tester) async {
       // Arrange
       final quiz = Quiz(

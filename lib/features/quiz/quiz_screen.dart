@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 import 'package:soliplex_frontend/shared/widgets/loading_indicator.dart';
+import 'package:soliplex_frontend/shared/widgets/shell_actions.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Screen for taking a quiz.
@@ -59,6 +60,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         title: quizAsync.whenOrNull(
           data: (quiz) => Text(quiz.title),
         ),
+        actions: standardActions('/rooms'),
       ),
       body: quizAsync.when(
         data: (quiz) => _buildQuizContent(context, quiz),
