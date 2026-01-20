@@ -45,6 +45,27 @@ which requires atomic deletion handling (see below).
 (arrow keys + enter to select). We will implement this ourselves using Flutter's
 `Shortcuts` and `Actions` widgets to meet the functional requirement.
 
+**Display/Markup Duality:** The `flutter_mentions` controller maintains two
+parallel text representations:
+
+| Property | Contains | Example |
+|----------|----------|---------|
+| `controller.text` | Display text (user-visible) | `Use #manual.pdf` |
+| `controller.markupText` | Markup with encoded IDs | `Use #[manual.pdf](uuid-123)` |
+
+When a user selects a document from the autocomplete:
+
+1. The **display text** shows the document title with styling (e.g., `#manual.pdf`
+   in a distinct color).
+2. The **markup text** encodes both title and ID using the format defined by
+   `markupBuilder`: `#[title](id)`.
+
+This duality allows us to:
+
+- Show human-readable titles to the user.
+- Preserve document IDs for AG-UI state without parsing the display text.
+- Use `controller.text` directly as the prompt sent to the LLM.
+
 ### Trigger Symbol
 
 Use `#` as the trigger symbol for document mentions. We reserve `@` for a
@@ -116,11 +137,11 @@ is selected.
 **Tracking removals:** Derive from atomic deletion events (see below). When a
 mention is atomically deleted, we remove the corresponding record from the set.
 
-**Markup format:** Configure `markupBuilder` to produce a parseable format:
+**Markup configuration:** Configure `markupBuilder` to produce the parseable
+format described in "Display/Markup Duality" above:
 
 ```dart
 markupBuilder: (trigger, mention, value) => '$trigger[$mention]($value)',
-// Example output: #[manual.pdf](uuid-123)
 ```
 
 ### Atomic Deletion
