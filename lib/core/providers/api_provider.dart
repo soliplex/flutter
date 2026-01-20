@@ -187,6 +187,15 @@ final httpClientProvider = Provider<http.Client>((ref) {
   return HttpClientAdapter(client: soliplexClient);
 });
 
+/// Provider for the tool registry with client-side tools.
+///
+/// Creates a [ToolRegistry] pre-configured with the `get_secret` tool.
+/// This registry provides both tool definitions (sent to the server) and
+/// executors (run locally when tools are called).
+final toolRegistryProvider = Provider<ToolRegistry>((ref) {
+  return const ToolRegistry().register(getSecretTool, getSecretExecutor);
+});
+
 /// Provider for the AG-UI client.
 ///
 /// Creates an [AgUiClient] that uses our HTTP stack via [httpClientProvider].

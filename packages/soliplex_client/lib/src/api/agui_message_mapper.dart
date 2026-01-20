@@ -66,10 +66,17 @@ List<Message> _convertToolCallMessage(ToolCallMessage message) {
 
   result.add(AssistantMessage(id: message.id, toolCalls: toolCalls));
 
-  // Add ToolMessage for each completed tool call
+  // Add ToolMessage for each completed or failed tool call
   for (final tc in message.toolCalls) {
-    if (tc.status == ToolCallStatus.completed) {
-      result.add(ToolMessage(toolCallId: tc.id, content: tc.result));
+    if (tc.status == ToolCallStatus.completed ||
+        tc.status == ToolCallStatus.failed) {
+      result.add(
+        ToolMessage(
+          id: 'tool_result_${tc.id}',
+          toolCallId: tc.id,
+          content: tc.result,
+        ),
+      );
     }
   }
 

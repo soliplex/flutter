@@ -77,6 +77,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               child: Semantics(
                 label: 'Chat message input',
                 child: TextField(
+                  key: const Key('chat_input'),
                   controller: _controller,
                   focusNode: _focusNode,
                   maxLines: null,
@@ -98,6 +99,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
           ),
           const SizedBox(width: 8),
           IconButton(
+            key: const Key('send_button'),
             tooltip: 'Send message',
             onPressed: canSend && _controller.text.trim().isNotEmpty
                 ? _handleSend

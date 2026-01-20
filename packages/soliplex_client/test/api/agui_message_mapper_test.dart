@@ -139,6 +139,7 @@ void main() {
         expect(aguiMessages[1], isA<ToolMessage>());
 
         final toolMsg = aguiMessages[1] as ToolMessage;
+        expect(toolMsg.id, equals('tool_result_tc-1'));
         expect(toolMsg.toolCallId, equals('tc-1'));
         expect(toolMsg.content, equals('Found 3 results'));
       });
@@ -164,6 +165,139 @@ void main() {
         expect(aguiMessages, hasLength(1));
         expect(aguiMessages[0], isA<AssistantMessage>());
       });
+
+      test('skips ToolMessage for streaming tool calls', () {
+        final chatMessages = [
+          ToolCallMessage(
+            id: 'msg-4',
+            createdAt: DateTime.now(),
+            toolCalls: const [
+              ToolCallInfo(
+                id: 'tc-1',
+                name: 'search',
+                arguments: '{"query":',
+                status: ToolCallStatus.streaming,
+              ),
+            ],
+          ),
+        ];
+
+        final aguiMessages = convertToAgui(chatMessages);
+
+        // Only AssistantMessage, no ToolMessage for streaming
+        expect(aguiMessages, hasLength(1));
+        expect(aguiMessages[0], isA<AssistantMessage>());
+      });
+
+      test('skips ToolMessage for executing tool calls', () {
+        final chatMessages = [
+          ToolCallMessage(
+            id: 'msg-4',
+            createdAt: DateTime.now(),
+            toolCalls: const [
+              ToolCallInfo(
+                id: 'tc-1',
+                name: 'search',
+                arguments: '{"query": "test"}',
+                status: ToolCallStatus.executing,
+              ),
+            ],
+          ),
+        ];
+
+        final aguiMessages = convertToAgui(chatMessages);
+
+        // Only AssistantMessage, no ToolMessage for executing
+        expect(aguiMessages, hasLength(1));
+        expect(aguiMessages[0], isA<AssistantMessage>());
+      });
+
+      test('includes ToolMessage for failed tool calls', () {
+        final chatMessages = [
+          ToolCallMessage(
+            id: 'msg-4',
+            createdAt: DateTime.now(),
+            toolCalls: const [
+              ToolCallInfo(
+                id: 'tc-1',
+                name: 'search',
+                arguments: '{"query": "test"}',
+                status: ToolCallStatus.failed,
+                result: 'Error: Something went wrong',
+              ),
+            ],
+          ),
+        ];
+
+        final aguiMessages = convertToAgui(chatMessages);
+
+        // AssistantMessage + ToolMessage for failed (server needs to know)
+        expect(aguiMessages, hasLength(2));
+        expect(aguiMessages[0], isA<AssistantMessage>());
+        expect(aguiMessages[1], isA<ToolMessage>());
+
+        final toolMsg = aguiMessages[1] as ToolMessage;
+        expect(toolMsg.id, equals('tool_result_tc-1'));
+        expect(toolMsg.toolCallId, equals('tc-1'));
+        expect(toolMsg.content, equals('Error: Something went wrong'));
+      });
+
+      test(
+        'includes ToolMessages for completed and failed in mixed list',
+        () {
+          final chatMessages = [
+            ToolCallMessage(
+              id: 'msg-4',
+              createdAt: DateTime.now(),
+              toolCalls: const [
+                ToolCallInfo(
+                  id: 'tc-1',
+                  name: 'streaming_tool',
+                  arguments: '{"partial":',
+                  status: ToolCallStatus.streaming,
+                ),
+                ToolCallInfo(
+                  id: 'tc-2',
+                  name: 'pending_tool',
+                  arguments: '{"ready": true}',
+                ),
+                ToolCallInfo(
+                  id: 'tc-3',
+                  name: 'completed_tool',
+                  arguments: '{"done": true}',
+                  status: ToolCallStatus.completed,
+                  result: 'Success',
+                ),
+                ToolCallInfo(
+                  id: 'tc-4',
+                  name: 'failed_tool',
+                  arguments: '{"error": true}',
+                  status: ToolCallStatus.failed,
+                  result: 'Error',
+                ),
+              ],
+            ),
+          ];
+
+          final aguiMessages = convertToAgui(chatMessages);
+
+          // AssistantMessage + 2 ToolMessages (completed + failed)
+          expect(aguiMessages, hasLength(3));
+          expect(aguiMessages[0], isA<AssistantMessage>());
+          expect(aguiMessages[1], isA<ToolMessage>());
+          expect(aguiMessages[2], isA<ToolMessage>());
+
+          final completedToolMsg = aguiMessages[1] as ToolMessage;
+          expect(completedToolMsg.id, equals('tool_result_tc-3'));
+          expect(completedToolMsg.toolCallId, equals('tc-3'));
+          expect(completedToolMsg.content, equals('Success'));
+
+          final failedToolMsg = aguiMessages[2] as ToolMessage;
+          expect(failedToolMsg.id, equals('tool_result_tc-4'));
+          expect(failedToolMsg.toolCallId, equals('tc-4'));
+          expect(failedToolMsg.content, equals('Error'));
+        },
+      );
     });
 
     group('GenUiMessage conversion', () {

@@ -215,9 +215,12 @@ class LoadingMessage extends ChatMessage {
   String toString() => 'LoadingMessage(id: $id)';
 }
 
-/// Status of a tool call.
+/// Status of a tool call through its lifecycle.
 enum ToolCallStatus {
-  /// Tool call is pending execution.
+  /// Tool call is actively receiving arguments.
+  streaming,
+
+  /// Tool call is pending execution (arguments complete).
   pending,
 
   /// Tool call is currently executing.

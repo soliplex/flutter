@@ -259,6 +259,9 @@ class MockSoliplexHttpClient extends Mock implements SoliplexHttpClient {}
 /// Mock AgUiClient for testing with mocktail.
 class MockAgUiClient extends Mock implements AgUiClient {}
 
+/// Mock ToolRegistry for testing with mocktail.
+class MockToolRegistry extends Mock implements ToolRegistry {}
+
 /// Fake HttpTransport for testing without mocktail.
 class FakeHttpTransport implements HttpTransport {
   @override

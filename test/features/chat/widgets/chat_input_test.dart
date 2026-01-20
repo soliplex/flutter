@@ -102,7 +102,10 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
+                const RunningState(
+                  roomId: 'test-room',
+                  conversation: conversation,
+                ),
               ),
             ],
           ),
