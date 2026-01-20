@@ -10,6 +10,7 @@ import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/platform_adaptive_dropdown.dart';
+import 'package:soliplex_frontend/shared/widgets/shell_actions.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Screen displaying threads within a specific room.
@@ -119,6 +120,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
         actions: [
+          ...standardActions('/rooms'),
           if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
         ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
