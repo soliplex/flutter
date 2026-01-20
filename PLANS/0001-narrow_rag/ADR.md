@@ -19,23 +19,15 @@ See [SPEC.md](./SPEC.md) for requirements and use cases.
 
 ### UI Component
 
-Evaluated packages for mention/autocomplete functionality:
-
-| Criteria     | flutter_mentions | super_editor | extended_text_field | mentionable_text_field |
-| ------------ | ---------------- | ------------ | ------------------- | ---------------------- |
-| Intrusion    | Medium           | High         | Low                 | Low                    |
-| License      | MIT, Free        | MIT, Free    | MIT, Free           | MIT, Free              |
-| Completeness | High             | Very High    | Medium              | Medium                 |
-| Maintenance  | Active           | Very Active  | Moderate            | Stale                  |
-| Pub likes    | ~300             | ~800         | ~400                | ~50                    |
-
-**Decision:** `flutter_mentions`
+Use `flutter_mentions` for inline document selection:
 
 - Right level of abstraction—built specifically for this use case.
 - Handles the hard parts: cursor management, overlay positioning.
 - Structured output via `markupBuilder`—encodes both ID and display in markup.
 - Actively maintained with responsive maintainer.
 - Reasonable intrusion—some setup, but not an architectural overhaul.
+
+See [Alternatives Considered](#alternatives-considered) for the full evaluation.
 
 **Rendering:** Mentions are rendered as styled text (`TextSpan`), not inline
 widgets (`WidgetSpan`). This means the cursor can be positioned within a mention,
@@ -271,14 +263,27 @@ This approach:
 
 ## Alternatives Considered
 
-| Option                     | Why not chosen                                       |
-| -------------------------- | ---------------------------------------------------- |
-| `super_editor`             | High intrusion—architectural overhaul                |
-| `extended_text_field`      | Medium completeness, moderate maintenance            |
-| `mentionable_text_field`   | Stale maintenance, low pub likes                     |
-| `mention_tag_text_field`   | Lower adoption (~29 likes), no overlay positioning,  |
-|                            | no keyboard nav; would require same custom work      |
-| Custom `TextField` + Overlay | Reinvents solved problems (cursor, overlay positioning) |
+### UI Component Packages
+
+Evaluated packages for mention/autocomplete functionality:
+
+| Criteria     | flutter_mentions | super_editor | extended_text_field | mentionable_text_field |
+| ------------ | ---------------- | ------------ | ------------------- | ---------------------- |
+| Intrusion    | Medium           | High         | Low                 | Low                    |
+| License      | MIT, Free        | MIT, Free    | MIT, Free           | MIT, Free              |
+| Completeness | High             | Very High    | Medium              | Medium                 |
+| Maintenance  | Active           | Very Active  | Moderate            | Stale                  |
+| Pub likes    | ~300             | ~800         | ~400                | ~50                    |
+
+**Why not the others:**
+
+| Option                       | Why not chosen                                     |
+| ---------------------------- | -------------------------------------------------- |
+| `super_editor`               | High intrusion—architectural overhaul              |
+| `extended_text_field`        | Medium completeness, moderate maintenance          |
+| `mentionable_text_field`     | Stale maintenance, low pub likes                   |
+| `mention_tag_text_field`     | Lower adoption (~29 likes), no overlay positioning |
+| Custom `TextField` + Overlay | Reinvents solved problems (cursor, overlay)        |
 
 ## Known Gaps
 
