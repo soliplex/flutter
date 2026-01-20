@@ -37,7 +37,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
   /// - [defaultTimeout]: Default timeout for requests. Defaults to 30 seconds.
   CupertinoHttpClient({
     URLSessionConfiguration? configuration,
-    this.defaultTimeout = const Duration(seconds: 30),
+    this.defaultTimeout = const Duration(seconds: 600),
   }) : _client = CupertinoClient.fromSessionConfiguration(
           configuration ??
               URLSessionConfiguration.ephemeralSessionConfiguration(),
@@ -49,7 +49,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
   @visibleForTesting
   CupertinoHttpClient.forTesting({
     required http.Client client,
-    this.defaultTimeout = const Duration(seconds: 30),
+    this.defaultTimeout = const Duration(seconds: 600),
   }) : _client = client;
 
   final http.Client _client;
