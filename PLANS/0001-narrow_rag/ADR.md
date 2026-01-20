@@ -29,15 +29,21 @@ Evaluated packages for mention/autocomplete functionality:
 | Maintenance  | Active           | Very Active  | Moderate            | Stale                  |
 | Pub likes    | ~300             | ~800         | ~400                | ~50                    |
 
-**Recommendation:** `flutter_mentions`
+**Decision:** `flutter_mentions`
 
 - Right level of abstraction—built specifically for this use case.
-- Handles the hard parts: cursor management, deletion, overlay positioning.
-- Structured output—returns mentions as parsed objects, ready for API.
+- Handles the hard parts: cursor management, overlay positioning.
+- Structured output via `markupBuilder`—encodes both ID and display in markup.
 - Actively maintained with responsive maintainer.
 - Reasonable intrusion—some setup, but not an architectural overhaul.
 
-*Decision:* TBD (pending team review)
+**Rendering:** Mentions are rendered as styled text (`TextSpan`), not inline
+widgets (`WidgetSpan`). This means the cursor can be positioned within a mention,
+which requires atomic deletion handling (see below).
+
+**Keyboard Navigation:** The package does not provide built-in keyboard navigation
+(arrow keys + enter to select). We will implement this ourselves using Flutter's
+`Shortcuts` and `Actions` widgets to meet the functional requirement.
 
 ### Trigger Symbol
 
@@ -85,6 +91,82 @@ submitting a run, the frontend includes a `filter_documents` object in
   2. Populates `RunAgentInput.state["filter_documents"]` with document IDs.
 - Selection does not persist across runs (user selects fresh each time).
 
+### Selection Tracking
+
+We maintain a local `Set<DocumentRecord>` as the single source of truth for
+selected documents, where each record contains:
+
+```dart
+class DocumentRecord {
+  final String id;    // Document UUID (for AG-UI state)
+  final String name;  // Document title (for display and filtering)
+}
+```
+
+This set is used for:
+
+1. **Autocomplete filtering**: Exclude already-selected documents from suggestions.
+2. **AG-UI state population**: Extract IDs on submit.
+3. **Prompt text**: Extract names for display.
+
+**Tracking additions:** Use `flutter_mentions`' `onMentionAdd` callback, which
+provides the full mention data map (including `id` and `display`) when a document
+is selected.
+
+**Tracking removals:** Derive from atomic deletion events (see below). When a
+mention is atomically deleted, we remove the corresponding record from the set.
+
+**Markup format:** Configure `markupBuilder` to produce a parseable format:
+
+```dart
+markupBuilder: (trigger, mention, value) => '$trigger[$mention]($value)',
+// Example output: #[manual.pdf](uuid-123)
+```
+
+### Atomic Deletion
+
+Since `flutter_mentions` renders mentions as styled text (`TextSpan`), the cursor
+can be positioned within a mention. The package does not provide atomic deletion
+(deleting the entire mention when backspace is pressed). We implement this
+ourselves.
+
+**Implementation approach:**
+
+1. **Intercept backspace**: Wrap the input with a `Focus` widget using
+   `onKeyEvent` to catch `LogicalKeyboardKey.backspace`.
+
+2. **Detect cursor position**: Get `controller.selection.start` to find the
+   cursor offset.
+
+3. **Find mention boundaries**: Parse `markupText` to identify mention spans and
+   their corresponding positions in the display text.
+
+4. **Delete entire mention**: If the cursor is within or immediately after a
+   mention span, delete the entire span and update the controller value.
+
+```dart
+Focus(
+  onKeyEvent: (node, event) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.backspace) {
+      final cursor = controller.selection.start;
+      final mention = findMentionContaining(cursor);
+      if (mention != null) {
+        deleteMention(mention);
+        selectedDocuments.remove(mention.record);
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  },
+  child: FlutterMentions(...),
+)
+```
+
+**Mobile keyboards:** On-screen keyboards may not fire key events for backspace.
+As a fallback, we use `onMarkupChanged` to detect when a mention becomes partial
+(unparseable) and delete it entirely.
+
 ### Prompt Format
 
 **Decision:** Structured payload with separation of concerns.
@@ -126,22 +208,26 @@ This approach:
 ### Negative
 
 - Adds complexity to prompt input handling.
-- New dependency on `flutter_mentions` (if chosen).
+- New dependency on `flutter_mentions`.
+- Custom keyboard navigation and atomic deletion implementations required.
 
 ### Risks
 
-- `flutter_mentions` may not meet all requirements (keyboard nav,
-  cross-platform support)—needs prototyping.
+- Custom implementations (keyboard navigation, atomic deletion) add maintenance
+  burden and may have edge cases on specific platforms.
+- Mobile keyboard backspace detection may be unreliable; fallback logic needed.
 - Performance if room has many documents.
 
 ## Alternatives Considered
 
-| Option                    | Why not chosen                                      |
-| ------------------------- | --------------------------------------------------- |
-| `super_editor`            | High intrusion—architectural overhaul               |
-| `extended_text_field`     | Medium completeness, moderate maintenance           |
-| `mentionable_text_field`  | Stale maintenance, low pub likes                    |
-| Custom `TextField` + Overlay | Reinvents solved problems (cursor, deletion, positioning) |
+| Option                     | Why not chosen                                       |
+| -------------------------- | ---------------------------------------------------- |
+| `super_editor`             | High intrusion—architectural overhaul                |
+| `extended_text_field`      | Medium completeness, moderate maintenance            |
+| `mentionable_text_field`   | Stale maintenance, low pub likes                     |
+| `mention_tag_text_field`   | Lower adoption (~29 likes), no overlay positioning,  |
+|                            | no keyboard nav; would require same custom work      |
+| Custom `TextField` + Overlay | Reinvents solved problems (cursor, overlay positioning) |
 
 ## Known Gaps
 
@@ -163,5 +249,8 @@ The following limitations are intentionally deferred for future work:
 ## References
 
 - [flutter_mentions on pub.dev](https://pub.dev/packages/flutter_mentions)
+- [flutter_mentions GitHub](https://github.com/fayeed/flutter_mentions)
+- [mention_tag_text_field on pub.dev](https://pub.dev/packages/mention_tag_text_field)
 - [super_editor on pub.dev](https://pub.dev/packages/super_editor)
+- [Flutter Actions and Shortcuts](https://docs.flutter.dev/ui/interactivity/actions-and-shortcuts)
 - [Material Design Input Chips](https://m3.material.io/components/chips/overview)
