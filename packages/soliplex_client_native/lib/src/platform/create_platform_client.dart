@@ -23,7 +23,7 @@ import 'package:soliplex_client_native/src/platform/create_platform_client_stub.
 /// client.close();
 /// ```
 SoliplexHttpClient createPlatformClient({
-  Duration defaultTimeout = const Duration(seconds: 30),
+  Duration defaultTimeout = const Duration(seconds: 600),
 }) {
   return createPlatformClientImpl(defaultTimeout: defaultTimeout);
 }
