@@ -354,15 +354,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     // Map result to frontend state
     state = _mapResultToState(currentState, result);
 
-    // Check for tools ready to execute
-    // (only ToolCallStatus.pending, not streaming)
+    // Check for client-side tools ready to execute
+    // (only ToolCallStatus.pending AND registered in client tool registry)
     if (state is RunningState) {
       final runningState = state as RunningState;
-      final pendingTools = runningState.conversation.toolCalls
+      final pendingClientTools = runningState.conversation.toolCalls
           .where((tc) => tc.status == ToolCallStatus.pending)
+          .where((tc) => _toolRegistry.hasExecutor(tc.name))
           .toList();
-      if (pendingTools.isNotEmpty) {
-        unawaited(_executeToolsAndContinue(runningState, pendingTools));
+      if (pendingClientTools.isNotEmpty) {
+        unawaited(_executeToolsAndContinue(runningState, pendingClientTools));
       }
     }
   }

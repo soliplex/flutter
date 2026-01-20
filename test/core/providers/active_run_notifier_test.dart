@@ -1664,6 +1664,10 @@ void main() {
 
       // Stub definitions to return empty list by default
       when(() => mockToolRegistry.definitions).thenReturn([]);
+
+      // Stub hasExecutor to return true for any tool by default
+      // (tests can override for specific scenarios)
+      when(() => mockToolRegistry.hasExecutor(any())).thenReturn(true);
     });
 
     tearDown(() {
@@ -2035,6 +2039,74 @@ void main() {
         final toolMessages = messages!.whereType<ToolMessage>().toList();
         expect(toolMessages, isNotEmpty);
         expect(toolMessages.first.content, '{"secret": "42"}');
+      },
+    );
+
+    test(
+      'server-side tools are not executed by client (only client-registered)',
+      () async {
+        // Override hasExecutor to return false for server-side tools
+        when(() => mockToolRegistry.hasExecutor('get_current_datetime'))
+            .thenReturn(false);
+        when(() => mockToolRegistry.hasExecutor('get_secret')).thenReturn(true);
+
+        // Mock tool execution for client tool
+        when(() => mockToolRegistry.execute(any())).thenAnswer(
+          (_) async => '{"secret": "42"}',
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWithValue(mockApi),
+            agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(mockToolRegistry),
+          ],
+        );
+
+        addTearDown(container.dispose);
+
+        // Start a run
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+              roomId: 'room-1',
+              threadId: 'thread-1',
+              userMessage: 'Hello',
+            );
+
+        // Simulate a server-side tool call (should NOT trigger execution)
+        eventStreamController
+          ..add(
+            const ToolCallStartEvent(
+              toolCallId: 'server-tool-1',
+              toolCallName: 'get_current_datetime',
+            ),
+          )
+          ..add(
+            const ToolCallArgsEvent(toolCallId: 'server-tool-1', delta: '{}'),
+          )
+          ..add(const ToolCallEndEvent(toolCallId: 'server-tool-1'));
+
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        // Server tool should NOT have triggered execution
+        verifyNever(() => mockToolRegistry.execute(any()));
+
+        // Now simulate a client-side tool call (SHOULD trigger execution)
+        eventStreamController
+          ..add(
+            const ToolCallStartEvent(
+              toolCallId: 'client-tool-1',
+              toolCallName: 'get_secret',
+            ),
+          )
+          ..add(
+            const ToolCallArgsEvent(toolCallId: 'client-tool-1', delta: '{}'),
+          )
+          ..add(const ToolCallEndEvent(toolCallId: 'client-tool-1'));
+
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        // Client tool SHOULD have been executed
+        verify(() => mockToolRegistry.execute(any())).called(1);
       },
     );
   });
