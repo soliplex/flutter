@@ -25,7 +25,7 @@ result relevance and reduce noise.
    the trigger symbol.
 4. Users can select documents using keyboard navigation (arrow keys + enter) or
    mouse/touch.
-5. Selected documents appear as visual "chips" in the input field.
+5. Selected documents appear as visually distinct elements in the input field.
 6. Users can select multiple documents within a single prompt.
 7. Users can deselect/remove documents before submitting.
 8. The prompt submission includes the selected document references, instructing
@@ -68,7 +68,7 @@ runs—John may select documents again (same or different).
 1. John selects document_A and document_B.
 2. John finishes typing the prompt.
 3. Before submitting, John realises document_A is unnecessary.
-4. John removes document_A (clicks X on chip or backspaces over it).
+4. John removes document_A by backspacing over it.
 5. John submits the prompt.
 6. Frontend submits RunAgentInput with prompt and State referencing only
    document_B.
@@ -77,8 +77,7 @@ runs—John may select documents again (same or different).
 
 ### User Experience
 
-**Trigger:** Typing `#` in the prompt input opens an autocomplete popup. We use
-`#` rather than `@` to reserve `@` for a hypothetical user-mention feature.
+**Trigger:** Typing `#` in the prompt input opens an autocomplete popup.
 
 **Autocomplete popup:**
 
@@ -89,9 +88,31 @@ runs—John may select documents again (same or different).
 
 **Selected documents:**
 
-- Displayed as chips (Material Design "input chips") inline with the text.
-- Each chip shows the document name and a remove button.
-- Chips can be removed by clicking the X or backspacing over them.
+- Displayed inline with the prompt text, visually distinct from regular text
+  (e.g., different color, background, or styling).
+- Each selection shows the document name.
+- Selections can be removed by backspacing over them.
+
+**Loading state:**
+
+- While documents are being fetched, the autocomplete popup displays a loading
+  indicator (spinner or skeleton list).
+- The user can continue typing; the popup updates when data arrives.
+
+**Empty state:**
+
+- If the room has no documents, the autocomplete popup shows a message:
+  "No documents in this room."
+- The user can dismiss the popup and continue typing their prompt without
+  document selection.
+
+**Error state:**
+
+- If document fetching fails after retries, the autocomplete popup shows a
+  message: "Could not load documents."
+- The user can dismiss the popup and continue typing their prompt without
+  document selection.
+- No blocking modals or toasts—the error is contained within the popup.
 
 **Example prompt:**
 
@@ -107,7 +128,7 @@ and #mercedes_c330_troubleshooting.pdf
 - [ ] Autocomplete filters as user types after `#`.
 - [ ] User can select document via keyboard (arrows + enter).
 - [ ] User can select document via mouse click or touch.
-- [ ] Selected document appears as a chip in the input.
+- [ ] Selected document appears as visually distinct text in the input.
 - [ ] User can select multiple documents.
 - [ ] Already-selected documents are excluded from the autocomplete suggestions.
 - [ ] User can remove a selected document before submitting.

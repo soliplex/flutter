@@ -77,6 +77,37 @@ user mentions across most software.
 - Endpoint: `GET /api/v1/rooms/{room_id}/documents` (existing)
 - Caching strategy: TBD
 
+### Error Handling
+
+**Retry strategy:** When fetching documents fails with a retryable status
+(5xx, 408, 429), retry up to 3 times with exponential backoff (1s, 2s, 4s).
+Non-retryable errors (4xx except 408/429) fail immediately.
+
+**Fallback behavior:** If all retries are exhausted, treat the response as an
+empty document list. The autocomplete popup displays "Could not load documents."
+and the user can continue typing without document selection.
+
+**Rationale:** Document selection is an enhancement, not a blocking feature.
+Users should always be able to submit prompts. A failed fetch degrades gracefully
+to the existing behavior (RAG across all documents).
+
+**Testing approach:**
+
+1. **Unit tests for retry logic:**
+   - Mock HTTP client to return 503, verify 3 retry attempts with correct delays.
+   - Mock HTTP client to return 404, verify immediate failure (no retries).
+   - Mock HTTP client to succeed on 2nd attempt, verify result returned.
+
+2. **Widget tests for UI states:**
+   - Provide mock that returns loading state, verify spinner displayed.
+   - Provide mock that returns empty list, verify "No documents" message.
+   - Provide mock that throws after retries, verify "Could not load" message.
+   - Verify user can dismiss error state and continue typing.
+
+3. **Integration test (optional):**
+   - Use a test backend or WireMock to simulate transient failures.
+   - Verify end-to-end retry behavior in a realistic scenario.
+
 ### State Management
 
 **AG-UI State for Document Filtering:**
@@ -110,7 +141,6 @@ submitting a run, the frontend includes a `filter_documents` object in
 - On submit, the frontend:
   1. Builds the prompt text with document titles (for LLM context).
   2. Populates `RunAgentInput.state["filter_documents"]` with document IDs.
-- Selection does not persist across runs (user selects fresh each time).
 
 ### Selection Tracking
 
