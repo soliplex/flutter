@@ -229,7 +229,10 @@ void main() {
                 (ref) async => <domain.ChatMessage>[],
               ),
               activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
+                const RunningState(
+                  roomId: 'test-room',
+                  conversation: conversation,
+                ),
               ),
             ],
           ),
@@ -288,7 +291,10 @@ void main() {
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
               activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
+                const RunningState(
+                  roomId: 'test-room',
+                  conversation: conversation,
+                ),
               ),
             ],
           ),
@@ -330,6 +336,7 @@ void main() {
               allMessagesProvider.overrideWith((ref) async => messages),
               activeRunNotifierOverride(
                 RunningState(
+                  roomId: 'test-room',
                   conversation: conversation,
                   streaming: const Streaming(
                     messageId: 'msg-1',
@@ -378,6 +385,7 @@ void main() {
               allMessagesProvider.overrideWith((ref) async => messages),
               activeRunNotifierOverride(
                 RunningState(
+                  roomId: 'test-room',
                   conversation: conversation,
                   streaming: const Streaming(
                     messageId: 'msg-2',

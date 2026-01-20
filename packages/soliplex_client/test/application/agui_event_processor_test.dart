@@ -152,7 +152,7 @@ void main() {
     });
 
     group('tool call events', () {
-      test('ToolCallStartEvent adds tool call to conversation', () {
+      test('ToolCallStartEvent creates tool with streaming status', () {
         const event = ToolCallStartEvent(
           toolCallId: 'tool-1',
           toolCallName: 'search',
@@ -163,17 +163,152 @@ void main() {
         expect(result.conversation.toolCalls, hasLength(1));
         expect(result.conversation.toolCalls.first.id, equals('tool-1'));
         expect(result.conversation.toolCalls.first.name, equals('search'));
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
       });
 
-      test('ToolCallEndEvent removes tool call from active list', () {
+      test('ToolCallArgsEvent accumulates arguments with streaming status', () {
         final conversationWithTool = conversation.withToolCall(
-          const ToolCallInfo(id: 'tool-1', name: 'search'),
+          const ToolCallInfo(
+            id: 'tool-1',
+            name: 'search',
+            status: ToolCallStatus.streaming,
+          ),
+        );
+        const event = ToolCallArgsEvent(
+          toolCallId: 'tool-1',
+          delta: '{"query":',
+        );
+
+        final result = processEvent(conversationWithTool, streaming, event);
+
+        expect(result.conversation.toolCalls, hasLength(1));
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query":'),
+        );
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
+      });
+
+      test('Multiple ToolCallArgsEvents concatenate deltas', () {
+        final conversationWithTool = conversation.withToolCall(
+          const ToolCallInfo(
+            id: 'tool-1',
+            name: 'search',
+            arguments: '{"query":',
+            status: ToolCallStatus.streaming,
+          ),
+        );
+        const event = ToolCallArgsEvent(
+          toolCallId: 'tool-1',
+          delta: ' "test"}',
+        );
+
+        final result = processEvent(conversationWithTool, streaming, event);
+
+        expect(result.conversation.toolCalls, hasLength(1));
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query": "test"}'),
+        );
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
+      });
+
+      test('ToolCallEndEvent marks tool as pending', () {
+        final conversationWithTool = conversation.withToolCall(
+          const ToolCallInfo(
+            id: 'tool-1',
+            name: 'search',
+            arguments: '{"query": "test"}',
+            status: ToolCallStatus.streaming,
+          ),
         );
         const event = ToolCallEndEvent(toolCallId: 'tool-1');
 
         final result = processEvent(conversationWithTool, streaming, event);
 
-        expect(result.conversation.toolCalls, isEmpty);
+        expect(result.conversation.toolCalls, hasLength(1));
+        expect(result.conversation.toolCalls.first.id, equals('tool-1'));
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.pending),
+        );
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query": "test"}'),
+        );
+      });
+
+      test('Tool call flow: Start -> Args -> Args -> End', () {
+        // Start event
+        const startEvent = ToolCallStartEvent(
+          toolCallId: 'tool-1',
+          toolCallName: 'search',
+        );
+        var result = processEvent(conversation, streaming, startEvent);
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
+
+        // First args event
+        const args1Event = ToolCallArgsEvent(
+          toolCallId: 'tool-1',
+          delta: '{"query":',
+        );
+        result = processEvent(
+          result.conversation,
+          result.streaming,
+          args1Event,
+        );
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query":'),
+        );
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
+
+        // Second args event
+        const args2Event = ToolCallArgsEvent(
+          toolCallId: 'tool-1',
+          delta: ' "test"}',
+        );
+        result = processEvent(
+          result.conversation,
+          result.streaming,
+          args2Event,
+        );
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query": "test"}'),
+        );
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
+
+        // End event
+        const endEvent = ToolCallEndEvent(toolCallId: 'tool-1');
+        result = processEvent(result.conversation, result.streaming, endEvent);
+        expect(result.conversation.toolCalls, hasLength(1));
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.pending),
+        );
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query": "test"}'),
+        );
       });
     });
 

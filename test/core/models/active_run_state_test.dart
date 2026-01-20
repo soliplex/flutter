@@ -42,14 +42,32 @@ void main() {
     });
 
     group('RunningState', () {
-      test('creates with conversation and streaming', () {
+      test('requires roomId', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-123',
+          conversation: conversation,
+        );
 
+        expect(state.roomId, 'room-123');
+      });
+
+      test('creates with roomId, conversation and streaming', () {
+        const conversation = domain.Conversation(
+          threadId: 'thread-1',
+          status: domain.Running(runId: 'run-1'),
+        );
+
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
+
+        expect(state.roomId, 'room-1');
         expect(state.conversation, equals(conversation));
         expect(state.streaming, isA<NotStreaming>());
       });
@@ -60,7 +78,10 @@ void main() {
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.threadId, 'thread-123');
       });
@@ -71,7 +92,10 @@ void main() {
           status: domain.Running(runId: 'run-456'),
         );
 
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.runId, 'run-456');
       });
@@ -82,7 +106,10 @@ void main() {
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.isRunning, isTrue);
       });
@@ -93,7 +120,10 @@ void main() {
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.isStreaming, isFalse);
       });
@@ -105,6 +135,7 @@ void main() {
         );
 
         const state = RunningState(
+          roomId: 'room-1',
           conversation: conversation,
           streaming: Streaming(messageId: 'msg-1', text: 'Hello'),
         );
@@ -124,7 +155,10 @@ void main() {
           status: const domain.Running(runId: 'run-1'),
         );
 
-        final state = RunningState(conversation: conversation);
+        final state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.messages, [message]);
       });
@@ -137,7 +171,10 @@ void main() {
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.activeToolCalls, [toolCall]);
       });
@@ -147,7 +184,10 @@ void main() {
           threadId: 'thread-1',
           status: domain.Running(runId: 'run-1'),
         );
-        const original = RunningState(conversation: conversation);
+        const original = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         final updated = original.copyWith(
           streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
@@ -156,6 +196,23 @@ void main() {
         expect(updated.streaming, isA<Streaming>());
         expect(original.streaming, isA<NotStreaming>());
         expect(updated.conversation, equals(conversation));
+        expect(updated.roomId, 'room-1'); // roomId preserved
+      });
+
+      test('copyWith can update roomId', () {
+        const conversation = domain.Conversation(
+          threadId: 'thread-1',
+          status: domain.Running(runId: 'run-1'),
+        );
+        const original = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
+
+        final updated = original.copyWith(roomId: 'room-2');
+
+        expect(updated.roomId, 'room-2');
+        expect(original.roomId, 'room-1');
       });
 
       test('copyWith can update conversation', () {
@@ -170,7 +227,10 @@ void main() {
           ],
           status: const domain.Running(runId: 'run-1'),
         );
-        const original = RunningState(conversation: conversation1);
+        const original = RunningState(
+          roomId: 'room-1',
+          conversation: conversation1,
+        );
 
         final updated = original.copyWith(conversation: conversation2);
 
@@ -178,36 +238,65 @@ void main() {
         expect(original.conversation.messages, isEmpty);
       });
 
-      test('equality based on conversation and streaming', () {
+      test('equality based on roomId, conversation and streaming', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'run-1'),
         );
 
-        const state1 = RunningState(conversation: conversation);
-        const state2 = RunningState(conversation: conversation);
+        const state1 = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
+        const state2 = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
         const state3 = RunningState(
+          roomId: 'room-1',
           conversation: conversation,
           streaming: Streaming(messageId: 'msg-1', text: 'Hi'),
+        );
+        const state4 = RunningState(
+          roomId: 'room-2',
+          conversation: conversation,
         );
 
         expect(state1, equals(state2));
         expect(state1, isNot(equals(state3)));
+        expect(state1, isNot(equals(state4))); // different roomId
       });
     });
 
     group('CompletedState', () {
-      test('creates with conversation and result', () {
+      test('requires roomId', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Completed(),
         );
 
         const state = CompletedState(
+          roomId: 'room-123',
           conversation: conversation,
           result: Success(),
         );
 
+        expect(state.roomId, 'room-123');
+      });
+
+      test('creates with roomId, conversation and result', () {
+        const conversation = domain.Conversation(
+          threadId: 'thread-1',
+          status: domain.Completed(),
+        );
+
+        const state = CompletedState(
+          roomId: 'room-1',
+          conversation: conversation,
+          result: Success(),
+        );
+
+        expect(state.roomId, 'room-1');
         expect(state.conversation, equals(conversation));
         expect(state.result, isA<Success>());
         expect(state.streaming, isA<NotStreaming>());
@@ -220,6 +309,7 @@ void main() {
         );
 
         const state = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: Success(),
         );
@@ -234,6 +324,7 @@ void main() {
         );
 
         const state = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: Success(),
         );
@@ -248,6 +339,7 @@ void main() {
         );
 
         const state = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: FailedResult(errorMessage: 'Something went wrong'),
         );
@@ -266,6 +358,7 @@ void main() {
         );
 
         const state = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: CancelledResult(reason: 'User cancelled'),
         );
@@ -274,27 +367,36 @@ void main() {
         expect((state.result as CancelledResult).reason, 'User cancelled');
       });
 
-      test('equality based on conversation and result', () {
+      test('equality based on roomId, conversation and result', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Completed(),
         );
 
         const state1 = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: Success(),
         );
         const state2 = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: Success(),
         );
         const state3 = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: FailedResult(errorMessage: 'Error'),
+        );
+        const state4 = CompletedState(
+          roomId: 'room-2',
+          conversation: conversation,
+          result: Success(),
         );
 
         expect(state1, equals(state2));
         expect(state1, isNot(equals(state3)));
+        expect(state1, isNot(equals(state4))); // different roomId
       });
     });
 
@@ -311,8 +413,9 @@ void main() {
 
         final states = <ActiveRunState>[
           const IdleState(),
-          const RunningState(conversation: conversation),
+          const RunningState(roomId: 'room-1', conversation: conversation),
           const CompletedState(
+            roomId: 'room-1',
             conversation: completedConversation,
             result: Success(),
           ),
@@ -351,6 +454,7 @@ void main() {
           status: domain.Failed(error: 'Network error'),
         );
         const state = CompletedState(
+          roomId: 'room-1',
           conversation: conversation,
           result: FailedResult(errorMessage: 'Network error'),
         );
@@ -363,12 +467,39 @@ void main() {
 
         expect(errorMessage, 'Network error');
       });
+
+      test('roomId is preserved through state transitions', () {
+        const runningConversation = domain.Conversation(
+          threadId: 't',
+          status: domain.Running(runId: 'r'),
+        );
+        const completedConversation = domain.Conversation(
+          threadId: 't',
+          status: domain.Completed(),
+        );
+
+        const running = RunningState(
+          roomId: 'room-123',
+          conversation: runningConversation,
+        );
+
+        // Simulate a state transition (e.g., run completed)
+        final completed = CompletedState(
+          roomId: running.roomId,
+          conversation: completedConversation,
+          result: const Success(),
+        );
+
+        expect(completed.roomId, running.roomId);
+        expect(completed.roomId, 'room-123');
+      });
     });
 
     group('different state types are not equal', () {
       test('IdleState is not equal to RunningState', () {
         const idle = IdleState();
         const running = RunningState(
+          roomId: 'room-1',
           conversation: domain.Conversation(
             threadId: 't',
             status: domain.Running(runId: 'r'),
@@ -380,12 +511,14 @@ void main() {
 
       test('RunningState is not equal to CompletedState', () {
         const running = RunningState(
+          roomId: 'room-1',
           conversation: domain.Conversation(
             threadId: 't',
             status: domain.Running(runId: 'r'),
           ),
         );
         const completed = CompletedState(
+          roomId: 'room-1',
           conversation: domain.Conversation(
             threadId: 't',
             status: domain.Completed(),
@@ -460,7 +593,7 @@ void main() {
       expect(state.toString(), 'IdleState()');
     });
 
-    test('RunningState.toString shows threadId and message count', () {
+    test('RunningState.toString shows roomId, threadId and message count', () {
       final message = TextMessage.create(
         id: 'msg-1',
         user: ChatUser.user,
@@ -472,29 +605,33 @@ void main() {
         status: const domain.Running(runId: 'run-1'),
       );
       final state = RunningState(
+        roomId: 'room-789',
         conversation: conversation,
         streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
       );
 
       final str = state.toString();
 
+      expect(str, contains('roomId: room-789'));
       expect(str, contains('threadId: thread-123'));
       expect(str, contains('messages: 1'));
       expect(str, contains('streaming:'));
     });
 
-    test('CompletedState.toString shows result and message count', () {
+    test('CompletedState.toString shows roomId, result and message count', () {
       const conversation = domain.Conversation(
         threadId: 'thread-456',
         status: domain.Completed(),
       );
       const state = CompletedState(
+        roomId: 'room-789',
         conversation: conversation,
         result: Success(),
       );
 
       final str = state.toString();
 
+      expect(str, contains('roomId: room-789'));
       expect(str, contains('threadId: thread-456'));
       expect(str, contains('result: Success()'));
       expect(str, contains('messages: 0'));
@@ -514,8 +651,14 @@ void main() {
         threadId: 'thread-1',
         status: domain.Running(runId: 'run-1'),
       );
-      const state1 = RunningState(conversation: conversation);
-      const state2 = RunningState(conversation: conversation);
+      const state1 = RunningState(
+        roomId: 'room-1',
+        conversation: conversation,
+      );
+      const state2 = RunningState(
+        roomId: 'room-1',
+        conversation: conversation,
+      );
 
       expect(state1.hashCode, equals(state2.hashCode));
     });
@@ -526,10 +669,12 @@ void main() {
         status: domain.Completed(),
       );
       const state1 = CompletedState(
+        roomId: 'room-1',
         conversation: conversation,
         result: Success(),
       );
       const state2 = CompletedState(
+        roomId: 'room-1',
         conversation: conversation,
         result: Success(),
       );
@@ -546,7 +691,10 @@ void main() {
         threadId: 'thread-1',
         status: domain.Completed(),
       );
-      const state = RunningState(conversation: conversation);
+      const state = RunningState(
+        roomId: 'room-1',
+        conversation: conversation,
+      );
 
       expect(() => state.runId, throwsStateError);
     });

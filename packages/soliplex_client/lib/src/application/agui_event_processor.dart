@@ -72,15 +72,33 @@ EventProcessingResult processEvent(
     ToolCallStartEvent(:final toolCallId, :final toolCallName) =>
       EventProcessingResult(
         conversation: conversation.withToolCall(
-          ToolCallInfo(id: toolCallId, name: toolCallName),
+          ToolCallInfo(
+            id: toolCallId,
+            name: toolCallName,
+            status: ToolCallStatus.streaming,
+          ),
+        ),
+        streaming: streaming,
+      ),
+    ToolCallArgsEvent(:final toolCallId, :final delta) => EventProcessingResult(
+        conversation: conversation.copyWith(
+          toolCalls: conversation.toolCalls.map((tc) {
+            if (tc.id == toolCallId) {
+              return tc.copyWith(arguments: tc.arguments + delta);
+            }
+            return tc;
+          }).toList(),
         ),
         streaming: streaming,
       ),
     ToolCallEndEvent(:final toolCallId) => EventProcessingResult(
         conversation: conversation.copyWith(
-          toolCalls: conversation.toolCalls
-              .where((tc) => tc.id != toolCallId)
-              .toList(),
+          toolCalls: conversation.toolCalls.map((tc) {
+            if (tc.id == toolCallId) {
+              return tc.copyWith(status: ToolCallStatus.pending);
+            }
+            return tc;
+          }).toList(),
         ),
         streaming: streaming,
       ),

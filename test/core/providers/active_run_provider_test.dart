@@ -169,6 +169,7 @@ void main() {
               }),
               activeRunNotifierOverride(
                 RunningState(
+                  roomId: 'room-abc',
                   conversation: Conversation(
                     threadId: 'thread-123',
                     messages: [runningMessage],
@@ -215,6 +216,7 @@ void main() {
               }),
               activeRunNotifierOverride(
                 RunningState(
+                  roomId: 'room-abc',
                   conversation: Conversation(
                     threadId: 'thread-123',
                     messages: runningMessages,

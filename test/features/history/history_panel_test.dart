@@ -158,7 +158,10 @@ void main() {
             overrides: [
               threadsProvider('room-1').overrideWith((ref) async => threads),
               activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
+                const RunningState(
+                  roomId: 'room-1',
+                  conversation: conversation,
+                ),
               ),
               currentThreadIdProvider.overrideWith((ref) => 'thread-1'),
             ],

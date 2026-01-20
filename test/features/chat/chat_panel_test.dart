@@ -186,7 +186,10 @@ void main() {
             home: const Scaffold(body: ChatPanel()),
             overrides: [
               activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
+                const RunningState(
+                  roomId: 'test-room',
+                  conversation: conversation,
+                ),
               ),
             ],
           ),
@@ -225,6 +228,7 @@ void main() {
             overrides: [
               activeRunNotifierOverride(
                 const CompletedState(
+                  roomId: 'test-room',
                   conversation: conversation,
                   result: FailedResult(errorMessage: 'Something went wrong'),
                 ),
@@ -312,7 +316,10 @@ void main() {
             overrides: [
               activeRunNotifierProvider.overrideWith(() {
                 return mockNotifier = _TrackingActiveRunNotifier(
-                  initialState: const RunningState(conversation: conversation),
+                  initialState: const RunningState(
+                    roomId: 'test-room',
+                    conversation: conversation,
+                  ),
                 );
               }),
             ],
@@ -343,6 +350,7 @@ void main() {
               activeRunNotifierProvider.overrideWith(() {
                 return mockNotifier = _TrackingActiveRunNotifier(
                   initialState: const CompletedState(
+                    roomId: 'test-room',
                     conversation: conversation,
                     result: FailedResult(errorMessage: 'Test error'),
                   ),

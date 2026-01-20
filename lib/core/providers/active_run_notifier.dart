@@ -68,6 +68,7 @@ class RunningInternalState extends NotifierInternalState {
 /// - Processes AG-UI events from the backend
 /// - Updates state as messages stream in
 /// - Handles cancellation and errors
+/// - Executes client-side tools and continues runs with results
 ///
 /// Usage:
 /// ```dart
@@ -80,12 +81,14 @@ class RunningInternalState extends NotifierInternalState {
 /// ```
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
+  late ToolRegistry _toolRegistry;
   NotifierInternalState _internalState = const IdleInternalState();
   bool _isStarting = false;
 
   @override
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
+    _toolRegistry = ref.watch(toolRegistryProvider);
 
     ref
       // Reset when leaving a selected thread (run state is scoped to thread)
@@ -181,7 +184,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       // Set running state
-      state = RunningState(conversation: conversation);
+      state = RunningState(roomId: roomId, conversation: conversation);
 
       // Step 2: Build the streaming endpoint URL with backend run_id
       final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
@@ -189,11 +192,12 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Convert all messages to AG-UI format for backend
       final aguiMessages = convertToAgui(allMessages);
 
-      // Create the input for the run
+      // Create the input for the run with client-side tool definitions
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
+        tools: _toolRegistry.definitions,
         state: initialState,
       );
 
@@ -219,6 +223,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
             final errorMsg = error.toString();
             _log('Run failed with error: $errorMsg');
             final completed = CompletedState(
+              roomId: currentState.roomId,
               conversation: currentState.conversation.withStatus(
                 domain.Failed(error: errorMsg),
               ),
@@ -234,6 +239,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           final currentState = state;
           if (currentState is RunningState) {
             final completed = CompletedState(
+              roomId: currentState.roomId,
               conversation: currentState.conversation.withStatus(
                 const domain.Completed(),
               ),
@@ -256,6 +262,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       _log('Run cancelled: ${e.message}', error: e, stackTrace: stackTrace);
       await subscription?.cancel();
       final completed = CompletedState(
+        roomId: roomId,
         conversation: state.conversation.withStatus(
           domain.Cancelled(reason: e.message),
         ),
@@ -270,6 +277,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       await subscription?.cancel();
       final errorMsg = e.toString();
       final completed = CompletedState(
+        roomId: roomId,
         conversation: state.conversation.withStatus(
           domain.Failed(error: errorMsg),
         ),
@@ -296,6 +304,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
     if (currentState is RunningState) {
       final completed = CompletedState(
+        roomId: currentState.roomId,
         conversation: currentState.conversation.withStatus(
           const domain.Cancelled(reason: 'User cancelled'),
         ),
@@ -344,6 +353,18 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
     // Map result to frontend state
     state = _mapResultToState(currentState, result);
+
+    // Check for tools ready to execute
+    // (only ToolCallStatus.pending, not streaming)
+    if (state is RunningState) {
+      final runningState = state as RunningState;
+      final pendingTools = runningState.conversation.toolCalls
+          .where((tc) => tc.status == ToolCallStatus.pending)
+          .toList();
+      if (pendingTools.isNotEmpty) {
+        unawaited(_executeToolsAndContinue(runningState, pendingTools));
+      }
+    }
   }
 
   /// Maps an EventProcessingResult to the appropriate ActiveRunState.
@@ -356,6 +377,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ) {
     final newState = switch (result.conversation.status) {
       domain.Completed() => CompletedState(
+          roomId: previousState.roomId,
           conversation: result.conversation,
           streaming: result.streaming,
           result: const Success(),
@@ -363,12 +385,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       domain.Failed(:final error) => () {
           _log('Run completed with failure: $error');
           return CompletedState(
+            roomId: previousState.roomId,
             conversation: result.conversation,
             streaming: result.streaming,
             result: FailedResult(errorMessage: error),
           );
         }(),
       domain.Cancelled(:final reason) => CompletedState(
+          roomId: previousState.roomId,
           conversation: result.conversation,
           streaming: result.streaming,
           result: CancelledResult(reason: reason),
@@ -397,5 +421,193 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     ref
         .read(threadMessageCacheProvider.notifier)
         .updateMessages(threadId, completedState.messages);
+  }
+
+  /// Executes pending tools and continues the run with results.
+  ///
+  /// This method:
+  /// 1. Marks tools as executing
+  /// 2. Executes each tool via [ToolRegistry]
+  /// 3. Creates a [ToolCallMessage] with results
+  /// 4. Cleans up the current stream
+  /// 5. Starts a continuation run with tool results
+  Future<void> _executeToolsAndContinue(
+    RunningState currentState,
+    List<ToolCallInfo> pendingTools,
+  ) async {
+    // 1. Mark tools as executing (using standard Dart without firstWhereOrNull)
+    final executingToolIds = pendingTools.map((tc) => tc.id).toSet();
+
+    state = currentState.copyWith(
+      conversation: currentState.conversation.copyWith(
+        toolCalls: currentState.conversation.toolCalls.map((tc) {
+          if (executingToolIds.contains(tc.id)) {
+            return tc.copyWith(status: ToolCallStatus.executing);
+          }
+          return tc;
+        }).toList(),
+      ),
+    );
+
+    // 2. Execute each tool
+    final results = <ToolCallInfo>[];
+    for (final tool in pendingTools) {
+      try {
+        final result = await _toolRegistry.execute(tool);
+        results.add(
+          tool.copyWith(
+            status: ToolCallStatus.completed,
+            result: result,
+          ),
+        );
+      } catch (e) {
+        _log('Tool execution failed: ${tool.name}', error: e);
+        results.add(
+          tool.copyWith(
+            status: ToolCallStatus.failed,
+            result: e.toString(),
+          ),
+        );
+      }
+    }
+
+    // 3. Create ToolCallMessage with results
+    // NOTE: Use existing ToolCallMessage.create API with id and toolCalls
+    final toolMessage = ToolCallMessage.create(
+      id: 'tool_${DateTime.now().millisecondsSinceEpoch}',
+      toolCalls: results,
+    );
+
+    // 4. Cancel current stream
+    if (_internalState is RunningInternalState) {
+      await (_internalState as RunningInternalState).dispose();
+      _internalState = const IdleInternalState();
+    }
+
+    // 5. Update conversation with tool message and clear tool calls
+    final updatedConversation = currentState.conversation
+        .withAppendedMessage(toolMessage)
+        .copyWith(toolCalls: []);
+
+    state = currentState.copyWith(conversation: updatedConversation);
+
+    // 6. Continue with new run
+    await _continueWithToolResults(currentState.roomId, updatedConversation);
+  }
+
+  /// Continues the run with tool results by starting a new run.
+  ///
+  /// Creates a new run via the API and streams events from the continuation.
+  /// The server receives the tool results in the messages to continue properly.
+  Future<void> _continueWithToolResults(
+    String roomId,
+    domain.Conversation conversation,
+  ) async {
+    try {
+      // Get API and client
+      final api = ref.read(apiProvider);
+
+      // Create run with existing thread (positional arguments)
+      // NOTE: createRun does NOT take a cancelToken parameter
+      final runInfo = await api.createRun(roomId, conversation.threadId);
+
+      // Build the endpoint URL for streaming
+      final endpoint =
+          'rooms/$roomId/agui/${conversation.threadId}/${runInfo.id}';
+
+      // CRITICAL: Map the conversation messages to include tool results
+      // The server must receive the tool execution results to continue properly
+      // Use convertToAgui() function from agui_message_mapper.dart
+      final mappedMessages = convertToAgui(conversation.messages);
+
+      // Create input for the continuation run WITH mapped messages and tools
+      final input = SimpleRunAgentInput(
+        messages: mappedMessages, // Include tool results for server
+        tools: _toolRegistry.definitions,
+        threadId: conversation.threadId,
+        runId: runInfo.id,
+      );
+
+      // Create a new cancel token for this run
+      final cancelToken = CancelToken();
+
+      // Subscribe to continuation events using runAgent with correct signature
+      final stream = _agUiClient.runAgent(
+        endpoint,
+        input,
+        cancelToken: cancelToken,
+      );
+
+      // Update conversation status to Running with new run ID
+      final runningConversation =
+          conversation.withStatus(domain.Running(runId: runInfo.id));
+      state = RunningState(roomId: roomId, conversation: runningConversation);
+
+      // Update internal state to track the new run
+      _internalState = RunningInternalState(
+        subscription: stream.listen(
+          _processEvent,
+          onError: (Object error, StackTrace stackTrace) {
+            _log(
+              'Stream error during continuation run',
+              error: error,
+              stackTrace: stackTrace,
+            );
+            final currentState = state;
+            if (currentState is RunningState) {
+              final errorMsg = error.toString();
+              _log('Continuation run failed with error: $errorMsg');
+              final completed = CompletedState(
+                roomId: currentState.roomId,
+                conversation: currentState.conversation.withStatus(
+                  domain.Failed(error: errorMsg),
+                ),
+                result: FailedResult(errorMessage: errorMsg),
+              );
+              state = completed;
+              _updateCacheOnCompletion(completed);
+            }
+          },
+          onDone: () {
+            // If stream ends without RUN_FINISHED or RUN_ERROR,
+            // mark as finished
+            final currentState = state;
+            if (currentState is RunningState) {
+              final completed = CompletedState(
+                roomId: currentState.roomId,
+                conversation: currentState.conversation.withStatus(
+                  const domain.Completed(),
+                ),
+                result: const Success(),
+              );
+              state = completed;
+              _updateCacheOnCompletion(completed);
+            }
+          },
+          cancelOnError: false,
+        ),
+        cancelToken: cancelToken,
+      );
+    } catch (e, stackTrace) {
+      _log(
+        'Failed to continue with tool results',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      final currentState = state;
+      if (currentState is RunningState) {
+        final errorMsg = e.toString();
+        final completed = CompletedState(
+          roomId: currentState.roomId,
+          conversation: currentState.conversation.withStatus(
+            domain.Failed(error: errorMsg),
+          ),
+          result: FailedResult(errorMessage: errorMsg),
+        );
+        state = completed;
+        _updateCacheOnCompletion(completed);
+      }
+      _internalState = const IdleInternalState();
+    }
   }
 }

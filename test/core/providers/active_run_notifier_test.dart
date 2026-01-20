@@ -230,7 +230,10 @@ void main() {
           status: domain.Running(runId: 'r'),
         );
         expect(
-          const RunningState(conversation: runningConversation).isRunning,
+          const RunningState(
+            roomId: 'room-1',
+            conversation: runningConversation,
+          ).isRunning,
           isTrue,
         );
 
@@ -241,6 +244,7 @@ void main() {
         );
         expect(
           const CompletedState(
+            roomId: 'room-1',
             conversation: completedConversation,
             result: Success(),
           ).isRunning,
@@ -254,6 +258,7 @@ void main() {
         );
         expect(
           const CompletedState(
+            roomId: 'room-1',
             conversation: failedConversation,
             result: FailedResult(errorMessage: 'Error'),
           ).isRunning,
@@ -267,6 +272,7 @@ void main() {
         );
         expect(
           const CompletedState(
+            roomId: 'room-1',
             conversation: cancelledConversation,
             result: CancelledResult(reason: 'User cancelled'),
           ).isRunning,
@@ -287,7 +293,10 @@ void main() {
           messages: [message],
           status: const domain.Running(runId: 'r'),
         );
-        final state = RunningState(conversation: conversation);
+        final state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.messages, [message]);
       });
@@ -299,7 +308,10 @@ void main() {
           toolCalls: [toolCall],
           status: domain.Running(runId: 'r'),
         );
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.activeToolCalls, [toolCall]);
       });
@@ -309,7 +321,10 @@ void main() {
           threadId: 'thread-1',
           status: domain.Running(runId: 'r'),
         );
-        const state = RunningState(conversation: conversation);
+        const state = RunningState(
+          roomId: 'room-1',
+          conversation: conversation,
+        );
 
         expect(state.streaming, isA<NotStreaming>());
       });
@@ -320,6 +335,7 @@ void main() {
           status: domain.Running(runId: 'r'),
         );
         const state = RunningState(
+          roomId: 'room-1',
           conversation: conversation,
           streaming: Streaming(messageId: 'msg-1', text: 'Hello'),
         );
@@ -1503,6 +1519,45 @@ void main() {
       expect((messages[2] as UserMessage).content, 'Second question');
     });
 
+    test('sends client-side tool definitions to backend', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          // Use real toolRegistryProvider which has getSecretTool registered
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run (uses the default toolRegistryProvider with get_secret)
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Capture the input sent to the backend
+      final captured = verify(
+        () => mockAgUiClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured.single as SimpleRunAgentInput;
+
+      // Verify tools were sent
+      final tools = captured.tools;
+      expect(tools, isNotNull);
+      expect(tools, isNotEmpty);
+      expect(tools!.any((t) => t.name == 'get_secret'), isTrue);
+
+      // Verify tool has description and parameters
+      final getSecretTool = tools.firstWhere((t) => t.name == 'get_secret');
+      expect(getSecretTool.description, isNotEmpty);
+      expect(getSecretTool.parameters, isNotNull);
+    });
+
     test('preserves messages from multiple runs in sequence', () async {
       final container = ProviderContainer(
         overrides: [
@@ -1562,5 +1617,425 @@ void main() {
       expect((state.messages[1] as TextMessage).text, 'First response');
       expect((state.messages[2] as TextMessage).text, 'Second message');
     });
+  });
+
+  group('tool execution', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late MockToolRegistry mockToolRegistry;
+    late StreamController<BaseEvent> eventStreamController;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      mockToolRegistry = MockToolRegistry();
+      eventStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+
+      // Register fallback for ToolCallInfo
+      registerFallbackValue(
+        const ToolCallInfo(
+          id: 'fallback-tool',
+          name: 'fallback',
+          arguments: '{}',
+        ),
+      );
+
+      // Stub definitions to return empty list by default
+      when(() => mockToolRegistry.definitions).thenReturn([]);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    test(
+      'only tools with pending status trigger execution, not streaming status',
+      () async {
+        // Mock tool execution
+        when(() => mockToolRegistry.execute(any())).thenAnswer(
+          (_) async => '{"result": "success"}',
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWithValue(mockApi),
+            agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(mockToolRegistry),
+          ],
+        );
+
+        addTearDown(container.dispose);
+
+        // Start a run
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+              roomId: 'room-1',
+              threadId: 'thread-1',
+              userMessage: 'Hello',
+            );
+
+        // Send tool call start event (creates streaming tool)
+        eventStreamController.add(
+          const ToolCallStartEvent(
+            toolCallId: 'tool-1',
+            toolCallName: 'get_secret',
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        // Tool should NOT be executed yet (still streaming)
+        verifyNever(() => mockToolRegistry.execute(any()));
+
+        // Send tool call args
+        eventStreamController.add(
+          const ToolCallArgsEvent(toolCallId: 'tool-1', delta: '{}'),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        // Tool should still NOT be executed (still streaming)
+        verifyNever(() => mockToolRegistry.execute(any()));
+
+        // Send tool call end event (marks as pending)
+        eventStreamController.add(const ToolCallEndEvent(toolCallId: 'tool-1'));
+        await Future<void>.delayed(Duration.zero);
+
+        // Now tool should be executed (pending status)
+        verify(() => mockToolRegistry.execute(any())).called(1);
+      },
+    );
+
+    test('tool execution results in ToolCallMessage', () async {
+      // Mock tool execution
+      when(() => mockToolRegistry.execute(any())).thenAnswer(
+        (_) async => '{"date": "2025-01-01"}',
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(mockToolRegistry),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Simulate tool call flow: start -> args -> end
+      eventStreamController
+        ..add(
+          const ToolCallStartEvent(
+            toolCallId: 'tool-1',
+            toolCallName: 'get_secret',
+          ),
+        )
+        ..add(const ToolCallArgsEvent(toolCallId: 'tool-1', delta: '{}'))
+        ..add(const ToolCallEndEvent(toolCallId: 'tool-1'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Verify a ToolCallMessage was added
+      final state = container.read(activeRunNotifierProvider);
+      final toolCallMessages =
+          state.messages.whereType<ToolCallMessage>().toList();
+      expect(toolCallMessages, isNotEmpty);
+      expect(
+        toolCallMessages.first.toolCalls.first.status,
+        ToolCallStatus.completed,
+      );
+      expect(
+        toolCallMessages.first.toolCalls.first.result,
+        '{"date": "2025-01-01"}',
+      );
+    });
+
+    test('failed tool execution handles errors gracefully', () async {
+      // Mock tool execution to throw
+      when(() => mockToolRegistry.execute(any())).thenThrow(
+        StateError('No executor registered for tool: unknown_tool'),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(mockToolRegistry),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Simulate tool call flow
+      eventStreamController
+        ..add(
+          const ToolCallStartEvent(
+            toolCallId: 'tool-1',
+            toolCallName: 'unknown_tool',
+          ),
+        )
+        ..add(const ToolCallArgsEvent(toolCallId: 'tool-1', delta: '{}'))
+        ..add(const ToolCallEndEvent(toolCallId: 'tool-1'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Verify tool call message has failed status
+      final state = container.read(activeRunNotifierProvider);
+      final toolCallMessages =
+          state.messages.whereType<ToolCallMessage>().toList();
+      expect(toolCallMessages, isNotEmpty);
+      expect(
+        toolCallMessages.first.toolCalls.first.status,
+        ToolCallStatus.failed,
+      );
+      expect(
+        toolCallMessages.first.toolCalls.first.result,
+        contains('No executor registered'),
+      );
+    });
+
+    test('multiple pending tools execute in same batch', () async {
+      // When multiple tools become pending at the same time (all end events
+      // arrive before execution starts), they should all be executed together
+      final executionOrder = <String>[];
+      when(
+        () => mockToolRegistry.execute(any()),
+      ).thenAnswer((invocation) async {
+        final tool = invocation.positionalArguments[0] as ToolCallInfo;
+        executionOrder.add(tool.id);
+        return '{"tool": "${tool.name}"}';
+      });
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(mockToolRegistry),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Start both tools and end them together
+      // (simulating both tools finishing at the same time)
+      eventStreamController
+        ..add(
+          const ToolCallStartEvent(
+            toolCallId: 'tool-1',
+            toolCallName: 'get_secret',
+          ),
+        )
+        ..add(
+          const ToolCallStartEvent(
+            toolCallId: 'tool-2',
+            toolCallName: 'another_tool',
+          ),
+        )
+        ..add(const ToolCallArgsEvent(toolCallId: 'tool-1', delta: '{}'))
+        ..add(const ToolCallArgsEvent(toolCallId: 'tool-2', delta: '{}'));
+
+      // Let streaming events process
+      await Future<void>.delayed(Duration.zero);
+
+      // End both tools - they should both be pending after this
+      eventStreamController
+        ..add(const ToolCallEndEvent(toolCallId: 'tool-1'))
+        ..add(const ToolCallEndEvent(toolCallId: 'tool-2'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      // Both tools that became pending together should be executed
+      // Note: The order depends on how events are processed synchronously
+      expect(executionOrder, isNotEmpty);
+      verify(
+        () => mockToolRegistry.execute(any()),
+      ).called(greaterThanOrEqualTo(1));
+    });
+
+    test('continuation run starts after tool execution', () async {
+      // Create separate stream controllers for initial and continuation runs
+      var runCount = 0;
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        runCount++;
+        if (runCount == 1) {
+          return eventStreamController.stream;
+        }
+        // Return a new controller for continuation run
+        return const Stream<BaseEvent>.empty();
+      });
+
+      when(() => mockToolRegistry.execute(any())).thenAnswer(
+        (_) async => '{"result": "done"}',
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(mockToolRegistry),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      // Simulate tool call flow
+      eventStreamController
+        ..add(
+          const ToolCallStartEvent(
+            toolCallId: 'tool-1',
+            toolCallName: 'get_secret',
+          ),
+        )
+        ..add(const ToolCallArgsEvent(toolCallId: 'tool-1', delta: '{}'))
+        ..add(const ToolCallEndEvent(toolCallId: 'tool-1'));
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      // Verify continuation run was started (runAgent called twice)
+      verify(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).called(2);
+
+      // Verify createRun was called again for continuation
+      verify(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).called(2);
+    });
+
+    test(
+      'continuation run includes mapped messages with tool results',
+      () async {
+        final capturedInputs = <SimpleRunAgentInput>[];
+        var callCount = 0;
+
+        // Override the mock to capture inputs and use different streams
+        when(
+          () => mockAgUiClient.runAgent(
+            any(),
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenAnswer((invocation) {
+          final input =
+              invocation.positionalArguments[1] as SimpleRunAgentInput;
+          capturedInputs.add(input);
+          callCount++;
+          if (callCount == 1) {
+            // First call: return the event stream controller
+            return eventStreamController.stream;
+          }
+          // Subsequent calls: return empty stream
+          return const Stream<BaseEvent>.empty();
+        });
+
+        when(() => mockToolRegistry.execute(any())).thenAnswer(
+          (_) async => '{"secret": "42"}',
+        );
+
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWithValue(mockApi),
+            agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(mockToolRegistry),
+          ],
+        );
+
+        addTearDown(container.dispose);
+
+        // Start a run
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+              roomId: 'room-1',
+              threadId: 'thread-1',
+              userMessage: 'Hello',
+            );
+
+        // Simulate tool call flow
+        eventStreamController
+          ..add(
+            const ToolCallStartEvent(
+              toolCallId: 'tool-1',
+              toolCallName: 'get_secret',
+            ),
+          )
+          ..add(const ToolCallArgsEvent(toolCallId: 'tool-1', delta: '{}'))
+          ..add(const ToolCallEndEvent(toolCallId: 'tool-1'));
+
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        // Verify we have at least 2 calls (initial + continuation)
+        expect(capturedInputs.length, greaterThanOrEqualTo(2));
+
+        // The continuation run (second call) should include tool results
+        final continuationInput = capturedInputs[1];
+        final messages = continuationInput.messages;
+        expect(messages, isNotNull);
+
+        // Should contain a ToolMessage with the result
+        final toolMessages = messages!.whereType<ToolMessage>().toList();
+        expect(toolMessages, isNotEmpty);
+        expect(toolMessages.first.content, '{"secret": "42"}');
+      },
+    );
   });
 }

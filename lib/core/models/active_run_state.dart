@@ -81,9 +81,13 @@ class IdleState extends ActiveRunState {
 class RunningState extends ActiveRunState {
   /// Creates a running state.
   const RunningState({
+    required this.roomId,
     required this.conversation,
     this.streaming = const NotStreaming(),
   });
+
+  /// The ID of the room this run belongs to.
+  final String roomId;
 
   @override
   final Conversation conversation;
@@ -105,10 +109,12 @@ class RunningState extends ActiveRunState {
 
   /// Creates a copy with the given fields replaced.
   RunningState copyWith({
+    String? roomId,
     Conversation? conversation,
     StreamingState? streaming,
   }) {
     return RunningState(
+      roomId: roomId ?? this.roomId,
       conversation: conversation ?? this.conversation,
       streaming: streaming ?? this.streaming,
     );
@@ -118,14 +124,15 @@ class RunningState extends ActiveRunState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is RunningState &&
+          roomId == other.roomId &&
           conversation == other.conversation &&
           streaming == other.streaming;
 
   @override
-  int get hashCode => Object.hash(conversation, streaming);
+  int get hashCode => Object.hash(roomId, conversation, streaming);
 
   @override
-  String toString() => 'RunningState(threadId: $threadId, '
+  String toString() => 'RunningState(roomId: $roomId, threadId: $threadId, '
       'messages: ${messages.length}, streaming: $streaming)';
 }
 
@@ -146,10 +153,14 @@ class RunningState extends ActiveRunState {
 class CompletedState extends ActiveRunState {
   /// Creates a completed state.
   const CompletedState({
+    required this.roomId,
     required this.conversation,
     required this.result,
     this.streaming = const NotStreaming(),
   });
+
+  /// The ID of the room this run belonged to.
+  final String roomId;
 
   @override
   final Conversation conversation;
@@ -167,15 +178,16 @@ class CompletedState extends ActiveRunState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is CompletedState &&
+          roomId == other.roomId &&
           conversation == other.conversation &&
           streaming == other.streaming &&
           result == other.result;
 
   @override
-  int get hashCode => Object.hash(conversation, streaming, result);
+  int get hashCode => Object.hash(roomId, conversation, streaming, result);
 
   @override
-  String toString() => 'CompletedState(threadId: $threadId, '
+  String toString() => 'CompletedState(roomId: $roomId, threadId: $threadId, '
       'result: $result, messages: ${messages.length})';
 }
 
