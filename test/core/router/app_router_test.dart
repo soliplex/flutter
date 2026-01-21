@@ -59,12 +59,14 @@ Widget createRouterApp({
   List<dynamic> overrides = const [],
   bool authenticated = true,
   bool noAuthMode = false,
+  SoliplexConfig config = const SoliplexConfig(),
 }) {
   return createRouterAppAt(
     '/',
     overrides: overrides,
     authenticated: authenticated,
     noAuthMode: noAuthMode,
+    config: config,
   );
 }
 
@@ -85,6 +87,7 @@ Widget createRouterAppAt(
   List<dynamic> overrides = const [],
   bool authenticated = true,
   bool noAuthMode = false,
+  SoliplexConfig config = const SoliplexConfig(),
 }) {
   final authState = _resolveAuthState(
     authenticated: authenticated,
@@ -94,12 +97,15 @@ Widget createRouterAppAt(
   return ProviderScope(
     overrides: [
       packageInfoProvider.overrideWithValue(testPackageInfo),
-      shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+      shellConfigProvider.overrideWithValue(config),
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
         final currentAuthState = ref.watch(authProvider);
         final hasAccess = currentAuthState is Authenticated ||
             currentAuthState is NoAuthRequired;
+        final shellConfig = ref.watch(shellConfigProvider);
+        final routeConfig = shellConfig.routes;
+        final features = shellConfig.features;
         return GoRouter(
           initialLocation: initialLocation,
           redirect: (context, state) {
@@ -115,7 +121,10 @@ Widget createRouterAppAt(
               };
               return target;
             }
-            if (hasAccess && isPublicRoute) return '/rooms';
+            // Use real getDefaultAuthenticatedRoute logic
+            if (hasAccess && isPublicRoute) {
+              return getDefaultAuthenticatedRoute(features, routeConfig);
+            }
             return null;
           },
           routes: [

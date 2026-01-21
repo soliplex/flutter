@@ -128,13 +128,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         hasProviders: providers.isNotEmpty,
         currentAuthState: ref.read(authProvider),
       );
+      final landingRoute =
+          ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
       switch (result) {
         case EnterNoAuthModeResult():
           await ref.read(authProvider.notifier).enterNoAuthMode();
           if (!mounted) return;
-          context.go('/rooms');
+          context.go(landingRoute);
         case AlreadyAuthenticatedResult():
-          context.go('/rooms');
+          context.go(landingRoute);
         case RequireLoginResult(:final shouldExitNoAuthMode):
           if (shouldExitNoAuthMode) {
             ref.read(authProvider.notifier).exitNoAuthMode();

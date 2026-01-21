@@ -114,15 +114,15 @@ bool isRouteVisible(String route, Features features, RouteConfig routes) {
   return false;
 }
 
-/// Returns the default route for authenticated users.
+/// Returns the route where authenticated users should land.
 ///
-/// Falls back through available routes: initialRoute -> /rooms -> / -> /settings.
-/// If no routes are configured, returns '/login' as a safe landing that will
-/// handle re-authentication if needed.
+/// Uses [RouteConfig.authenticatedLandingRoute] (defaults to '/rooms').
+/// Falls back through: authenticatedLandingRoute -> /rooms -> / -> /settings.
+/// If no routes are configured, returns '/login' as a safe landing.
 @visibleForTesting
 String getDefaultAuthenticatedRoute(Features features, RouteConfig routes) {
-  final initial = routes.initialRoute;
-  if (isRouteVisible(initial, features, routes)) return initial;
+  final landing = routes.authenticatedLandingRoute;
+  if (isRouteVisible(landing, features, routes)) return landing;
 
   if (routes.showRoomsRoute) return '/rooms';
   if (routes.showHomeRoute) return '/';
