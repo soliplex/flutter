@@ -1081,6 +1081,9 @@ void main() {
               routes: RouteConfig(initialRoute: '/settings'),
             ),
           ),
+          backendVersionInfoProvider.overrideWithValue(
+            const AsyncValue.data(testBackendVersionInfo),
+          ),
           authProvider.overrideWith(
             () => _MockAuthNotifier(_createAuthenticatedState()),
           ),
