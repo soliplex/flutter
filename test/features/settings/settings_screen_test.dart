@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -45,6 +49,7 @@ Widget _createAppWithRouter({
           const AsyncValue.data(testBackendVersionInfo),
         ),
         ...overrides.cast(),
+        shellConfigProvider.overrideWithValue(const SoliplexConfig()),
       ],
     ),
     child: MaterialApp.router(theme: testThemeData, routerConfig: router),
