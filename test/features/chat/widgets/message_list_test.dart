@@ -333,6 +333,7 @@ void main() {
                   conversation: conversation,
                   streaming: const Streaming(
                     messageId: 'msg-1',
+                    user: ChatUser.assistant,
                     text: 'Typing...',
                   ),
                 ),
@@ -381,6 +382,7 @@ void main() {
                   conversation: conversation,
                   streaming: const Streaming(
                     messageId: 'msg-2',
+                    user: ChatUser.assistant,
                     text: 'Typing...',
                   ),
                 ),

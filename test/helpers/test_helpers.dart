@@ -21,6 +21,7 @@ import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
@@ -140,12 +141,16 @@ class MockSoliplexApi extends Mock implements SoliplexApi {}
 /// Mock ActiveRunNotifier for testing.
 ///
 /// Allows overriding activeRunNotifierProvider with a fixed state.
+/// Tracks method calls for verification in tests.
 class MockActiveRunNotifier extends Notifier<ActiveRunState>
     implements ActiveRunNotifier {
   /// Creates a mock notifier with an initial state.
   MockActiveRunNotifier({required this.initialState});
 
   final ActiveRunState initialState;
+
+  /// Whether [cancelRun] was called.
+  bool cancelRunCalled = false;
 
   @override
   ActiveRunState build() => initialState;
@@ -160,7 +165,9 @@ class MockActiveRunNotifier extends Notifier<ActiveRunState>
   }) async {}
 
   @override
-  Future<void> cancelRun() async {}
+  Future<void> cancelRun() async {
+    cancelRunCalled = true;
+  }
 
   @override
   Future<void> reset() async {}
@@ -171,6 +178,23 @@ Override activeRunNotifierOverride(ActiveRunState mockState) {
   return activeRunNotifierProvider.overrideWith(
     () => MockActiveRunNotifier(initialState: mockState),
   );
+}
+
+/// Creates an override with a mock notifier and returns both for verification.
+///
+/// Use when you need to verify methods like [MockActiveRunNotifier.cancelRun]
+/// were called:
+/// ```dart
+/// final (override, mockNotifier) = activeRunNotifierOverrideWithMock(state);
+/// // ... tap stop button ...
+/// expect(mockNotifier.cancelRunCalled, isTrue);
+/// ```
+(Override, MockActiveRunNotifier) activeRunNotifierOverrideWithMock(
+  ActiveRunState mockState,
+) {
+  final mockNotifier = MockActiveRunNotifier(initialState: mockState);
+  final override = activeRunNotifierProvider.overrideWith(() => mockNotifier);
+  return (override, mockNotifier);
 }
 
 /// Mock ConfigNotifier for testing.
@@ -204,6 +228,12 @@ final testPackageInfo = PackageInfo(
   packageName: 'com.soliplex.frontend',
   version: '1.0.0',
   buildNumber: '1',
+);
+
+/// Default test BackendVersionInfo for widget tests.
+const testBackendVersionInfo = BackendVersionInfo(
+  soliplexVersion: '0.36.dev0',
+  packageVersions: {'soliplex': '0.36.dev0'},
 );
 
 /// Creates an override for packageInfoProvider.
@@ -497,9 +527,13 @@ final testThemeData = soliplexLightTheme();
 /// Wraps the widget in a Scaffold since screens no longer provide their own.
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
-/// Automatically includes [packageInfoProvider] override with [testPackageInfo]
-/// and [shellConfigProvider] override with default [SoliplexConfig] since both
-/// must always be overridden (they throw UnimplementedError by default).
+/// Automatically includes default overrides for:
+/// - [packageInfoProvider] with [testPackageInfo]
+/// - [shellConfigProvider] with default [SoliplexConfig]
+/// - [backendVersionInfoProvider] with [testBackendVersionInfo]
+///
+/// Set [skipBackendVersionOverride] to true when providing a custom override
+/// for [backendVersionInfoProvider] in [overrides].
 ///
 /// [onContainerCreated] is called with the [ProviderContainer] after it's
 /// created, allowing tests to read provider state.
@@ -508,12 +542,18 @@ Widget createTestApp({
   // Using dynamic list since Override type is internal in Riverpod 3.0
   List<dynamic> overrides = const [],
   void Function(ProviderContainer)? onContainerCreated,
+  bool skipBackendVersionOverride = false,
 }) {
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
         packageInfoProvider.overrideWithValue(testPackageInfo),
         shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        if (!skipBackendVersionOverride)
+          // Use AsyncValue.data for immediate value without pending Futures
+          backendVersionInfoProvider.overrideWithValue(
+            const AsyncValue.data(testBackendVersionInfo),
+          ),
         ...overrides.cast<Override>(),
       ],
     )..also(onContainerCreated),

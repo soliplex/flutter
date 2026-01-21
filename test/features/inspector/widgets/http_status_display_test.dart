@@ -63,7 +63,7 @@ void main() {
         expect(find.byType(CircularProgressIndicator), findsNothing);
       });
 
-      testWidgets('uses tertiary color', (tester) async {
+      testWidgets('uses success color', (tester) async {
         final group = HttpEventGroup(
           requestId: 'req-1',
           request: TestData.createRequestEvent(),
@@ -79,7 +79,7 @@ void main() {
         final text = tester.widget<Text>(find.textContaining('200 OK'));
         final context = tester.element(find.byType(HttpStatusDisplay));
         final colorScheme = Theme.of(context).colorScheme;
-        expect(text.style?.color, colorScheme.tertiary);
+        expect(text.style?.color, colorScheme.success);
       });
     });
 

@@ -6,6 +6,73 @@ import 'package:soliplex_client/src/domain/thread_info.dart';
 import 'package:test/test.dart';
 
 void main() {
+  group('BackendVersionInfo mappers', () {
+    group('backendVersionInfoFromJson', () {
+      test('parses correctly with all fields', () {
+        final json = <String, dynamic>{
+          'soliplex': {
+            'version': '0.36.dev0',
+            'editable_project_location': '/path',
+          },
+          'fastapi': {'version': '0.124.0'},
+          'pydantic': {'version': '2.12.5'},
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('0.36.dev0'));
+        expect(info.packageVersions, hasLength(3));
+        expect(info.packageVersions['soliplex'], equals('0.36.dev0'));
+        expect(info.packageVersions['fastapi'], equals('0.124.0'));
+        expect(info.packageVersions['pydantic'], equals('2.12.5'));
+      });
+
+      test('returns Unknown when soliplex key is missing', () {
+        final json = <String, dynamic>{
+          'fastapi': {'version': '0.124.0'},
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('Unknown'));
+        expect(info.packageVersions['fastapi'], equals('0.124.0'));
+      });
+
+      test('returns Unknown when soliplex version is null', () {
+        final json = <String, dynamic>{
+          'soliplex': {'version': null},
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('Unknown'));
+      });
+
+      test('handles empty response', () {
+        final json = <String, dynamic>{};
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.soliplexVersion, equals('Unknown'));
+        expect(info.packageVersions, isEmpty);
+      });
+
+      test('skips entries without version field', () {
+        final json = <String, dynamic>{
+          'soliplex': {'version': '0.36.dev0'},
+          'invalid': {'no_version': 'here'},
+          'also_invalid': 'not a map',
+        };
+
+        final info = backendVersionInfoFromJson(json);
+
+        expect(info.packageVersions, hasLength(1));
+        expect(info.packageVersions.containsKey('invalid'), isFalse);
+        expect(info.packageVersions.containsKey('also_invalid'), isFalse);
+      });
+    });
+  });
+
   group('Room mappers', () {
     group('roomFromJson', () {
       test('parses correctly with all fields', () {
@@ -167,19 +234,17 @@ void main() {
         expect(thread.roomId, equals(''));
       });
 
-      test('handles invalid created_at DateTime', () {
+      test('throws FormatException for invalid created_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
           'created_at': 'invalid-date',
         };
 
-        final thread = threadInfoFromJson(json);
-
-        expect(thread.createdAt, isNotNull);
+        expect(() => threadInfoFromJson(json), throwsFormatException);
       });
 
-      test('handles invalid updated_at DateTime', () {
+      test('throws FormatException for invalid updated_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
@@ -187,10 +252,7 @@ void main() {
           'updated_at': 'invalid-date',
         };
 
-        final thread = threadInfoFromJson(json);
-
-        expect(thread.updatedAt, isNotNull);
-        expect(thread.updatedAt, equals(thread.createdAt));
+        expect(() => threadInfoFromJson(json), throwsFormatException);
       });
 
       test('handles null optional fields', () {
@@ -345,29 +407,24 @@ void main() {
         expect(run.threadId, equals(''));
       });
 
-      test('handles invalid completed_at DateTime', () {
+      test('throws FormatException for invalid completed_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
           'completed_at': 'invalid-date',
         };
 
-        final run = runInfoFromJson(json);
-
-        expect(run.completion, isA<CompletedAt>());
-        expect((run.completion as CompletedAt).time, isNotNull);
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
-      test('handles invalid created_at DateTime', () {
+      test('throws FormatException for invalid created_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
           'created_at': 'invalid-date',
         };
 
-        final run = runInfoFromJson(json);
-
-        expect(run.createdAt, isNotNull);
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
       test('handles null label', () {
@@ -484,9 +541,12 @@ void main() {
       expect(runStatusFromString(null), equals(RunStatus.pending));
     });
 
-    test('returns pending for unknown status', () {
-      expect(runStatusFromString('unknown'), equals(RunStatus.pending));
-      expect(runStatusFromString('invalid'), equals(RunStatus.pending));
+    test('returns unknown for unrecognized status', () {
+      // 'unknown' is now a valid enum value, so it maps to itself
+      expect(runStatusFromString('unknown'), equals(RunStatus.unknown));
+      // Truly unrecognized values also map to unknown
+      expect(runStatusFromString('invalid'), equals(RunStatus.unknown));
+      expect(runStatusFromString('foobar'), equals(RunStatus.unknown));
     });
   });
 

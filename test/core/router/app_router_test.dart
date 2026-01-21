@@ -10,6 +10,7 @@ import 'package:soliplex_frontend/core/auth/callback_params.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -549,6 +550,9 @@ void main() {
         overrides: [
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          backendVersionInfoProvider.overrideWithValue(
+            const AsyncValue.data(testBackendVersionInfo),
+          ),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),

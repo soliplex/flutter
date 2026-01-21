@@ -1,9 +1,39 @@
 import 'dart:developer' as developer;
 
+import 'package:soliplex_client/src/domain/backend_version_info.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
+
+// ============================================================
+// BackendVersionInfo mappers
+// ============================================================
+
+/// Creates a [BackendVersionInfo] from JSON.
+///
+/// Extracts soliplex version and flattens all package versions into a map.
+/// Returns 'Unknown' for soliplexVersion if not present.
+BackendVersionInfo backendVersionInfoFromJson(Map<String, dynamic> json) {
+  final soliplexData = json['soliplex'] as Map<String, dynamic>?;
+  final soliplexVersion = soliplexData?['version'] as String? ?? 'Unknown';
+
+  final packageVersions = <String, String>{};
+  for (final entry in json.entries) {
+    final value = entry.value;
+    if (value is Map<String, dynamic>) {
+      final version = value['version'];
+      if (version is String) {
+        packageVersions[entry.key] = version;
+      }
+    }
+  }
+
+  return BackendVersionInfo(
+    soliplexVersion: soliplexVersion,
+    packageVersions: packageVersions,
+  );
+}
 
 // ============================================================
 // Room mappers

@@ -14,6 +14,7 @@ import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
+import 'package:soliplex_frontend/features/settings/backend_versions_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
@@ -312,6 +313,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             body: const SettingsScreen(),
           ),
         ),
+        routes: [
+          GoRoute(
+            path: 'backend-versions',
+            name: 'backend-versions',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: BackendVersionsScreen(),
+            ),
+          ),
+        ],
+      ),
     ],
     errorBuilder: (context, state) => _staticShell(
       title: const Text('Error'),
