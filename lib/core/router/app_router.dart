@@ -313,15 +313,12 @@ final routerProvider = Provider<GoRouter>((ref) {
             body: const SettingsScreen(),
           ),
         ),
-        routes: [
-          GoRoute(
-            path: 'backend-versions',
-            name: 'backend-versions',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: BackendVersionsScreen(),
-            ),
-          ),
-        ],
+      GoRoute(
+        path: 'backend-versions',
+        name: 'backend-versions',
+        pageBuilder: (context, state) => const NoTransitionPage(
+          child: BackendVersionsScreen(),
+        ),
       ),
     ],
     errorBuilder: (context, state) => _staticShell(
