@@ -293,7 +293,9 @@ void main() {
         const config = SoliplexConfig();
 
         expect(config.appName, equals('Soliplex'));
-        expect(config.defaultBackendUrl, equals('https://api.soliplex.ai'));
+        // null means "use platform default" (localhost on native, origin on web)
+        // Resolved at runtime by ConfigNotifier
+        expect(config.defaultBackendUrl, isNull);
         expect(config.features.enableHttpInspector, isTrue);
         expect(config.routes.showHomeRoute, isTrue);
       });

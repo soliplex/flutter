@@ -10,7 +10,7 @@ void main() {
       const config = SoliplexConfig();
 
       expect(config.appName, equals('Soliplex'));
-      expect(config.defaultBackendUrl, equals('https://api.soliplex.ai'));
+      expect(config.defaultBackendUrl, isNull);
       expect(config.features, equals(const Features()));
       expect(config.theme, equals(const ThemeConfig()));
       expect(config.routes, equals(const RouteConfig()));
@@ -39,7 +39,7 @@ void main() {
 
       expect(modified.appName, equals('NewName'));
       expect(modified.features.enableQuizzes, isFalse);
-      expect(modified.defaultBackendUrl, equals('https://api.soliplex.ai'));
+      expect(modified.defaultBackendUrl, isNull);
       expect(modified.theme, equals(const ThemeConfig()));
     });
 

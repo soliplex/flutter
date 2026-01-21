@@ -28,7 +28,7 @@ class SoliplexConfig {
   /// Creates a Soliplex configuration with sensible defaults.
   const SoliplexConfig({
     this.appName = 'Soliplex',
-    this.defaultBackendUrl = 'https://api.soliplex.ai',
+    this.defaultBackendUrl,
     this.features = const Features(),
     this.theme = const ThemeConfig(),
     this.routes = const RouteConfig(),
@@ -41,8 +41,13 @@ class SoliplexConfig {
 
   /// The default backend URL for API requests.
   ///
+  /// When null, uses platform-specific defaults:
+  /// - Native: `http://localhost:8000`
+  /// - Web + localhost: `http://localhost:8000`
+  /// - Web + production: same origin as client
+  ///
   /// Can be overridden by the user in settings if settings are enabled.
-  final String defaultBackendUrl;
+  final String? defaultBackendUrl;
 
   /// Feature flags controlling which functionality is available.
   final Features features;
