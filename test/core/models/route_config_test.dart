@@ -76,7 +76,10 @@ void main() {
 
       expect(config.toString(), contains('showHomeRoute: false'));
       expect(config.toString(), contains('initialRoute: /rooms'));
-      expect(config.toString(), contains('authenticatedLandingRoute: /settings'));
+      expect(
+        config.toString(),
+        contains('authenticatedLandingRoute: /settings'),
+      );
     });
 
     group('initialRoute validation', () {
