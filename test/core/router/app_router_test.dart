@@ -186,7 +186,9 @@ Widget createRouterAppAt(
                   Text('Page not found: ${state.uri}'),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => context.go('/'),
+                    onPressed: () => context.go(
+                      getDefaultAuthenticatedRoute(features, routeConfig),
+                    ),
                     child: const Text('Go Home'),
                   ),
                 ],

@@ -32,9 +32,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     try {
       await ref.read(authProvider.notifier).signIn(issuer);
-      // Native: sign in complete - go to rooms
+      // Native: sign in complete - navigate to landing route
       if (mounted) {
-        context.go('/rooms');
+        final landingRoute =
+            ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
+        context.go(landingRoute);
       }
     } on AuthRedirectInitiated {
       // Web: browser is redirecting to IdP, page will unload.

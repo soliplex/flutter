@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart' show AuthException;
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 /// Screen that handles OAuth callback from web BFF flow.
 ///
@@ -78,7 +79,9 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
           );
 
       if (mounted) {
-        context.go('/rooms');
+        final landingRoute =
+            ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
+        context.go(landingRoute);
       }
     } on AuthException catch (e) {
       if (mounted) {
