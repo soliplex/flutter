@@ -84,6 +84,10 @@ docs/planning/               # Design specs and work logs (see ROADMAP.md)
 
 Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
 
+**Never use `// ignore:` directives.** Restructure code to eliminate the warning instead
+of suppressing it. If a warning seems unavoidable, it usually means the code design
+needs rethinking.
+
 **Coverage target:** 85%+
 
 ## Testing
