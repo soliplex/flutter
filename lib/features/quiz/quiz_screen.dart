@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/quiz_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
@@ -48,6 +49,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final quizAsync = ref.watch(quizProvider(_sessionKey));
+    final features = ref.watch(featuresProvider);
 
     return AppShell(
       config: ShellConfig(
@@ -59,6 +61,17 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         title: quizAsync.whenOrNull(
           data: (quiz) => Text(quiz.title),
         ),
+        actions: [
+          if (features.enableSettings)
+            Semantics(
+              label: 'Settings',
+              child: IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () => context.push('/settings'),
+                tooltip: 'Open settings',
+              ),
+            ),
+        ],
       ),
       body: quizAsync.when(
         data: (quiz) => _buildQuizContent(context, quiz),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
@@ -114,12 +115,15 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final currentRoom = ref.watch(currentRoomProvider);
     final quizzes = currentRoom?.quizzes ?? const <String, String>{};
 
+    final features = ref.watch(featuresProvider);
+
     return AppShell(
       config: ShellConfig(
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
         actions: [
           if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
+          if (features.enableSettings) _buildSettingsButton(),
         ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
@@ -146,6 +150,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           _showQuizPicker(quizzes);
         }
       },
+    );
+  }
+
+  Widget _buildSettingsButton() {
+    return Semantics(
+      label: 'Settings',
+      child: IconButton(
+        icon: const Icon(Icons.settings),
+        onPressed: () => context.push('/settings'),
+        tooltip: 'Open settings',
+      ),
     );
   }
 

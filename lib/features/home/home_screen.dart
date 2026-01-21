@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
-import 'package:soliplex_frontend/core/build_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/home/connection_flow.dart';
@@ -128,13 +128,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         hasProviders: providers.isNotEmpty,
         currentAuthState: ref.read(authProvider),
       );
+      final landingRoute =
+          ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
       switch (result) {
         case EnterNoAuthModeResult():
           await ref.read(authProvider.notifier).enterNoAuthMode();
           if (!mounted) return;
-          context.go('/rooms');
+          context.go(landingRoute);
         case AlreadyAuthenticatedResult():
-          context.go('/rooms');
+          context.go(landingRoute);
         case RequireLoginResult(:final shouldExitNoAuthMode):
           if (shouldExitNoAuthMode) {
             ref.read(authProvider.notifier).exitNoAuthMode();
@@ -206,7 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                appName,
+                ref.watch(shellConfigProvider).appName,
                 style: theme.textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),

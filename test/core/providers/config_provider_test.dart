@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 void main() {
   group('ConfigNotifier', () {
@@ -11,17 +13,59 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('build returns default config when no preloaded config', () {
-      final container = ProviderContainer();
+    test('build returns platform default when no config URL', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final config = container.read(configProvider);
 
+      // SoliplexConfig.defaultBackendUrl is null, so uses platform default.
+      // Tests run on native, so expect localhost.
       expect(config.baseUrl, 'http://localhost:8000');
     });
 
+    test('build returns shellConfigProvider URL when overridden', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(defaultBackendUrl: 'https://api.test.com'),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final config = container.read(configProvider);
+
+      expect(config.baseUrl, 'https://api.test.com');
+    });
+
+    test('build returns preloaded URL when available', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(defaultBackendUrl: 'https://api.default.com'),
+          ),
+          preloadedBaseUrlProvider.overrideWithValue('https://saved.user.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final config = container.read(configProvider);
+
+      // Preloaded URL takes precedence over default
+      expect(config.baseUrl, 'https://saved.user.com');
+    });
+
     test('setBaseUrl persists URL to SharedPreferences', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(configProvider.notifier).setBaseUrl(
@@ -33,7 +77,11 @@ void main() {
     });
 
     test('setBaseUrl updates state', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(configProvider.notifier).setBaseUrl(
@@ -45,7 +93,11 @@ void main() {
     });
 
     test('setBaseUrl trims whitespace', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       await container.read(configProvider.notifier).setBaseUrl(
@@ -57,7 +109,11 @@ void main() {
     });
 
     test('setBaseUrl ignores empty URL', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       final initialUrl = container.read(configProvider).baseUrl;
@@ -69,7 +125,11 @@ void main() {
     });
 
     test('setBaseUrl ignores same URL', () async {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       // Set a URL first
@@ -90,7 +150,11 @@ void main() {
     });
 
     test('set directly updates state', () {
-      final container = ProviderContainer();
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        ],
+      );
       addTearDown(container.dispose);
 
       container.read(configProvider.notifier).set(
@@ -102,33 +166,111 @@ void main() {
     });
   });
 
-  group('initializeConfig', () {
-    test('loads saved URL from SharedPreferences', () async {
+  group('loadSavedBaseUrl', () {
+    test('returns saved URL from SharedPreferences', () async {
       SharedPreferences.setMockInitialValues({
         'backend_base_url': 'https://saved.example.com',
       });
 
-      await initializeConfig();
+      final savedUrl = await loadSavedBaseUrl();
 
-      // Note: initializeConfig sets _preloadedConfig which affects
-      // subsequent builds. Since _preloadedConfig is module-level,
-      // we can't easily test the effect without creating a new container
-      // after the config is initialized.
+      expect(savedUrl, 'https://saved.example.com');
     });
 
-    test('handles empty SharedPreferences gracefully', () async {
+    test('returns null when no URL saved', () async {
       SharedPreferences.setMockInitialValues({});
 
-      // Should not throw
-      await initializeConfig();
+      final savedUrl = await loadSavedBaseUrl();
+
+      expect(savedUrl, isNull);
+    });
+
+    test('returns null for empty saved URL', () async {
+      SharedPreferences.setMockInitialValues({
+        'backend_base_url': '',
+      });
+
+      final savedUrl = await loadSavedBaseUrl();
+
+      expect(savedUrl, isNull);
     });
   });
 
-  group('defaultBaseUrl', () {
-    test('returns localhost URL on native platforms', () {
-      // Tests run as native Dart, so this tests the native branch.
-      // Web behavior (Uri.base.origin) is tested via web build integration.
-      expect(defaultBaseUrl(), 'http://localhost:8000');
+  group('preloadedBaseUrlProvider', () {
+    test('defaults to null', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      expect(container.read(preloadedBaseUrlProvider), isNull);
+    });
+
+    test('can be overridden with saved URL', () {
+      final container = ProviderContainer(
+        overrides: [
+          preloadedBaseUrlProvider.overrideWithValue('https://override.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(preloadedBaseUrlProvider), 'https://override.com');
+    });
+  });
+
+  group('platformDefaultBackendUrl', () {
+    test('returns localhost on native platform', () {
+      // Tests run on native (not web), so should return localhost
+      expect(platformDefaultBackendUrl(), 'http://localhost:8000');
+    });
+  });
+
+  group('URL priority chain', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('preloaded URL has highest priority', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(defaultBackendUrl: 'https://config.com'),
+          ),
+          preloadedBaseUrlProvider.overrideWithValue('https://saved.com'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Saved URL wins over config URL
+      expect(container.read(configProvider).baseUrl, 'https://saved.com');
+    });
+
+    test('explicit config URL has second priority', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(defaultBackendUrl: 'https://config.com'),
+          ),
+          // No preloadedBaseUrl
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Config URL used when no saved URL
+      expect(container.read(configProvider).baseUrl, 'https://config.com');
+    });
+
+    test('platform default is lowest priority', () {
+      final container = ProviderContainer(
+        overrides: [
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(), // No explicit URL
+          ),
+          // No preloadedBaseUrl
+        ],
+      );
+      addTearDown(container.dispose);
+
+      // Platform default used when no saved URL and no config URL
+      expect(container.read(configProvider).baseUrl, 'http://localhost:8000');
     });
   });
 }

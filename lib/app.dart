@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
-import 'package:soliplex_frontend/core/build_config.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
 
@@ -13,15 +13,20 @@ class SoliplexApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final shellConfig = ref.watch(shellConfigProvider);
+    final themeConfig = shellConfig.theme;
+
+    final lightTheme = soliplexLightTheme(colors: themeConfig.lightColors);
+    final darkTheme = soliplexDarkTheme(colors: themeConfig.darkColors);
 
     // Don't construct routing until auth state is resolved.
     // This prevents building route widgets that would be discarded,
     // avoiding wasted work and premature provider side effects.
     if (authState is AuthLoading) {
       return MaterialApp(
-        title: appName,
-        theme: soliplexLightTheme(),
-        darkTheme: soliplexDarkTheme(),
+        title: shellConfig.appName,
+        theme: lightTheme,
+        darkTheme: darkTheme,
         themeMode: ThemeMode.light,
         debugShowCheckedModeBanner: false,
         home: const _AuthLoadingScreen(),
@@ -31,9 +36,9 @@ class SoliplexApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: appName,
-      theme: soliplexLightTheme(),
-      darkTheme: soliplexDarkTheme(),
+      title: shellConfig.appName,
+      theme: lightTheme,
+      darkTheme: darkTheme,
       themeMode: ThemeMode.light,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
