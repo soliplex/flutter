@@ -20,8 +20,8 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 ///
 /// Use this in your main.dart for a white-label app:
 /// ```dart
-/// void main() {
-///   runSoliplexApp(
+/// Future<void> main() async {
+///   await runSoliplexApp(
 ///     config: SoliplexConfig(
 ///       appName: 'MyBrand',
 ///       defaultBackendUrl: 'https://api.mybrand.com',

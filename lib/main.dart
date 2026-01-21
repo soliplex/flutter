@@ -6,8 +6,8 @@ import 'package:soliplex_frontend/soliplex_frontend.dart';
 /// ```dart
 /// import 'package:soliplex_frontend/soliplex_frontend.dart';
 ///
-/// void main() {
-///   runSoliplexApp(
+/// Future<void> main() async {
+///   await runSoliplexApp(
 ///     config: SoliplexConfig(
 ///       appName: 'MyBrand',
 ///       defaultBackendUrl: 'https://api.mybrand.com',
@@ -15,6 +15,6 @@ import 'package:soliplex_frontend/soliplex_frontend.dart';
 ///   );
 /// }
 /// ```
-void main() {
-  runSoliplexApp();
+Future<void> main() async {
+  await runSoliplexApp();
 }
