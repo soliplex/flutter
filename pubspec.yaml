@@ -45,7 +45,7 @@ dev_dependencies:
   mocktail: ^1.0.4
 
   # Riverpod for testing (explicit version from transitive)
-  riverpod: 3.1.0
+  riverpod: 3.2.0
 
   # Linting - Zero tolerance
   very_good_analysis: ^10.0.0
