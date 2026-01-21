@@ -142,7 +142,10 @@ String _normalizePath(String path) {
 }
 
 /// Routes that don't require authentication.
-/// Home is public so users can configure the backend URL before auth.
+///
+/// Home ('/') is public so users can configure the backend URL before auth.
+/// When [RouteConfig.showHomeRoute] is false, the '/' route doesn't exist
+/// (no fallback) - requests to '/' will hit the error page.
 const _publicRoutes = {'/', '/login', '/auth/callback'};
 
 /// Application router provider.
@@ -210,7 +213,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Redirect based on auth state reason (Unauthenticated) or default to
       // /login (AuthLoading). Public routes are exempt.
       if (!hasAccess && !isPublicRoute) {
-        const target = '/login'; // Always safe - login is always available
+        // Explicit sign-out → home (to choose different backend), if available.
+        // Falls back to /login when home route is disabled (whitelabel config).
+        final isExplicitSignOut = authState is Unauthenticated &&
+            authState.reason == UnauthenticatedReason.explicitSignOut;
+        final target =
+            isExplicitSignOut && routeConfig.showHomeRoute ? '/' : '/login';
         _log('redirecting to $target');
         return target;
       }

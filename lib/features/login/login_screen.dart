@@ -116,38 +116,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildIssuerList(List<OidcIssuer> issuers) {
-    if (issuers.isEmpty) {
-      // Should not reach here - HomeScreen handles no-IdP case
-      return const Text(
-        'No identity providers configured.',
-        textAlign: TextAlign.center,
-      );
-    }
+    final showHomeRoute = ref.watch(shellConfigProvider).routes.showHomeRoute;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final issuer in issuers) ...[
-          FilledButton.icon(
-            onPressed: _isAuthenticating ? null : () => _signIn(issuer),
-            icon: const Icon(Icons.login),
-            label: Text('Sign in with ${issuer.title}'),
-          ),
-          const SizedBox(height: 12),
-        ],
-        if (_isAuthenticating)
+        if (issuers.isEmpty)
           const Padding(
-            padding: EdgeInsets.only(top: 8),
-            child: PlatformAdaptiveProgressIndicator(),
+            padding: EdgeInsets.only(bottom: 24),
+            child: Text(
+              'No identity providers configured.',
+              textAlign: TextAlign.center,
+            ),
+          )
+        else ...[
+          for (final issuer in issuers) ...[
+            FilledButton.icon(
+              onPressed: _isAuthenticating ? null : () => _signIn(issuer),
+              icon: const Icon(Icons.login),
+              label: Text('Sign in with ${issuer.title}'),
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (_isAuthenticating)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: PlatformAdaptiveProgressIndicator(),
+            ),
+          const SizedBox(height: 24),
+        ],
+        if (showHomeRoute)
+          TextButton(
+            onPressed: () => context.go('/'),
+            child: Text(
+              'Change server',
+              style: TextStyle(color: Theme.of(context).colorScheme.outline),
+            ),
           ),
-        const SizedBox(height: 24),
-        TextButton(
-          onPressed: () => context.go('/'),
-          child: Text(
-            'Change server',
-            style: TextStyle(color: Theme.of(context).colorScheme.outline),
-          ),
-        ),
       ],
     );
   }

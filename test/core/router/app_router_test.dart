@@ -396,7 +396,7 @@ void main() {
       expect(find.byType(LoginScreen), findsOneWidget);
     });
 
-    testWidgets('explicit sign-out redirects to login', (
+    testWidgets('explicit sign-out redirects to home', (
       tester,
     ) async {
       final container = ProviderContainer(
@@ -430,12 +430,12 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
-      // Explicit sign-out always redirects to /login (safe landing)
+      // Explicit sign-out → home (to choose different backend)
       await (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .signOut();
       await tester.pumpAndSettle();
 
-      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.byType(HomeScreen), findsOneWidget);
     });
 
     testWidgets('token refresh preserves navigation location', (tester) async {
