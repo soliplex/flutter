@@ -6,7 +6,7 @@ import 'package:soliplex_frontend/shared/utils/format_utils.dart';
 ///
 /// Material Design 3 ColorScheme doesn't include warning or success colors.
 /// This extension derives ones that adapt to light/dark themes.
-extension StatusColors on ColorScheme {
+extension HTTPStatusColors on ColorScheme {
   /// Warning color that adapts to the current theme brightness.
   Color get warning =>
       brightness == Brightness.light ? Colors.orange : Colors.orange.shade300;
