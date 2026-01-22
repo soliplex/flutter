@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart'
     show ChatMessage, Streaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
+
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
@@ -40,36 +42,58 @@ class _MessageListState extends ConsumerState<MessageList> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_scrollListener);
+
+    _scrollController.addListener(_onScroll);
+
+    ref.listenManual(activeRunNotifierProvider, (previous, next) {
+      if (previous == null ||
+          (previous is! RunningState && next is RunningState) ||
+          (previous is RunningState && next is! RunningState)) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _scrollToBottom(),
+        );
+      }
+    });
   }
 
   @override
   void dispose() {
     _scrollController
-      ..removeListener(_scrollListener)
+      ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
   }
 
-  void _scrollListener() {
+  /// Scroll listener to manage auto-scroll state.
+  /// Disables auto-scroll if user scrolls up.
+  void _onScroll() {
     if (!_scrollController.hasClients) return;
 
-    final position = _scrollController.position;
-    // 50 pixels margin to avoid accidentally triggering auto-scroll
-    const threshold = 50.0;
-    final atBottom = position.pixels >= position.maxScrollExtent - threshold;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    const threshold = 50.0; // Pixels from bottom to consider "at bottom"
 
-    if (atBottom != _autoScrollEnabled && mounted) {
+    final isAtBottom = (maxScroll - currentScroll) <= threshold;
+
+    if (isAtBottom && !_autoScrollEnabled) {
       setState(() {
-        _autoScrollEnabled = atBottom;
+        _autoScrollEnabled = true;
+        print('Auto-scroll re-enabled');
+      });
+    } else if (!isAtBottom && _autoScrollEnabled) {
+      setState(() {
+        _autoScrollEnabled = false;
+        print('Auto-scroll disabled');
       });
     }
   }
 
   /// Scrolls to the bottom of the list.
   /// Can be forced to scroll even if auto-scroll is disabled.
-  void _scrollToBottom({bool force = false}) {
+  void _scrollToBottom({bool force = false, bool animate = false}) {
     if (!force && !_autoScrollEnabled) return;
+
+    print('Scrolling to bottom (force: $force, animate: $animate)');
 
     if (!_scrollController.hasClients) return;
 
@@ -85,11 +109,15 @@ class _MessageListState extends ConsumerState<MessageList> {
     // Use a post-frame callback to ensure the list has been built/updated
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (animate) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
       }
     });
   }
@@ -97,35 +125,20 @@ class _MessageListState extends ConsumerState<MessageList> {
   @override
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(allMessagesProvider);
+    final messagesNow =
+        messagesAsync.hasValue ? messagesAsync.value! : <ChatMessage>[];
     final isStreaming = ref.watch(isStreamingProvider);
     final runState = ref.watch(activeRunNotifierProvider);
 
-    // Scroll to bottom when messages change, if auto-scroll is enabled
-    ref.listen<AsyncValue<List<ChatMessage>>>(allMessagesProvider, (
-      previous,
-      next,
-    ) {
-      final prevLength = switch (previous) {
-        AsyncData(:final value) => value.length,
-        _ => 0,
-      };
-      final nextLength = switch (next) {
-        AsyncData(:final value) => value.length,
-        _ => 0,
-      };
-      if (nextLength > prevLength) {
-        _scrollToBottom();
-      }
-    });
-
-    return messagesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => ErrorDisplay(
-        error: error,
-        onRetry: () => ref.invalidate(allMessagesProvider),
-      ),
-      data: (messages) =>
-          _buildMessageList(context, messages, isStreaming, runState),
+    // Show loading overlay, not different widget tree
+    return Stack(
+      children: [
+        _buildMessageList(context, messagesNow, isStreaming, runState),
+        if (messagesAsync.isLoading && messagesNow.isEmpty)
+          const Center(child: CircularProgressIndicator()),
+        if (messagesAsync.hasError && messagesNow.isEmpty)
+          Center(child: ErrorDisplay(error: messagesAsync.error!)),
+      ],
     );
   }
 
@@ -144,6 +157,11 @@ class _MessageListState extends ConsumerState<MessageList> {
         icon: Icons.chat_bubble_outline,
       );
     }
+
+    final streamingMessageId = switch (runState) {
+      RunningState(streaming: Streaming(:final messageId)) => messageId,
+      _ => null,
+    };
 
     return Stack(
       children: [
@@ -188,17 +206,11 @@ class _MessageListState extends ConsumerState<MessageList> {
             }
 
             final message = messages[index];
-            // Check if this message is currently being streamed
-            final isCurrentlyStreaming = switch (runState) {
-              RunningState(streaming: Streaming(:final messageId)) =>
-                messageId == message.id,
-              _ => false,
-            };
 
             return ChatMessageWidget(
               key: ValueKey(message.id),
               message: message,
-              isStreaming: isCurrentlyStreaming,
+              isStreaming: streamingMessageId == message.id,
             );
           },
         ),
