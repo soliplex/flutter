@@ -78,12 +78,10 @@ class _MessageListState extends ConsumerState<MessageList> {
     if (isAtBottom && !_autoScrollEnabled) {
       setState(() {
         _autoScrollEnabled = true;
-        print('Auto-scroll re-enabled');
       });
     } else if (!isAtBottom && _autoScrollEnabled) {
       setState(() {
         _autoScrollEnabled = false;
-        print('Auto-scroll disabled');
       });
     }
   }
@@ -92,8 +90,6 @@ class _MessageListState extends ConsumerState<MessageList> {
   /// Can be forced to scroll even if auto-scroll is disabled.
   void _scrollToBottom({bool force = false, bool animate = false}) {
     if (!force && !_autoScrollEnabled) return;
-
-    print('Scrolling to bottom (force: $force, animate: $animate)');
 
     if (!_scrollController.hasClients) return;
 
