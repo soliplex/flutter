@@ -1,8 +1,11 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -231,5 +234,60 @@ void main() {
 
       listenable.removeListener(listener);
     });
+  });
+
+  group('authFlowProvider', () {
+    test(
+      'throws StateError when oauthRedirectScheme is null on native',
+      () {
+        // Skip on web - the validation only applies to native platforms
+        if (kIsWeb) {
+          markTestSkipped('Test only applies to native platforms');
+          return;
+        }
+
+        final container = ProviderContainer(
+          overrides: [
+            // oauthRedirectScheme defaults to null
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        expect(
+          () => container.read(authFlowProvider),
+          throwsA(
+            predicate<Object>(
+              (e) => e.toString().contains('oauthRedirectScheme'),
+              'exception message contains "oauthRedirectScheme"',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'creates auth flow when oauthRedirectScheme is provided on native',
+      () {
+        // Skip on web - web doesn't require the scheme
+        if (kIsWeb) {
+          markTestSkipped('Test only applies to native platforms');
+          return;
+        }
+
+        final container = ProviderContainer(
+          overrides: [
+            shellConfigProvider.overrideWithValue(
+              const SoliplexConfig(oauthRedirectScheme: 'com.test.app'),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // Should not throw
+        final authFlow = container.read(authFlowProvider);
+        expect(authFlow.isWeb, isFalse);
+      },
+    );
   });
 }

@@ -91,7 +91,9 @@ void registerMocktailFallbacks() {
       authFlowProvider.overrideWithValue(authFlow),
       authStorageProvider.overrideWithValue(storage),
       tokenRefreshServiceProvider.overrideWithValue(refreshService),
-      shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+      shellConfigProvider.overrideWithValue(
+        const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
+      ),
     ],
     authFlow: authFlow,
     storage: storage,
@@ -548,7 +550,9 @@ Widget createTestApp({
     container: ProviderContainer(
       overrides: [
         packageInfoProvider.overrideWithValue(testPackageInfo),
-        shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        shellConfigProvider.overrideWithValue(
+          const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
+        ),
         if (!skipBackendVersionOverride)
           // Use AsyncValue.data for immediate value without pending Futures
           backendVersionInfoProvider.overrideWithValue(

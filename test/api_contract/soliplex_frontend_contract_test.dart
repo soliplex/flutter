@@ -208,6 +208,7 @@ void main() {
         const config = SoliplexConfig(
           appName: 'TestApp',
           defaultBackendUrl: 'https://api.test.com',
+          oauthRedirectScheme: 'com.test.app',
           features: Features(),
           theme: ThemeConfig(),
           routes: RouteConfig(),
@@ -216,6 +217,7 @@ void main() {
         // Verify all properties are accessible
         expect(config.appName, isA<String>());
         expect(config.defaultBackendUrl, isA<String>());
+        expect(config.oauthRedirectScheme, isA<String>());
         expect(config.features, isA<Features>());
         expect(config.theme, isA<ThemeConfig>());
         expect(config.routes, isA<RouteConfig>());
@@ -226,6 +228,7 @@ void main() {
         final copied = config.copyWith(
           appName: 'NewApp',
           defaultBackendUrl: 'https://new.api.com',
+          oauthRedirectScheme: 'com.new.app',
           features: const Features.minimal(),
           theme: const ThemeConfig(),
           routes: const RouteConfig(),
@@ -245,6 +248,18 @@ void main() {
       test('toString', () {
         const config = SoliplexConfig();
         expect(config.toString(), isA<String>());
+      });
+
+      test('oauthRedirectScheme is nullable', () {
+        // Null is valid - web doesn't need it, native validates at runtime
+        const config = SoliplexConfig();
+        expect(config.oauthRedirectScheme, isNull);
+
+        // Non-null is also valid
+        const configWithScheme = SoliplexConfig(
+          oauthRedirectScheme: 'com.example.app',
+        );
+        expect(configWithScheme.oauthRedirectScheme, 'com.example.app');
       });
     });
 
@@ -266,6 +281,7 @@ void main() {
         const config = SoliplexConfig(
           appName: 'MyBrand',
           defaultBackendUrl: 'https://api.mybrand.com',
+          oauthRedirectScheme: 'com.mybrand.app',
           features: Features(
             enableHttpInspector: false,
             enableQuizzes: true,
@@ -284,6 +300,7 @@ void main() {
         );
 
         expect(config.appName, equals('MyBrand'));
+        expect(config.oauthRedirectScheme, equals('com.mybrand.app'));
         expect(config.features.enableHttpInspector, isFalse);
         expect(config.routes.initialRoute, equals('/rooms'));
       });
@@ -296,6 +313,8 @@ void main() {
         // null means "use platform default" (localhost on native, origin on
         // web). Resolved at runtime by ConfigNotifier.
         expect(config.defaultBackendUrl, isNull);
+        // null requires explicit override for native platforms
+        expect(config.oauthRedirectScheme, isNull);
         expect(config.features.enableHttpInspector, isTrue);
         expect(config.routes.showHomeRoute, isTrue);
       });
