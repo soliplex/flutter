@@ -29,6 +29,7 @@ class SoliplexConfig {
   const SoliplexConfig({
     this.appName = 'Soliplex',
     this.defaultBackendUrl,
+    this.oauthRedirectScheme,
     this.features = const Features(),
     this.theme = const ThemeConfig(),
     this.routes = const RouteConfig(),
@@ -49,6 +50,18 @@ class SoliplexConfig {
   /// Can be overridden by the user in settings if settings are enabled.
   final String? defaultBackendUrl;
 
+  /// OAuth redirect URI scheme for native platforms (iOS/Android).
+  ///
+  /// Must match the scheme registered in the shell app's platform configs:
+  /// - iOS: Info.plist CFBundleURLSchemes
+  /// - Android: build.gradle.kts appAuthRedirectScheme
+  ///
+  /// Example: `'com.mybrand.app'` results in redirect URI
+  /// `'com.mybrand.app://callback'`
+  ///
+  /// Required for native builds. Ignored on web (uses origin-based redirect).
+  final String? oauthRedirectScheme;
+
   /// Feature flags controlling which functionality is available.
   final Features features;
 
@@ -62,6 +75,7 @@ class SoliplexConfig {
   SoliplexConfig copyWith({
     String? appName,
     String? defaultBackendUrl,
+    String? oauthRedirectScheme,
     Features? features,
     ThemeConfig? theme,
     RouteConfig? routes,
@@ -69,6 +83,7 @@ class SoliplexConfig {
     return SoliplexConfig(
       appName: appName ?? this.appName,
       defaultBackendUrl: defaultBackendUrl ?? this.defaultBackendUrl,
+      oauthRedirectScheme: oauthRedirectScheme ?? this.oauthRedirectScheme,
       features: features ?? this.features,
       theme: theme ?? this.theme,
       routes: routes ?? this.routes,
@@ -82,6 +97,7 @@ class SoliplexConfig {
           runtimeType == other.runtimeType &&
           appName == other.appName &&
           defaultBackendUrl == other.defaultBackendUrl &&
+          oauthRedirectScheme == other.oauthRedirectScheme &&
           features == other.features &&
           theme == other.theme &&
           routes == other.routes;
@@ -90,6 +106,7 @@ class SoliplexConfig {
   int get hashCode => Object.hash(
         appName,
         defaultBackendUrl,
+        oauthRedirectScheme,
         features,
         theme,
         routes,
@@ -99,6 +116,7 @@ class SoliplexConfig {
   String toString() => 'SoliplexConfig('
       'appName: $appName, '
       'defaultBackendUrl: $defaultBackendUrl, '
+      'oauthRedirectScheme: $oauthRedirectScheme, '
       'features: $features, '
       'theme: $theme, '
       'routes: $routes)';
