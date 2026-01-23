@@ -232,35 +232,36 @@ void main() {
         expect(halfAnswered.progress, 0.5);
       });
 
-      test('equality based on quiz, currentIndex, results, and questionState',
-          () {
-        final quiz = Quiz(
-          id: 'quiz-1',
-          title: 'Test',
-          questions: const [
-            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
-          ],
-        );
-        final a = QuizInProgress(
-          quiz: quiz,
-          currentIndex: 0,
-          results: const {},
-          questionState: const AwaitingInput(),
-        );
-        final b = QuizInProgress(
-          quiz: quiz,
-          currentIndex: 0,
-          results: const {},
-          questionState: const AwaitingInput(),
-        );
-        final c = QuizInProgress(
-          quiz: quiz,
-          currentIndex: 0,
-          results: const {
-            'q1': CorrectAnswer(),
-          },
-          questionState: const AwaitingInput(),
-        );
+      test(
+        'equality based on quiz, currentIndex, results, and questionState',
+        () {
+          final quiz = Quiz(
+            id: 'quiz-1',
+            title: 'Test',
+            questions: const [
+              QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+            ],
+          );
+          final a = QuizInProgress(
+            quiz: quiz,
+            currentIndex: 0,
+            results: const {},
+            questionState: const AwaitingInput(),
+          );
+          final b = QuizInProgress(
+            quiz: quiz,
+            currentIndex: 0,
+            results: const {},
+            questionState: const AwaitingInput(),
+          );
+          final c = QuizInProgress(
+            quiz: quiz,
+            currentIndex: 0,
+            results: const {
+              'q1': CorrectAnswer(),
+            },
+            questionState: const AwaitingInput(),
+          );
 
           expect(a, equals(b));
           expect(a.hashCode, equals(b.hashCode));

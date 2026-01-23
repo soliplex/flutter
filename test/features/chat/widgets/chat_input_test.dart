@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -8,7 +7,6 @@ import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -510,7 +508,9 @@ void main() {
 
         // Assert
         expect(
-            find.widgetWithIcon(IconButton, Icons.attach_file), findsOneWidget);
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+          findsOneWidget,
+        );
       });
 
       testWidgets('hides attach file button when room is not set', (
@@ -534,7 +534,9 @@ void main() {
 
         // Assert
         expect(
-            find.widgetWithIcon(IconButton, Icons.attach_file), findsNothing);
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+          findsNothing,
+        );
       });
 
       testWidgets('displays selected document above input', (tester) async {
