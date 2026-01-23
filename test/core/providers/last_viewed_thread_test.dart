@@ -69,10 +69,12 @@ void main() {
 
       // Use a provider to get access to Ref
       await container.read(
-        _setLastViewedThreadTestProvider((
-          roomId: 'room-1',
-          threadId: 'thread-456',
-        )).future,
+        _setLastViewedThreadTestProvider(
+          (
+            roomId: 'room-1',
+            threadId: 'thread-456',
+          ),
+        ).future,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -88,10 +90,12 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(
-        _setLastViewedThreadTestProvider((
-          roomId: 'room-1',
-          threadId: 'new-thread',
-        )).future,
+        _setLastViewedThreadTestProvider(
+          (
+            roomId: 'room-1',
+            threadId: 'new-thread',
+          ),
+        ).future,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -107,10 +111,12 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(
-        _setLastViewedThreadTestProvider((
-          roomId: 'room-1',
-          threadId: 'thread-456',
-        )).future,
+        _setLastViewedThreadTestProvider(
+          (
+            roomId: 'room-1',
+            threadId: 'thread-456',
+          ),
+        ).future,
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -130,10 +136,12 @@ void main() {
 
       // Set value
       await container.read(
-        _setLastViewedThreadTestProvider((
-          roomId: 'room-1',
-          threadId: 'thread-789',
-        )).future,
+        _setLastViewedThreadTestProvider(
+          (
+            roomId: 'room-1',
+            threadId: 'thread-789',
+          ),
+        ).future,
       );
 
       // Re-read - should see new value
