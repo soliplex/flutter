@@ -78,17 +78,29 @@ docs/planning/               # Design specs and work logs (see ROADMAP.md)
 **After any code modification, run these checks:**
 
 1. **Format:** `mcp__dart__dart_format` (formats files in place)
-2. **Verify format:** `dart format --set-exit-if-changed .` (must exit 0 - CI uses this)
-3. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
-4. **Verify Analyze:** `flutter analyze --fatal-infos` (must be 0 issues - infos are fatal)
-5. **Test:** `mcp__dart__run_tests` (all green before any code is complete)
-6. **Coverage:** Verify coverage is at least 85%
+2. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
+3. **Test:** `mcp__dart__run_tests` (targeted tests during dev, full suite before commit)
+4. **Coverage:** Verify coverage is at least 85%
 
 Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
+
+**Never use `// ignore:` directives.** Restructure code to eliminate the warning instead
+of suppressing it. If a warning seems unavoidable, it usually means the code design
+needs rethinking.
 
 **Coverage target:** 85%+
 
 ## Testing
+
+**Context-aware test running:**
+
+- **Targeted tests:** Run directly for files you modified (e.g., specific test file paths)
+- **Full test suite:** Ask the user to run it and report results back to preserve context
+
+The full test suite output is verbose and consumes significant context. When you need
+to verify all tests pass (e.g., before commit), prompt:
+
+> "Please run the full test suite and let me know if there are any failures."
 
 **Helpers** (test/helpers/test_helpers.dart):
 

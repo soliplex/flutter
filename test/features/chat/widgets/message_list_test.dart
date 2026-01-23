@@ -333,6 +333,7 @@ void main() {
                   conversation: conversation,
                   streaming: const Streaming(
                     messageId: 'msg-1',
+                    user: ChatUser.assistant,
                     text: 'Typing...',
                   ),
                 ),
@@ -381,6 +382,7 @@ void main() {
                   conversation: conversation,
                   streaming: const Streaming(
                     messageId: 'msg-2',
+                    user: ChatUser.assistant,
                     text: 'Typing...',
                   ),
                 ),
@@ -461,7 +463,10 @@ void main() {
         await tester.pumpWidget(
           UncontrolledProviderScope(
             container: container,
-            child: const MaterialApp(home: Scaffold(body: MessageList())),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: MessageList()),
+            ),
           ),
         );
         await tester.pumpAndSettle();

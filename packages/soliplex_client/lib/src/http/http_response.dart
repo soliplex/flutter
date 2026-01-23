@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
@@ -29,7 +30,7 @@ class HttpResponse {
   final String? reasonPhrase;
 
   /// The response body decoded as a UTF-8 string.
-  String get body => String.fromCharCodes(bodyBytes);
+  String get body => utf8.decode(bodyBytes);
 
   /// Whether this response indicates success (2xx status code).
   bool get isSuccess => statusCode >= 200 && statusCode < 300;

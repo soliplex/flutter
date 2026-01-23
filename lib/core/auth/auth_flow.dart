@@ -88,5 +88,12 @@ abstract class AuthFlow {
 ///
 /// [backendBaseUrl] is the backend server URL for BFF endpoints (web only).
 /// On native platforms, this parameter is ignored.
-AuthFlow createAuthFlow({String? backendBaseUrl}) =>
-    impl.createAuthFlow(backendBaseUrl: backendBaseUrl);
+///
+/// [redirectScheme] is the OAuth redirect URI scheme for native platforms.
+/// Must match the scheme registered in platform configs (iOS Info.plist,
+/// Android build.gradle.kts). Ignored on web.
+AuthFlow createAuthFlow({String? backendBaseUrl, String? redirectScheme}) =>
+    impl.createAuthFlow(
+      backendBaseUrl: backendBaseUrl,
+      redirectScheme: redirectScheme,
+    );

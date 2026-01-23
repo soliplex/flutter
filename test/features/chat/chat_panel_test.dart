@@ -109,7 +109,7 @@ Widget _createAppWithRouter({
 
   return UncontrolledProviderScope(
     container: ProviderContainer(overrides: overrides.cast()),
-    child: MaterialApp.router(routerConfig: router),
+    child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
 
@@ -192,12 +192,11 @@ void main() {
           ),
         );
 
-        // Assert
-        expect(find.text('Streaming response...'), findsOneWidget);
-        expect(find.text('Cancel'), findsOneWidget);
+        // Assert - stop button visible during streaming
+        expect(find.byIcon(Icons.stop), findsOneWidget);
       });
 
-      testWidgets('does not show cancel button when idle', (tester) async {
+      testWidgets('does not show stop button when idle', (tester) async {
         // Arrange
         await tester.pumpWidget(
           createTestApp(
@@ -206,9 +205,9 @@ void main() {
           ),
         );
 
-        // Assert
-        expect(find.text('Streaming response...'), findsNothing);
-        expect(find.text('Cancel'), findsNothing);
+        // Assert - send button visible when idle, not stop button
+        expect(find.byIcon(Icons.stop), findsNothing);
+        expect(find.byIcon(Icons.send), findsOneWidget);
       });
     });
 
@@ -235,7 +234,7 @@ void main() {
 
         // Assert
         expect(find.byType(ErrorDisplay), findsOneWidget);
-        expect(find.text('Something went wrong'), findsOneWidget);
+        expect(find.textContaining('Something went wrong'), findsWidgets);
       });
 
       testWidgets('shows message list when no error', (tester) async {
@@ -319,8 +318,8 @@ void main() {
           ),
         );
 
-        // Tap cancel button
-        await tester.tap(find.text('Cancel'));
+        // Tap stop button (cancel)
+        await tester.tap(find.byIcon(Icons.stop));
         await tester.pump();
 
         // Verify cancelRun was called

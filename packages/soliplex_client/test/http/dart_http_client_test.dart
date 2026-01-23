@@ -245,7 +245,7 @@ void main() {
             isA<NetworkException>().having(
               (e) => e.message,
               'message',
-              contains('HTTP error'),
+              contains('HttpException'),
             ),
           ),
         );
@@ -627,7 +627,7 @@ void main() {
       );
 
       test(
-        'passes through non-SocketException errors during streaming',
+        'wraps all stream errors as NetworkException',
         () async {
           final controller = StreamController<List<int>>();
           final streamedResponse = http.StreamedResponse(
@@ -661,15 +661,18 @@ void main() {
 
           await Future<void>.delayed(const Duration(milliseconds: 10));
 
-          // Simulate a non-SocketException error during streaming
+          // Simulate an error during streaming
           controller.addError(Exception('Some other error'));
 
           await completer.future;
 
           expect(errors, hasLength(1));
-          // Non-SocketException errors should be passed through as-is
-          expect(errors.first, isA<Exception>());
-          expect(errors.first, isNot(isA<NetworkException>()));
+          // All stream errors are wrapped as NetworkException
+          expect(errors.first, isA<NetworkException>());
+          expect(
+            (errors.first as NetworkException).message,
+            contains('Some other error'),
+          );
 
           await controller.close();
         },

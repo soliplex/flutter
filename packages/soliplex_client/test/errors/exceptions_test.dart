@@ -21,6 +21,7 @@ void main() {
 
       expect(exception.message, equals('Unauthorized'));
       expect(exception.statusCode, isNull);
+      expect(exception.serverMessage, isNull);
       expect(exception.originalError, isNull);
       expect(exception.stackTrace, isNull);
     });
@@ -32,12 +33,14 @@ void main() {
       final exception = AuthException(
         message: 'Forbidden',
         statusCode: 403,
+        serverMessage: 'Access denied for user',
         originalError: originalError,
         stackTrace: trace,
       );
 
       expect(exception.message, equals('Forbidden'));
       expect(exception.statusCode, equals(403));
+      expect(exception.serverMessage, equals('Access denied for user'));
       expect(exception.originalError, equals(originalError));
       expect(exception.stackTrace, equals(trace));
     });
@@ -125,6 +128,7 @@ void main() {
 
       expect(exception.message, equals('Internal server error'));
       expect(exception.statusCode, equals(500));
+      expect(exception.serverMessage, isNull);
       expect(exception.body, isNull);
       expect(exception.originalError, isNull);
       expect(exception.stackTrace, isNull);
@@ -137,6 +141,7 @@ void main() {
       final exception = ApiException(
         message: 'Bad request',
         statusCode: 400,
+        serverMessage: 'Invalid input format',
         body: '{"error": "Invalid input"}',
         originalError: originalError,
         stackTrace: trace,
@@ -144,6 +149,7 @@ void main() {
 
       expect(exception.message, equals('Bad request'));
       expect(exception.statusCode, equals(400));
+      expect(exception.serverMessage, equals('Invalid input format'));
       expect(exception.body, equals('{"error": "Invalid input"}'));
       expect(exception.originalError, equals(originalError));
       expect(exception.stackTrace, equals(trace));
@@ -174,6 +180,7 @@ void main() {
 
       expect(exception.message, equals('Resource not found'));
       expect(exception.resource, isNull);
+      expect(exception.serverMessage, isNull);
       expect(exception.originalError, isNull);
       expect(exception.stackTrace, isNull);
     });
@@ -185,12 +192,17 @@ void main() {
       final exception = NotFoundException(
         message: 'Room not found',
         resource: 'room-123',
+        serverMessage: 'Room with ID room-123 does not exist',
         originalError: originalError,
         stackTrace: trace,
       );
 
       expect(exception.message, equals('Room not found'));
       expect(exception.resource, equals('room-123'));
+      expect(
+        exception.serverMessage,
+        equals('Room with ID room-123 does not exist'),
+      );
       expect(exception.originalError, equals(originalError));
       expect(exception.stackTrace, equals(trace));
     });

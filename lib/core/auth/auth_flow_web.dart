@@ -27,7 +27,12 @@ class WindowUrlNavigator implements UrlNavigator {
 ///
 /// [backendBaseUrl] is the backend server URL for BFF endpoints.
 /// Defaults to same origin (production: frontend served by backend).
-AuthFlow createAuthFlow({String? backendBaseUrl, UrlNavigator? navigator}) =>
+/// [redirectScheme] is ignored on web (uses origin-based redirect via BFF).
+AuthFlow createAuthFlow({
+  String? backendBaseUrl,
+  String? redirectScheme,
+  UrlNavigator? navigator,
+}) =>
     WebAuthFlow(backendBaseUrl: backendBaseUrl, navigator: navigator);
 
 /// Web implementation of OIDC authentication using BFF pattern.

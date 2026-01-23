@@ -91,11 +91,7 @@ void main() {
 
   group('urlBuilderProvider', () {
     test('creates UrlBuilder with base URL from config', () {
-      const testConfig = AppConfig(
-        baseUrl: 'http://localhost:8000',
-        appName: 'Test App',
-        version: '1.0.0',
-      );
+      const testConfig = AppConfig(baseUrl: 'http://localhost:8000');
 
       final container = createContainerWithMockedAuth(
         overrides: [configProviderOverride(testConfig)],
@@ -113,16 +109,8 @@ void main() {
     });
 
     test('uses different baseUrl for different config', () {
-      const config1 = AppConfig(
-        baseUrl: 'http://localhost:8000',
-        appName: 'Test App',
-        version: '1.0.0',
-      );
-      const config2 = AppConfig(
-        baseUrl: 'http://localhost:9000',
-        appName: 'Test App',
-        version: '1.0.0',
-      );
+      const config1 = AppConfig(baseUrl: 'http://localhost:8000');
+      const config2 = AppConfig(baseUrl: 'http://localhost:9000');
 
       // Test with config1
       final container1 = createContainerWithMockedAuth(
@@ -201,16 +189,8 @@ void main() {
     });
 
     test('creates different instances for different configs', () {
-      const config1 = AppConfig(
-        baseUrl: 'http://localhost:8000',
-        appName: 'Test App',
-        version: '1.0.0',
-      );
-      const config2 = AppConfig(
-        baseUrl: 'http://localhost:9000',
-        appName: 'Test App',
-        version: '1.0.0',
-      );
+      const config1 = AppConfig(baseUrl: 'http://localhost:8000');
+      const config2 = AppConfig(baseUrl: 'http://localhost:9000');
 
       // Test with config1
       final container1 = createContainerWithMockedAuth(
@@ -237,11 +217,7 @@ void main() {
 
   group('Provider integration', () {
     test('all providers work together correctly', () {
-      const testConfig = AppConfig(
-        baseUrl: 'http://localhost:8000',
-        appName: 'Test App',
-        version: '1.0.0',
-      );
+      const testConfig = AppConfig(baseUrl: 'http://localhost:8000');
 
       final container = createContainerWithMockedAuth(
         overrides: [configProviderOverride(testConfig)],
@@ -350,11 +326,7 @@ void main() {
     test(
       'agUiClientProvider disposal does not close shared httpClient',
       () async {
-        const config1 = AppConfig(
-          baseUrl: 'http://localhost:8000',
-          appName: 'Test',
-          version: '1.0.0',
-        );
+        const config1 = AppConfig(baseUrl: 'http://localhost:8000');
 
         // Create a wrapper to track close() calls
         final trackingClient = CloseTrackingHttpClient(
@@ -444,11 +416,7 @@ void main() {
     test(
       'multiple config changes do not cause cumulative close() calls',
       () async {
-        const config1 = AppConfig(
-          baseUrl: 'http://localhost:8000',
-          appName: 'Test',
-          version: '1.0.0',
-        );
+        const config1 = AppConfig(baseUrl: 'http://localhost:8000');
 
         // Track how many times close() is called
         var closeCallCount = 0;

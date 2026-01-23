@@ -144,4 +144,7 @@ enum RunStatus {
 
   /// Run was cancelled.
   cancelled,
+
+  /// Unknown status from backend (client doesn't recognize this value).
+  unknown,
 }

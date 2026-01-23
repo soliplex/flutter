@@ -120,9 +120,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Room 1'), findsOneWidget);
-      // No subtitle widget for empty description
-      final listTile = tester.widget<ListTile>(find.byType(ListTile));
-      expect(listTile.subtitle, isNull);
+      // RoomListTile only renders description when room.hasDescription is true
+      // With no description, only the title text should appear in the tile
+      final roomTileFinder = find.ancestor(
+        of: find.text('Room 1'),
+        matching: find.byType(Column),
+      );
+      final column = tester.widget<Column>(roomTileFinder.first);
+      // Column should have only one child (the title) when no description
+      expect(column.children.length, 1);
     });
   });
 }

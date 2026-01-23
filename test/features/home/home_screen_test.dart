@@ -11,7 +11,10 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -90,8 +93,18 @@ Widget _createAppWithRouter({
   );
 
   return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast()),
-    child: MaterialApp.router(routerConfig: router),
+    container: ProviderContainer(
+      overrides: [
+        packageInfoProvider.overrideWithValue(testPackageInfo),
+        // Use localhost:8000 as default to match test URLs so connecting
+        // is not treated as a backend change (which triggers signOut).
+        shellConfigProvider.overrideWithValue(
+          const SoliplexConfig(defaultBackendUrl: 'http://localhost:8000'),
+        ),
+        ...overrides.cast(),
+      ],
+    ),
+    child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
 
@@ -120,11 +133,7 @@ void main() {
             home: const HomeScreen(),
             overrides: [
               configProviderOverride(
-                const AppConfig(
-                  baseUrl: 'https://custom.example.com',
-                  appName: 'Test',
-                  version: '1.0.0',
-                ),
+                const AppConfig(baseUrl: 'https://custom.example.com'),
               ),
             ],
           ),
@@ -231,7 +240,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Request timed out. Please try again.'),
+          find.text(
+            'Connection timed out. The server may be slow or unreachable.',
+          ),
           findsOneWidget,
         );
       });
@@ -265,12 +276,16 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Cannot reach server. Check the URL and try again.'),
+          find.text(
+            'Cannot reach server. Check the URL and your network '
+            'connection.\n\nDetails: connection refused',
+          ),
           findsOneWidget,
         );
       });
 
-      testWidgets('shows server error for ApiException', (tester) async {
+      testWidgets('shows server error for ApiException without server message',
+          (tester) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -283,7 +298,7 @@ void main() {
             fromJson: any(named: 'fromJson'),
           ),
         ).thenThrow(
-          const ApiException(statusCode: 500, message: 'Server error'),
+          const ApiException(statusCode: 500, message: 'HTTP 500'),
         );
 
         await tester.pumpWidget(
@@ -300,7 +315,54 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Server error: 500'), findsOneWidget);
+        expect(
+          find.text('Server error. Please try again later. (500)'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('shows server error for ApiException with server message',
+          (tester) async {
+        final mockTransport = MockHttpTransport();
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            any(),
+            any(),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+          ),
+        ).thenThrow(
+          const ApiException(
+            statusCode: 500,
+            message: 'Database connection failed',
+            serverMessage: 'Database connection failed',
+          ),
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+            ],
+          ),
+        );
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.tap(find.text('Connect'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(
+            'Server error. Please try again later. (500)\n\n'
+            'Details: Database connection failed',
+          ),
+          findsOneWidget,
+        );
       });
 
       testWidgets('shows generic error for unknown exceptions', (tester) async {
@@ -332,7 +394,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Connection failed. Please try again.'),
+          find.text('Connection failed: Exception: Unknown error'),
           findsOneWidget,
         );
       });

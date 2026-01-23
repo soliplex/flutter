@@ -5,6 +5,9 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/home/connection_flow.dart';
 
 /// Home/welcome screen with backend URL configuration.
@@ -41,6 +44,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void dispose() {
     _urlController.dispose();
     super.dispose();
+  }
+
+  void _setError(String detail, {String? serverDetail}) {
+    if (!mounted) return;
+    setState(() {
+      _error =
+          serverDetail != null ? '$detail\n\nDetails: $serverDetail' : detail;
+    });
   }
 
   String? _validateUrl(String? value) {
@@ -84,19 +95,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           break;
       }
 
-      // Save the URL
-      await ref.read(configProvider.notifier).setBaseUrl(url);
-      debugPrint(
-        'HomeScreen: URL saved, config.baseUrl is now: '
-        '${ref.read(configProvider).baseUrl}',
-      );
-
-      // Fetch auth providers from the new URL
+      // Fetch auth providers to validate the URL is reachable
       final transport = ref.read(httpTransportProvider);
       final providers = await fetchAuthProviders(
         transport: transport,
         baseUrl: Uri.parse(url),
       );
+
+      // Only persist URL after successful connection
+      try {
+        await ref.read(configProvider.notifier).setBaseUrl(url);
+        debugPrint(
+          'HomeScreen: URL saved, config.baseUrl is now: '
+          '${ref.read(configProvider).baseUrl}',
+        );
+      } on Exception catch (e) {
+        debugPrint('HomeScreen: Failed to persist URL: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Connected, but couldn't save URL for next time."),
+            ),
+          );
+        }
+        // Continue to navigation - don't block user over persistence failure
+      }
 
       if (!mounted) return;
 
@@ -105,13 +128,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         hasProviders: providers.isNotEmpty,
         currentAuthState: ref.read(authProvider),
       );
+      final landingRoute =
+          ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
       switch (result) {
         case EnterNoAuthModeResult():
           await ref.read(authProvider.notifier).enterNoAuthMode();
           if (!mounted) return;
-          context.go('/rooms');
+          context.go(landingRoute);
         case AlreadyAuthenticatedResult():
-          context.go('/rooms');
+          context.go(landingRoute);
         case RequireLoginResult(:final shouldExitNoAuthMode):
           if (shouldExitNoAuthMode) {
             ref.read(authProvider.notifier).exitNoAuthMode();
@@ -119,23 +144,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ref.invalidate(oidcIssuersProvider);
           context.go('/login');
       }
+    } on AuthException catch (e) {
+      debugPrint('HomeScreen: Auth error: ${e.message}');
+      final detail = e.statusCode == 401
+          ? 'Authentication required. This server requires login credentials. '
+              '(${e.statusCode})'
+          : 'Access denied by server. The server may require additional '
+              'configuration or may be blocking this connection. '
+              '(${e.statusCode})';
+      _setError(detail, serverDetail: e.serverMessage);
+    } on NotFoundException catch (e) {
+      debugPrint('HomeScreen: Not found: ${e.message}');
+      const detail = 'Server reached, but the expected API endpoint was not '
+          'found. The server version may be incompatible. (404)';
+      _setError(detail, serverDetail: e.serverMessage);
+    } on CancelledException catch (e) {
+      debugPrint('HomeScreen: Request cancelled');
+      final detail = e.reason != null
+          ? 'Request cancelled: ${e.reason}'
+          : 'Request cancelled.';
+      _setError(detail);
     } on NetworkException catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.isTimeout
-              ? 'Request timed out. Please try again.'
-              : 'Cannot reach server. Check the URL and try again.';
-        });
-      }
+      debugPrint('HomeScreen: Network error: ${e.message}');
+      final detail = e.isTimeout
+          ? 'Connection timed out. The server may be slow or unreachable.'
+          : 'Cannot reach server. Check the URL and your network connection.';
+      _setError(detail, serverDetail: e.isTimeout ? null : e.message);
     } on ApiException catch (e) {
-      if (mounted) {
-        setState(() => _error = 'Server error: ${e.statusCode}');
-      }
+      debugPrint('HomeScreen: API error: ${e.statusCode} - ${e.message}');
+      final detail = e.statusCode >= 500
+          ? 'Server error. Please try again later. (${e.statusCode})'
+          : 'Unexpected response from server. (${e.statusCode})';
+      _setError(detail, serverDetail: e.serverMessage);
     } on Exception catch (e) {
-      if (mounted) {
-        setState(() => _error = 'Connection failed. Please try again.');
-      }
       debugPrint('HomeScreen: Unexpected exception: ${e.runtimeType} - $e');
+      _setError('Connection failed: $e');
     } finally {
       if (mounted) {
         setState(() => _isConnecting = false);
@@ -146,16 +189,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final config = ref.watch(configProvider);
-
-    // Update text field if config changes externally
-    if (_urlController.text != config.baseUrl && !_isConnecting) {
-      _urlController.text = config.baseUrl;
-    }
+    final soliplexTheme = SoliplexTheme.of(context);
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(SoliplexSpacing.s6),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
           child: Column(
@@ -170,7 +208,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Soliplex',
+                ref.watch(shellConfigProvider).appName,
                 style: theme.textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),
@@ -220,7 +258,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(
+                      soliplexTheme.radii.sm,
+                    ),
                   ),
                   child: Row(
                     children: [

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:soliplex_frontend/core/constants/breakpoints.dart';
+
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
+import 'package:soliplex_frontend/shared/widgets/platform_adaptive_dropdown.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Screen displaying threads within a specific room.
@@ -105,13 +109,22 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDesktop = MediaQuery.of(context).size.width >= kDesktopBreakpoint;
+    final isDesktop =
+        MediaQuery.of(context).size.width >= SoliplexBreakpoints.desktop;
+
+    final currentRoom = ref.watch(currentRoomProvider);
+    final quizzes = currentRoom?.quizzes ?? const <String, String>{};
+
+    final features = ref.watch(featuresProvider);
 
     return AppShell(
       config: ShellConfig(
-        leading: _buildBackButton(),
+        leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
-        actions: isDesktop ? [_buildSidebarToggle()] : const [],
+        actions: [
+          if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
+          if (features.enableSettings) _buildSettingsButton(),
+        ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
@@ -126,6 +139,51 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     );
   }
 
+  Widget _buildQuizButton(Map<String, String> quizzes) {
+    return IconButton(
+      icon: const Icon(Icons.quiz),
+      tooltip: 'Take quiz',
+      onPressed: () {
+        if (quizzes.length == 1) {
+          context.go('/rooms/${widget.roomId}/quiz/${quizzes.keys.first}');
+        } else {
+          _showQuizPicker(quizzes);
+        }
+      },
+    );
+  }
+
+  Widget _buildSettingsButton() {
+    return Semantics(
+      label: 'Settings',
+      child: IconButton(
+        icon: const Icon(Icons.settings),
+        onPressed: () => context.push('/settings'),
+        tooltip: 'Open settings',
+      ),
+    );
+  }
+
+  Future<void> _showQuizPicker(Map<String, String> quizzes) async {
+    final selectedQuizId = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Select Quiz'),
+        children: [
+          for (final entry in quizzes.entries)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, entry.key),
+              child: Text(entry.value),
+            ),
+        ],
+      ),
+    );
+
+    if (selectedQuizId != null && mounted) {
+      context.go('/rooms/${widget.roomId}/quiz/$selectedQuizId');
+    }
+  }
+
   Widget _buildSidebarToggle() {
     return IconButton(
       icon: Icon(_sidebarCollapsed ? Icons.menu : Icons.menu_open),
@@ -138,15 +196,26 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final roomsAsync = ref.watch(roomsProvider);
     final currentRoom = ref.watch(currentRoomProvider);
 
+    String trimRoomName(String name) {
+      const maxLength = 16;
+      if (name.length <= maxLength) return name;
+      return '${name.substring(0, maxLength - 3)}...';
+    }
+
     return roomsAsync.when(
       data: (rooms) => Semantics(
         label: 'Room selector, current: ${currentRoom?.name ?? 'none'}',
         child: Tooltip(
           message: 'Switch to another room',
-          child: DropdownMenu<String>(
+          child: PlatformAdaptiveDropdown<String>(
             initialSelection: currentRoom?.id,
-            dropdownMenuEntries: rooms
-                .map((r) => DropdownMenuEntry(value: r.id, label: r.name))
+            items: rooms
+                .map(
+                  (r) => PlatformAdaptiveDropdownItem(
+                    value: r.id,
+                    text: trimRoomName(r.name),
+                  ),
+                )
                 .toList(),
             onSelected: (id) {
               if (id != null) context.go('/rooms/$id');
@@ -186,7 +255,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
               decoration: BoxDecoration(
                 border: Border(
                   right: BorderSide(
-                    color: Theme.of(context).colorScheme.outlineVariant,
+                    color: Theme.of(context).dividerTheme.color!,
                   ),
                 ),
               ),

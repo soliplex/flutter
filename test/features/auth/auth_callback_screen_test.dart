@@ -8,6 +8,8 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -27,7 +29,7 @@ Widget _createAppWithRouter({
 
   return UncontrolledProviderScope(
     container: ProviderContainer(overrides: overrides.cast()),
-    child: MaterialApp.router(routerConfig: router),
+    child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
 
@@ -184,6 +186,7 @@ void main() {
         _createAppWithRouter(
           home: const AuthCallbackScreen(),
           overrides: [
+            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
             capturedCallbackParamsProvider.overrideWithValue(
               const WebCallbackParams(
                 accessToken: 'test-access-token',

@@ -56,9 +56,14 @@ EventProcessingResult processEvent(
       ),
 
     // Text message streaming events
-    TextMessageStartEvent(:final messageId) => EventProcessingResult(
+    TextMessageStartEvent(:final messageId, :final role) =>
+      EventProcessingResult(
         conversation: conversation,
-        streaming: Streaming(messageId: messageId, text: ''),
+        streaming: Streaming(
+          messageId: messageId,
+          user: _mapRoleToChatUser(role),
+          text: '',
+        ),
       ),
     TextMessageContentEvent(:final messageId, :final delta) =>
       _processTextContent(conversation, streaming, messageId, delta),
@@ -122,7 +127,7 @@ EventProcessingResult _processTextEnd(
   if (streaming is Streaming && streaming.messageId == messageId) {
     final newMessage = TextMessage.create(
       id: messageId,
-      user: ChatUser.assistant,
+      user: streaming.user,
       text: streaming.text,
     );
     return EventProcessingResult(
@@ -134,4 +139,14 @@ EventProcessingResult _processTextEnd(
     conversation: conversation,
     streaming: streaming,
   );
+}
+
+/// Maps AG-UI TextMessageRole to domain ChatUser.
+ChatUser _mapRoleToChatUser(TextMessageRole role) {
+  return switch (role) {
+    TextMessageRole.user => ChatUser.user,
+    TextMessageRole.assistant => ChatUser.assistant,
+    TextMessageRole.system => ChatUser.system,
+    TextMessageRole.developer => ChatUser.system,
+  };
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/design/tokens/spacing.dart';
 
 /// Widget for chat message input.
 ///
@@ -48,6 +49,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     super.dispose();
   }
 
+  /// Handles sending the message.
   void _handleSend() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
@@ -56,22 +58,28 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     _controller.clear();
   }
 
+  /// Handles cancelling the active run.
+  Future<void> _handleCancel() async {
+    try {
+      await ref.read(activeRunNotifierProvider.notifier).cancelRun();
+    } catch (e, stackTrace) {
+      debugPrint('Failed to cancel run: $e');
+      debugPrint(stackTrace.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to cancel: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final canSend = ref.watch(canSendMessageProvider);
+    final runState = ref.watch(activeRunNotifierProvider);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 4,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.all(SoliplexSpacing.s4),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -94,9 +102,6 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                     hintText: canSend
                         ? 'Type a message...'
                         : 'Select a room to start chatting',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                    ),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
@@ -109,21 +114,32 @@ class _ChatInputState extends ConsumerState<ChatInput> {
             ),
           ),
           const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Send message',
-            onPressed: canSend && _controller.text.trim().isNotEmpty
-                ? _handleSend
-                : null,
-            icon: const Icon(Icons.send),
-            style: IconButton.styleFrom(
-              backgroundColor: canSend && _controller.text.trim().isNotEmpty
-                  ? Theme.of(context).colorScheme.primary
+          if (runState.isRunning)
+            IconButton(
+              tooltip: 'Abort message generation',
+              onPressed: _handleCancel,
+              icon: const Icon(Icons.stop),
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              ),
+            )
+          else
+            IconButton(
+              tooltip: 'Send message',
+              onPressed: canSend && _controller.text.trim().isNotEmpty
+                  ? _handleSend
                   : null,
-              foregroundColor: canSend && _controller.text.trim().isNotEmpty
-                  ? Theme.of(context).colorScheme.onPrimary
-                  : null,
+              icon: const Icon(Icons.send),
+              style: IconButton.styleFrom(
+                backgroundColor: canSend && _controller.text.trim().isNotEmpty
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+                foregroundColor: canSend && _controller.text.trim().isNotEmpty
+                    ? Theme.of(context).colorScheme.onPrimary
+                    : null,
+              ),
             ),
-          ),
         ],
       ),
     );

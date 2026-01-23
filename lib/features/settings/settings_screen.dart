@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
+import 'package:soliplex_frontend/design/design.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -10,89 +16,79 @@ import 'package:soliplex_frontend/core/providers/config_provider.dart';
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
-  Future<void> _showUrlEditDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String currentUrl,
-  ) async {
-    final controller = TextEditingController(text: currentUrl);
-    final formKey = GlobalKey<FormState>();
-
-    final newUrl = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Backend URL'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: controller,
-            decoration: const InputDecoration(
-              labelText: 'URL',
-              hintText: 'http://localhost:8000',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.url,
-            autofocus: true,
-            validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Please enter a URL';
-              }
-              final trimmed = value.trim();
-              if (!trimmed.startsWith('http://') &&
-                  !trimmed.startsWith('https://')) {
-                return 'URL must start with http:// or https://';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.of(context).pop(controller.text.trim());
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-
-    controller.dispose();
-
-    if (newUrl != null && newUrl != currentUrl) {
-      await ref.read(configProvider.notifier).setBaseUrl(newUrl);
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Backend URL updated')));
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configProvider);
+    final packageInfo = ref.watch(packageInfoProvider);
     final authState = ref.watch(authProvider);
+    final backendVersion = ref.watch(backendVersionInfoProvider);
+
+    final appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
 
     return ListView(
       children: [
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('App Version'),
-          subtitle: Text(config.version),
+          subtitle: SelectableText(
+            appVersion,
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () => Clipboard.setData(
+              ClipboardData(
+                text: appVersion,
+              ),
+            ),
+          ),
         ),
         ListTile(
           leading: const Icon(Icons.dns),
           title: const Text('Backend URL'),
-          subtitle: Text(config.baseUrl),
-          trailing: const Icon(Icons.edit),
-          onTap: () => _showUrlEditDialog(context, ref, config.baseUrl),
+          subtitle: SelectableText(config.baseUrl),
+          trailing: IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () => Clipboard.setData(
+              ClipboardData(
+                text: config.baseUrl,
+              ),
+            ),
+          ),
+        ),
+        ListTile(
+          leading: const Icon(Icons.cloud_outlined),
+          title: const Text('Backend Version'),
+          subtitle: backendVersion.when(
+            data: (info) => SelectableText(info.soliplexVersion),
+            loading: () => const Text('Loading...'),
+            error: (error, stack) {
+              debugPrint('Failed to load backend version: $error');
+              debugPrint('$stack');
+              return const Text('Unavailable');
+            },
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            spacing: SoliplexSpacing.s2,
+            children: [
+              TextButton(
+                onPressed: () => context.push('/settings/backend-versions'),
+                child: const Text('View All'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: () => Clipboard.setData(
+                  ClipboardData(
+                    text: backendVersion.maybeWhen(
+                      data: (info) => info.soliplexVersion,
+                      orElse: () => 'Unavailable',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
         const Divider(),
         _AuthSection(authState: authState),
@@ -117,8 +113,16 @@ class _AuthSection extends ConsumerWidget {
               subtitle: Text('via $issuerId'),
             ),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
+              leading: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.danger,
+              ),
+              title: Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.danger,
+                ),
+              ),
               onTap: () => _confirmSignOut(context, ref),
             ),
           ],
@@ -145,8 +149,16 @@ class _AuthSection extends ConsumerWidget {
               subtitle: Text('Backend does not require login'),
             ),
             ListTile(
-              leading: const Icon(Icons.link_off),
-              title: const Text('Disconnect'),
+              leading: Icon(
+                Icons.link_off,
+                color: Theme.of(context).colorScheme.danger,
+              ),
+              title: Text(
+                'Disconnect',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.danger,
+                ),
+              ),
               onTap: () => _disconnect(context, ref),
             ),
           ],

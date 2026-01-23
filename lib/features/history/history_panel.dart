@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/history/widgets/new_conversation_button.dart';
 import 'package:soliplex_frontend/features/history/widgets/thread_list_item.dart';
 import 'package:soliplex_frontend/shared/widgets/async_value_handler.dart';
@@ -54,18 +55,26 @@ class HistoryPanel extends ConsumerWidget {
       data: (threads) {
         // Empty state - no threads yet
         if (threads.isEmpty) {
-          return Column(
-            children: [
-              NewConversationButton(
-                onPressed: () => _handleNewConversation(ref),
-              ),
-              const Expanded(
-                child: EmptyState(
-                  message: 'No conversations yet\nStart a new one!',
-                  icon: Icons.chat_bubble_outline,
+          return Padding(
+            padding: const EdgeInsets.only(
+              left: 8,
+              right: 8,
+              top: 8,
+            ),
+            child: Column(
+              spacing: SoliplexSpacing.s2,
+              children: [
+                NewConversationButton(
+                  onPressed: () => _handleNewConversation(ref),
                 ),
-              ),
-            ],
+                const Expanded(
+                  child: EmptyState(
+                    message: 'No conversations yet\nStart a new one!',
+                    icon: Icons.chat_bubble_outline,
+                  ),
+                ),
+              ],
+            ),
           );
         }
 
@@ -78,41 +87,51 @@ class HistoryPanel extends ConsumerWidget {
         };
         final currentThreadId = ref.watch(currentThreadIdProvider);
 
-        return Column(
-          children: [
-            NewConversationButton(onPressed: () => _handleNewConversation(ref)),
-            const Divider(height: 1),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: () async {
-                  ref.invalidate(threadsProvider(roomId));
-                  // Wait for the provider to reload
-                  await ref.read(threadsProvider(roomId).future);
-                },
-                child: ListView.builder(
-                  itemCount: threads.length,
-                  itemBuilder: (context, index) {
-                    final thread = threads[index];
-                    final isSelected = thread.id == currentThreadId;
-                    final hasActiveRun =
-                        activeThreadId != null && activeThreadId == thread.id;
-
-                    return ThreadListItem(
-                      thread: thread,
-                      isSelected: isSelected,
-                      hasActiveRun: hasActiveRun,
-                      onTap: () => _handleThreadSelection(
-                        context,
-                        ref,
-                        roomId,
-                        thread.id,
-                      ),
-                    );
+        return Padding(
+          padding: const EdgeInsets.only(
+            left: 8,
+            right: 8,
+            top: 8,
+          ),
+          child: Column(
+            spacing: SoliplexSpacing.s2,
+            children: [
+              NewConversationButton(
+                onPressed: () => _handleNewConversation(ref),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(threadsProvider(roomId));
+                    // Wait for the provider to reload
+                    await ref.read(threadsProvider(roomId).future);
                   },
+                  child: ListView.builder(
+                    itemCount: threads.length,
+                    itemBuilder: (context, index) {
+                      final thread = threads[index];
+                      final isSelected = thread.id == currentThreadId;
+                      final hasActiveRun =
+                          activeThreadId != null && activeThreadId == thread.id;
+
+                      return ThreadListItem(
+                        thread: thread,
+                        isSelected: isSelected,
+                        hasActiveRun: hasActiveRun,
+                        onTap: () => _handleThreadSelection(
+                          context,
+                          ref,
+                          roomId,
+                          thread.id,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
       onRetry: () => ref.refresh(threadsProvider(roomId)),

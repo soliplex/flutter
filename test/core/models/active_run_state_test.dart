@@ -106,7 +106,11 @@ void main() {
 
         const state = RunningState(
           conversation: conversation,
-          streaming: Streaming(messageId: 'msg-1', text: 'Hello'),
+          streaming: Streaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hello',
+          ),
         );
 
         expect(state.isStreaming, isTrue);
@@ -150,7 +154,11 @@ void main() {
         const original = RunningState(conversation: conversation);
 
         final updated = original.copyWith(
-          streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
+          streaming: const Streaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hi',
+          ),
         );
 
         expect(updated.streaming, isA<Streaming>());
@@ -188,7 +196,11 @@ void main() {
         const state2 = RunningState(conversation: conversation);
         const state3 = RunningState(
           conversation: conversation,
-          streaming: Streaming(messageId: 'msg-1', text: 'Hi'),
+          streaming: Streaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hi',
+          ),
         );
 
         expect(state1, equals(state2));
@@ -473,7 +485,11 @@ void main() {
       );
       final state = RunningState(
         conversation: conversation,
-        streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
+        streaming: const Streaming(
+          messageId: 'msg-1',
+          user: ChatUser.assistant,
+          text: 'Hi',
+        ),
       );
 
       final str = state.toString();
