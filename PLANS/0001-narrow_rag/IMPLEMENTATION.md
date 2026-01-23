@@ -20,6 +20,7 @@ and can be implemented in parallel after slice 1.
 | 8 | Empty room handling | ~40 | Picker button disabled when no docs |
 | 9 | Error + retry | ~180 | Error feedback, retry button, backoff |
 | 10 | Keyboard navigation | ~120 | Arrows, space, escape in picker |
+| 11 | File type icons | ~80 | Visual cues for document types |
 
 ## Dependency Structure
 
@@ -31,6 +32,9 @@ and can be implemented in parallel after slice 1.
       ▼              ▼              ▼
      [2]            [6]            [8]
     chips         persist        empty
+      │
+      ▼
+    [11] file-icons
 
                      │
                      ▼
@@ -54,6 +58,8 @@ and can be implemented in parallel after slice 1.
 
 **Parallel from slice 1:** Slices 2, 6, 8 don't touch picker internals.
 
+**Parallel from slice 2:** Slice 11 (file-icons) adds icons to chips and picker.
+
 **Stacked (picker chain):** Slices 3→4→5→7→9→10 all modify the picker dialog
 and must be stacked to avoid git conflicts.
 
@@ -63,12 +69,13 @@ and must be stacked to avoid git conflicts.
 2. **Slice 3** - Multi-select (start picker chain)
 3. **Slice 6** - Persistence (parallel with picker chain)
 4. **Slice 2** - Chips (parallel with picker chain)
-5. **Slice 4** - Search (continues picker chain)
-6. **Slice 5** - Filter selected
-7. **Slice 9** - Error + retry
-8. **Slice 8** - Empty room (parallel, low priority)
-9. **Slice 7** - Loading
-10. **Slice 10** - Keyboard nav
+5. **Slice 11** - File type icons (after chips)
+6. **Slice 4** - Search (continues picker chain)
+7. **Slice 5** - Filter selected
+8. **Slice 9** - Error + retry
+9. **Slice 8** - Empty room (parallel, low priority)
+10. **Slice 7** - Loading
+11. **Slice 10** - Keyboard nav
 
 ---
 
@@ -395,6 +402,52 @@ and must be stacked to avoid git conflicts.
 
 ---
 
+## Slice 11: File Type Icons
+
+**Branch:** `feat/narrow-rag/11-file-icons`
+
+**Target:** ~80 lines
+
+**Customer value:** Visual cues help users identify document types at a glance.
+
+### Tasks
+
+1. Create `getFileTypeIcon(String path)` helper that maps extensions to icons
+2. Support common types: PDF, Word (.doc/.docx), Excel, PowerPoint, images, text
+3. Use generic file icon for unknown/missing extensions
+4. Apply icons in picker list items
+5. Apply icons in selected document chips
+
+### Icon Mapping
+
+| Extension | Icon |
+|-----------|------|
+| `.pdf` | `Icons.picture_as_pdf` |
+| `.doc`, `.docx` | `Icons.description` (or custom Word icon) |
+| `.xls`, `.xlsx` | `Icons.table_chart` |
+| `.ppt`, `.pptx` | `Icons.slideshow` |
+| `.png`, `.jpg`, `.jpeg`, `.gif` | `Icons.image` |
+| `.txt`, `.md` | `Icons.article` |
+| (unknown) | `Icons.insert_drive_file` |
+
+### Tests
+
+- Unit: Extension mapping returns correct icons
+- Unit: Case-insensitive extension matching
+- Unit: Unknown extension returns generic icon
+- Widget: Picker shows correct icons for each document type
+- Widget: Chips show correct icons
+
+### Acceptance Criteria
+
+- [ ] PDF files show PDF icon
+- [ ] Office documents show appropriate icons
+- [ ] Unknown extensions show generic file icon
+- [ ] Icons appear in both picker and chips
+- [ ] All tests pass
+
+---
+
 ## Branch Naming Convention
 
 | Slice | Branch |
@@ -409,6 +462,7 @@ and must be stacked to avoid git conflicts.
 | 8 | `feat/narrow-rag/08-empty-room` |
 | 9 | `feat/narrow-rag/09-error-retry` |
 | 10 | `feat/narrow-rag/10-keyboard` |
+| 11 | `feat/narrow-rag/11-file-icons` |
 
 ## Parallel Development with Git Worktrees
 

@@ -114,6 +114,11 @@ result relevance and reduce noise.
 - Positioned above or below the input area.
 - Contains a search field at the top for filtering.
 - Lists all documents with checkboxes; selected documents are checked.
+- Each document displays a file type icon matching its extension (e.g., PDF icon
+  for `.pdf`, Word icon for `.docx`); unknown or missing extensions show a
+  generic file icon.
+- Document paths are shortened to show filename plus up to 2 parent folders
+  (e.g., `my/folder/document.pdf`).
 - Multi-select: user can toggle multiple documents before closing.
 - Keyboard navigable: Tab to search, arrows to navigate list, Space to toggle,
   Escape to dismiss.
@@ -124,7 +129,8 @@ result relevance and reduce noise.
 **Selected document chips:**
 
 - Displayed in a row above the text input.
-- Each chip shows the document name and an × button.
+- Each chip shows a file type icon (matching the document's extension), the
+  shortened document path, and an × button.
 - Clicking × removes the document from selection.
 - Row wraps if many documents are selected.
 - Chips persist across runs until explicitly removed.
