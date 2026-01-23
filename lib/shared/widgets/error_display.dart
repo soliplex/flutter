@@ -294,9 +294,7 @@ class _DetailsPanel extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(
-          soliplexTheme.radii.sm,
-        ),
+        borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,9 +325,7 @@ class _DetailsPanel extends StatelessWidget {
           Center(
             child: TextButton.icon(
               onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: formattedDetails),
-                );
+                await Clipboard.setData(ClipboardData(text: formattedDetails));
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -374,9 +370,7 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: SelectableText(
             value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
           ),
         ),
       ],

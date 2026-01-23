@@ -97,8 +97,10 @@ Widget _createAppWithRouter({
         builder: (context, state) {
           final threadId = state.uri.queryParameters['thread'];
           if (threadId != null) {
-            onNavigate?.call('/rooms/${state.pathParameters['roomId']}?thread='
-                '$threadId');
+            onNavigate?.call(
+              '/rooms/${state.pathParameters['roomId']}?thread='
+              '$threadId',
+            );
             return Text('Navigated to thread: $threadId');
           }
           return Scaffold(body: home);
@@ -369,8 +371,9 @@ void main() {
         final newThread = TestData.createThread(id: 'new-thread-id');
 
         final mockApi = _TrackingSoliplexApi(threadToCreate: newThread);
-        when(() => mockApi.createThread('test-room'))
-            .thenAnswer((_) async => newThread);
+        when(
+          () => mockApi.createThread('test-room'),
+        ).thenAnswer((_) async => newThread);
 
         late _TrackingThreadSelectionNotifier selectionNotifier;
         late _TrackingActiveRunNotifier runNotifier;
@@ -425,16 +428,18 @@ void main() {
         expect(navigatedPath, contains('new-thread-id'));
       });
 
-      testWidgets('creates thread when no current thread exists',
-          (tester) async {
+      testWidgets('creates thread when no current thread exists', (
+        tester,
+      ) async {
         // Arrange
         SharedPreferences.setMockInitialValues({});
         final mockRoom = TestData.createRoom();
         final newThread = TestData.createThread(id: 'created-thread');
 
         final mockApi = _TrackingSoliplexApi(threadToCreate: newThread);
-        when(() => mockApi.createThread('test-room'))
-            .thenAnswer((_) async => newThread);
+        when(
+          () => mockApi.createThread('test-room'),
+        ).thenAnswer((_) async => newThread);
 
         late _TrackingThreadSelectionNotifier selectionNotifier;
         late _TrackingActiveRunNotifier runNotifier;
@@ -514,8 +519,9 @@ void main() {
                 );
               }),
               allMessagesProvider.overrideWith((ref) async => []),
-              threadsProvider('test-room')
-                  .overrideWith((ref) async => [existingThread]),
+              threadsProvider(
+                'test-room',
+              ).overrideWith((ref) async => [existingThread]),
             ],
           ),
         );

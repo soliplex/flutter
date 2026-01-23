@@ -38,8 +38,9 @@ void main() {
       expect(find.byIcon(Icons.lock_outline), findsOneWidget);
     });
 
-    testWidgets('displays permission denied for 403 auth error',
-        (tester) async {
+    testWidgets('displays permission denied for 403 auth error', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const ErrorDisplay(

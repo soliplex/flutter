@@ -117,9 +117,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
       config: ShellConfig(
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
-        actions: [
-          if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
-        ],
+        actions: [if (quizzes.isNotEmpty) _buildQuizButton(quizzes)],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),

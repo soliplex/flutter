@@ -63,8 +63,9 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 
 void main() {
   group('SettingsScreen', () {
-    testWidgets('displays app version from packageInfoProvider',
-        (tester) async {
+    testWidgets('displays app version from packageInfoProvider', (
+      tester,
+    ) async {
       await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
       expect(find.text('App Version'), findsOneWidget);
@@ -90,8 +91,9 @@ void main() {
       expect(find.text('Not signed in'), findsOneWidget);
     });
 
-    testWidgets('shows Disconnect option in NoAuthRequired state',
-        (tester) async {
+    testWidgets('shows Disconnect option in NoAuthRequired state', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
@@ -194,10 +196,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Dialog should be dismissed
-        expect(
-          find.text('Are you sure you want to sign out?'),
-          findsNothing,
-        );
+        expect(find.text('Are you sure you want to sign out?'), findsNothing);
       });
 
       testWidgets('calls signOut on confirm', (tester) async {

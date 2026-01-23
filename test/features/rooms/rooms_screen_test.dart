@@ -106,9 +106,7 @@ void main() {
     });
 
     testWidgets('hides description when room has none', (tester) async {
-      final mockRooms = [
-        TestData.createRoom(id: 'room1', name: 'Room 1'),
-      ];
+      final mockRooms = [TestData.createRoom(id: 'room1', name: 'Room 1')];
 
       await tester.pumpWidget(
         createTestApp(

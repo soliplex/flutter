@@ -502,9 +502,8 @@ void main() {
           ),
           GoRoute(
             path: '/rooms/:roomId',
-            builder: (_, state) => RoomScreen(
-              roomId: state.pathParameters['roomId']!,
-            ),
+            builder: (_, state) =>
+                RoomScreen(roomId: state.pathParameters['roomId']!),
           ),
         ],
       );

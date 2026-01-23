@@ -118,9 +118,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const LoginScreen(),
-            overrides: [
-              oidcIssuersProvider.overrideWith((ref) async => []),
-            ],
+            overrides: [oidcIssuersProvider.overrideWith((ref) async => [])],
           ),
         );
 
@@ -130,8 +128,9 @@ void main() {
     });
 
     group('Loading state', () {
-      testWidgets('shows loading indicator while fetching issuers',
-          (tester) async {
+      testWidgets('shows loading indicator while fetching issuers', (
+        tester,
+      ) async {
         // Use a completer to keep the provider in loading state
         final completer = Completer<List<OidcIssuer>>();
 
@@ -180,9 +179,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const LoginScreen(),
-            overrides: [
-              oidcIssuersProvider.overrideWith((ref) async => []),
-            ],
+            overrides: [oidcIssuersProvider.overrideWith((ref) async => [])],
           ),
         );
 
@@ -297,9 +294,7 @@ void main() {
         createTestApp(
           home: const LoginScreen(),
           overrides: [
-            oidcIssuersProvider.overrideWith(
-              (ref) async => [_createIssuer()],
-            ),
+            oidcIssuersProvider.overrideWith((ref) async => [_createIssuer()]),
           ],
         ),
       );
@@ -307,10 +302,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Change server'), findsOneWidget);
-      expect(
-        find.widgetWithText(TextButton, 'Change server'),
-        findsOneWidget,
-      );
+      expect(find.widgetWithText(TextButton, 'Change server'), findsOneWidget);
     });
 
     testWidgets('change backend server button navigates to home', (

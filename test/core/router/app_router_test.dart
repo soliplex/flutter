@@ -66,9 +66,9 @@ Widget createRouterApp({
 List<dynamic> roomScreenOverrides(String roomId) {
   return [
     threadsProvider(roomId).overrideWith((ref) async => []),
-    lastViewedThreadProvider(roomId).overrideWith(
-      (ref) async => const NoLastViewed(),
-    ),
+    lastViewedThreadProvider(
+      roomId,
+    ).overrideWith((ref) async => const NoLastViewed()),
     roomsProvider.overrideWith(
       (ref) async => [TestData.createRoom(id: roomId)],
     ),
@@ -185,10 +185,7 @@ Widget createRouterAppAt(
     child: Consumer(
       builder: (context, ref, _) {
         final router = ref.watch(routerProvider);
-        return MaterialApp.router(
-          theme: testThemeData,
-          routerConfig: router,
-        );
+        return MaterialApp.router(theme: testThemeData, routerConfig: router);
       },
     ),
   );
@@ -244,11 +241,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        createRouterAppAt(
-          '/rooms',
-          authenticated: false,
-          noAuthMode: true,
-        ),
+        createRouterAppAt('/rooms', authenticated: false, noAuthMode: true),
       );
       await tester.pumpAndSettle();
       expect(find.byType(RoomsScreen), findsOneWidget);
@@ -348,9 +341,7 @@ void main() {
   });
 
   group('Auth state changes', () {
-    testWidgets('session expiry redirects to /login', (
-      tester,
-    ) async {
+    testWidgets('session expiry redirects to /login', (tester) async {
       final container = ProviderContainer(
         overrides: [
           authProvider.overrideWith(
@@ -389,9 +380,7 @@ void main() {
       expect(find.byType(LoginScreen), findsOneWidget);
     });
 
-    testWidgets('explicit sign-out redirects to home', (
-      tester,
-    ) async {
+    testWidgets('explicit sign-out redirects to home', (tester) async {
       final container = ProviderContainer(
         overrides: [
           authProvider.overrideWith(
@@ -523,11 +512,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        createRouterAppAt(
-          '/login',
-          authenticated: false,
-          noAuthMode: true,
-        ),
+        createRouterAppAt('/login', authenticated: false, noAuthMode: true),
       );
       await tester.pumpAndSettle();
       expect(find.byType(RoomsScreen), findsOneWidget);

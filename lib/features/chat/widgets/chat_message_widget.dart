@@ -52,9 +52,7 @@ class ChatMessageWidget extends StatelessWidget {
                 color: isUser
                     ? theme.colorScheme.primaryContainer
                     : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(
-                  soliplexTheme.radii.lg,
-                ),
+                borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -90,8 +88,9 @@ class ChatMessageWidget extends StatelessWidget {
                       ),
                       builders: {
                         'code': CodeBlockBuilder(
-                          preferredStyle:
-                              context.monospace.copyWith(fontSize: 14),
+                          preferredStyle: context.monospace.copyWith(
+                            fontSize: 14,
+                          ),
                         ),
                       },
                     ),

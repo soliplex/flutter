@@ -56,11 +56,7 @@ class HistoryPanel extends ConsumerWidget {
         // Empty state - no threads yet
         if (threads.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.only(
-              left: 8,
-              right: 8,
-              top: 8,
-            ),
+            padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
             child: Column(
               spacing: SoliplexSpacing.s2,
               children: [
@@ -88,11 +84,7 @@ class HistoryPanel extends ConsumerWidget {
         final currentThreadId = ref.watch(currentThreadIdProvider);
 
         return Padding(
-          padding: const EdgeInsets.only(
-            left: 8,
-            right: 8,
-            top: 8,
-          ),
+          padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
           child: Column(
             spacing: SoliplexSpacing.s2,
             children: [

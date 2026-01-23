@@ -256,9 +256,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(
-                      soliplexTheme.radii.sm,
-                    ),
+                    borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
                   ),
                   child: Row(
                     children: [

@@ -210,8 +210,9 @@ void main() {
       expect(find.text('Rooms'), findsOneWidget);
     });
 
-    testWidgets('shows error when completeWebAuth throws AuthException',
-        (tester) async {
+    testWidgets('shows error when completeWebAuth throws AuthException', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const AuthCallbackScreen(),
@@ -232,8 +233,9 @@ void main() {
       expect(find.text('Pre-auth state expired'), findsOneWidget);
     });
 
-    testWidgets('shows generic error when completeWebAuth throws Exception',
-        (tester) async {
+    testWidgets('shows generic error when completeWebAuth throws Exception', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const AuthCallbackScreen(),

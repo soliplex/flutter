@@ -29,9 +29,7 @@ class RoomsScreen extends ConsumerWidget {
         return Align(
           alignment: AlignmentDirectional.topCenter,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxContentWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
             child: roomsAsync.when(
               data: (rooms) {
                 if (rooms.isEmpty) {

@@ -29,9 +29,8 @@ void main() {
       routes: [
         GoRoute(
           path: '/rooms/:roomId',
-          builder: (context, state) => const Scaffold(
-            body: Center(child: Text('Room Screen')),
-          ),
+          builder: (context, state) =>
+              const Scaffold(body: Center(child: Text('Room Screen'))),
         ),
         GoRoute(
           path: '/rooms/:roomId/quiz/:quizId',
@@ -50,10 +49,7 @@ void main() {
           apiProvider.overrideWithValue(api),
         ],
       ),
-      child: MaterialApp.router(
-        routerConfig: router,
-        theme: testThemeData,
-      ),
+      child: MaterialApp.router(routerConfig: router, theme: testThemeData),
     );
   }
 
@@ -86,8 +82,9 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question 1', type: FreeForm()),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
 
       // Act
       await tester.pumpWidget(
@@ -110,8 +107,9 @@ void main() {
           QuizQuestion(id: 'q1', text: 'What is 2+2?', type: FreeForm()),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -141,8 +139,9 @@ void main() {
           ),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -167,8 +166,9 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -207,10 +207,12 @@ void main() {
         isCorrect: true,
         expectedAnswer: 'correct',
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'correct'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'correct'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -230,8 +232,9 @@ void main() {
       expect(find.text('See Results'), findsOneWidget);
     });
 
-    testWidgets('shows incorrect feedback with expected answer',
-        (tester) async {
+    testWidgets('shows incorrect feedback with expected answer', (
+      tester,
+    ) async {
       // Arrange
       final quiz = Quiz(
         id: 'quiz-1',
@@ -244,10 +247,12 @@ void main() {
         isCorrect: false,
         expectedAnswer: 'correct answer',
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'wrong'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'wrong'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -280,10 +285,12 @@ void main() {
         isCorrect: true,
         expectedAnswer: 'answer',
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -321,10 +328,12 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question?', type: FreeForm()),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
-          .thenThrow(const NetworkException(message: 'Connection timeout'));
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'),
+      ).thenThrow(const NetworkException(message: 'Connection timeout'));
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -364,10 +373,12 @@ void main() {
         isCorrect: true,
         expectedAnswer: 'answer',
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -409,8 +420,9 @@ void main() {
           ),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -438,8 +450,9 @@ void main() {
 
     testWidgets('shows error display when quiz not found', (tester) async {
       // Arrange - API throws NotFoundException
-      when(() => mockApi.getQuiz('room-1', 'bad-quiz'))
-          .thenThrow(const NotFoundException(message: 'Quiz not found'));
+      when(
+        () => mockApi.getQuiz('room-1', 'bad-quiz'),
+      ).thenThrow(const NotFoundException(message: 'Quiz not found'));
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'bad-quiz'),
@@ -461,15 +474,18 @@ void main() {
           QuizQuestion(id: 'q2', text: 'Question 2?', type: FreeForm()),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'a1'))
-          .thenAnswer(
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'a1'),
+      ).thenAnswer(
         (_) async =>
             const QuizAnswerResult(isCorrect: true, expectedAnswer: 'a1'),
       );
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q2', 'a2'))
-          .thenAnswer(
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q2', 'a2'),
+      ).thenAnswer(
         (_) async =>
             const QuizAnswerResult(isCorrect: false, expectedAnswer: 'correct'),
       );

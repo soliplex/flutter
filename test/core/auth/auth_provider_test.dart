@@ -70,12 +70,10 @@ void main() {
 
     test('returns false when AuthLoading', () {
       // Don't await restore - catch it in loading state
-      when(() => mockStorage.loadTokens()).thenAnswer(
-        (_) async {
-          await Future<void>.delayed(const Duration(seconds: 5));
-          return null;
-        },
-      );
+      when(() => mockStorage.loadTokens()).thenAnswer((_) async {
+        await Future<void>.delayed(const Duration(seconds: 5));
+        return null;
+      });
 
       final container = createContainer();
       addTearDown(container.dispose);

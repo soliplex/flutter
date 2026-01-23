@@ -19,12 +19,13 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 /// - [AuthException]: 401/403 authentication errors
 /// - [ApiException]: Other server errors
 final quizProvider =
-    FutureProvider.family<Quiz, ({String roomId, String quizId})>(
-  (ref, params) async {
-    final api = ref.watch(apiProvider);
-    return api.getQuiz(params.roomId, params.quizId);
-  },
-);
+    FutureProvider.family<Quiz, ({String roomId, String quizId})>((
+  ref,
+  params,
+) async {
+  final api = ref.watch(apiProvider);
+  return api.getQuiz(params.roomId, params.quizId);
+});
 
 // ============================================================
 // QuizInput - user's answer input (null-free)
@@ -585,8 +586,9 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
     final quiz = switch (currentState) {
       QuizInProgress(:final quiz) => quiz,
       QuizCompleted(:final quiz) => quiz,
-      QuizNotStarted() =>
-        throw StateError('Cannot retake quiz that was never started'),
+      QuizNotStarted() => throw StateError(
+          'Cannot retake quiz that was never started',
+        ),
     };
 
     state = QuizInProgress(

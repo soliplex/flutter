@@ -78,7 +78,10 @@ Widget _createAppWithRouter({
   final router = GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(path: '/', builder: (_, __) => Scaffold(body: home)),
+      GoRoute(
+        path: '/',
+        builder: (_, __) => Scaffold(body: home),
+      ),
       GoRoute(
         path: '/rooms',
         builder: (_, __) => const Scaffold(body: Text('Rooms Screen')),
@@ -201,8 +204,9 @@ void main() {
     });
 
     group('connection errors', () {
-      testWidgets('shows timeout error for NetworkException with timeout',
-          (tester) async {
+      testWidgets('shows timeout error for NetworkException with timeout', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -221,9 +225,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -255,9 +257,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -294,9 +294,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -331,9 +329,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -430,8 +426,9 @@ void main() {
         expect(find.text('Login Screen'), findsOneWidget);
       });
 
-      testWidgets('navigates to rooms when already authenticated',
-          (tester) async {
+      testWidgets('navigates to rooms when already authenticated', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -476,8 +473,9 @@ void main() {
         expect(find.text('Rooms Screen'), findsOneWidget);
       });
 
-      testWidgets('exits no-auth mode and navigates to login when switching',
-          (tester) async {
+      testWidgets('exits no-auth mode and navigates to login when switching', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
