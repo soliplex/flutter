@@ -3,8 +3,7 @@
 ## Overview
 
 Allow users to narrow the scope of RAG searches to a specific subset of documents
-(already ingested by the backend) by selecting them directly within the prompt
-input field.
+(already ingested by the backend) by selecting them before submitting a prompt.
 
 ## Problem Statement
 
@@ -17,24 +16,26 @@ result relevance and reduce noise.
 
 ### Functional Requirements
 
-1. Users can trigger a document selection UI by typing a trigger symbol (`#`) in
-   the prompt input.
-2. The UI displays an autocomplete list of available documents in the current
-   room.
-3. The autocomplete list filters as the user types additional characters after
-   the trigger symbol.
-4. Users can select documents using keyboard navigation (arrow keys + enter) or
+1. Users can open a document picker by clicking a document button in the input
+   area.
+2. The picker displays a searchable, multi-select list of available documents in
+   the current room.
+3. Users can filter the list by typing a search query.
+4. Users can toggle document selection using keyboard (arrows + space/enter) or
    mouse/touch.
-5. Selected documents appear as visually distinct elements in the input field.
-6. Users can select multiple documents within a single prompt.
-7. Users can deselect/remove documents before submitting.
+5. Users can select multiple documents before closing the picker.
+6. Selected documents appear as chips above the text input field.
+7. Users can remove a selected document by clicking the × button on its chip.
 8. The prompt submission includes the selected document references, instructing
    the backend to limit RAG scope.
-9. Already-selected documents do not appear in the autocomplete suggestions.
+9. Selected documents persist across runs in the same thread until the user
+   removes them.
+10. Changes to document selection are sent with the next run via AGUI state.
 
 ### Non-Functional Requirements
 
-- Autocomplete response should feel instantaneous (document list can be cached).
+- Picker response should feel instantaneous (document list is cached client-side
+  after first fetch).
 - Works on both desktop (keyboard navigation) and mobile (touch selection).
 - Accessible via keyboard-only interaction.
 
@@ -45,100 +46,131 @@ result relevance and reduce noise.
 1. John starts a thread T in room R.
 2. Frontend sends request to `/api/v1/rooms/{room_id}/agui`.
 3. Backend responds with a new thread and the first (empty) Run.
-4. John starts typing a prompt.
-5. John types the file selection symbol `#`.
-6. Frontend requests documents via `/api/v1/rooms/{room_id}/documents`.
-7. Backend responds with the document list.
-8. Frontend displays autocomplete widget, filtering as John types.
-9. **Desktop:** John uses arrow keys and enter to select a document.
-10. **Mobile:** John scrolls and taps a document to select it.
-11. John continues typing (possibly selecting additional documents).
-12. John submits the prompt.
-13. Frontend populates RunAgentInput with prompt + State containing selected
+4. John clicks the 📎 button to open the document picker.
+5. Frontend requests documents via `/api/v1/rooms/{room_id}/documents`.
+6. Backend responds with the document list.
+7. Frontend displays the picker popup with a search field and multi-select list.
+8. John selects document_A (checkbox toggles on).
+9. John selects document_B (checkbox toggles on).
+10. John closes the picker (clicks outside or presses Escape).
+11. Both documents appear as chips above the text input.
+12. John types their prompt in the text field.
+13. John submits the prompt.
+14. Frontend populates RunAgentInput with prompt + State containing selected
     document references.
-14. Frontend starts the Run.
+15. Frontend starts the Run.
 
-### Use Case 2: Follow-up Run in Same Thread
+### Use Case 2: Follow-up Run with Persisted Selection
 
-Same UX as Use Case 1. Document selection does not carry over from previous
-runs—John may select documents again (same or different).
+1. John's previous run used document_A and document_B.
+2. The chips for document_A and document_B remain visible above the input.
+3. John types a follow-up question without changing the document selection.
+4. John submits the prompt.
+5. Frontend sends RunAgentInput with the same document references in State.
+6. The backend uses the same narrowed document scope.
 
-### Use Case 3: Deselecting a Document
+### Use Case 3: Modifying Selection for a Follow-up Run
 
-1. John selects document_A and document_B.
-2. John finishes typing the prompt.
-3. Before submitting, John realises document_A is unnecessary.
-4. John removes document_A by backspacing over it.
+1. John's previous run used document_A and document_B.
+2. John clicks × on the document_A chip to remove it.
+3. John opens the picker and adds document_C.
+4. John types a follow-up question.
 5. John submits the prompt.
-6. Frontend submits RunAgentInput with prompt and State referencing only
-   document_B.
+6. Frontend sends RunAgentInput with document_B and document_C in State.
+7. The backend uses the updated document scope.
+
+### Use Case 4: Clearing All Selected Documents
+
+1. John has document_A and document_B selected.
+2. John removes both chips by clicking × on each.
+3. John types a question.
+4. John submits the prompt.
+5. Frontend sends RunAgentInput with no document references in State.
+6. The backend performs RAG across all documents in the room.
 
 ## Design
 
 ### User Experience
 
-**Trigger:** Typing `#` in the prompt input opens an autocomplete popup.
+**Layout:**
 
-**Autocomplete popup:**
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ [manual.pdf ×] [troubleshooting.pdf ×]                      │  ← Chip row
+├─────────────────────────────────────────────────────────────┤
+│ 📎 Type your message...                              [Send] │  ← Input row
+└─────────────────────────────────────────────────────────────┘
+```
 
-- Shows all available documents initially (excluding already-selected ones).
-- Filters list as user types characters after `#`.
-- Keyboard navigable (up/down arrows, enter to select, escape to dismiss).
-- Touch/click selection on mobile.
+- The chip row only appears when at least one document is selected.
+- The 📎 button opens the document picker popup.
 
-**Selected documents:**
+**Trigger:**
 
-- Displayed inline with the prompt text, visually distinct from regular text
-  (e.g., different color, background, or styling).
-- Each selection shows the document name.
-- Selections can be removed by backspacing over them.
+- Clicking the 📎 button opens the picker popup.
+
+**Picker popup:**
+
+- Positioned above or below the input area.
+- Contains a search field at the top for filtering.
+- Lists all documents with checkboxes; selected documents are checked.
+- Multi-select: user can toggle multiple documents before closing.
+- Keyboard navigable: Tab to search, arrows to navigate list, Space to toggle,
+  Escape to dismiss.
+- Touch/click to toggle selection on mobile.
+- Scrollable if the list exceeds the popup height.
+- Closes when user clicks outside or presses Escape.
+
+**Selected document chips:**
+
+- Displayed in a row above the text input.
+- Each chip shows the document name and an × button.
+- Clicking × removes the document from selection.
+- Row wraps if many documents are selected.
+- Chips persist across runs until explicitly removed.
+
+**Selection persistence:**
+
+- Document selection is maintained across runs within the same thread.
+- When the user submits a prompt, the current selection is sent via AGUI state.
+- Users can modify the selection at any time; changes apply to the next run.
+- Switching threads clears the selection (each thread has independent state).
 
 **Loading state:**
 
-- While documents are being fetched, the autocomplete popup displays a loading
-  indicator (spinner or skeleton list).
-- The user can continue typing; the popup updates when data arrives.
+- While documents are being fetched, the picker shows a loading indicator.
+- The user can dismiss the picker and continue typing.
 
 **Empty state:**
 
-- If the room has no documents, the autocomplete popup shows a message:
-  "No documents in this room."
-- The user can dismiss the popup and continue typing their prompt without
-  document selection.
+- If the room has no documents, the picker shows: "No documents in this room."
+- The user can dismiss the picker and continue typing.
 
 **Error state:**
 
-- If document fetching fails after retries, the autocomplete popup shows a
-  message: "Could not load documents."
-- The user can dismiss the popup and continue typing their prompt without
-  document selection.
-- No blocking modals or toasts—the error is contained within the popup.
-
-**Example prompt:**
-
-```text
-Which symbol indicates an issue with oil level? Use #mercedes_c330_manual.pdf
-and #mercedes_c330_troubleshooting.pdf
-```
+- If document fetching fails after retries, the picker shows: "Could not load
+  documents. Tap to retry."
+- The user can dismiss the picker and continue typing without document
+  selection.
 
 ## Acceptance Criteria
 
-- [ ] Typing `#` in prompt input triggers document autocomplete popup.
-- [ ] Autocomplete shows documents available in the current room.
-- [ ] Autocomplete filters as user types after `#`.
-- [ ] User can select document via keyboard (arrows + enter).
-- [ ] User can select document via mouse click or touch.
-- [ ] Selected document appears as visually distinct text in the input.
-- [ ] User can select multiple documents.
-- [ ] Already-selected documents are excluded from the autocomplete suggestions.
-- [ ] User can remove a selected document before submitting.
-- [ ] Submitted prompt includes selected document references in request payload.
+- [ ] Clicking 📎 button opens document picker popup.
+- [ ] Picker shows all documents available in the current room.
+- [ ] Picker has a search field that filters the document list.
+- [ ] Picker supports multi-select (checkboxes, user can select many before
+      closing).
+- [ ] User can toggle selection via keyboard (arrows + space).
+- [ ] User can toggle selection via mouse click or touch.
+- [ ] Selected documents appear as chips above the text input.
+- [ ] User can remove a chip by clicking its × button.
+- [ ] Picker popup is scrollable when document list is long.
+- [ ] Picker closes on click outside or Escape key.
+- [ ] Document selection persists across runs in the same thread.
+- [ ] Submitted prompt includes selected document references in AGUI state.
+- [ ] Switching threads clears the document selection.
 - [ ] Works on desktop, web, iOS, and Android.
 
 ## Open Questions
 
-1. **Should document selection persist across runs in the same thread?**
-   - Pro: Less repetitive if conversation focuses on specific documents.
-   - Con: User might forget which documents are "active" and get unexpected
-     results.
-   - *Needs team input.*
+*None at this time.*
