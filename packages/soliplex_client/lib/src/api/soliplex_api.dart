@@ -5,6 +5,7 @@ import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
+import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -101,6 +102,39 @@ class SoliplexApi {
       cancelToken: cancelToken,
       fromJson: roomFromJson,
     );
+  }
+
+  /// Gets documents available for narrowing RAG in a room.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  ///
+  /// Returns a list of [RagDocument] objects for the room.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if [roomId] is empty
+  /// - [NotFoundException] if room not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<List<RagDocument>> getDocuments(
+    String roomId, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+
+    final response = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['rooms', roomId, 'documents']),
+      cancelToken: cancelToken,
+    );
+
+    // Backend returns {"document_set": [...]} - extract the documents array
+    final documents = response['document_set'] as List<dynamic>;
+    return documents
+        .map((e) => ragDocumentFromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ============================================================
@@ -402,14 +436,11 @@ class SoliplexApi {
           // event. This can happen if the backend stores events from a newer
           // protocol version or if data corruption occurs.
           skippedEventCount++;
-          assert(
-            () {
-              // ignore: avoid_print
-              print('Skipped malformed event during replay: $e');
-              return true;
-            }(),
-            'Debug logging for malformed events',
-          );
+          assert(() {
+            // ignore: avoid_print
+            print('Skipped malformed event during replay: $e');
+            return true;
+          }(), 'Debug logging for malformed events');
         }
       }
     }

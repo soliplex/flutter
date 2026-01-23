@@ -1,5 +1,6 @@
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
+import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -104,6 +105,49 @@ void main() {
       expect(restored.name, equals(original.name));
       expect(restored.description, equals(original.description));
       expect(restored.metadata, equals(original.metadata));
+    });
+  });
+
+  group('RagDocument mappers', () {
+    group('ragDocumentFromJson', () {
+      test('parses correctly with all fields', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': 'User Manual.pdf',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.id, equals('doc-uuid-123'));
+        expect(doc.title, equals('User Manual.pdf'));
+      });
+    });
+
+    group('ragDocumentToJson', () {
+      test('serializes correctly', () {
+        const doc = RagDocument(
+          id: 'doc-uuid-123',
+          title: 'User Manual.pdf',
+        );
+
+        final json = ragDocumentToJson(doc);
+
+        expect(json['id'], equals('doc-uuid-123'));
+        expect(json['title'], equals('User Manual.pdf'));
+      });
+    });
+
+    test('roundtrip serialization', () {
+      const original = RagDocument(
+        id: 'doc-uuid-123',
+        title: 'User Manual.pdf',
+      );
+
+      final json = ragDocumentToJson(original);
+      final restored = ragDocumentFromJson(json);
+
+      expect(restored.id, equals(original.id));
+      expect(restored.title, equals(original.title));
     });
   });
 
@@ -506,10 +550,7 @@ void main() {
       });
 
       test('parses fill-blank', () {
-        final json = <String, dynamic>{
-          'type': 'fill-blank',
-          'uuid': 'q-1',
-        };
+        final json = <String, dynamic>{'type': 'fill-blank', 'uuid': 'q-1'};
 
         final type = questionTypeFromJson(json);
 
@@ -517,10 +558,7 @@ void main() {
       });
 
       test('parses qa as FreeForm', () {
-        final json = <String, dynamic>{
-          'type': 'qa',
-          'uuid': 'q-1',
-        };
+        final json = <String, dynamic>{'type': 'qa', 'uuid': 'q-1'};
 
         final type = questionTypeFromJson(json);
 
@@ -528,10 +566,7 @@ void main() {
       });
 
       test('defaults unknown type to FreeForm', () {
-        final json = <String, dynamic>{
-          'type': 'unknown-type',
-          'uuid': 'q-1',
-        };
+        final json = <String, dynamic>{'type': 'unknown-type', 'uuid': 'q-1'};
 
         final type = questionTypeFromJson(json);
 
@@ -565,10 +600,7 @@ void main() {
         final json = <String, dynamic>{
           'inputs': 'The sky is ____.',
           'expected_output': 'blue',
-          'metadata': {
-            'type': 'fill-blank',
-            'uuid': 'q-456',
-          },
+          'metadata': {'type': 'fill-blank', 'uuid': 'q-456'},
         };
 
         final question = quizQuestionFromJson(json);
@@ -582,10 +614,7 @@ void main() {
         final json = <String, dynamic>{
           'inputs': 'Explain photosynthesis.',
           'expected_output': 'Process by which plants convert sunlight.',
-          'metadata': {
-            'type': 'qa',
-            'uuid': 'q-789',
-          },
+          'metadata': {'type': 'qa', 'uuid': 'q-789'},
         };
 
         final question = quizQuestionFromJson(json);
@@ -631,10 +660,7 @@ void main() {
             {
               'inputs': 'The largest ocean is ____.',
               'expected_output': 'Pacific',
-              'metadata': {
-                'type': 'fill-blank',
-                'uuid': 'q-2',
-              },
+              'metadata': {'type': 'fill-blank', 'uuid': 'q-2'},
             },
           ],
         };
@@ -737,10 +763,7 @@ void main() {
       });
 
       test('handles missing quizzes field', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 

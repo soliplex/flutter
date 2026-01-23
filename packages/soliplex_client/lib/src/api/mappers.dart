@@ -1,6 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:soliplex_client/src/domain/quiz.dart';
+import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -39,6 +40,20 @@ Map<String, dynamic> roomToJson(Room room) {
     if (room.description.isNotEmpty) 'description': room.description,
     if (room.metadata.isNotEmpty) 'metadata': room.metadata,
   };
+}
+
+// ============================================================
+// RagDocument mappers
+// ============================================================
+
+/// Creates a [RagDocument] from JSON.
+RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
+  return RagDocument(id: json['id'] as String, title: json['title'] as String);
+}
+
+/// Converts a [RagDocument] to JSON.
+Map<String, dynamic> ragDocumentToJson(RagDocument doc) {
+  return {'id': doc.id, 'title': doc.title};
 }
 
 // ============================================================
