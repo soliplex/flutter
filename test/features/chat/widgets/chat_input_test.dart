@@ -566,10 +566,10 @@ void main() {
 
         // Assert
         expect(find.text('Manual.pdf'), findsOneWidget);
-        expect(find.byIcon(Icons.description), findsOneWidget);
+        expect(find.byIcon(Icons.description_outlined), findsOneWidget);
       });
 
-      testWidgets('displays selected document as chip', (tester) async {
+      testWidgets('displays selected document as styled chip', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -596,9 +596,43 @@ void main() {
           ),
         );
 
-        // Assert - should be an InputChip
-        expect(find.byType(InputChip), findsOneWidget);
+        // Assert - chip shows document name and icon
         expect(find.text('Manual.pdf'), findsOneWidget);
+        expect(find.byIcon(Icons.description_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.close), findsOneWidget);
+      });
+
+      testWidgets('chip truncates long paths to filename + 2 parents', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final selectedDoc = TestData.createDocument(
+          id: 'doc-1',
+          title: 'file:///Users/svarlet/Code/soliplex/docs/rag.md',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocument: selectedDoc,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert - should show only last 3 path segments
+        expect(find.text('soliplex/docs/rag.md'), findsOneWidget);
       });
 
       testWidgets('chip delete button removes selection', (tester) async {
