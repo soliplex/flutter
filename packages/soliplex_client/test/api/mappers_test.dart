@@ -126,6 +126,53 @@ void main() {
 
         expect(room.metadata, equals(const <String, dynamic>{}));
       });
+
+      test('parses suggestions correctly', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'suggestions': ['How can I help?', 'Tell me more'],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, equals(['How can I help?', 'Tell me more']));
+        expect(room.hasSuggestions, isTrue);
+      });
+
+      test('handles missing suggestions field', () {
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, isEmpty);
+        expect(room.hasSuggestions, isFalse);
+      });
+
+      test('handles null suggestions', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'suggestions': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, isEmpty);
+        expect(room.hasSuggestions, isFalse);
+      });
+
+      test('filters out non-string suggestions', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'suggestions': ['Valid', 123, null, 'Also valid', true],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, equals(['Valid', 'Also valid']));
+      });
     });
 
     group('roomToJson', () {

@@ -53,12 +53,29 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
+  final suggestionsRaw = json['suggestions'] as List<dynamic>?;
+  final suggestions = <String>[];
+  if (suggestionsRaw != null) {
+    for (final item in suggestionsRaw) {
+      if (item is String) {
+        suggestions.add(item);
+      } else {
+        developer.log(
+          'Non-string suggestion ignored: $item (${item.runtimeType})',
+          name: 'soliplex_client.room',
+          level: 900, // Warning level
+        );
+      }
+    }
+  }
+
   return Room(
     id: json['id'] as String,
     name: json['name'] as String,
     description: (json['description'] as String?) ?? '',
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
     quizzes: quizzes,
+    suggestions: suggestions,
   );
 }
 

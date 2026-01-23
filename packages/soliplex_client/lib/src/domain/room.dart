@@ -10,6 +10,7 @@ class Room {
     this.description = '',
     this.metadata = const {},
     this.quizzes = const {},
+    this.suggestions = const [],
   });
 
   /// Unique identifier for the room.
@@ -27,6 +28,9 @@ class Room {
   /// Quizzes available in this room, keyed by quiz ID with title as value.
   final Map<String, String> quizzes;
 
+  /// Suggested prompts to show when starting a new thread.
+  final List<String> suggestions;
+
   /// Quiz IDs available in this room.
   List<String> get quizIds => quizzes.keys.toList();
 
@@ -36,6 +40,9 @@ class Room {
   /// Whether the room has any quizzes.
   bool get hasQuizzes => quizzes.isNotEmpty;
 
+  /// Whether the room has any suggestions.
+  bool get hasSuggestions => suggestions.isNotEmpty;
+
   /// Creates a copy of this room with the given fields replaced.
   Room copyWith({
     String? id,
@@ -43,6 +50,7 @@ class Room {
     String? description,
     Map<String, dynamic>? metadata,
     Map<String, String>? quizzes,
+    List<String>? suggestions,
   }) {
     return Room(
       id: id ?? this.id,
@@ -50,6 +58,7 @@ class Room {
       description: description ?? this.description,
       metadata: metadata ?? this.metadata,
       quizzes: quizzes ?? this.quizzes,
+      suggestions: suggestions ?? this.suggestions,
     );
   }
 
