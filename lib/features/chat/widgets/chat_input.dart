@@ -119,11 +119,9 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                 spacing: SoliplexSpacing.s2,
                 runSpacing: SoliplexSpacing.s1,
                 children: [
-                  InputChip(
-                    label: Text(selectedDoc.title),
-                    avatar: const Icon(Icons.description, size: 18),
+                  _DocumentChip(
+                    title: selectedDoc.title,
                     onDeleted: _clearSelectedDocument,
-                    deleteButtonTooltipMessage: 'Remove document filter',
                   ),
                 ],
               ),
@@ -145,9 +143,8 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               Expanded(
                 child: CallbackShortcuts(
                   bindings: {
-                    const SingleActivator(LogicalKeyboardKey.enter): canSend
-                        ? _handleSend
-                        : () {},
+                    const SingleActivator(LogicalKeyboardKey.enter):
+                        canSend ? _handleSend : () {},
                     const SingleActivator(LogicalKeyboardKey.escape): () =>
                         _focusNode.unfocus(),
                   },
@@ -194,6 +191,91 @@ class _ChatInputState extends ConsumerState<ChatInput> {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Styled chip displaying a document name with delete button.
+class _DocumentChip extends StatelessWidget {
+  const _DocumentChip({
+    required this.title,
+    required this.onDeleted,
+  });
+
+  final String title;
+  final VoidCallback onDeleted;
+
+  /// Extracts filename with up to 2 parent folders from a path or URI.
+  String _shortName(String fullPath) {
+    // Remove file:// prefix if present
+    var path = fullPath;
+    if (path.startsWith('file://')) {
+      path = path.substring(7);
+    }
+
+    final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+    if (segments.length <= 3) {
+      return segments.join('/');
+    }
+    return segments.sublist(segments.length - 3).join('/');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      color: colorScheme.primaryContainer,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () {}, // Makes the chip feel interactive
+        child: Padding(
+          padding: const EdgeInsets.only(
+            left: 12,
+            right: 4,
+            top: 6,
+            bottom: 6,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.description_outlined,
+                size: 16,
+                color: colorScheme.onPrimaryContainer,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                _shortName(title),
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: onDeleted,
+                icon: Icon(
+                  Icons.close,
+                  size: 16,
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
+                ),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 24,
+                  minHeight: 24,
+                ),
+                tooltip: 'Remove document filter',
+                style: IconButton.styleFrom(
+                  shape: const CircleBorder(),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
