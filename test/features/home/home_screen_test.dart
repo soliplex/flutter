@@ -304,9 +304,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
