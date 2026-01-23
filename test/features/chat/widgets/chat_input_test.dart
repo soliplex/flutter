@@ -494,10 +494,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-                roomId: mockRoom.id,
-              ),
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
             ),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
@@ -572,8 +569,39 @@ void main() {
         expect(find.byIcon(Icons.description), findsOneWidget);
       });
 
-      testWidgets('calls onDocumentSelected with null when clear button tapped',
-          (tester) async {
+      testWidgets('displays selected document as chip', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final selectedDoc = TestData.createDocument(
+          id: 'doc-1',
+          title: 'Manual.pdf',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocument: selectedDoc,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert - should be an InputChip
+        expect(find.byType(InputChip), findsOneWidget);
+        expect(find.text('Manual.pdf'), findsOneWidget);
+      });
+
+      testWidgets('chip delete button removes selection', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -602,16 +630,17 @@ void main() {
           ),
         );
 
-        // Tap the close button
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
+        // Tap the chip delete button via tooltip
+        await tester.tap(find.byTooltip('Remove document filter'));
         await tester.pump();
 
         // Assert
         expect(resultDoc, isNull);
       });
 
-      testWidgets('opens document picker dialog when attach button tapped',
-          (tester) async {
+      testWidgets('opens document picker dialog when attach button tapped', (
+        tester,
+      ) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -621,17 +650,15 @@ void main() {
           TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
         ];
 
-        when(() => mockApi.getDocuments(mockRoom.id))
-            .thenAnswer((_) async => documents);
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
 
         // Act
         await tester.pumpWidget(
           createTestApp(
             home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-                roomId: mockRoom.id,
-              ),
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
             ),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
@@ -652,8 +679,9 @@ void main() {
         expect(find.text('Document 2.pdf'), findsOneWidget);
       });
 
-      testWidgets('selects document when list tile tapped in picker',
-          (tester) async {
+      testWidgets('selects document when list tile tapped in picker', (
+        tester,
+      ) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -664,8 +692,9 @@ void main() {
         ];
         RagDocument? selectedDoc;
 
-        when(() => mockApi.getDocuments(mockRoom.id))
-            .thenAnswer((_) async => documents);
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
 
         // Act
         await tester.pumpWidget(
@@ -707,17 +736,15 @@ void main() {
         final mockThread = TestData.createThread();
         final mockApi = MockSoliplexApi();
 
-        when(() => mockApi.getDocuments(mockRoom.id))
-            .thenAnswer((_) async => <RagDocument>[]);
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
 
         // Act
         await tester.pumpWidget(
           createTestApp(
             home: Scaffold(
-              body: ChatInput(
-                onSend: (_) {},
-                roomId: mockRoom.id,
-              ),
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
             ),
             overrides: [
               currentRoomProvider.overrideWith((ref) => mockRoom),
