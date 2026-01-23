@@ -9,104 +9,107 @@ Proposed
 Users need to narrow RAG searches to specific documents within a room. This
 requires:
 
-1. A UI mechanism to select documents inline within the prompt input.
-2. Frontend logic to fetch and filter available documents.
-3. Integration with the backend API to scope RAG queries.
+1. A UI mechanism to select documents from a picker.
+2. Display of selected documents as chips above the text input.
+3. Frontend logic to fetch and cache available documents.
+4. Integration with the backend API to scope RAG queries via AG-UI state.
+5. Persistence of document selection across runs within a thread.
 
 See [SPEC.md](./SPEC.md) for requirements and use cases.
 
 ## Decision
 
-### UI Component
+### UI Approach: Chips Above Input
 
-Use `flutter_mentions` for inline document selection:
+We use a **chips-above-input** pattern rather than inline mentions:
 
-- Right level of abstraction—built specifically for this use case.
-- Handles the hard parts: cursor management, overlay positioning.
-- Structured output via `markupBuilder`—encodes both ID and display in markup.
-- Actively maintained with responsive maintainer.
-- Reasonable intrusion—some setup, but not an architectural overhaul.
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ [manual.pdf ×] [troubleshooting.pdf ×]                      │  ← Chip row
+├─────────────────────────────────────────────────────────────┤
+│ 📎 Type your message...                              [Send] │  ← Input row
+└─────────────────────────────────────────────────────────────┘
+```
 
-See [Alternatives Considered](#alternatives-considered) for the full evaluation.
+**Rationale:**
 
-**Rendering:** Mentions are rendered as styled text (`TextSpan`), not inline
-widgets (`WidgetSpan`). This means the cursor can be positioned within a mention,
-which requires atomic deletion handling (see below).
+- Flutter's `TextField` cannot embed widgets (chips) inline with editable text.
+- Mention packages like `flutter_mentions` are abandoned (4+ years without
+  updates) and have critical bugs (broken hit testing, no keyboard navigation).
+- Chips above input is a well-established pattern (Gmail compose, Slack).
+- Cleaner separation: text editing is standard; document selection is separate.
 
-**Keyboard Navigation:** The package does not provide built-in keyboard navigation
-(arrow keys + enter to select). We will implement this ourselves using Flutter's
-`Shortcuts` and `Actions` widgets to meet the functional requirement.
+### UI Components
 
-**Display/Markup Duality:** The `flutter_mentions` controller maintains two
-parallel text representations:
+**Document Picker Button (📎):**
 
-| Property | Contains | Example |
-|----------|----------|---------|
-| `controller.text` | Display text (user-visible) | `Use #manual.pdf` |
-| `controller.markupText` | Markup with encoded IDs | `Use #[manual.pdf](uuid-123)` |
+- Positioned at the start of the input row.
+- Opens a popup/dialog with the document picker.
+- Tooltip: "Select documents"
 
-When a user selects a document from the autocomplete:
+**Document Picker Popup:**
 
-1. The **display text** shows the document title with styling (e.g., `#manual.pdf`
-   in a distinct color).
-2. The **markup text** encodes both title and ID using the format defined by
-   `markupBuilder`: `#[title](id)`.
+- Modal popup positioned above or below the input.
+- Contains a search field for filtering.
+- Multi-select list with checkboxes showing all room documents.
+- Selected documents are pre-checked when reopening.
+- Scrollable when list exceeds max height.
+- Keyboard navigable: Tab to search, arrows to navigate, Space to toggle,
+  Escape to close.
+- Closes on click outside or Escape.
 
-This duality allows us to:
+**Implementation:** Use Flutter's `RawAutocomplete` or a simple
+`PopupMenuButton`/`Dialog` with `ListView` and `CheckboxListTile`. No external
+packages required.
 
-- Show human-readable titles to the user.
-- Preserve document IDs for AG-UI state without parsing the display text.
-- Use `controller.text` directly as the prompt sent to the LLM.
+**Document Chips:**
 
-### Trigger Symbol
-
-Use `#` as the trigger symbol for document mentions. We reserve `@` for a
-hypothetical user-mention feature, since `@` is the established convention for
-user mentions across most software.
+- Displayed in a `Wrap` widget above the text input.
+- Each chip shows document name + × button.
+- Use Material `InputChip` or `RawChip` with `onDeleted` callback.
+- Chip row hidden when no documents selected.
 
 ### Document Fetching
 
-- Endpoint: `GET /api/v1/rooms/{room_id}/documents` (existing)
-- Caching strategy: TBD
+**Endpoint:** `GET /api/v1/rooms/{room_id}/documents`
 
-### Error Handling
+**Caching:** Use a Riverpod `FutureProvider.family` keyed by room ID. Documents
+are cached per room and can be refreshed on demand.
 
-**Retry strategy:** When fetching documents fails with a retryable status
-(5xx, 408, 429), retry up to 3 times with exponential backoff (1s, 2s, 4s).
-Non-retryable errors (4xx except 408/429) fail immediately.
+**Error Handling:**
 
-**Fallback behavior:** If all retries are exhausted, treat the response as an
-empty document list. The autocomplete popup displays "Could not load documents."
-and the user can continue typing without document selection.
-
-**Rationale:** Document selection is an enhancement, not a blocking feature.
-Users should always be able to submit prompts. A failed fetch degrades gracefully
-to the existing behavior (RAG across all documents).
-
-**Testing approach:**
-
-1. **Unit tests for retry logic:**
-   - Mock HTTP client to return 503, verify 3 retry attempts with correct delays.
-   - Mock HTTP client to return 404, verify immediate failure (no retries).
-   - Mock HTTP client to succeed on 2nd attempt, verify result returned.
-
-2. **Widget tests for UI states:**
-   - Provide mock that returns loading state, verify spinner displayed.
-   - Provide mock that returns empty list, verify "No documents" message.
-   - Provide mock that throws after retries, verify "Could not load" message.
-   - Verify user can dismiss error state and continue typing.
-
-3. **Integration test (optional):**
-   - Use a test backend or WireMock to simulate transient failures.
-   - Verify end-to-end retry behavior in a realistic scenario.
+- Retry up to 3 times on retryable errors (5xx, 408, 429) with exponential
+  backoff (1s, 2s, 4s).
+- Non-retryable errors (4xx except 408/429) fail immediately.
+- On exhausted retries, show "Could not load documents. Tap to retry." in the
+  picker.
+- Document selection is optional—users can always submit without it.
 
 ### State Management
 
+**Local Selection State:**
+
+Selected documents are stored in a `Set<RAGDocument>` managed by the input
+widget's state. This set:
+
+- Populates the chip row.
+- Filters the picker (already-selected documents are checked, not hidden).
+- Provides document IDs for AG-UI state on submit.
+
+**Persistence Across Runs:**
+
+Document selection persists within a thread until the user explicitly removes
+documents. The selection is stored per-thread, either:
+
+- In widget state (if thread context is preserved), or
+- In a Riverpod provider keyed by thread ID.
+
+Switching threads clears/restores the selection for that thread.
+
 **AG-UI State for Document Filtering:**
 
-Selected documents are communicated to the backend via the AG-UI state. When
-submitting a run, the frontend includes a `filter_documents` object in
-`RunAgentInput.state`:
+Selected documents are communicated to the backend via AG-UI state. On submit,
+the frontend includes a `filter_documents` object in `RunAgentInput.state`:
 
 ```json
 {
@@ -116,197 +119,98 @@ submitting a run, the frontend includes a `filter_documents` object in
 }
 ```
 
-- `document_ids`: List of document UUIDs, or `null`/absent for no filtering.
-- The backend `ask_with_rich_citations` tool reads this state and builds a
-  LanceDB filter: `id IN ('uuid-1', 'uuid-2')`.
+- `document_ids`: List of document UUIDs, or `null`/absent if no filtering.
+- The backend `ask_with_rich_citations` tool reads this and applies a LanceDB
+  filter.
 
 **FilterDocuments Model:**
 
 - **Python**: Defined in `soliplex/src/soliplex/agui/features.py`
-- **Dart**: Generated via JSON Schema + quicktype (see
-  `soliplex/scripts/generate_dart_models.sh`)
-- The Dart class lives in `lib/core/models/agui_features/filter_documents.dart`
-
-**Frontend State:**
-
-- Selected documents are tracked locally during prompt composition.
-- On submit, the frontend:
-  1. Builds the prompt text with document titles (for LLM context).
-  2. Populates `RunAgentInput.state["filter_documents"]` with document IDs.
-
-### Selection Tracking
-
-We maintain a local `Set<DocumentRecord>` as the single source of truth for
-selected documents, where each record contains:
-
-```dart
-class DocumentRecord {
-  final String id;    // Document UUID (for AG-UI state)
-  final String name;  // Document title (for display and filtering)
-}
-```
-
-This set is used for:
-
-1. **Autocomplete filtering**: Exclude already-selected documents from suggestions.
-2. **AG-UI state population**: Extract IDs on submit.
-3. **Prompt text**: Extract names for display.
-
-**Tracking additions:** Use `flutter_mentions`' `onMentionAdd` callback, which
-provides the full mention data map (including `id` and `display`) when a document
-is selected.
-
-**Tracking removals:** Derive from atomic deletion events (see below). When a
-mention is atomically deleted, we remove the corresponding record from the set.
-
-**Markup configuration:** Configure `markupBuilder` to produce the parseable
-format described in "Display/Markup Duality" above:
-
-```dart
-markupBuilder: (trigger, mention, value) => '$trigger[$mention]($value)',
-```
-
-### Atomic Deletion
-
-Since `flutter_mentions` renders mentions as styled text (`TextSpan`), the cursor
-can be positioned within a mention. The package does not provide atomic deletion
-(deleting the entire mention when backspace is pressed). We implement this
-ourselves.
-
-**Implementation approach:**
-
-1. **Intercept backspace**: Wrap the input with a `Focus` widget using
-   `onKeyEvent` to catch `LogicalKeyboardKey.backspace`.
-
-2. **Detect cursor position**: Get `controller.selection.start` to find the
-   cursor offset.
-
-3. **Find mention boundaries**: Parse `markupText` to identify mention spans and
-   their corresponding positions in the display text.
-
-4. **Delete entire mention**: If the cursor is within or immediately after a
-   mention span, delete the entire span and update the controller value.
-
-```dart
-Focus(
-  onKeyEvent: (node, event) {
-    if (event is KeyDownEvent &&
-        event.logicalKey == LogicalKeyboardKey.backspace) {
-      final cursor = controller.selection.start;
-      final mention = findMentionContaining(cursor);
-      if (mention != null) {
-        deleteMention(mention);
-        selectedDocuments.remove(mention.record);
-        return KeyEventResult.handled;
-      }
-    }
-    return KeyEventResult.ignored;
-  },
-  child: FlutterMentions(...),
-)
-```
-
-**Mobile keyboards:** On-screen keyboards may not fire key events for backspace.
-As a fallback, we use `onMarkupChanged` to detect when a mention becomes partial
-(unparseable) and delete it entirely.
+- **Dart**: Generated via JSON Schema + quicktype
 
 ### Prompt Format
 
-**Decision:** Structured payload with separation of concerns.
+The prompt text sent to the LLM is **plain text** without any document markup.
+Document filtering is handled entirely via AG-UI state, not by parsing the
+prompt.
 
-- **Prompt text**: Contains document **titles** (human-readable, gives LLM
-  context).
-- **AG-UI state**: Contains document **IDs** (for RAG filtering).
+Example:
 
-Example prompt text:
+- **Prompt text:** `Which symbol indicates an issue with oil level?`
+- **AG-UI state:** `{"filter_documents": {"document_ids": ["uuid-1", "uuid-2"]}}`
 
-```text
-Which symbol indicates an issue with oil level? Use #mercedes_c330_manual.pdf
-and #mercedes_c330_troubleshooting.pdf
-```
-
-Corresponding state:
-
-```json
-{
-  "filter_documents": {
-    "document_ids": ["uuid-manual", "uuid-troubleshooting"]
-  }
-}
-```
-
-This approach:
-
-- Keeps the state schema minimal (just IDs).
-- Gives the LLM readable document references in the prompt.
-- Avoids parsing complexity on the backend.
+The LLM sees the question; the backend filters RAG to the specified documents.
 
 ## Consequences
 
 ### Positive
 
-- Users get more relevant RAG results by scoping searches.
-- Familiar UX pattern (GitHub Copilot, Slack mentions).
+- Uses standard Flutter widgets—no abandoned third-party packages.
+- Clear separation between text input and document selection.
+- Multi-select picker is more efficient than one-at-a-time inline mentions.
+- Selection persistence reduces repetitive selection across runs.
+- Simpler implementation—no cursor management, overlay positioning hacks, or
+  atomic deletion logic.
 
 ### Negative
 
-- Adds complexity to prompt input handling.
-- New dependency on `flutter_mentions`.
-- Custom keyboard navigation and atomic deletion implementations required.
+- Document references are not visible in the prompt text itself. Users see chips
+  but the LLM doesn't see document names in the prompt.
+- Requires managing selection state persistence per thread.
 
 ### Risks
 
-- Custom implementations (keyboard navigation, atomic deletion) add maintenance
-  burden and may have edge cases on specific platforms.
-- Mobile keyboard backspace detection may be unreliable; fallback logic needed.
-- Performance if room has many documents.
+- Performance if room has many documents (hundreds). May need virtualized list
+  or pagination in picker.
+- Thread-keyed state adds complexity if thread switching is frequent.
 
 ## Alternatives Considered
 
-### UI Component Packages
+### Inline Mentions with flutter_mentions
 
-Evaluated packages for mention/autocomplete functionality:
+**Evaluated and rejected.** The `flutter_mentions` package:
 
-| Criteria     | flutter_mentions | super_editor | extended_text_field | mentionable_text_field |
-| ------------ | ---------------- | ------------ | ------------------- | ---------------------- |
-| Intrusion    | Medium           | High         | Low                 | Low                    |
-| License      | MIT, Free        | MIT, Free    | MIT, Free           | MIT, Free              |
-| Completeness | High             | Very High    | Medium              | Medium                 |
-| Maintenance  | Active           | Very Active  | Moderate            | Stale                  |
-| Pub likes    | ~300             | ~800         | ~400                | ~50                    |
+- Has not been updated in 4+ years.
+- Has broken hit testing (taps on suggestions don't register).
+- Lacks keyboard navigation for the suggestion popup.
+- Uses `flutter_portal` which adds complexity.
+- Would require custom implementations for atomic deletion and keyboard nav.
 
-**Why not the others:**
+### Inline Mentions with Custom Implementation
 
-| Option                       | Why not chosen                                     |
-| ---------------------------- | -------------------------------------------------- |
-| `super_editor`               | High intrusion—architectural overhaul              |
-| `extended_text_field`        | Medium completeness, moderate maintenance          |
-| `mentionable_text_field`     | Stale maintenance, low pub likes                   |
-| `mention_tag_text_field`     | Lower adoption (~29 likes), no overlay positioning |
-| Custom `TextField` + Overlay | Reinvents solved problems (cursor, overlay)        |
+Building inline mentions from scratch using `TextField` + `Overlay` would
+require solving:
+
+- Cursor positioning within styled mention spans.
+- Atomic deletion when backspacing into a mention.
+- Overlay positioning relative to cursor.
+- Mobile keyboard compatibility.
+
+This is significant complexity for limited UX benefit over the chips approach.
+
+### Other Mention Packages
+
+| Package                  | Status                                     |
+| ------------------------ | ------------------------------------------ |
+| `super_editor`           | Active, but high intrusion (rich text)     |
+| `extended_text_field`    | Moderate maintenance, medium completeness  |
+| `mentionable_text_field` | Stale, low adoption                        |
+
+None offer a maintained, low-intrusion inline mention solution.
 
 ## Known Gaps
 
-The following limitations are intentionally deferred for future work:
-
 1. **Document ID Validation**: The backend does not validate that submitted
-   `document_ids` exist in the room's RAG database. Invalid IDs are silently
-   ignored (the RAG query returns no matches for those IDs). This is acceptable
-   for MVP but may warrant validation in the future for better error messaging.
+   `document_ids` exist. Invalid IDs are silently ignored.
 
-2. **State Confirmation**: The frontend has no explicit confirmation that the
-   backend applied the document filter. The AG-UI protocol could be extended
-   with a `state_applied` event if needed.
+2. **Stale Document References**: If a document is deleted after selection but
+   before submit, the reference becomes stale. No client-side validation.
 
-3. **Stale Document References**: If a document is deleted after the user
-   selects it but before submitting, the reference becomes stale. No
-   client-side validation is performed.
+3. **Large Document Lists**: No pagination or virtualization in the initial
+   implementation. May need optimization for rooms with 100+ documents.
 
 ## References
 
-- [flutter_mentions on pub.dev](https://pub.dev/packages/flutter_mentions)
-- [flutter_mentions GitHub](https://github.com/fayeed/flutter_mentions)
-- [mention_tag_text_field on pub.dev](https://pub.dev/packages/mention_tag_text_field)
-- [super_editor on pub.dev](https://pub.dev/packages/super_editor)
-- [Flutter Actions and Shortcuts](https://docs.flutter.dev/ui/interactivity/actions-and-shortcuts)
 - [Material Design Input Chips](https://m3.material.io/components/chips/overview)
+- [Flutter RawAutocomplete](https://api.flutter.dev/flutter/widgets/RawAutocomplete-class.html)
+- [Riverpod FutureProvider.family](https://riverpod.dev/docs/providers/future_provider)
