@@ -14,6 +14,50 @@ import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 import '../../../helpers/test_helpers.dart';
 
 void main() {
+  group('formatDocumentTitle', () {
+    test('removes file:// prefix and shows up to 2 parent folders', () {
+      expect(
+        formatDocumentTitle('file:///path/to/my/favorite/document.txt'),
+        equals('my/favorite/document.txt'),
+      );
+    });
+
+    test('handles paths without file:// prefix', () {
+      expect(
+        formatDocumentTitle('/path/to/file.pdf'),
+        equals('path/to/file.pdf'),
+      );
+    });
+
+    test('handles deep paths', () {
+      expect(
+        formatDocumentTitle('/a/b/c/d/e/f.txt'),
+        equals('d/e/f.txt'),
+      );
+    });
+
+    test('handles short paths', () {
+      expect(
+        formatDocumentTitle('/parent/file.txt'),
+        equals('parent/file.txt'),
+      );
+    });
+
+    test('handles filename only', () {
+      expect(
+        formatDocumentTitle('document.txt'),
+        equals('document.txt'),
+      );
+    });
+
+    test('handles paths with exactly 3 segments', () {
+      expect(
+        formatDocumentTitle('/a/b/c.txt'),
+        equals('a/b/c.txt'),
+      );
+    });
+  });
+
   group('ChatInput', () {
     group('Send Button', () {
       testWidgets('is enabled when canSendMessage is true', (tester) async {

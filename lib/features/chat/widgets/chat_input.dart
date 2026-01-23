@@ -6,6 +6,31 @@ import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 
+/// Formats a document path/title to show filename with up to 2 parent folders.
+///
+/// Examples:
+/// - "file:///path/to/my/favorite/document.txt" -> "my/favorite/document.txt"
+/// - "/path/to/file.pdf" -> "to/file.pdf"
+/// - "document.txt" -> "document.txt"
+String formatDocumentTitle(String title) {
+  // Remove file:// prefix if present
+  var path = title;
+  if (path.startsWith('file://')) {
+    path = path.substring(7);
+  }
+
+  // Split by path separator
+  final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+
+  if (segments.isEmpty) return title;
+
+  // Take the last 3 segments (filename + up to 2 parent folders)
+  final displaySegments =
+      segments.length <= 3 ? segments : segments.sublist(segments.length - 3);
+
+  return displaySegments.join('/');
+}
+
 /// Widget for chat message input.
 ///
 /// Provides:
@@ -134,7 +159,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                         ),
                         const SizedBox(width: SoliplexSpacing.s1),
                         Text(
-                          doc.title,
+                          formatDocumentTitle(doc.title),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -282,7 +307,7 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
                 final doc = documents[index];
                 final isSelected = _selected.contains(doc);
                 return CheckboxListTile(
-                  title: Text(doc.title),
+                  title: Text(formatDocumentTitle(doc.title)),
                   value: isSelected,
                   onChanged: (_) => _toggleDocument(doc),
                 );
