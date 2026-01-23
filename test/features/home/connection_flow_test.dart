@@ -117,16 +117,18 @@ void main() {
         );
       });
 
-      test('returns RequireLoginResult with exitNoAuthMode when NoAuthRequired',
-          () {
-        final result = determinePostConnectResult(
-          hasProviders: true,
-          currentAuthState: const NoAuthRequired(),
-        );
+      test(
+        'returns RequireLoginResult with exitNoAuthMode when NoAuthRequired',
+        () {
+          final result = determinePostConnectResult(
+            hasProviders: true,
+            currentAuthState: const NoAuthRequired(),
+          );
 
-        expect(result, isA<RequireLoginResult>());
-        expect((result as RequireLoginResult).shouldExitNoAuthMode, isTrue);
-      });
+          expect(result, isA<RequireLoginResult>());
+          expect((result as RequireLoginResult).shouldExitNoAuthMode, isTrue);
+        },
+      );
 
       test(
           'returns RequireLoginResult without exitNoAuthMode when '
@@ -140,16 +142,18 @@ void main() {
         expect((result as RequireLoginResult).shouldExitNoAuthMode, isFalse);
       });
 
-      test('returns RequireLoginResult without exitNoAuthMode when AuthLoading',
-          () {
-        final result = determinePostConnectResult(
-          hasProviders: true,
-          currentAuthState: const AuthLoading(),
-        );
+      test(
+        'returns RequireLoginResult without exitNoAuthMode when AuthLoading',
+        () {
+          final result = determinePostConnectResult(
+            hasProviders: true,
+            currentAuthState: const AuthLoading(),
+          );
 
-        expect(result, isA<RequireLoginResult>());
-        expect((result as RequireLoginResult).shouldExitNoAuthMode, isFalse);
-      });
+          expect(result, isA<RequireLoginResult>());
+          expect((result as RequireLoginResult).shouldExitNoAuthMode, isFalse);
+        },
+      );
     });
   });
 

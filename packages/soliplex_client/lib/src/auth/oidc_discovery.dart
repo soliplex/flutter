@@ -84,11 +84,7 @@ Future<OidcDiscoveryDocument> fetchOidcDiscoveryDocument(
 }) async {
   final HttpResponse response;
   try {
-    response = await httpClient.request(
-      'GET',
-      discoveryUrl,
-      timeout: timeout,
-    );
+    response = await httpClient.request('GET', discoveryUrl, timeout: timeout);
   } on Exception catch (e) {
     throw NetworkException(
       message: 'Failed to fetch OIDC discovery document',

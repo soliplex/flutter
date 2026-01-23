@@ -68,9 +68,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(configProvider.notifier).setBaseUrl(
-            'https://api.example.com',
-          );
+      await container
+          .read(configProvider.notifier)
+          .setBaseUrl('https://api.example.com');
 
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('backend_base_url'), 'https://api.example.com');
@@ -84,9 +84,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(configProvider.notifier).setBaseUrl(
-            'https://api.example.com',
-          );
+      await container
+          .read(configProvider.notifier)
+          .setBaseUrl('https://api.example.com');
 
       final config = container.read(configProvider);
       expect(config.baseUrl, 'https://api.example.com');
@@ -100,9 +100,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      await container.read(configProvider.notifier).setBaseUrl(
-            '  https://api.example.com  ',
-          );
+      await container
+          .read(configProvider.notifier)
+          .setBaseUrl('  https://api.example.com  ');
 
       final config = container.read(configProvider);
       expect(config.baseUrl, 'https://api.example.com');
@@ -133,20 +133,17 @@ void main() {
       addTearDown(container.dispose);
 
       // Set a URL first
-      await container.read(configProvider.notifier).setBaseUrl(
-            'https://api.example.com',
-          );
+      await container
+          .read(configProvider.notifier)
+          .setBaseUrl('https://api.example.com');
 
       // Set the same URL - should be a no-op
-      await container.read(configProvider.notifier).setBaseUrl(
-            'https://api.example.com',
-          );
+      await container
+          .read(configProvider.notifier)
+          .setBaseUrl('https://api.example.com');
 
       // Verify it was only saved once (state didn't change twice)
-      expect(
-        container.read(configProvider).baseUrl,
-        'https://api.example.com',
-      );
+      expect(container.read(configProvider).baseUrl, 'https://api.example.com');
     });
 
     test('set directly updates state', () {
@@ -157,9 +154,9 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      container.read(configProvider.notifier).set(
-            const AppConfig(baseUrl: 'https://custom.example.com'),
-          );
+      container
+          .read(configProvider.notifier)
+          .set(const AppConfig(baseUrl: 'https://custom.example.com'));
 
       final config = container.read(configProvider);
       expect(config.baseUrl, 'https://custom.example.com');

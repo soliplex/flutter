@@ -30,14 +30,10 @@ class NewConversationButton extends StatelessWidget {
 
     return Material(
       color: colorScheme.primaryContainer,
-      borderRadius: BorderRadius.circular(
-        soliplexTheme.radii.md,
-      ),
+      borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
       child: InkWell(
         onTap: onPressed,
-        borderRadius: BorderRadius.circular(
-          soliplexTheme.radii.md,
-        ),
+        borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
           child: Row(
@@ -62,9 +58,7 @@ class NewConversationButton extends StatelessWidget {
               ExcludeSemantics(
                 child: Icon(
                   Icons.arrow_forward_ios,
-                  color: colorScheme.onPrimaryContainer.withValues(
-                    alpha: 0.5,
-                  ),
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.5),
                   size: 16,
                 ),
               ),

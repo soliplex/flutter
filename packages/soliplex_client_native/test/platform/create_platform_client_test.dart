@@ -34,8 +34,9 @@ void main() {
     }
 
     final hasNativeLibs = canLoadNativeLibraries();
-    final skipNativeTests =
-        !hasNativeLibs ? 'Native libraries not available in test env' : null;
+    final skipNativeTests = !hasNativeLibs
+        ? 'Native libraries not available in test env'
+        : null;
 
     test('returns SoliplexHttpClient', skip: skipNativeTests, () {
       final client = createPlatformClient();

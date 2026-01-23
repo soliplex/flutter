@@ -979,39 +979,41 @@ void main() {
       expect(cache['thread-1']!.length, greaterThan(0));
     });
 
-    test('stream onDone without RUN_FINISHED transitions to Completed',
-        () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-        ],
-      );
+    test(
+      'stream onDone without RUN_FINISHED transitions to Completed',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWithValue(mockApi),
+            agUiClientProvider.overrideWithValue(mockAgUiClient),
+          ],
+        );
 
-      addTearDown(container.dispose);
+        addTearDown(container.dispose);
 
-      // Start a run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        // Start a run
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+              roomId: 'room-1',
+              threadId: 'thread-1',
+              userMessage: 'Hello',
+            );
 
-      // Verify running
-      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+        // Verify running
+        expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
-      // Close stream without sending RUN_FINISHED
-      await eventStreamController.close();
+        // Close stream without sending RUN_FINISHED
+        await eventStreamController.close();
 
-      // Allow onDone to be processed
-      await Future<void>.delayed(Duration.zero);
+        // Allow onDone to be processed
+        await Future<void>.delayed(Duration.zero);
 
-      // Verify state is CompletedState with Success
-      final state = container.read(activeRunNotifierProvider);
-      expect(state, isA<CompletedState>());
-      final completedState = state as CompletedState;
-      expect(completedState.result, isA<Success>());
-    });
+        // Verify state is CompletedState with Success
+        final state = container.read(activeRunNotifierProvider);
+        expect(state, isA<CompletedState>());
+        final completedState = state as CompletedState;
+        expect(completedState.result, isA<Success>());
+      },
+    );
 
     test('stream onDone updates cache with messages', () async {
       final container = ProviderContainer(
@@ -1158,10 +1160,7 @@ void main() {
 
       // Send more events (race condition)
       eventStreamController.add(
-        const TextMessageContentEvent(
-          messageId: 'msg-2',
-          delta: 'Late event',
-        ),
+        const TextMessageContentEvent(messageId: 'msg-2', delta: 'Late event'),
       );
       await Future<void>.delayed(Duration.zero);
 

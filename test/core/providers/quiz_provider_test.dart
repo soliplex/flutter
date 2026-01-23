@@ -28,9 +28,7 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question 1', type: FreeForm()),
         ],
       );
-      when(
-        () => mockApi.getQuiz(roomId, quizId),
-      ).thenAnswer((_) async => quiz);
+      when(() => mockApi.getQuiz(roomId, quizId)).thenAnswer((_) async => quiz);
 
       final container = ProviderContainer(
         overrides: [apiProvider.overrideWithValue(mockApi)],
@@ -264,14 +262,15 @@ void main() {
           questionState: const AwaitingInput(),
         );
 
-        expect(a, equals(b));
-        expect(a.hashCode, equals(b.hashCode));
-        expect(
-          a,
-          isNot(equals(c)),
-          reason: 'Different results should be unequal',
-        );
-      });
+          expect(a, equals(b));
+          expect(a.hashCode, equals(b.hashCode));
+          expect(
+            a,
+            isNot(equals(c)),
+            reason: 'Different results should be unequal',
+          );
+        },
+      );
 
       test('equality detects different currentIndex', () {
         final quiz = Quiz(
@@ -386,11 +385,7 @@ void main() {
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
-        expect(
-          a,
-          isNot(equals(c)),
-          reason: 'Different quiz should be unequal',
-        );
+        expect(a, isNot(equals(c)), reason: 'Different quiz should be unequal');
         expect(
           a,
           isNot(equals(d)),
@@ -1281,16 +1276,12 @@ void main() {
       final quiz1 = Quiz(
         id: 'quiz-1',
         title: 'Quiz 1',
-        questions: const [
-          QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
-        ],
+        questions: const [QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm())],
       );
       final quiz2 = Quiz(
         id: 'quiz-2',
         title: 'Quiz 2',
-        questions: const [
-          QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm()),
-        ],
+        questions: const [QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm())],
       );
 
       // Start quiz 1
@@ -1316,14 +1307,8 @@ void main() {
       container.read(quizSessionProvider(key1).notifier).nextQuestion();
 
       // Quiz 1 completed, quiz 2 still in progress
-      expect(
-        container.read(quizSessionProvider(key1)),
-        isA<QuizCompleted>(),
-      );
-      expect(
-        container.read(quizSessionProvider(key2)),
-        isA<QuizInProgress>(),
-      );
+      expect(container.read(quizSessionProvider(key1)), isA<QuizCompleted>());
+      expect(container.read(quizSessionProvider(key2)), isA<QuizInProgress>());
     });
   });
 }

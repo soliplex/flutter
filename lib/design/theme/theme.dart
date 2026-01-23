@@ -34,9 +34,7 @@ ThemeData soliplexLightTheme({SoliplexColors colors = lightSoliplexColors}) {
       actionsPadding: const EdgeInsets.symmetric(
         horizontal: SoliplexSpacing.s2,
       ),
-      shape: Border(
-        bottom: BorderSide(color: colors.border),
-      ),
+      shape: Border(bottom: BorderSide(color: colors.border)),
     ),
     dividerTheme: DividerThemeData(
       color: colors.border,
@@ -226,9 +224,7 @@ ThemeData soliplexDarkTheme({SoliplexColors colors = darkSoliplexColors}) {
       actionsPadding: const EdgeInsets.symmetric(
         horizontal: SoliplexSpacing.s2,
       ),
-      shape: Border(
-        bottom: BorderSide(color: colors.border),
-      ),
+      shape: Border(bottom: BorderSide(color: colors.border)),
     ),
     dividerTheme: DividerThemeData(
       color: colors.border,

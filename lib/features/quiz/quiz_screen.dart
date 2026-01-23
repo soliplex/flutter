@@ -15,11 +15,7 @@ import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 /// Displays questions one at a time, collects answers, and shows results.
 /// Uses [quizSessionProvider] to manage quiz state with sealed classes.
 class QuizScreen extends ConsumerStatefulWidget {
-  const QuizScreen({
-    required this.roomId,
-    required this.quizId,
-    super.key,
-  });
+  const QuizScreen({required this.roomId, required this.quizId, super.key});
 
   final String roomId;
   final String quizId;
@@ -152,8 +148,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         // Progress bar
         LinearProgressIndicator(
           value: session.progress,
-          backgroundColor:
-              Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
         ),
 
         // Question content
@@ -381,10 +378,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       ),
       child: Row(
         children: [
-          Icon(
-            isCorrect ? Icons.check_circle : Icons.cancel,
-            color: iconColor,
-          ),
+          Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: iconColor),
           const SizedBox(width: SoliplexSpacing.s2),
           Expanded(
             child: Column(
@@ -431,9 +425,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ),
       Answered() => FilledButton(
           onPressed: _nextQuestion,
-          child: Text(
-            session.isLastQuestion ? 'See Results' : 'Next Question',
-          ),
+          child: Text(session.isLastQuestion ? 'See Results' : 'Next Question'),
         ),
     };
   }
@@ -456,11 +448,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                scoreIcon,
-                size: 64,
-                color: scoreColor,
-              ),
+              Icon(scoreIcon, size: 64, color: scoreColor),
               const SizedBox(height: SoliplexSpacing.s4),
               Text(
                 'Quiz Complete!',
@@ -529,10 +517,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Network error: ${e.message}'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: _submitAnswer,
-            ),
+            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
           ),
         );
       }

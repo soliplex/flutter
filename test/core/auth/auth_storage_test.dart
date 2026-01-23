@@ -79,37 +79,39 @@ void main() {
       ).called(1);
     });
 
-    test('does not write endSessionEndpoint (native uses discoveryUrl)',
-        () async {
-      when(
-        () => mockStorage.write(
-          key: any(named: 'key'),
-          value: any(named: 'value'),
-        ),
-      ).thenAnswer((_) async {});
+    test(
+      'does not write endSessionEndpoint (native uses discoveryUrl)',
+      () async {
+        when(
+          () => mockStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          ),
+        ).thenAnswer((_) async {});
 
-      await authStorage.saveTokens(
-        Authenticated(
-          accessToken: 'access-token',
-          refreshToken: 'refresh-token',
-          expiresAt: DateTime(2025, 12, 31, 12),
-          issuerId: 'issuer-1',
-          issuerDiscoveryUrl: 'https://idp.example.com/.well-known',
-          clientId: 'client-app',
-          idToken: 'id-token',
-          endSessionEndpoint: 'https://idp.example.com/logout',
-        ),
-      );
+        await authStorage.saveTokens(
+          Authenticated(
+            accessToken: 'access-token',
+            refreshToken: 'refresh-token',
+            expiresAt: DateTime(2025, 12, 31, 12),
+            issuerId: 'issuer-1',
+            issuerDiscoveryUrl: 'https://idp.example.com/.well-known',
+            clientId: 'client-app',
+            idToken: 'id-token',
+            endSessionEndpoint: 'https://idp.example.com/logout',
+          ),
+        );
 
-      // Native doesn't persist endSessionEndpoint - flutter_appauth
-      // fetches it from discoveryUrl at logout time.
-      verifyNever(
-        () => mockStorage.write(
-          key: AuthStorageKeys.endSessionEndpoint,
-          value: any(named: 'value'),
-        ),
-      );
-    });
+        // Native doesn't persist endSessionEndpoint - flutter_appauth
+        // fetches it from discoveryUrl at logout time.
+        verifyNever(
+          () => mockStorage.write(
+            key: AuthStorageKeys.endSessionEndpoint,
+            value: any(named: 'value'),
+          ),
+        );
+      },
+    );
   });
 
   void setupAllRequiredReads({
