@@ -16,5 +16,7 @@ import 'package:soliplex_frontend/soliplex_frontend.dart';
 /// }
 /// ```
 Future<void> main() async {
-  await runSoliplexApp();
+  await runSoliplexApp(
+    config: const SoliplexConfig(oauthRedirectScheme: 'ai.soliplex.client'),
+  );
 }
