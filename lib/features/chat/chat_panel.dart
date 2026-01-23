@@ -47,6 +47,13 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
   Widget build(BuildContext context) {
     final runState = ref.watch(activeRunNotifierProvider);
     final room = ref.watch(currentRoomProvider);
+    final messagesAsync = ref.watch(allMessagesProvider);
+    final isStreaming = ref.watch(isStreamingProvider);
+
+    // Show suggestions only when thread is empty and not streaming
+    final messages =
+        messagesAsync.hasValue ? messagesAsync.value! : <ChatMessage>[];
+    final showSuggestions = messages.isEmpty && !isStreaming;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -89,6 +96,8 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                         _selectedDocuments = docs;
                       });
                     },
+                    suggestions: room?.suggestions ?? const [],
+                    showSuggestions: showSuggestions,
                   ),
                 ],
               ),

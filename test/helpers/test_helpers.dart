@@ -351,8 +351,14 @@ class TestData {
     String id = 'test-room',
     String name = 'Test Room',
     String description = '',
+    List<String> suggestions = const [],
   }) {
-    return Room(id: id, name: name, description: description);
+    return Room(
+      id: id,
+      name: name,
+      description: description,
+      suggestions: suggestions,
+    );
   }
 
   static ThreadInfo createThread({

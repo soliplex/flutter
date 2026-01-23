@@ -543,5 +543,140 @@ void main() {
         );
       });
     });
+
+    group('Suggestions', () {
+      testWidgets('shows suggestions when thread is empty and not streaming', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom(
+          suggestions: ['How can I help?', 'Tell me more'],
+        );
+        final mockThread = TestData.createThread();
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              allMessagesProvider.overrideWith((ref) async => []),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert
+        expect(find.text('How can I help?'), findsOneWidget);
+        expect(find.text('Tell me more'), findsOneWidget);
+        expect(find.byType(ActionChip), findsNWidgets(2));
+      });
+
+      testWidgets('hides suggestions when thread has messages', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom(
+          suggestions: ['How can I help?'],
+        );
+        final mockThread = TestData.createThread();
+        final messages = [TestData.createMessage(text: 'Hello')];
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              allMessagesProvider.overrideWith((ref) async => messages),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert
+        expect(find.text('How can I help?'), findsNothing);
+        expect(find.byType(ActionChip), findsNothing);
+      });
+
+      testWidgets('hides suggestions when streaming', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom(
+          suggestions: ['How can I help?'],
+        );
+        final mockThread = TestData.createThread();
+        const conversation = domain.Conversation(
+          threadId: 'test-thread',
+          status: domain.Running(runId: 'test-run'),
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const Scaffold(body: ChatPanel()),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(
+                const RunningState(conversation: conversation),
+              ),
+              allMessagesProvider.overrideWith((ref) async => []),
+            ],
+          ),
+        );
+        // Use pump() instead of pumpAndSettle() - streaming causes continuous
+        // animations that never settle
+        await tester.pump();
+
+        // Assert
+        expect(find.text('How can I help?'), findsNothing);
+        expect(find.byType(ActionChip), findsNothing);
+      });
+
+      testWidgets('tapping suggestion sends message', (tester) async {
+        // Arrange
+        SharedPreferences.setMockInitialValues({});
+        final mockRoom = TestData.createRoom(
+          suggestions: ['How can I help?'],
+        );
+        final mockThread = TestData.createThread();
+
+        late _TrackingActiveRunNotifier runNotifier;
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const ChatPanel(),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              threadSelectionProvider.overrideWith(() {
+                return _TrackingThreadSelectionNotifier(
+                  initialSelection: ThreadSelected(mockThread.id),
+                );
+              }),
+              activeRunNotifierProvider.overrideWith(() {
+                return runNotifier = _TrackingActiveRunNotifier(
+                  initialState: const IdleState(),
+                );
+              }),
+              allMessagesProvider.overrideWith((ref) async => []),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Act: Tap suggestion chip
+        await tester.tap(find.text('How can I help?'));
+        await tester.pumpAndSettle();
+
+        // Assert: startRun was called with the suggestion text
+        expect(runNotifier.lastStartRun, isNotNull);
+        expect(
+          runNotifier.lastStartRun!.userMessage,
+          equals('How can I help?'),
+        );
+      });
+    });
   });
 }
