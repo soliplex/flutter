@@ -227,7 +227,7 @@ void main() {
       final titles = <String>[];
       for (final element in tester.widgetList<ListTile>(listTiles)) {
         final title = element.title;
-        if (title is Text) {
+        if (title is SelectableText) {
           titles.add(title.data ?? '');
         }
       }
