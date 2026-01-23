@@ -111,36 +111,19 @@ class _ChatInputState extends ConsumerState<ChatInput> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Selected document display
+          // Selected document chips
           if (selectedDoc != null)
             Padding(
               padding: const EdgeInsets.only(bottom: SoliplexSpacing.s2),
-              child: Row(
+              child: Wrap(
+                spacing: SoliplexSpacing.s2,
+                runSpacing: SoliplexSpacing.s1,
                 children: [
-                  Icon(
-                    Icons.description,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  const SizedBox(width: SoliplexSpacing.s1),
-                  Expanded(
-                    child: Text(
-                      selectedDoc.title,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _clearSelectedDocument,
-                    icon: const Icon(Icons.close, size: 16),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 24,
-                      minHeight: 24,
-                    ),
-                    tooltip: 'Remove document filter',
+                  InputChip(
+                    label: Text(selectedDoc.title),
+                    avatar: const Icon(Icons.description, size: 18),
+                    onDeleted: _clearSelectedDocument,
+                    deleteButtonTooltipMessage: 'Remove document filter',
                   ),
                 ],
               ),
@@ -162,8 +145,9 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               Expanded(
                 child: CallbackShortcuts(
                   bindings: {
-                    const SingleActivator(LogicalKeyboardKey.enter):
-                        canSend ? _handleSend : () {},
+                    const SingleActivator(LogicalKeyboardKey.enter): canSend
+                        ? _handleSend
+                        : () {},
                     const SingleActivator(LogicalKeyboardKey.escape): () =>
                         _focusNode.unfocus(),
                   },
