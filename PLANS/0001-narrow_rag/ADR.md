@@ -52,6 +52,9 @@ We use a **chips-above-input** pattern rather than inline mentions:
 - Modal popup positioned above or below the input.
 - Contains a search field for filtering.
 - Multi-select list with checkboxes showing all room documents.
+- Each item shows a file type icon based on extension (PDF icon for `.pdf`,
+  Word icon for `.docx`, etc.); unknown/missing extensions use a generic icon.
+- Document paths shortened to filename + up to 2 parent folders.
 - Selected documents are pre-checked when reopening.
 - Scrollable when list exceeds max height.
 - Keyboard navigable: Tab to search, arrows to navigate, Space to toggle,
@@ -60,12 +63,12 @@ We use a **chips-above-input** pattern rather than inline mentions:
 
 **Implementation:** Use Flutter's `RawAutocomplete` or a simple
 `PopupMenuButton`/`Dialog` with `ListView` and `CheckboxListTile`. No external
-packages required.
+packages required. Use a helper function to map file extensions to icon widgets.
 
 **Document Chips:**
 
 - Displayed in a `Wrap` widget above the text input.
-- Each chip shows document name + × button.
+- Each chip shows file type icon + shortened document path + × button.
 - Use Material `InputChip` or `RawChip` with `onDeleted` callback.
 - Chip row hidden when no documents selected.
 
