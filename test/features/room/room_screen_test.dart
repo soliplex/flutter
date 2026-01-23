@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
@@ -513,6 +515,7 @@ void main() {
         UncontrolledProviderScope(
           container: ProviderContainer(
             overrides: [
+              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
               threadsProvider('general').overrideWith((ref) async => []),
               lastViewedThreadProvider(
                 'general',

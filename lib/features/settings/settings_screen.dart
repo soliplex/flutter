@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
@@ -6,6 +7,8 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
+import 'package:soliplex_frontend/design/design.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -20,23 +23,43 @@ class SettingsScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final backendVersion = ref.watch(backendVersionInfoProvider);
 
+    final appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+
     return ListView(
       children: [
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('App Version'),
-          subtitle: Text('${packageInfo.version}+${packageInfo.buildNumber}'),
+          subtitle: SelectableText(
+            appVersion,
+          ),
+          trailing: IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () => Clipboard.setData(
+              ClipboardData(
+                text: appVersion,
+              ),
+            ),
+          ),
         ),
         ListTile(
           leading: const Icon(Icons.dns),
           title: const Text('Backend URL'),
-          subtitle: Text(config.baseUrl),
+          subtitle: SelectableText(config.baseUrl),
+          trailing: IconButton(
+            icon: const Icon(Icons.copy),
+            onPressed: () => Clipboard.setData(
+              ClipboardData(
+                text: config.baseUrl,
+              ),
+            ),
+          ),
         ),
         ListTile(
           leading: const Icon(Icons.cloud_outlined),
           title: const Text('Backend Version'),
           subtitle: backendVersion.when(
-            data: (info) => Text(info.soliplexVersion),
+            data: (info) => SelectableText(info.soliplexVersion),
             loading: () => const Text('Loading...'),
             error: (error, stack) {
               debugPrint('Failed to load backend version: $error');
@@ -44,9 +67,27 @@ class SettingsScreen extends ConsumerWidget {
               return const Text('Unavailable');
             },
           ),
-          trailing: TextButton(
-            onPressed: () => context.push('/settings/backend-versions'),
-            child: const Text('View All'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            spacing: SoliplexSpacing.s2,
+            children: [
+              TextButton(
+                onPressed: () => context.push('/settings/backend-versions'),
+                child: const Text('View All'),
+              ),
+              IconButton(
+                icon: const Icon(Icons.copy),
+                onPressed: () => Clipboard.setData(
+                  ClipboardData(
+                    text: backendVersion.maybeWhen(
+                      data: (info) => info.soliplexVersion,
+                      orElse: () => 'Unavailable',
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const Divider(),
@@ -72,8 +113,16 @@ class _AuthSection extends ConsumerWidget {
               subtitle: Text('via $issuerId'),
             ),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
+              leading: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.danger,
+              ),
+              title: Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.danger,
+                ),
+              ),
               onTap: () => _confirmSignOut(context, ref),
             ),
           ],
@@ -100,8 +149,16 @@ class _AuthSection extends ConsumerWidget {
               subtitle: Text('Backend does not require login'),
             ),
             ListTile(
-              leading: const Icon(Icons.link_off),
-              title: const Text('Disconnect'),
+              leading: Icon(
+                Icons.link_off,
+                color: Theme.of(context).colorScheme.danger,
+              ),
+              title: Text(
+                'Disconnect',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.danger,
+                ),
+              ),
               onTap: () => _disconnect(context, ref),
             ),
           ],

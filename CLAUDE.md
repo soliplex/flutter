@@ -83,9 +83,23 @@ docs/                        # Documentation (see index.md)
 
 Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
 
+**Never use `// ignore:` directives.** Restructure code to eliminate the warning instead
+of suppressing it. If a warning seems unavoidable, it usually means the code design
+needs rethinking.
+
 **Coverage target:** 85%+
 
 ## Testing
+
+**Context-aware test running:**
+
+- **Targeted tests:** Run directly for files you modified (e.g., specific test file paths)
+- **Full test suite:** Ask the user to run it and report results back to preserve context
+
+The full test suite output is verbose and consumes significant context. When you need
+to verify all tests pass (e.g., before commit), prompt:
+
+> "Please run the full test suite and let me know if there are any failures."
 
 **Helpers** (test/helpers/test_helpers.dart):
 

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
+import 'package:soliplex_frontend/design/design.dart';
 
 /// Screen displaying all backend package versions with search functionality.
 class BackendVersionsScreen extends ConsumerStatefulWidget {
@@ -82,8 +84,23 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
                     final packageName = sortedKeys[index];
                     final version = filteredPackages[packageName]!;
                     return ListTile(
-                      title: Text(packageName),
-                      trailing: Text(version),
+                      title: SelectableText(packageName),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        spacing: SoliplexSpacing.s2,
+                        children: [
+                          SelectableText(version),
+                          IconButton(
+                            icon: const Icon(Icons.copy),
+                            onPressed: () => Clipboard.setData(
+                              ClipboardData(
+                                text: '$packageName $version',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),

@@ -6,8 +6,12 @@ import 'package:soliplex_frontend/design/tokens/radii.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/design/tokens/typography.dart';
 
-ThemeData soliplexLightTheme() {
-  const colors = lightSoliplexColors;
+/// Creates a light theme using the provided colors.
+///
+/// If [colors] is not provided, uses [lightSoliplexColors] as the default.
+/// This allows white-label apps to customize the color palette while
+/// preserving the theme structure.
+ThemeData soliplexLightTheme({SoliplexColors colors = lightSoliplexColors}) {
   final textTheme = soliplexTextTheme(colors);
 
   return ThemeData(
@@ -194,8 +198,12 @@ ThemeData soliplexLightTheme() {
   );
 }
 
-ThemeData soliplexDarkTheme() {
-  const colors = darkSoliplexColors;
+/// Creates a dark theme using the provided colors.
+///
+/// If [colors] is not provided, uses [darkSoliplexColors] as the default.
+/// This allows white-label apps to customize the color palette while
+/// preserving the theme structure.
+ThemeData soliplexDarkTheme({SoliplexColors colors = darkSoliplexColors}) {
   final textTheme = soliplexTextTheme(colors);
 
   return ThemeData(

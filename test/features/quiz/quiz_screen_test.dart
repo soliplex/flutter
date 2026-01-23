@@ -6,7 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/shared/widgets/loading_indicator.dart';
 
@@ -47,6 +49,7 @@ void main() {
       container: ProviderContainer(
         overrides: [
           packageInfoProviderOverride(testPackageInfo),
+          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           apiProvider.overrideWithValue(api),
         ],
       ),

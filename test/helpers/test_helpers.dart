@@ -18,12 +18,14 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
 
@@ -89,6 +91,9 @@ void registerMocktailFallbacks() {
       authFlowProvider.overrideWithValue(authFlow),
       authStorageProvider.overrideWithValue(storage),
       tokenRefreshServiceProvider.overrideWithValue(refreshService),
+      shellConfigProvider.overrideWithValue(
+        const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
+      ),
     ],
     authFlow: authFlow,
     storage: storage,
@@ -526,6 +531,7 @@ final testThemeData = soliplexLightTheme();
 ///
 /// Automatically includes default overrides for:
 /// - [packageInfoProvider] with [testPackageInfo]
+/// - [shellConfigProvider] with default [SoliplexConfig]
 /// - [backendVersionInfoProvider] with [testBackendVersionInfo]
 ///
 /// Set [skipBackendVersionOverride] to true when providing a custom override
@@ -544,6 +550,9 @@ Widget createTestApp({
     container: ProviderContainer(
       overrides: [
         packageInfoProvider.overrideWithValue(testPackageInfo),
+        shellConfigProvider.overrideWithValue(
+          const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
+        ),
         if (!skipBackendVersionOverride)
           // Use AsyncValue.data for immediate value without pending Futures
           backendVersionInfoProvider.overrideWithValue(
