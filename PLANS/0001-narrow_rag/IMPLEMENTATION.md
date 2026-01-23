@@ -24,28 +24,51 @@ and can be implemented in parallel after slice 1.
 ## Dependency Structure
 
 ```text
-                    [1] Walking skeleton
-                             │
-    ┌───────┬───────┬───────┼───────┬───────┬───────┬───────┬───────┐
-    ▼       ▼       ▼       ▼       ▼       ▼       ▼       ▼       ▼
-   [2]     [3]     [4]     [5]     [6]     [7]     [8]     [9]    [10]
-  chips   multi  search  filter  persist  loading empty  error   kbd
+            [1] Walking skeleton
+                     │
+      ┌──────────────┼──────────────┐
+      │              │              │
+      ▼              ▼              ▼
+     [2]            [6]            [8]
+    chips         persist        empty
+
+                     │
+                     ▼
+                    [3] multi-select
+                     │
+                     ▼
+                    [4] search
+                     │
+                     ▼
+                    [5] filter selected
+                     │
+                     ▼
+                    [7] loading
+                     │
+                     ▼
+                    [9] error + retry
+                     │
+                     ▼
+                   [10] keyboard
 ```
 
-Slices 2-10 all branch from slice 1 and can be implemented in parallel using
-git worktrees. Prioritize by customer value.
+**Parallel from slice 1:** Slices 2, 6, 8 don't touch picker internals.
 
-## Priority Order (by customer value)
+**Stacked (picker chain):** Slices 3→4→5→7→9→10 all modify the picker dialog
+and must be stacked to avoid git conflicts.
 
-1. **Slice 6** - Persistence: biggest friction reducer
-2. **Slice 3** - Multi-select: core expected feature
-3. **Slice 2** - Chips: visual polish, feels complete
-4. **Slice 9** - Error+retry: robustness for production
-5. **Slice 4** - Search: essential with many documents
-6. **Slice 5** - Filter selected: minor convenience
-7. **Slice 7** - Loading: polish
-8. **Slice 8** - Empty room: edge case handling
-9. **Slice 10** - Keyboard nav: accessibility
+## Implementation Order
+
+1. **Slice 1** - Walking skeleton (required first)
+2. **Slice 3** - Multi-select (start picker chain)
+3. **Slice 6** - Persistence (parallel with picker chain)
+4. **Slice 2** - Chips (parallel with picker chain)
+5. **Slice 4** - Search (continues picker chain)
+6. **Slice 5** - Filter selected
+7. **Slice 9** - Error + retry
+8. **Slice 8** - Empty room (parallel, low priority)
+9. **Slice 7** - Loading
+10. **Slice 10** - Keyboard nav
 
 ---
 
@@ -389,16 +412,17 @@ git worktrees. Prioritize by customer value.
 
 ## Parallel Development with Git Worktrees
 
-After slice 1 merges, create worktrees for parallel development:
+After slice 1 merges, use worktrees for the parallel slices:
 
 ```bash
-# From main repo
+# Parallel slices (branch from slice 1)
 git worktree add ../narrow-rag-chips feat/narrow-rag/02-chips
-git worktree add ../narrow-rag-multi feat/narrow-rag/03-multi-select
-# etc.
+git worktree add ../narrow-rag-persist feat/narrow-rag/06-persistence
+git worktree add ../narrow-rag-empty feat/narrow-rag/08-empty-room
 ```
 
-Each worktree branches from slice 1 and can be developed independently.
+The picker chain (slices 3→4→5→7→9→10) must be developed sequentially in the
+main worktree to avoid conflicts.
 
 ## Definition of Done (per slice)
 
