@@ -974,5 +974,136 @@ void main() {
         expect(checkboxes[1].value, isFalse);
       });
     });
+
+    group('Suggestions', () {
+      testWidgets('displays suggestion chips when showSuggestions is true', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                suggestions: const ['How can I help?', 'Tell me more'],
+                showSuggestions: true,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(find.text('How can I help?'), findsOneWidget);
+        expect(find.text('Tell me more'), findsOneWidget);
+        expect(find.byType(ActionChip), findsNWidgets(2));
+      });
+
+      testWidgets('hides suggestion chips when showSuggestions is false', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                suggestions: const ['How can I help?', 'Tell me more'],
+                // showSuggestions defaults to false
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(find.text('How can I help?'), findsNothing);
+        expect(find.text('Tell me more'), findsNothing);
+        expect(find.byType(ActionChip), findsNothing);
+      });
+
+      testWidgets('calls onSend when suggestion chip is tapped', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        String? sentText;
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (text) => sentText = text,
+                roomId: mockRoom.id,
+                suggestions: const ['How can I help?'],
+                showSuggestions: true,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Tap the suggestion chip
+        await tester.tap(find.text('How can I help?'));
+        await tester.pump();
+
+        // Assert
+        expect(sentText, equals('How can I help?'));
+      });
+
+      testWidgets('shows nothing when suggestions list is empty', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                // suggestions defaults to empty list
+                showSuggestions: true,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(find.byType(ActionChip), findsNothing);
+      });
+    });
   });
 }

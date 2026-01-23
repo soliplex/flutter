@@ -61,6 +61,8 @@ class ChatInput extends ConsumerStatefulWidget {
     this.roomId,
     this.selectedDocuments = const {},
     this.onDocumentsChanged,
+    this.suggestions = const [],
+    this.showSuggestions = false,
     super.key,
   });
 
@@ -75,6 +77,12 @@ class ChatInput extends ConsumerStatefulWidget {
 
   /// Callback invoked when document selection changes.
   final void Function(Set<RagDocument>)? onDocumentsChanged;
+
+  /// Suggested prompts to display as chips.
+  final List<String> suggestions;
+
+  /// Whether to show suggestion chips (typically when thread is empty).
+  final bool showSuggestions;
 
   @override
   ConsumerState<ChatInput> createState() => _ChatInputState();
@@ -151,12 +159,31 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     final hasRoom = widget.roomId != null;
     final selectedDocs = widget.selectedDocuments;
 
+    final showChips = widget.showSuggestions && widget.suggestions.isNotEmpty;
+
     return Container(
       padding: const EdgeInsets.all(SoliplexSpacing.s4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Suggestion chips
+          if (showChips)
+            Padding(
+              padding: const EdgeInsets.only(bottom: SoliplexSpacing.s2),
+              child: Wrap(
+                spacing: SoliplexSpacing.s2,
+                runSpacing: SoliplexSpacing.s1,
+                children: [
+                  for (final suggestion in widget.suggestions)
+                    ActionChip(
+                      label: Text(suggestion),
+                      onPressed: () => widget.onSend(suggestion),
+                    ),
+                ],
+              ),
+            ),
+
           // Selected documents display
           if (selectedDocs.isNotEmpty)
             Padding(
