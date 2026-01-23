@@ -673,8 +673,9 @@ void main() {
     });
 
     test('fetches endSessionEndpoint from OIDC discovery', () async {
-      final container =
-          await setupUnauthenticatedContainer(withHttpClient: true);
+      final container = await setupUnauthenticatedContainer(
+        withHttpClient: true,
+      );
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
@@ -715,8 +716,9 @@ void main() {
     });
 
     test('stores null endSessionEndpoint when discovery lacks it', () async {
-      final container =
-          await setupUnauthenticatedContainer(withHttpClient: true);
+      final container = await setupUnauthenticatedContainer(
+        withHttpClient: true,
+      );
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
@@ -743,17 +745,18 @@ void main() {
         ),
       );
 
-      await container.read(authProvider.notifier).completeWebAuth(
-            accessToken: 'web-access-token',
-          );
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(accessToken: 'web-access-token');
 
       final state = container.read(authProvider) as Authenticated;
       expect(state.endSessionEndpoint, isNull);
     });
 
     test('completes successfully when discovery fetch fails', () async {
-      final container =
-          await setupUnauthenticatedContainer(withHttpClient: true);
+      final container = await setupUnauthenticatedContainer(
+        withHttpClient: true,
+      );
       addTearDown(container.dispose);
 
       final preAuthState = TestData.createPreAuthState();
@@ -772,9 +775,9 @@ void main() {
       ).thenThrow(const NetworkException(message: 'Connection failed'));
 
       // Should not throw - discovery failure is non-fatal
-      await container.read(authProvider.notifier).completeWebAuth(
-            accessToken: 'web-access-token',
-          );
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(accessToken: 'web-access-token');
 
       // Auth should succeed with null endSessionEndpoint
       final state = container.read(authProvider);

@@ -56,17 +56,12 @@ class HttpInspectorPanel extends ConsumerWidget {
   Widget _buildList(List<HttpEventGroup> groups, bool isCompact) {
     return ListView.separated(
       reverse: true,
-      padding: EdgeInsets.symmetric(
-        vertical: isCompact ? 4 : 8,
-      ),
+      padding: EdgeInsets.symmetric(vertical: isCompact ? 4 : 8),
       itemCount: groups.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final reversedIndex = groups.length - 1 - index;
-        return HttpEventTile(
-          group: groups[reversedIndex],
-          dense: isCompact,
-        );
+        return HttpEventTile(group: groups[reversedIndex], dense: isCompact);
       },
     );
   }

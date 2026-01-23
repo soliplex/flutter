@@ -209,11 +209,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       subscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
-          _log(
-            'Stream error during run',
-            error: error,
-            stackTrace: stackTrace,
-          );
+          _log('Stream error during run', error: error, stackTrace: stackTrace);
           final currentState = state;
           if (currentState is RunningState) {
             final errorMsg = error.toString();

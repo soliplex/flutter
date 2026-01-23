@@ -171,8 +171,10 @@ class _MessageListState extends ConsumerState<MessageList> {
               return Semantics(
                 label: 'Assistant is thinking',
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       SizedBox(
@@ -222,9 +224,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                 elevation: 8,
                 borderRadius: BorderRadius.circular(soliplexTheme.radii.xl),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(
-                    soliplexTheme.radii.xl,
-                  ),
+                  borderRadius: BorderRadius.circular(soliplexTheme.radii.xl),
                   onTap: () => _scrollToBottom(force: true),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -243,18 +243,18 @@ class _MessageListState extends ConsumerState<MessageList> {
                         Icon(
                           Icons.arrow_downward,
                           size: 20,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSecondaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSecondaryContainer,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Scroll to bottom',
                           style:
                               Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondaryContainer,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer,
                                   ),
                         ),
                       ],

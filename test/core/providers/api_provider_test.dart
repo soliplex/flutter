@@ -361,9 +361,9 @@ void main() {
 
         // Now change the config - this invalidates agUiClientProvider
         // (because it watches configProvider), which triggers disposal
-        await container.read(configProvider.notifier).setBaseUrl(
-              'http://localhost:9000',
-            );
+        await container
+            .read(configProvider.notifier)
+            .setBaseUrl('http://localhost:9000');
 
         // The agUiClientProvider should be a new instance after config change
         final agUiClient2 = container.read(agUiClientProvider);
@@ -444,9 +444,9 @@ void main() {
 
         // Change config multiple times
         for (var i = 0; i < 5; i++) {
-          await container.read(configProvider.notifier).setBaseUrl(
-                'http://localhost:${9000 + i}',
-              );
+          await container
+              .read(configProvider.notifier)
+              .setBaseUrl('http://localhost:${9000 + i}');
           // Read agUiClientProvider after each change (triggers disposal)
           container.read(agUiClientProvider);
         }

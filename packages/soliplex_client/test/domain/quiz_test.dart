@@ -113,10 +113,7 @@ void main() {
       });
 
       test('throws ArgumentError when fewer than 2 options', () {
-        expect(
-          () => MultipleChoice(const []),
-          throwsA(isA<ArgumentError>()),
-        );
+        expect(() => MultipleChoice(const []), throwsA(isA<ArgumentError>()));
         expect(
           () => MultipleChoice(const ['A']),
           throwsA(isA<ArgumentError>()),
@@ -272,16 +269,8 @@ void main() {
     });
 
     test('hashCode based on id only', () {
-      const q1 = QuizQuestion(
-        id: 'q-1',
-        text: 'Question 1',
-        type: FreeForm(),
-      );
-      const q2 = QuizQuestion(
-        id: 'q-1',
-        text: 'Different',
-        type: FillBlank(),
-      );
+      const q1 = QuizQuestion(id: 'q-1', text: 'Question 1', type: FreeForm());
+      const q2 = QuizQuestion(id: 'q-1', text: 'Different', type: FillBlank());
 
       expect(q1.hashCode, equals(q2.hashCode));
     });
@@ -302,11 +291,7 @@ void main() {
 
   group('Quiz', () {
     test('creates with required fields', () {
-      final quiz = Quiz(
-        id: 'quiz-1',
-        title: 'Test Quiz',
-        questions: const [],
-      );
+      final quiz = Quiz(id: 'quiz-1', title: 'Test Quiz', questions: const []);
 
       expect(quiz.id, equals('quiz-1'));
       expect(quiz.title, equals('Test Quiz'));
@@ -319,16 +304,8 @@ void main() {
 
     test('creates with all fields', () {
       final questions = [
-        const QuizQuestion(
-          id: 'q-1',
-          text: 'Question 1',
-          type: FreeForm(),
-        ),
-        const QuizQuestion(
-          id: 'q-2',
-          text: 'Question 2',
-          type: FillBlank(),
-        ),
+        const QuizQuestion(id: 'q-1', text: 'Question 1', type: FreeForm()),
+        const QuizQuestion(id: 'q-2', text: 'Question 2', type: FillBlank()),
       ];
 
       final quiz = Quiz(
@@ -351,22 +328,14 @@ void main() {
 
     group('equality', () {
       test('equal based on id only', () {
-        final quiz1 = Quiz(
-          id: 'quiz-1',
-          title: 'Quiz 1',
-          questions: const [],
-        );
+        final quiz1 = Quiz(id: 'quiz-1', title: 'Quiz 1', questions: const []);
         final quiz2 = Quiz(
           id: 'quiz-1',
           title: 'Different title',
           randomize: true,
           questions: const [],
         );
-        final quiz3 = Quiz(
-          id: 'quiz-2',
-          title: 'Quiz 1',
-          questions: const [],
-        );
+        final quiz3 = Quiz(id: 'quiz-2', title: 'Quiz 1', questions: const []);
 
         expect(quiz1, equals(quiz2));
         expect(quiz1, isNot(equals(quiz3)));
@@ -389,13 +358,7 @@ void main() {
       final quiz = Quiz(
         id: 'quiz-1',
         title: 'Test Quiz',
-        questions: const [
-          QuizQuestion(
-            id: 'q-1',
-            text: 'Q',
-            type: FreeForm(),
-          ),
-        ],
+        questions: const [QuizQuestion(id: 'q-1', text: 'Q', type: FreeForm())],
       );
 
       final str = quiz.toString();

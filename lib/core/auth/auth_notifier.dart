@@ -350,8 +350,9 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     } on Exception catch (e) {
       _log('Failed to clear tokens on logout: ${e.runtimeType}');
     }
-    state =
-        const Unauthenticated(reason: UnauthenticatedReason.explicitSignOut);
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
 
     // Then end IdP session (may redirect on web)
     if (current is Authenticated) {
@@ -401,8 +402,10 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         // tokens are harmless here. If user later switches back to an auth
         // backend, _restoreSession() will re-validate and clear invalid tokens.
         // This matches signOut() behavior which also catches storage failures.
-        _log('Warning: Failed to clear tokens (${e.runtimeType}) from '
-            'previous session. Proceeding to no-auth mode.');
+        _log(
+          'Warning: Failed to clear tokens (${e.runtimeType}) from '
+          'previous session. Proceeding to no-auth mode.',
+        );
       }
     }
     _log('Entering no-auth mode');
