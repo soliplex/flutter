@@ -188,6 +188,32 @@ void main() {
         expect(doc.id, equals('doc-uuid-123'));
         expect(doc.title, equals('User Manual.pdf'));
       });
+
+      test('falls back to uri when title is null', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': null,
+          'uri': 'file:///docs/manual.pdf',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.id, equals('doc-uuid-123'));
+        expect(doc.title, equals('file:///docs/manual.pdf'));
+      });
+
+      test('falls back to Untitled when title and uri are null', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': null,
+          'uri': null,
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.id, equals('doc-uuid-123'));
+        expect(doc.title, equals('Untitled'));
+      });
     });
 
     group('ragDocumentToJson', () {
