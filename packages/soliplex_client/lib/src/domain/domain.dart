@@ -3,6 +3,7 @@ export 'backend_version_info.dart';
 export 'chat_message.dart';
 export 'conversation.dart';
 export 'quiz.dart';
+export 'rag_document.dart';
 export 'room.dart';
 export 'run_info.dart';
 export 'thread_info.dart';

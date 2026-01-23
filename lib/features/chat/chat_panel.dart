@@ -21,6 +21,7 @@ import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 /// - Provides input for sending new messages
 /// - Handles thread creation for new conversations
 /// - Handles errors with ErrorDisplay
+/// - Supports document selection for narrowing RAG searches
 ///
 /// The panel integrates with:
 /// - [currentThreadProvider] for the active thread
@@ -31,13 +32,21 @@ import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 /// ```dart
 /// ChatPanel()
 /// ```
-class ChatPanel extends ConsumerWidget {
+class ChatPanel extends ConsumerStatefulWidget {
   /// Creates a chat panel.
   const ChatPanel({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChatPanel> createState() => _ChatPanelState();
+}
+
+class _ChatPanelState extends ConsumerState<ChatPanel> {
+  RagDocument? _selectedDocument;
+
+  @override
+  Widget build(BuildContext context) {
     final runState = ref.watch(activeRunNotifierProvider);
+    final room = ref.watch(currentRoomProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -50,9 +59,7 @@ class ChatPanel extends ConsumerWidget {
         return Align(
           alignment: AlignmentDirectional.topCenter,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxContentWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
             child: AnimatedPadding(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOut,
@@ -62,7 +69,7 @@ class ChatPanel extends ConsumerWidget {
                   Expanded(
                     child: switch (runState) {
                       CompletedState(
-                        result: FailedResult(:final errorMessage)
+                        result: FailedResult(:final errorMessage),
                       ) =>
                         ErrorDisplay(
                           error: errorMessage,
@@ -71,7 +78,18 @@ class ChatPanel extends ConsumerWidget {
                       _ => const MessageList(),
                     },
                   ),
-                  ChatInput(onSend: (text) => _handleSend(context, ref, text)),
+
+                  // Input
+                  ChatInput(
+                    onSend: (text) => _handleSend(context, ref, text),
+                    roomId: room?.id,
+                    selectedDocument: _selectedDocument,
+                    onDocumentSelected: (doc) {
+                      setState(() {
+                        _selectedDocument = doc;
+                      });
+                    },
+                  ),
                 ],
               ),
             ),
@@ -136,6 +154,16 @@ class ChatPanel extends ConsumerWidget {
       effectiveThread = thread;
     }
 
+    // Build initial state with filter_documents if a document is selected
+    Map<String, dynamic>? initialState;
+    if (_selectedDocument != null) {
+      initialState = {
+        'filter_documents': {
+          'document_ids': [_selectedDocument!.id],
+        },
+      };
+    }
+
     // Start the run
     if (!context.mounted) return;
     await _withErrorHandling(
@@ -145,6 +173,7 @@ class ChatPanel extends ConsumerWidget {
             threadId: effectiveThread.id,
             userMessage: text,
             existingRunId: effectiveThread.initialRunId,
+            initialState: initialState,
           ),
       'send message',
     );

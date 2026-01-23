@@ -386,6 +386,13 @@ class TestData {
     );
   }
 
+  static RagDocument createDocument({
+    String id = 'test-doc',
+    String title = 'Test Document.pdf',
+  }) {
+    return RagDocument(id: id, title: title);
+  }
+
   static HttpRequestEvent createRequestEvent({
     String requestId = 'req-1',
     DateTime? timestamp,
@@ -561,7 +568,10 @@ Widget createTestApp({
         ...overrides.cast<Override>(),
       ],
     )..also(onContainerCreated),
-    child: MaterialApp(theme: testThemeData, home: Scaffold(body: home)),
+    child: MaterialApp(
+      theme: testThemeData,
+      home: Scaffold(body: home),
+    ),
   );
 }
 

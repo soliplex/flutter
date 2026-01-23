@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -477,6 +482,255 @@ void main() {
           find.widgetWithIcon(IconButton, Icons.send),
         );
         expect(sendButton.onPressed, isNotNull);
+      });
+    });
+
+    group('Document Picker', () {
+      testWidgets('shows attach file button when room is set', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(
+            find.widgetWithIcon(IconButton, Icons.attach_file), findsOneWidget);
+      });
+
+      testWidgets('hides attach file button when room is not set', (
+        tester,
+      ) async {
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                // roomId: null (not set)
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => null),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(
+            find.widgetWithIcon(IconButton, Icons.attach_file), findsNothing);
+      });
+
+      testWidgets('displays selected document above input', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final selectedDoc = TestData.createDocument(
+          id: 'doc-1',
+          title: 'Manual.pdf',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocument: selectedDoc,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(find.text('Manual.pdf'), findsOneWidget);
+        expect(find.byIcon(Icons.description), findsOneWidget);
+      });
+
+      testWidgets('calls onDocumentSelected with null when clear button tapped',
+          (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final selectedDoc = TestData.createDocument(
+          id: 'doc-1',
+          title: 'Manual.pdf',
+        );
+        RagDocument? resultDoc = selectedDoc;
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocument: selectedDoc,
+                onDocumentSelected: (doc) => resultDoc = doc,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Tap the close button
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.close));
+        await tester.pump();
+
+        // Assert
+        expect(resultDoc, isNull);
+      });
+
+      testWidgets('opens document picker dialog when attach button tapped',
+          (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+        ];
+
+        when(() => mockApi.getDocuments(mockRoom.id))
+            .thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Tap the attach button
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // Assert - dialog should be open
+        expect(find.text('Select a document'), findsOneWidget);
+        expect(find.text('Document 1.pdf'), findsOneWidget);
+        expect(find.text('Document 2.pdf'), findsOneWidget);
+      });
+
+      testWidgets('selects document when list tile tapped in picker',
+          (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+        ];
+        RagDocument? selectedDoc;
+
+        when(() => mockApi.getDocuments(mockRoom.id))
+            .thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                onDocumentSelected: (doc) => selectedDoc = doc,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // Tap on the first document
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pumpAndSettle();
+
+        // Assert
+        expect(selectedDoc?.id, equals('doc-1'));
+        expect(selectedDoc?.title, equals('Document 1.pdf'));
+      });
+
+      testWidgets('shows empty state when no documents in room', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(() => mockApi.getDocuments(mockRoom.id))
+            .thenAnswer((_) async => <RagDocument>[]);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // Assert
+        expect(find.text('No documents in this room.'), findsOneWidget);
       });
     });
   });
