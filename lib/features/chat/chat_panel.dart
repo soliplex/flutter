@@ -41,7 +41,7 @@ class ChatPanel extends ConsumerStatefulWidget {
 }
 
 class _ChatPanelState extends ConsumerState<ChatPanel> {
-  RagDocument? _selectedDocument;
+  Set<RagDocument> _selectedDocuments = {};
 
   @override
   Widget build(BuildContext context) {
@@ -83,10 +83,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                   ChatInput(
                     onSend: (text) => _handleSend(context, ref, text),
                     roomId: room?.id,
-                    selectedDocument: _selectedDocument,
-                    onDocumentSelected: (doc) {
+                    selectedDocuments: _selectedDocuments,
+                    onDocumentsChanged: (docs) {
                       setState(() {
-                        _selectedDocument = doc;
+                        _selectedDocuments = docs;
                       });
                     },
                   ),
@@ -154,12 +154,12 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       effectiveThread = thread;
     }
 
-    // Build initial state with filter_documents if a document is selected
+    // Build initial state with filter_documents if documents are selected
     Map<String, dynamic>? initialState;
-    if (_selectedDocument != null) {
+    if (_selectedDocuments.isNotEmpty) {
       initialState = {
         'filter_documents': {
-          'document_ids': [_selectedDocument!.id],
+          'document_ids': _selectedDocuments.map((d) => d.id).toList(),
         },
       };
     }
