@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -8,7 +7,6 @@ import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -479,7 +477,9 @@ void main() {
 
         // Assert
         expect(
-            find.widgetWithIcon(IconButton, Icons.attach_file), findsOneWidget);
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+          findsOneWidget,
+        );
       });
 
       testWidgets('hides attach file button when room is not set', (
@@ -503,7 +503,9 @@ void main() {
 
         // Assert
         expect(
-            find.widgetWithIcon(IconButton, Icons.attach_file), findsNothing);
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+          findsNothing,
+        );
       });
 
       testWidgets('displays selected document above input', (tester) async {
@@ -522,7 +524,7 @@ void main() {
               body: ChatInput(
                 onSend: (_) {},
                 roomId: mockRoom.id,
-                selectedDocument: selectedDoc,
+                selectedDocuments: {selectedDoc},
               ),
             ),
             overrides: [
@@ -538,8 +540,7 @@ void main() {
         expect(find.byIcon(Icons.description), findsOneWidget);
       });
 
-      testWidgets('calls onDocumentSelected with null when clear button tapped',
-          (tester) async {
+      testWidgets('removes document when close button tapped', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -547,7 +548,7 @@ void main() {
           id: 'doc-1',
           title: 'Manual.pdf',
         );
-        RagDocument? resultDoc = selectedDoc;
+        var resultDocs = <RagDocument>{selectedDoc};
 
         // Act
         await tester.pumpWidget(
@@ -556,8 +557,8 @@ void main() {
               body: ChatInput(
                 onSend: (_) {},
                 roomId: mockRoom.id,
-                selectedDocument: selectedDoc,
-                onDocumentSelected: (doc) => resultDoc = doc,
+                selectedDocuments: {selectedDoc},
+                onDocumentsChanged: (docs) => resultDocs = docs,
               ),
             ),
             overrides: [
@@ -573,7 +574,7 @@ void main() {
         await tester.pump();
 
         // Assert
-        expect(resultDoc, isNull);
+        expect(resultDocs, isEmpty);
       });
 
       testWidgets('opens document picker dialog when attach button tapped',
@@ -612,13 +613,14 @@ void main() {
         await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
         await tester.pumpAndSettle();
 
-        // Assert - dialog should be open
-        expect(find.text('Select a document'), findsOneWidget);
+        // Assert - dialog should be open with checkboxes
+        expect(find.text('Select documents'), findsOneWidget);
         expect(find.text('Document 1.pdf'), findsOneWidget);
         expect(find.text('Document 2.pdf'), findsOneWidget);
+        expect(find.byType(CheckboxListTile), findsNWidgets(2));
       });
 
-      testWidgets('selects document when list tile tapped in picker',
+      testWidgets('selects document when checkbox tapped and Done pressed',
           (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();
@@ -628,7 +630,7 @@ void main() {
           TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
           TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
         ];
-        RagDocument? selectedDoc;
+        var selectedDocs = <RagDocument>{};
 
         when(() => mockApi.getDocuments(mockRoom.id))
             .thenAnswer((_) async => documents);
@@ -640,7 +642,7 @@ void main() {
               body: ChatInput(
                 onSend: (_) {},
                 roomId: mockRoom.id,
-                onDocumentSelected: (doc) => selectedDoc = doc,
+                onDocumentsChanged: (docs) => selectedDocs = docs,
               ),
             ),
             overrides: [
@@ -656,13 +658,18 @@ void main() {
         await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
         await tester.pumpAndSettle();
 
-        // Tap on the first document
+        // Tap on the first document checkbox
         await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+
+        // Tap Done
+        await tester.tap(find.text('Done'));
         await tester.pumpAndSettle();
 
         // Assert
-        expect(selectedDoc?.id, equals('doc-1'));
-        expect(selectedDoc?.title, equals('Document 1.pdf'));
+        expect(selectedDocs.length, equals(1));
+        expect(selectedDocs.first.id, equals('doc-1'));
+        expect(selectedDocs.first.title, equals('Document 1.pdf'));
       });
 
       testWidgets('shows empty state when no documents in room', (
@@ -700,6 +707,200 @@ void main() {
 
         // Assert
         expect(find.text('No documents in this room.'), findsOneWidget);
+      });
+
+      testWidgets('can select multiple documents', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+          TestData.createDocument(id: 'doc-3', title: 'Document 3.pdf'),
+        ];
+        var selectedDocs = <RagDocument>{};
+
+        when(() => mockApi.getDocuments(mockRoom.id))
+            .thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                onDocumentsChanged: (docs) => selectedDocs = docs,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // Select first and third documents
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+        await tester.tap(find.text('Document 3.pdf'));
+        await tester.pump();
+
+        // Tap Done
+        await tester.tap(find.text('Done'));
+        await tester.pumpAndSettle();
+
+        // Assert
+        expect(selectedDocs.length, equals(2));
+        expect(
+          selectedDocs.map((d) => d.id).toSet(),
+          equals({'doc-1', 'doc-3'}),
+        );
+      });
+
+      testWidgets('checkboxes toggle correctly', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(() => mockApi.getDocuments(mockRoom.id))
+            .thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // Checkbox should start unchecked
+        var checkbox = tester.widget<CheckboxListTile>(
+          find.byType(CheckboxListTile),
+        );
+        expect(checkbox.value, isFalse);
+
+        // Tap to check
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+
+        checkbox = tester.widget<CheckboxListTile>(
+          find.byType(CheckboxListTile),
+        );
+        expect(checkbox.value, isTrue);
+
+        // Tap again to uncheck
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+
+        checkbox = tester.widget<CheckboxListTile>(
+          find.byType(CheckboxListTile),
+        );
+        expect(checkbox.value, isFalse);
+      });
+
+      testWidgets('displays multiple selected documents', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc1.pdf');
+        final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc2.pdf');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocuments: {doc1, doc2},
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert
+        expect(find.text('Doc1.pdf'), findsOneWidget);
+        expect(find.text('Doc2.pdf'), findsOneWidget);
+        expect(find.byIcon(Icons.description), findsNWidgets(2));
+        expect(find.byIcon(Icons.close), findsNWidgets(2));
+      });
+
+      testWidgets('preserves initial selection when opening picker', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc1.pdf');
+        final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc2.pdf');
+        final documents = [doc1, doc2];
+
+        when(() => mockApi.getDocuments(mockRoom.id))
+            .thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocuments: {doc1},
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.pumpAndSettle();
+
+        // Assert - first doc should be pre-selected
+        final checkboxes = tester
+            .widgetList<CheckboxListTile>(
+              find.byType(CheckboxListTile),
+            )
+            .toList();
+        expect(checkboxes[0].value, isTrue);
+        expect(checkboxes[1].value, isFalse);
       });
     });
   });
