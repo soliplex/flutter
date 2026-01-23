@@ -42,52 +42,42 @@ soliplex_client/lib/src/
 
 The package follows a layered architecture with clear separation of concerns:
 
-```text
-┌─────────────────────────────────────────────────────────┐
-│                   Application Layer                      │
-│  (Flutter app consumes SoliplexApi and Thread)          │
-└─────────────────────────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────┐
-│                    Client Layer                          │
-│  ┌─────────────────┐    ┌───────────────────────────┐   │
-│  │  SoliplexApi    │    │      Thread               │   │
-│  │  (REST CRUD)    │    │  (AG-UI orchestration)    │   │
-│  └────────┬────────┘    └─────────────┬─────────────┘   │
-└───────────┼───────────────────────────┼─────────────────┘
-            │                           │
-            ▼                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                  Transport Layer                         │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │              HttpTransport                       │    │
-│  │  - JSON encode/decode                           │    │
-│  │  - Exception mapping                            │    │
-│  │  - CancelToken support                          │    │
-│  └───────────────────────┬─────────────────────────┘    │
-└──────────────────────────┼──────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                   Adapter Layer                          │
-│  ┌─────────────────────────────────────────────────┐    │
-│  │  ObservableHttpClient (optional decorator)       │    │
-│  │         Wraps any client below ↓                 │    │
-│  ├─────────────────────────────────────────────────┤    │
-│  │         SoliplexHttpClient (interface)           │    │
-│  └─────────────────────────────────────────────────┘    │
-│                       ▲                                  │
-│           ┌───────────┴───────────┐                      │
-│           │                       │                      │
-│    ┌──────┴──────┐      ┌─────────┴────────┐            │
-│    │DartHttpClient│     │CupertinoHttpClient│           │
-│    │ (default)    │     │ (iOS/macOS)*     │            │
-│    └──────────────┘     └──────────────────┘            │
-│                                                          │
-│  * In soliplex_client_native package                    │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    app["Application Layer<br/>(Flutter app consumes SoliplexApi and Thread)"]
+
+    subgraph client["Client Layer"]
+        api["SoliplexApi<br/>(REST CRUD)"]
+        thread["Thread<br/>(AG-UI orchestration)"]
+    end
+
+    subgraph transport["Transport Layer"]
+        httpTransport["HttpTransport<br/>- JSON encode/decode<br/>- Exception mapping<br/>- CancelToken support"]
+    end
+
+    subgraph adapter["Adapter Layer"]
+        observable["ObservableHttpClient<br/>(optional decorator)"]
+        interface["SoliplexHttpClient<br/>(interface)"]
+        dart["DartHttpClient<br/>(default)"]
+        cupertino["CupertinoHttpClient<br/>(iOS/macOS)*"]
+    end
+
+    app --> api
+    app --> thread
+    api --> httpTransport
+    thread --> httpTransport
+    httpTransport --> observable
+    observable --> interface
+    interface --> dart
+    interface --> cupertino
+
+    style app fill:#e1f5ff
+    style client fill:#fff4e1
+    style transport fill:#ffe1f5
+    style adapter fill:#e8f5e9
 ```
+
+*Note: CupertinoHttpClient is in the soliplex_client_native package*
 
 ### Key Design Decisions
 
@@ -120,31 +110,30 @@ All models are `@immutable` with `copyWith()` methods:
 
 AG-UI uses Server-Sent Events (SSE) for real-time updates:
 
-```text
-Backend SSE Stream
-      │
-      ▼
-┌─────────────────┐     ┌─────────────────┐
-│  Byte Stream    │────▶│  SSE Parser     │
-└─────────────────┘     └────────┬────────┘
-                                 │
-                                 ▼
-                        ┌─────────────────┐
-                        │  AgUiEvent      │
-                        └────────┬────────┘
-                                 │
-          ┌──────────────────────┼──────────────────────┐
-          │                      │                      │
-          ▼                      ▼                      ▼
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│TextMessageBuffer│   │ ToolCallBuffer  │   │  State Map      │
-└─────────────────┘   └─────────────────┘   └─────────────────┘
-          │                      │                      │
-          └──────────────────────┼──────────────────────┘
-                                 ▼
-                        ┌─────────────────┐
-                        │  UI Updates     │
-                        └─────────────────┘
+```mermaid
+flowchart TD
+    sse[Backend SSE Stream]
+    byte[Byte Stream]
+    parser[SSE Parser]
+    event[AgUiEvent]
+    text[TextMessageBuffer]
+    tool[ToolCallBuffer]
+    state[State Map]
+    ui[UI Updates]
+
+    sse --> byte
+    byte --> parser
+    parser --> event
+    event --> text
+    event --> tool
+    event --> state
+    text --> ui
+    tool --> ui
+    state --> ui
+
+    style sse fill:#e1f5ff
+    style event fill:#fff4e1
+    style ui fill:#e8f5e9
 ```
 
 ## Core Components
