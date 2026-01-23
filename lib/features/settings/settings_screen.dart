@@ -124,7 +124,6 @@ class _AuthSection extends ConsumerWidget {
                 ),
               ),
               onTap: () => _confirmSignOut(context, ref),
-
             ),
           ],
         ),
