@@ -2,313 +2,372 @@
 
 ## Overview
 
-This plan breaks the feature into 7 vertical slices, each delivering customer
-value. Slices are organized web-first, then mobile, enabling parallel
-development by platform specialists.
+This plan uses vertical slicing with a "walking skeleton" approach. Slice 1
+delivers the bare minimum end-to-end feature. Subsequent slices add refinements
+and can be implemented in parallel after slice 1.
 
 ## Slice Summary
 
-| # | Slice | Platform | Customer Value |
-|---|-------|----------|----------------|
-| 1 | Type `#` to see documents in this room | Web | Browse and pick documents with mouse |
-| 2 | Selected documents focus the AI's search | Web | AI answers draw only from chosen documents |
-| 3 | Navigate document list with arrow keys | Web | Keyboard users can pick documents without mouse |
-| 4 | Backspace removes entire document reference | Desktop | Clean editing—no partial document names left behind |
-| 5 | Document removal works on mobile | Mobile | Mobile users can undo a document selection |
-| 6 | Already-selected documents hidden from list | All | No clutter, no accidental duplicate selections |
-| 7 | Clear feedback when documents can't load | All | User knows why list is empty or unavailable |
+| # | Slice | ~Lines | Customer Value |
+|---|-------|--------|----------------|
+| 1 | Walking skeleton | ~280 | User can select ONE doc, AI uses it |
+| 2 | Chip styling | ~80 | Selected docs shown as proper chips |
+| 3 | Multi-select | ~100 | User can select multiple documents |
+| 4 | Search in picker | ~120 | User can find documents quickly |
+| 5 | Filter selected | ~60 | Already-selected docs hidden in picker |
+| 6 | Selection persistence | ~150 | Selection survives across runs |
+| 7 | Loading indicator | ~60 | Spinner while fetching documents |
+| 8 | Empty room handling | ~40 | Picker button disabled when no docs |
+| 9 | Error + retry | ~180 | Error feedback, retry button, backoff |
+| 10 | Keyboard navigation | ~120 | Arrows, space, escape in picker |
 
-## Dependency Graph
+## Dependency Structure
 
 ```text
-[1] Type # to see documents
-         │
-         ▼
-[2] Selected documents focus AI search ──┬──► [3] Arrow key navigation
-                                         │
-                                         ├──► [4] Backspace removes document (Desktop)
-                                         │
-                                         └──► [5] Document removal on mobile
-                                                       │
-                           ┌─────────────────────────┬─┘
-                           ▼                         ▼
-         [6] Hide already-selected          [7] Loading/empty/error feedback
+                    [1] Walking skeleton
+                             │
+    ┌───────┬───────┬───────┼───────┬───────┬───────┬───────┬───────┐
+    ▼       ▼       ▼       ▼       ▼       ▼       ▼       ▼       ▼
+   [2]     [3]     [4]     [5]     [6]     [7]     [8]     [9]    [10]
+  chips   multi  search  filter  persist  loading empty  error   kbd
 ```
 
-**Parallelization opportunities:**
+Slices 2-10 all branch from slice 1 and can be implemented in parallel using
+git worktrees. Prioritize by customer value.
 
-- After slice 2: slices 3, 4, and 5 can run in parallel
-- After slices 4 and 5: slices 6 and 7 can run in parallel
+## Priority Order (by customer value)
+
+1. **Slice 6** - Persistence: biggest friction reducer
+2. **Slice 3** - Multi-select: core expected feature
+3. **Slice 2** - Chips: visual polish, feels complete
+4. **Slice 9** - Error+retry: robustness for production
+5. **Slice 4** - Search: essential with many documents
+6. **Slice 5** - Filter selected: minor convenience
+7. **Slice 7** - Loading: polish
+8. **Slice 8** - Empty room: edge case handling
+9. **Slice 10** - Keyboard nav: accessibility
 
 ---
 
-## Slice 1: Type `#` to see documents in this room
+## Slice 1: Walking Skeleton
 
-**Branch:** `feat/narrow-rag/1-hashtag-shows-documents`
+**Branch:** `feat/narrow-rag/01-skeleton`
 
-**Customer value:** User types `#` and sees a list of documents available in the
-current room. They can browse and select with mouse/touch.
+**Target:** ~280 lines
+
+**Customer value:** User can select ONE document, AI searches only that document.
+
+### What's included (minimal)
+
+- `RAGDocument` and `RoomDocuments` models
+- `getDocuments()` API method
+- Basic `documentsProvider` (no retry logic)
+- 📎 button in chat input
+- Single-select picker dialog (no search, no filtering)
+- Plain text display of selected document above input
+- `filter_documents` in AG-UI state on submit
+
+### What's intentionally excluded
+
+- Chip styling (slice 2)
+- Multi-select (slice 3)
+- Search (slice 4)
+- Filtering already-selected (slice 5)
+- Persistence (slice 6)
+- Loading indicator (slice 7)
+- Empty room handling (slice 8)
+- Error handling/retry (slice 9)
+- Keyboard navigation (slice 10)
 
 ### Tasks
 
-1. **Add Dart models for documents**
-   - Create `RoomDocuments` and `RAGDocument` in
-     `packages/soliplex_client/lib/src/models/`
-   - Fields: `id`, `uri`, `title`, `metadata`, `createdAt`, `updatedAt`
-
-2. **Add `getDocuments()` to SoliplexApi**
-   - Location: `packages/soliplex_client/lib/src/api/soliplex_api.dart`
-   - Endpoint: `GET /api/v1/rooms/{room_id}/documents`
-
-3. **Create documents provider with retry logic**
-   - Location: `lib/core/providers/documents_provider.dart`
-   - Retry: 3 attempts, exponential backoff (1s, 2s, 4s) on 5xx/408/429
-   - Fallback: return empty list after exhausted retries
-
-4. **Add `flutter_mentions` dependency**
-
-5. **Create `MentionablePromptInput` widget**
-   - Location: `lib/features/chat/widgets/mentionable_prompt_input.dart`
-   - Configure trigger `#`, wire documents to autocomplete suggestions
-   - Configure `markupBuilder` for `#[title](id)` format
-
-6. **Replace `ChatInput` in `ChatPanel`**
-   - Swap to `MentionablePromptInput`
-   - Preserve existing submit behavior using `controller.text`
+1. Create `RAGDocument`, `RoomDocuments` models in soliplex_client
+2. Add JSON mappers for `document_set` response format
+3. Add `getDocuments()` to `SoliplexApi`
+4. Create basic `documentsProvider` (FutureProvider.family)
+5. Add 📎 IconButton to `ChatInput`
+6. Create `DocumentPickerDialog` with simple list
+7. Display selected document as plain Text above input
+8. Build `filter_documents` state and pass to `startRun()`
 
 ### Tests
 
-- Unit: `getDocuments()` parses backend response correctly
-- Unit: Provider retries on 503, returns data on success
-- Unit: Provider returns empty list after 3 failed retries
-- Widget: Typing `#` opens autocomplete popup
-- Widget: Popup displays document titles from provider
-- Widget: Clicking a document inserts styled text
+- Unit: Models parse correctly
+- Unit: API returns documents
+- Widget: Button opens picker
+- Widget: Selecting document shows text above input
+- Integration: Submit includes filter_documents in state
 
 ### Acceptance Criteria
 
-- [ ] Typing `#` shows autocomplete with room's documents
-- [ ] Selecting a document inserts it as styled text
-- [ ] Mouse/touch selection works
-- [ ] Existing prompt submission still works
+- [ ] User can tap 📎 and see document list
+- [ ] User can select one document
+- [ ] Selected document name shown above input
+- [ ] Submitting sends filter_documents to backend
 - [ ] All tests pass
 
 ---
 
-## Slice 2: Selected documents focus the AI's search
+## Slice 2: Chip Styling
 
-**Branch:** `feat/narrow-rag/2-selection-filters-rag`
+**Branch:** `feat/narrow-rag/02-chips`
 
-**Customer value:** When user selects documents and submits, the AI only
-searches within those documents—not the entire room.
+**Target:** ~80 lines
+
+**Customer value:** Selected documents displayed as proper chips with × button.
 
 ### Tasks
 
-1. **Generate `FilterDocuments` Dart model**
-   - Run: `soliplex/scripts/generate_dart_models.sh lib/core/models/agui_features`
-   - Verify `filter_documents.dart` is created
-
-2. **Track selected documents in `MentionablePromptInput`**
-   - Maintain `Set<DocumentRecord>` with `{id, title}`
-   - Populate via `onMentionAdd` callback
-   - Expose selection via callback to parent
-
-3. **Wire selection to submission in `ChatPanel`**
-   - On submit, build `FilterDocuments(documentIds: [...])`
-   - Include in `initialState` passed to `activeRunNotifier.startRun()`
-
-4. **Verify `ActiveRunNotifier` passes state to backend**
-   - Ensure `initialState` flows through to `SimpleRunAgentInput.state`
+1. Replace plain Text with `RawChip` or `InputChip`
+2. Add × button via `onDeleted` callback
+3. Use `Wrap` widget for multiple chips (prep for slice 3)
 
 ### Tests
 
-- Unit: `onMentionAdd` adds document to selection set
-- Unit: `FilterDocuments.toJson()` produces correct structure
-- Integration: Submit with 2 documents includes both IDs in state
-- Integration: Submit with no documents omits `filter_documents` key
+- Widget: Selected doc renders as chip
+- Widget: × button removes chip
+- Widget: Chip shows document title
 
 ### Acceptance Criteria
 
-- [ ] Selected documents tracked during composition
-- [ ] Submission includes `filter_documents.document_ids` in AG-UI state
-- [ ] Backend receives and applies document filter
+- [ ] Selected document shown as chip
+- [ ] × button removes selection
 - [ ] All tests pass
 
 ---
 
-## Slice 3: Navigate document list with arrow keys
+## Slice 3: Multi-select
 
-**Branch:** `feat/narrow-rag/3-keyboard-navigation`
+**Branch:** `feat/narrow-rag/03-multi-select`
 
-**Customer value:** Keyboard users can navigate the autocomplete list with arrow
-keys and select with Enter, without reaching for the mouse.
+**Target:** ~100 lines
+
+**Customer value:** User can select multiple documents at once.
 
 ### Tasks
 
-1. **Implement keyboard navigation in autocomplete**
-   - Arrow Up/Down: move highlight through suggestions
-   - Enter: select highlighted suggestion
-   - Escape: dismiss popup without selecting
-   - Use Flutter `Shortcuts` and `Actions` widgets
-
-2. **Ensure focus management**
-   - Input retains focus after selection
-   - Popup dismisses after selection
+1. Change picker from single-select to multi-select
+2. Add checkboxes to list items
+3. Track `Set<RAGDocument>` instead of single selection
+4. Update `filter_documents` to include multiple IDs
 
 ### Tests
 
-- Widget: Arrow Down moves highlight to next suggestion
-- Widget: Arrow Up moves highlight to previous suggestion
-- Widget: Enter selects highlighted suggestion
-- Widget: Escape dismisses popup
-- Widget: Focus remains on input after selection
+- Widget: Can select multiple documents
+- Widget: Checkboxes toggle correctly
+- Widget: Multiple chips displayed
+- Integration: Multiple IDs in filter_documents
 
 ### Acceptance Criteria
 
-- [ ] Arrow keys navigate suggestions
-- [ ] Enter selects highlighted document
-- [ ] Escape dismisses autocomplete
-- [ ] Focus stays on input throughout
+- [ ] User can select multiple documents
+- [ ] All selected documents shown as chips
+- [ ] All IDs sent in filter_documents
 - [ ] All tests pass
 
 ---
 
-## Slice 4: Backspace removes entire document reference
+## Slice 4: Search in Picker
 
-**Branch:** `feat/narrow-rag/4-atomic-deletion-desktop`
+**Branch:** `feat/narrow-rag/04-search`
 
-**Customer value:** When user backspaces into a document reference, the entire
-reference is removed—no confusing partial text left behind.
+**Target:** ~120 lines
+
+**Customer value:** User can quickly find documents by typing.
 
 ### Tasks
 
-1. **Intercept backspace key events**
-   - Wrap input with `Focus` widget
-   - Handle `LogicalKeyboardKey.backspace` in `onKeyEvent`
-
-2. **Detect cursor position relative to mentions**
-   - Parse `controller.markupText` to find mention boundaries
-   - Map markup positions to display text positions
-
-3. **Delete entire mention atomically**
-   - If cursor is within or immediately after mention, delete entire span
-   - Update controller value
-   - Remove document from selection set
+1. Add search TextField at top of picker
+2. Filter list as user types (case-insensitive)
+3. Show "No matches" when filter yields empty
+4. Auto-focus search field on open
 
 ### Tests
 
-- Widget: Backspace at end of mention deletes entire mention
-- Widget: Backspace inside mention deletes entire mention
-- Widget: Selection set updates when mention deleted
-- Widget: Regular backspace (not in mention) works normally
+- Widget: Search field visible
+- Widget: Typing filters list
+- Widget: Case-insensitive matching
+- Widget: "No matches" shown when appropriate
 
 ### Acceptance Criteria
 
-- [ ] Backspacing over a mention removes it entirely
-- [ ] Selection tracking stays in sync
-- [ ] Normal text deletion unaffected
+- [ ] Search field filters document list
+- [ ] Filtering is instant
+- [ ] Empty state when no matches
 - [ ] All tests pass
 
 ---
 
-## Slice 5: Document removal works on mobile
+## Slice 5: Filter Already-Selected
 
-**Branch:** `feat/narrow-rag/5-atomic-deletion-mobile`
+**Branch:** `feat/narrow-rag/05-filter-selected`
 
-**Customer value:** Mobile users can remove a document reference, even though
-mobile keyboards don't fire backspace key events.
+**Target:** ~60 lines
+
+**Customer value:** Already-selected documents hidden from picker list.
 
 ### Tasks
 
-1. **Implement `onMarkupChanged` fallback**
-   - Detect when a mention becomes partial/unparseable
-   - Delete the entire mention when detected
-   - Update selection set
-
-2. **Test on iOS and Android**
-   - Verify fallback triggers on both platforms
-   - Ensure no double-deletion with desktop logic
+1. Filter out selected document IDs from picker list
+2. Handle edge case: all documents selected
 
 ### Tests
 
-- Widget: Partial mention detected and deleted
-- Widget: Selection set updates on mobile deletion
-- Widget: No conflict with desktop backspace handling
+- Widget: Selected docs not shown in list
+- Widget: Removing chip makes doc reappear
+- Widget: Empty list when all selected
 
 ### Acceptance Criteria
 
-- [ ] Deleting part of a mention removes it entirely on mobile
-- [ ] Selection tracking stays in sync
-- [ ] Works on iOS and Android
+- [ ] Selected documents excluded from picker
+- [ ] Deselecting adds doc back to picker
 - [ ] All tests pass
 
 ---
 
-## Slice 6: Already-selected documents hidden from list
+## Slice 6: Selection Persistence
 
-**Branch:** `feat/narrow-rag/6-exclude-selected`
+**Branch:** `feat/narrow-rag/06-persistence`
 
-**Customer value:** Once a document is selected, it disappears from the
-autocomplete list—no clutter, no accidental duplicates.
+**Target:** ~150 lines
+
+**Customer value:** Document selection persists across runs in same thread.
 
 ### Tasks
 
-1. **Filter autocomplete suggestions**
-   - Exclude documents whose IDs are in the selection set
-   - Update filter dynamically as selection changes
-
-2. **Handle edge case: all documents selected**
-   - Show appropriate message or empty state
+1. Create `ThreadDocumentSelectionNotifier` provider
+2. Key selection state by thread ID
+3. Restore selection when returning to thread
+4. Clear when switching to different thread
 
 ### Tests
 
-- Widget: Selected document not shown in autocomplete
-- Widget: Deselected document reappears in autocomplete
-- Widget: Selecting all documents shows empty/message state
+- Unit: Selection stored per thread
+- Widget: Selection persists after submit
+- Widget: Switching threads restores correct selection
+- Widget: New thread has empty selection
 
 ### Acceptance Criteria
 
-- [ ] Selected documents excluded from suggestions
-- [ ] Removing a document adds it back to suggestions
+- [ ] Selection persists across runs
+- [ ] Different threads have independent selections
 - [ ] All tests pass
 
 ---
 
-## Slice 7: Clear feedback when documents can't load
+## Slice 7: Loading Indicator
 
-**Branch:** `feat/narrow-rag/7-loading-empty-error-states`
+**Branch:** `feat/narrow-rag/07-loading`
 
-**Customer value:** User always knows what's happening—loading spinner while
-fetching, clear message if room has no documents, clear message if fetch failed.
+**Target:** ~60 lines
+
+**Customer value:** User sees feedback while documents are loading.
 
 ### Tasks
 
-1. **Loading state**
-   - Show spinner/skeleton while `documentsProvider` is loading
-   - User can continue typing; popup updates when data arrives
-
-2. **Empty state**
-   - Show "No documents in this room." when room has no documents
-   - User can dismiss and continue typing
-
-3. **Error state**
-   - Show "Could not load documents." after retries exhausted
-   - User can dismiss and continue typing
-   - No blocking modals
+1. Show `CircularProgressIndicator` in picker while loading
+2. Disable interaction during load
 
 ### Tests
 
-- Widget: Loading state shows spinner
-- Widget: Empty room shows "No documents" message
-- Widget: Failed fetch shows "Could not load" message
-- Widget: All states dismissable, typing continues
+- Widget: Spinner shown while loading
+- Widget: List appears after load completes
 
 ### Acceptance Criteria
 
-- [ ] Loading indicator shown while fetching
-- [ ] Empty room displays appropriate message
-- [ ] Fetch failure displays error message
-- [ ] User can always dismiss and continue typing
+- [ ] Loading indicator displayed
+- [ ] Smooth transition to list
+- [ ] All tests pass
+
+---
+
+## Slice 8: Empty Room Handling
+
+**Branch:** `feat/narrow-rag/08-empty-room`
+
+**Target:** ~40 lines
+
+**Customer value:** Picker button disabled when room has no documents.
+
+### Tasks
+
+1. Check document count from provider
+2. Disable/grey out 📎 button when count is 0
+3. Update tooltip to explain why disabled
+
+### Tests
+
+- Widget: Button disabled when no documents
+- Widget: Button enabled when documents exist
+- Widget: Tooltip explains disabled state
+
+### Acceptance Criteria
+
+- [ ] Button disabled for empty rooms
+- [ ] Clear indication of why
+- [ ] All tests pass
+
+---
+
+## Slice 9: Error Handling + Retry
+
+**Branch:** `feat/narrow-rag/09-error-retry`
+
+**Target:** ~180 lines
+
+**Customer value:** Graceful error handling with retry capability.
+
+### Tasks
+
+1. Add retry logic to `documentsProvider` (3 attempts, 1s/2s/4s backoff)
+2. Retry on 5xx, 408, 429, NetworkException
+3. Show error message in picker on failure
+4. Add "Retry" button that refreshes provider
+
+### Tests
+
+- Unit: Provider retries on 503
+- Unit: Provider gives up after 3 attempts
+- Unit: No retry on 404
+- Widget: Error message displayed
+- Widget: Retry button triggers refresh
+
+### Acceptance Criteria
+
+- [ ] Transient errors retried automatically
+- [ ] Error state shown after retries exhausted
+- [ ] Retry button works
+- [ ] All tests pass
+
+---
+
+## Slice 10: Keyboard Navigation
+
+**Branch:** `feat/narrow-rag/10-keyboard`
+
+**Target:** ~120 lines
+
+**Customer value:** Picker fully usable via keyboard (accessibility).
+
+### Tasks
+
+1. Arrow keys navigate list items
+2. Space toggles checkbox (if multi-select)
+3. Enter confirms selection and closes
+4. Escape closes without changes
+5. Manage focus correctly
+
+### Tests
+
+- Widget: Arrow keys move focus
+- Widget: Space toggles selection
+- Widget: Enter closes picker
+- Widget: Escape cancels
+
+### Acceptance Criteria
+
+- [ ] Full keyboard navigation
+- [ ] Focus management correct
 - [ ] All tests pass
 
 ---
@@ -317,27 +376,35 @@ fetching, clear message if room has no documents, clear message if fetch failed.
 
 | Slice | Branch |
 |-------|--------|
-| 1 | `feat/narrow-rag/1-hashtag-shows-documents` |
-| 2 | `feat/narrow-rag/2-selection-filters-rag` |
-| 3 | `feat/narrow-rag/3-keyboard-navigation` |
-| 4 | `feat/narrow-rag/4-atomic-deletion-desktop` |
-| 5 | `feat/narrow-rag/5-atomic-deletion-mobile` |
-| 6 | `feat/narrow-rag/6-exclude-selected` |
-| 7 | `feat/narrow-rag/7-loading-empty-error-states` |
+| 1 | `feat/narrow-rag/01-skeleton` |
+| 2 | `feat/narrow-rag/02-chips` |
+| 3 | `feat/narrow-rag/03-multi-select` |
+| 4 | `feat/narrow-rag/04-search` |
+| 5 | `feat/narrow-rag/05-filter-selected` |
+| 6 | `feat/narrow-rag/06-persistence` |
+| 7 | `feat/narrow-rag/07-loading` |
+| 8 | `feat/narrow-rag/08-empty-room` |
+| 9 | `feat/narrow-rag/09-error-retry` |
+| 10 | `feat/narrow-rag/10-keyboard` |
 
-## Stacked PR Strategy
+## Parallel Development with Git Worktrees
 
-1. Create slice 1 branch from `main`
-2. Open PR for slice 1 → `main`
-3. Create slice 2 branch from slice 1 branch
-4. Open PR for slice 2 → `main` (after slice 1 merges) or → slice 1 branch
-5. Continue pattern; rebase onto `main` as base branches merge
+After slice 1 merges, create worktrees for parallel development:
+
+```bash
+# From main repo
+git worktree add ../narrow-rag-chips feat/narrow-rag/02-chips
+git worktree add ../narrow-rag-multi feat/narrow-rag/03-multi-select
+# etc.
+```
+
+Each worktree branches from slice 1 and can be developed independently.
 
 ## Definition of Done (per slice)
 
 - [ ] All tasks completed
-- [ ] All tests written (TDD) and passing
-- [ ] Code formatted (`mcp__dart__dart_format`)
-- [ ] No analyzer issues (`mcp__dart__analyze_files`)
+- [ ] All tests written and passing
+- [ ] Code formatted (`dart format .`)
+- [ ] No analyzer issues (`dart analyze`)
 - [ ] PR reviewed and approved
 - [ ] Merged to `main`
