@@ -174,9 +174,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                   onPressed: canSend ? _showDocumentPicker : null,
                   icon: const Icon(Icons.attach_file),
                 ),
-
               const SizedBox(width: 8),
-
               // Text field
               Expanded(
                 child: CallbackShortcuts(
