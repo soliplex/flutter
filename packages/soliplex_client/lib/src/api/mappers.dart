@@ -48,7 +48,10 @@ Map<String, dynamic> roomToJson(Room room) {
 
 /// Creates a [RagDocument] from JSON.
 RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
-  return RagDocument(id: json['id'] as String, title: json['title'] as String);
+  // title can be null - fall back to uri, then 'Untitled'
+  final title =
+      (json['title'] as String?) ?? (json['uri'] as String?) ?? 'Untitled';
+  return RagDocument(id: json['id'] as String, title: title);
 }
 
 /// Converts a [RagDocument] to JSON.
