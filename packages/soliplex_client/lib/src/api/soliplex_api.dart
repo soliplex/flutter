@@ -167,9 +167,12 @@ class SoliplexApi {
       cancelToken: cancelToken,
     );
 
-    // Backend returns {"document_set": [...]} - extract the documents array
-    final documents = response['document_set'] as List<dynamic>;
-    return documents
+    // Backend returns {"document_set": {id: {...}, ...}} - map keyed by doc ID
+    final documentSet = response['document_set'] as Map<String, dynamic>?;
+    if (documentSet == null || documentSet.isEmpty) {
+      return [];
+    }
+    return documentSet.values
         .map((e) => ragDocumentFromJson(e as Map<String, dynamic>))
         .toList();
   }
