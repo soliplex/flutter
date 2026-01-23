@@ -113,9 +113,18 @@ class _AuthSection extends ConsumerWidget {
               subtitle: Text('via $issuerId'),
             ),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
+              leading: Icon(
+                Icons.logout,
+                color: Theme.of(context).colorScheme.danger,
+              ),
+              title: Text(
+                'Sign Out',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.danger,
+                ),
+              ),
               onTap: () => _confirmSignOut(context, ref),
+
             ),
           ],
         ),
