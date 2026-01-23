@@ -610,7 +610,7 @@ void main() {
 
         // Assert
         expect(find.text('Manual.pdf'), findsOneWidget);
-        expect(find.byIcon(Icons.description_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.description), findsOneWidget);
       });
 
       testWidgets('removes document when close button tapped', (tester) async {
