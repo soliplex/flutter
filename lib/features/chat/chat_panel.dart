@@ -57,6 +57,16 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     final isStreaming = ref.watch(isStreamingProvider);
     final currentThreadId = ref.watch(currentThreadIdProvider);
 
+    // Clear pending documents when room changes to prevent carrying
+    // selections across rooms
+    ref.listen(currentRoomIdProvider, (previous, next) {
+      if (previous != next && _pendingDocuments.isNotEmpty) {
+        setState(() {
+          _pendingDocuments = {};
+        });
+      }
+    });
+
     // Show suggestions only when thread is empty and not streaming
     final messages =
         messagesAsync.hasValue ? messagesAsync.value! : <ChatMessage>[];
