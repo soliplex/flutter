@@ -14,13 +14,12 @@ and can be implemented in parallel after slice 1.
 | 2 | Chip styling | ~80 | Selected docs shown as proper chips |
 | 3 | Multi-select | ~100 | User can select multiple documents |
 | 4 | Search in picker | ~120 | User can find documents quickly |
-| 5 | Filter selected | ~60 | Already-selected docs hidden in picker |
-| 6 | Selection persistence | ~150 | Selection survives across runs |
-| 7 | Loading indicator | ~60 | Spinner while fetching documents |
-| 8 | Empty room handling | ~40 | Picker button disabled when no docs |
-| 9 | Error + retry | ~180 | Error feedback, retry button, backoff |
-| 10 | Keyboard navigation | ~120 | Arrows, space, escape in picker |
-| 11 | File type icons | ~80 | Visual cues for document types |
+| 5 | Selection persistence | ~150 | Selection survives across runs |
+| 6 | Loading indicator | ~60 | Spinner while fetching documents |
+| 7 | Empty room handling | ~40 | Picker button disabled when no docs |
+| 8 | Error + retry | ~180 | Error feedback, retry button, backoff |
+| 9 | Keyboard navigation | ~120 | Arrows, space, escape in picker |
+| 10 | File type icons | ~80 | Visual cues for document types |
 
 ## Dependency Structure
 
@@ -30,11 +29,11 @@ and can be implemented in parallel after slice 1.
       ┌──────────────┼──────────────┐
       │              │              │
       ▼              ▼              ▼
-     [2]            [6]            [8]
+     [2]            [5]            [7]
     chips         persist        empty
       │
       ▼
-    [11] file-icons
+    [10] file-icons
 
                      │
                      ▼
@@ -44,38 +43,34 @@ and can be implemented in parallel after slice 1.
                     [4] search
                      │
                      ▼
-                    [5] filter selected
+                    [6] loading
                      │
                      ▼
-                    [7] loading
+                    [8] error + retry
                      │
                      ▼
-                    [9] error + retry
-                     │
-                     ▼
-                   [10] keyboard
+                    [9] keyboard
 ```
 
-**Parallel from slice 1:** Slices 2, 6, 8 don't touch picker internals.
+**Parallel from slice 1:** Slices 2, 5, 7 don't touch picker internals.
 
-**Parallel from slice 2:** Slice 11 (file-icons) adds icons to chips and picker.
+**Parallel from slice 2:** Slice 10 (file-icons) adds icons to chips and picker.
 
-**Stacked (picker chain):** Slices 3→4→5→7→9→10 all modify the picker dialog
+**Stacked (picker chain):** Slices 3→4→6→8→9 all modify the picker dialog
 and must be stacked to avoid git conflicts.
 
 ## Implementation Order
 
 1. **Slice 1** - Walking skeleton (required first)
 2. **Slice 3** - Multi-select (start picker chain)
-3. **Slice 6** - Persistence (parallel with picker chain)
+3. **Slice 5** - Persistence (parallel with picker chain)
 4. **Slice 2** - Chips (parallel with picker chain)
-5. **Slice 11** - File type icons (after chips)
+5. **Slice 10** - File type icons (after chips)
 6. **Slice 4** - Search (continues picker chain)
-7. **Slice 5** - Filter selected
-8. **Slice 9** - Error + retry
-9. **Slice 8** - Empty room (parallel, low priority)
-10. **Slice 7** - Loading
-11. **Slice 10** - Keyboard nav
+7. **Slice 8** - Error + retry
+8. **Slice 7** - Empty room (parallel, low priority)
+9. **Slice 6** - Loading
+10. **Slice 9** - Keyboard nav
 
 ---
 
@@ -102,12 +97,12 @@ and must be stacked to avoid git conflicts.
 - Chip styling (slice 2)
 - Multi-select (slice 3)
 - Search (slice 4)
-- Filtering already-selected (slice 5)
-- Persistence (slice 6)
-- Loading indicator (slice 7)
-- Empty room handling (slice 8)
-- Error handling/retry (slice 9)
-- Keyboard navigation (slice 10)
+- Persistence (slice 5)
+- Loading indicator (slice 6)
+- Empty room handling (slice 7)
+- Error handling/retry (slice 8)
+- Keyboard navigation (slice 9)
+- File type icons (slice 10)
 
 ### Tasks
 
@@ -228,36 +223,9 @@ and must be stacked to avoid git conflicts.
 
 ---
 
-## Slice 5: Filter Already-Selected
+## Slice 5: Selection Persistence
 
-**Branch:** `feat/narrow-rag/05-filter-selected`
-
-**Target:** ~60 lines
-
-**Customer value:** Already-selected documents hidden from picker list.
-
-### Tasks
-
-1. Filter out selected document IDs from picker list
-2. Handle edge case: all documents selected
-
-### Tests
-
-- Widget: Selected docs not shown in list
-- Widget: Removing chip makes doc reappear
-- Widget: Empty list when all selected
-
-### Acceptance Criteria
-
-- [ ] Selected documents excluded from picker
-- [ ] Deselecting adds doc back to picker
-- [ ] All tests pass
-
----
-
-## Slice 6: Selection Persistence
-
-**Branch:** `feat/narrow-rag/06-persistence`
+**Branch:** `feat/narrow-rag/05-persistence`
 
 **Target:** ~150 lines
 
@@ -285,9 +253,9 @@ and must be stacked to avoid git conflicts.
 
 ---
 
-## Slice 7: Loading Indicator
+## Slice 6: Loading Indicator
 
-**Branch:** `feat/narrow-rag/07-loading`
+**Branch:** `feat/narrow-rag/06-loading`
 
 **Target:** ~60 lines
 
@@ -311,9 +279,9 @@ and must be stacked to avoid git conflicts.
 
 ---
 
-## Slice 8: Empty Room Handling
+## Slice 7: Empty Room Handling
 
-**Branch:** `feat/narrow-rag/08-empty-room`
+**Branch:** `feat/narrow-rag/07-empty-room`
 
 **Target:** ~40 lines
 
@@ -339,9 +307,9 @@ and must be stacked to avoid git conflicts.
 
 ---
 
-## Slice 9: Error Handling + Retry
+## Slice 8: Error Handling + Retry
 
-**Branch:** `feat/narrow-rag/09-error-retry`
+**Branch:** `feat/narrow-rag/08-error-retry`
 
 **Target:** ~180 lines
 
@@ -371,9 +339,9 @@ and must be stacked to avoid git conflicts.
 
 ---
 
-## Slice 10: Keyboard Navigation
+## Slice 9: Keyboard Navigation
 
-**Branch:** `feat/narrow-rag/10-keyboard`
+**Branch:** `feat/narrow-rag/09-keyboard`
 
 **Target:** ~120 lines
 
@@ -402,9 +370,9 @@ and must be stacked to avoid git conflicts.
 
 ---
 
-## Slice 11: File Type Icons
+## Slice 10: File Type Icons
 
-**Branch:** `feat/narrow-rag/11-file-icons`
+**Branch:** `feat/narrow-rag/10-file-icons`
 
 **Target:** ~80 lines
 
@@ -456,13 +424,12 @@ and must be stacked to avoid git conflicts.
 | 2 | `feat/narrow-rag/02-chips` |
 | 3 | `feat/narrow-rag/03-multi-select` |
 | 4 | `feat/narrow-rag/04-search` |
-| 5 | `feat/narrow-rag/05-filter-selected` |
-| 6 | `feat/narrow-rag/06-persistence` |
-| 7 | `feat/narrow-rag/07-loading` |
-| 8 | `feat/narrow-rag/08-empty-room` |
-| 9 | `feat/narrow-rag/09-error-retry` |
-| 10 | `feat/narrow-rag/10-keyboard` |
-| 11 | `feat/narrow-rag/11-file-icons` |
+| 5 | `feat/narrow-rag/05-persistence` |
+| 6 | `feat/narrow-rag/06-loading` |
+| 7 | `feat/narrow-rag/07-empty-room` |
+| 8 | `feat/narrow-rag/08-error-retry` |
+| 9 | `feat/narrow-rag/09-keyboard` |
+| 10 | `feat/narrow-rag/10-file-icons` |
 
 ## Parallel Development with Git Worktrees
 
@@ -471,11 +438,11 @@ After slice 1 merges, use worktrees for the parallel slices:
 ```bash
 # Parallel slices (branch from slice 1)
 git worktree add ../narrow-rag-chips feat/narrow-rag/02-chips
-git worktree add ../narrow-rag-persist feat/narrow-rag/06-persistence
-git worktree add ../narrow-rag-empty feat/narrow-rag/08-empty-room
+git worktree add ../narrow-rag-persist feat/narrow-rag/05-persistence
+git worktree add ../narrow-rag-empty feat/narrow-rag/07-empty-room
 ```
 
-The picker chain (slices 3→4→5→7→9→10) must be developed sequentially in the
+The picker chain (slices 3→4→6→8→9) must be developed sequentially in the
 main worktree to avoid conflicts.
 
 ## Definition of Done (per slice)
