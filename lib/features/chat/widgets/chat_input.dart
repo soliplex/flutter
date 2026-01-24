@@ -270,11 +270,19 @@ class _DocumentPickerDialog extends ConsumerStatefulWidget {
 
 class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
   late Set<RagDocument> _selected;
+  late TextEditingController _searchController;
 
   @override
   void initState() {
     super.initState();
     _selected = Set.from(widget.initialSelection);
+    _searchController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _toggleDocument(RagDocument doc) {
@@ -285,6 +293,14 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
         _selected.add(doc);
       }
     });
+  }
+
+  List<RagDocument> _filterDocuments(List<RagDocument> documents) {
+    final query = _searchController.text.toLowerCase();
+    if (query.isEmpty) return documents;
+    return documents
+        .where((doc) => doc.title.toLowerCase().contains(query))
+        .toList();
   }
 
   @override
@@ -301,17 +317,37 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
             if (documents.isEmpty) {
               return const Center(child: Text('No documents in this room.'));
             }
-            return ListView.builder(
-              itemCount: documents.length,
-              itemBuilder: (context, index) {
-                final doc = documents[index];
-                final isSelected = _selected.contains(doc);
-                return CheckboxListTile(
-                  title: Text(formatDocumentTitle(doc.title)),
-                  value: isSelected,
-                  onChanged: (_) => _toggleDocument(doc),
-                );
-              },
+            final filteredDocs = _filterDocuments(documents);
+            return Column(
+              children: [
+                TextField(
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Search documents...',
+                    prefixIcon: Icon(Icons.search),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: SoliplexSpacing.s2),
+                Expanded(
+                  child: filteredDocs.isEmpty
+                      ? const Center(child: Text('No matches'))
+                      : ListView.builder(
+                          itemCount: filteredDocs.length,
+                          itemBuilder: (context, index) {
+                            final doc = filteredDocs[index];
+                            final isSelected = _selected.contains(doc);
+                            return CheckboxListTile(
+                              title: Text(formatDocumentTitle(doc.title)),
+                              value: isSelected,
+                              onChanged: (_) => _toggleDocument(doc),
+                            );
+                          },
+                        ),
+                ),
+              ],
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
