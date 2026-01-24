@@ -45,12 +45,15 @@ class HttpEventTile extends StatelessWidget {
     final methodStyle =
         (dense ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
             ?.copyWith(
-      fontWeight: FontWeight.bold,
-      color: group.isStream ? colorScheme.secondary : colorScheme.primary,
-    );
+              fontWeight: FontWeight.bold,
+              color: group.isStream
+                  ? colorScheme.secondary
+                  : colorScheme.primary,
+            );
 
-    final pathStyle =
-        dense ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium;
+    final pathStyle = dense
+        ? theme.textTheme.bodySmall
+        : theme.textTheme.bodyMedium;
 
     return Row(
       children: [

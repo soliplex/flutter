@@ -30,16 +30,10 @@ class SettingsScreen extends ConsumerWidget {
         ListTile(
           leading: const Icon(Icons.info_outline),
           title: const Text('App Version'),
-          subtitle: SelectableText(
-            appVersion,
-          ),
+          subtitle: SelectableText(appVersion),
           trailing: IconButton(
             icon: const Icon(Icons.copy),
-            onPressed: () => Clipboard.setData(
-              ClipboardData(
-                text: appVersion,
-              ),
-            ),
+            onPressed: () => Clipboard.setData(ClipboardData(text: appVersion)),
           ),
         ),
         ListTile(
@@ -48,11 +42,8 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: SelectableText(config.baseUrl),
           trailing: IconButton(
             icon: const Icon(Icons.copy),
-            onPressed: () => Clipboard.setData(
-              ClipboardData(
-                text: config.baseUrl,
-              ),
-            ),
+            onPressed: () =>
+                Clipboard.setData(ClipboardData(text: config.baseUrl)),
           ),
         ),
         ListTile(
@@ -106,63 +97,59 @@ class _AuthSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return switch (authState) {
       Authenticated(:final issuerId) => Column(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.person),
-              title: const Text('Signed In'),
-              subtitle: Text('via $issuerId'),
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.logout,
-                color: Theme.of(context).colorScheme.danger,
-              ),
-              title: Text(
-                'Sign Out',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.danger,
-                ),
-              ),
-              onTap: () => _confirmSignOut(context, ref),
-            ),
-          ],
-        ),
-      AuthLoading() => const ListTile(
-          leading: SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2),
+        children: [
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('Signed In'),
+            subtitle: Text('via $issuerId'),
           ),
-          title: Text('Loading...'),
+          ListTile(
+            leading: Icon(
+              Icons.logout,
+              color: Theme.of(context).colorScheme.danger,
+            ),
+            title: Text(
+              'Sign Out',
+              style: TextStyle(color: Theme.of(context).colorScheme.danger),
+            ),
+            onTap: () => _confirmSignOut(context, ref),
+          ),
+        ],
+      ),
+      AuthLoading() => const ListTile(
+        leading: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
+        title: Text('Loading...'),
+      ),
       Unauthenticated() => const ListTile(
-          leading: Icon(Icons.login),
-          title: Text('Authentication'),
-          subtitle: Text('Not signed in'),
-          enabled: false,
-        ),
+        leading: Icon(Icons.login),
+        title: Text('Authentication'),
+        subtitle: Text('Not signed in'),
+        enabled: false,
+      ),
       NoAuthRequired() => Column(
-          children: [
-            const ListTile(
-              leading: Icon(Icons.no_accounts),
-              title: Text('No Authentication'),
-              subtitle: Text('Backend does not require login'),
+        children: [
+          const ListTile(
+            leading: Icon(Icons.no_accounts),
+            title: Text('No Authentication'),
+            subtitle: Text('Backend does not require login'),
+          ),
+          ListTile(
+            leading: Icon(
+              Icons.link_off,
+              color: Theme.of(context).colorScheme.danger,
             ),
-            ListTile(
-              leading: Icon(
-                Icons.link_off,
-                color: Theme.of(context).colorScheme.danger,
-              ),
-              title: Text(
-                'Disconnect',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.danger,
-                ),
-              ),
-              onTap: () => _disconnect(context, ref),
+            title: Text(
+              'Disconnect',
+              style: TextStyle(color: Theme.of(context).colorScheme.danger),
             ),
-          ],
-        ),
+            onTap: () => _disconnect(context, ref),
+          ),
+        ],
+      ),
     };
   }
 

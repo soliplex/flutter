@@ -49,9 +49,7 @@ class _MessageListState extends ConsumerState<MessageList> {
       if (previous == null ||
           (previous is! RunningState && next is RunningState) ||
           (previous is RunningState && next is! RunningState)) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _scrollToBottom(),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
       }
     });
   }
@@ -121,8 +119,9 @@ class _MessageListState extends ConsumerState<MessageList> {
   @override
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(allMessagesProvider);
-    final messagesNow =
-        messagesAsync.hasValue ? messagesAsync.value! : <ChatMessage>[];
+    final messagesNow = messagesAsync.hasValue
+        ? messagesAsync.value!
+        : <ChatMessage>[];
     final isStreaming = ref.watch(isStreamingProvider);
     final runState = ref.watch(activeRunNotifierProvider);
 
@@ -191,11 +190,9 @@ class _MessageListState extends ConsumerState<MessageList> {
                       Text(
                         'Assistant is thinking...',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              fontStyle: FontStyle.italic,
-                            ),
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
                       ),
                     ],
                   ),
@@ -250,12 +247,12 @@ class _MessageListState extends ConsumerState<MessageList> {
                         const SizedBox(width: 8),
                         Text(
                           'Scroll to bottom',
-                          style:
-                              Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSecondaryContainer,
-                                  ),
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSecondaryContainer,
+                              ),
                         ),
                       ],
                     ),

@@ -29,9 +29,7 @@ void main() {
       );
 
       final container = ProviderContainer(
-        overrides: [
-          shellConfigProvider.overrideWithValue(customConfig),
-        ],
+        overrides: [shellConfigProvider.overrideWithValue(customConfig)],
       );
       addTearDown(container.dispose);
 

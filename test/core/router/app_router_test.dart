@@ -27,15 +27,15 @@ import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 import '../../helpers/test_helpers.dart';
 
 Authenticated _createAuthenticatedState() => Authenticated(
-      accessToken: 'test-token',
-      refreshToken: 'test-refresh',
-      expiresAt: DateTime.now().add(const Duration(hours: 1)),
-      issuerId: 'test-issuer',
-      issuerDiscoveryUrl:
-          'https://sso.example.com/.well-known/openid-configuration',
-      clientId: 'test-client',
-      idToken: 'test-id-token',
-    );
+  accessToken: 'test-token',
+  refreshToken: 'test-refresh',
+  expiresAt: DateTime.now().add(const Duration(hours: 1)),
+  issuerId: 'test-issuer',
+  issuerDiscoveryUrl:
+      'https://sso.example.com/.well-known/openid-configuration',
+  clientId: 'test-client',
+  idToken: 'test-id-token',
+);
 
 AuthState _resolveAuthState({
   bool authenticated = true,
@@ -101,7 +101,8 @@ Widget createRouterAppAt(
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
         final currentAuthState = ref.watch(authProvider);
-        final hasAccess = currentAuthState is Authenticated ||
+        final hasAccess =
+            currentAuthState is Authenticated ||
             currentAuthState is NoAuthRequired;
         final shellConfig = ref.watch(shellConfigProvider);
         final routeConfig = shellConfig.routes;
@@ -626,10 +627,7 @@ void main() {
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
-              routes: RouteConfig(
-                showHomeRoute: false,
-                initialRoute: '/rooms',
-              ),
+              routes: RouteConfig(showHomeRoute: false, initialRoute: '/rooms'),
             ),
           ),
           authProvider.overrideWith(
@@ -682,19 +680,18 @@ void main() {
     test('isRouteVisible returns false for / when showHomeRoute is false', () {
       const features = Features();
       // Must set initialRoute to /rooms since / is hidden
-      const routes = RouteConfig(
-        showHomeRoute: false,
-        initialRoute: '/rooms',
-      );
+      const routes = RouteConfig(showHomeRoute: false, initialRoute: '/rooms');
       expect(isRouteVisible('/', features, routes), isFalse);
     });
 
-    test('isRouteVisible returns true for /rooms when showRoomsRoute is true',
-        () {
-      const features = Features();
-      const routes = RouteConfig(); // showRoomsRoute defaults to true
-      expect(isRouteVisible('/rooms', features, routes), isTrue);
-    });
+    test(
+      'isRouteVisible returns true for /rooms when showRoomsRoute is true',
+      () {
+        const features = Features();
+        const routes = RouteConfig(); // showRoomsRoute defaults to true
+        expect(isRouteVisible('/rooms', features, routes), isTrue);
+      },
+    );
 
     test('isRouteVisible handles /rooms/:roomId paths', () {
       const features = Features();
@@ -703,29 +700,27 @@ void main() {
     });
 
     test(
-        'isRouteVisible returns true for /settings when enableSettings is true',
-        () {
-      const features = Features();
-      const routes = RouteConfig();
-      expect(isRouteVisible('/settings', features, routes), isTrue);
-    });
+      'isRouteVisible returns true for /settings when enableSettings is true',
+      () {
+        const features = Features();
+        const routes = RouteConfig();
+        expect(isRouteVisible('/settings', features, routes), isTrue);
+      },
+    );
 
     test(
-        'isRouteVisible returns false for /settings when enableSettings is false',
-        () {
-      const features = Features(enableSettings: false);
-      const routes = RouteConfig();
-      expect(isRouteVisible('/settings', features, routes), isFalse);
-    });
+      'isRouteVisible returns false for /settings when enableSettings is false',
+      () {
+        const features = Features(enableSettings: false);
+        const routes = RouteConfig();
+        expect(isRouteVisible('/settings', features, routes), isFalse);
+      },
+    );
 
     test('isRouteVisible for /settings depends only on enableSettings', () {
       // enableSettings true - visible
       expect(
-        isRouteVisible(
-          '/settings',
-          const Features(),
-          const RouteConfig(),
-        ),
+        isRouteVisible('/settings', const Features(), const RouteConfig()),
         isTrue,
       );
       // enableSettings false - hidden
@@ -745,19 +740,26 @@ void main() {
       expect(getDefaultAuthenticatedRoute(features, routes), equals('/rooms'));
     });
 
-    test('getDefaultAuthenticatedRoute falls back when initialRoute hidden',
-        () {
-      const features = Features(enableSettings: false);
-      const routes = RouteConfig(initialRoute: '/settings');
-      expect(getDefaultAuthenticatedRoute(features, routes), equals('/rooms'));
-    });
+    test(
+      'getDefaultAuthenticatedRoute falls back when initialRoute hidden',
+      () {
+        const features = Features(enableSettings: false);
+        const routes = RouteConfig(initialRoute: '/settings');
+        expect(
+          getDefaultAuthenticatedRoute(features, routes),
+          equals('/rooms'),
+        );
+      },
+    );
 
-    test('getDefaultAuthenticatedRoute falls back to / when rooms disabled',
-        () {
-      const features = Features();
-      const routes = RouteConfig(showRoomsRoute: false);
-      expect(getDefaultAuthenticatedRoute(features, routes), equals('/'));
-    });
+    test(
+      'getDefaultAuthenticatedRoute falls back to / when rooms disabled',
+      () {
+        const features = Features();
+        const routes = RouteConfig(showRoomsRoute: false);
+        expect(getDefaultAuthenticatedRoute(features, routes), equals('/'));
+      },
+    );
 
     test('isRouteVisible handles routes with query parameters', () {
       const features = Features();
@@ -776,33 +778,32 @@ void main() {
       // /rooms/:roomId/quiz/:quizId visible when quizzes enabled (defaults)
       expect(isRouteVisible('/rooms/abc/quiz/123', features, routes), isTrue);
       // /rooms/:roomId with query params
-      expect(
-        isRouteVisible('/rooms/abc?thread=xyz', features, routes),
-        isTrue,
-      );
+      expect(isRouteVisible('/rooms/abc?thread=xyz', features, routes), isTrue);
     });
 
-    test('isRouteVisible returns false for quiz routes when quizzes disabled',
-        () {
-      // Quiz route hidden when enableQuizzes is false
-      expect(
-        isRouteVisible(
-          '/rooms/abc/quiz/123',
-          const Features(enableQuizzes: false),
-          const RouteConfig(),
-        ),
-        isFalse,
-      );
-      // Non-quiz room paths still work when quizzes disabled
-      expect(
-        isRouteVisible(
-          '/rooms/abc',
-          const Features(enableQuizzes: false),
-          const RouteConfig(),
-        ),
-        isTrue,
-      );
-    });
+    test(
+      'isRouteVisible returns false for quiz routes when quizzes disabled',
+      () {
+        // Quiz route hidden when enableQuizzes is false
+        expect(
+          isRouteVisible(
+            '/rooms/abc/quiz/123',
+            const Features(enableQuizzes: false),
+            const RouteConfig(),
+          ),
+          isFalse,
+        );
+        // Non-quiz room paths still work when quizzes disabled
+        expect(
+          isRouteVisible(
+            '/rooms/abc',
+            const Features(enableQuizzes: false),
+            const RouteConfig(),
+          ),
+          isTrue,
+        );
+      },
+    );
 
     test('isRouteVisible returns false for unknown routes', () {
       const features = Features();
@@ -862,9 +863,7 @@ void main() {
         overrides: [
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
-            const SoliplexConfig(
-              routes: RouteConfig(showRoomsRoute: false),
-            ),
+            const SoliplexConfig(routes: RouteConfig(showRoomsRoute: false)),
           ),
           authProvider.overrideWith(
             () => _MockAuthNotifier(_createAuthenticatedState()),
@@ -903,10 +902,7 @@ void main() {
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
-              routes: RouteConfig(
-                showHomeRoute: false,
-                initialRoute: '/rooms',
-              ),
+              routes: RouteConfig(showHomeRoute: false, initialRoute: '/rooms'),
             ),
           ),
           authProvider.overrideWith(
@@ -945,10 +941,7 @@ void main() {
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
-              routes: RouteConfig(
-                showHomeRoute: false,
-                initialRoute: '/rooms',
-              ),
+              routes: RouteConfig(showHomeRoute: false, initialRoute: '/rooms'),
             ),
           ),
           authProvider.overrideWith(
@@ -995,9 +988,7 @@ void main() {
         overrides: [
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
-            const SoliplexConfig(
-              routes: RouteConfig(showRoomsRoute: false),
-            ),
+            const SoliplexConfig(routes: RouteConfig(showRoomsRoute: false)),
           ),
           authProvider.overrideWith(
             () => _MockAuthNotifier(_createAuthenticatedState()),
@@ -1115,9 +1106,7 @@ void main() {
         overrides: [
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
-            const SoliplexConfig(
-              routes: RouteConfig(showRoomsRoute: false),
-            ),
+            const SoliplexConfig(routes: RouteConfig(showRoomsRoute: false)),
           ),
           authProvider.overrideWith(
             () => _MockAuthNotifier(_createAuthenticatedState()),
@@ -1153,10 +1142,7 @@ void main() {
           packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
-              routes: RouteConfig(
-                showHomeRoute: false,
-                initialRoute: '/rooms',
-              ),
+              routes: RouteConfig(showHomeRoute: false, initialRoute: '/rooms'),
             ),
           ),
           authProvider.overrideWith(

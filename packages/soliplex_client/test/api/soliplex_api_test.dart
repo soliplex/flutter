@@ -902,8 +902,7 @@ void main() {
         expect((messages[0] as TextMessage).text, equals('Hello World'));
       });
 
-      test('fetches multiple runs in parallel and orders by creation time',
-          () async {
+      test('fetches multiple runs in parallel and orders by creation time', () async {
         // Thread endpoint returns two completed runs
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -1533,11 +1532,7 @@ void main() {
             'run_id': 'run-1',
             'run_input': {
               'messages': [
-                {
-                  'id': 'user-msg-1',
-                  'role': 'user',
-                  'content': 'User message',
-                },
+                {'id': 'user-msg-1', 'role': 'user', 'content': 'User message'},
                 {
                   'id': 'assistant-old',
                   'role': 'assistant',
@@ -1569,89 +1564,94 @@ void main() {
         expect(messages[1].id, equals('assistant-new'));
       });
 
-      test('uses fallback values for missing fields in run_input.messages',
-          () async {
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse(
-              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+      test(
+        'uses fallback values for missing fields in run_input.messages',
+        () async {
+          when(
+            () => mockTransport.request<Map<String, dynamic>>(
+              'GET',
+              Uri.parse(
+                'https://api.example.com/api/v1/rooms/room-123/agui/thread-456',
+              ),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
             ),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async => {
-            'room_id': 'room-123',
-            'thread_id': 'thread-456',
-            'runs': {
-              'run-1': {
-                'run_id': 'run-1',
-                'created': '2026-01-07T01:00:00.000Z',
-                'finished': '2026-01-07T01:01:00.000Z',
+          ).thenAnswer(
+            (_) async => {
+              'room_id': 'room-123',
+              'thread_id': 'thread-456',
+              'runs': {
+                'run-1': {
+                  'run_id': 'run-1',
+                  'created': '2026-01-07T01:00:00.000Z',
+                  'finished': '2026-01-07T01:01:00.000Z',
+                },
               },
             },
-          },
-        );
+          );
 
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse(
-              'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+          when(
+            () => mockTransport.request<Map<String, dynamic>>(
+              'GET',
+              Uri.parse(
+                'https://api.example.com/api/v1/rooms/room-123/agui/thread-456/run-1',
+              ),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
             ),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async => {
-            'run_id': 'run-1',
-            'run_input': {
-              // Message without id or role - should use fallbacks
-              'messages': [
-                {'content': 'Message without id or role'},
-                {'id': 'has-id', 'content': 'Message with id, no role'},
+          ).thenAnswer(
+            (_) async => {
+              'run_id': 'run-1',
+              'run_input': {
+                // Message without id or role - should use fallbacks
+                'messages': [
+                  {'content': 'Message without id or role'},
+                  {'id': 'has-id', 'content': 'Message with id, no role'},
+                  {
+                    'role': 'assistant',
+                    'content': 'Assistant message (should be skipped)',
+                  },
+                ],
+              },
+              'events': [
                 {
+                  'type': 'TEXT_MESSAGE_START',
+                  'messageId': 'm1',
                   'role': 'assistant',
-                  'content': 'Assistant message (should be skipped)',
                 },
+                {
+                  'type': 'TEXT_MESSAGE_CONTENT',
+                  'messageId': 'm1',
+                  'delta': 'Response',
+                },
+                {'type': 'TEXT_MESSAGE_END', 'messageId': 'm1'},
               ],
             },
-            'events': [
-              {
-                'type': 'TEXT_MESSAGE_START',
-                'messageId': 'm1',
-                'role': 'assistant',
-              },
-              {
-                'type': 'TEXT_MESSAGE_CONTENT',
-                'messageId': 'm1',
-                'delta': 'Response',
-              },
-              {'type': 'TEXT_MESSAGE_END', 'messageId': 'm1'},
-            ],
-          },
-        );
+          );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+          final messages = await api.getThreadMessages(
+            'room-123',
+            'thread-456',
+          );
 
-        // Two user messages (with fallback ids) + one assistant from events
-        expect(messages.length, equals(3));
-        // First message uses index-based fallback id
-        expect(messages[0].id, equals('user-0'));
-        expect(messages[0].user, equals(ChatUser.user));
-        // Second message uses provided id, fallback role
-        expect(messages[1].id, equals('has-id'));
-        expect(messages[1].user, equals(ChatUser.user));
-        // Third is from events
-        expect(messages[2].id, equals('m1'));
-      });
+          // Two user messages (with fallback ids) + one assistant from events
+          expect(messages.length, equals(3));
+          // First message uses index-based fallback id
+          expect(messages[0].id, equals('user-0'));
+          expect(messages[0].user, equals(ChatUser.user));
+          // Second message uses provided id, fallback role
+          expect(messages[1].id, equals('has-id'));
+          expect(messages[1].user, equals(ChatUser.user));
+          // Third is from events
+          expect(messages[2].id, equals('m1'));
+        },
+      );
 
       test('calls onWarning callback on partial failure', () async {
         final warnings = <String>[];
@@ -1763,8 +1763,10 @@ void main() {
         ).thenThrow(const NotFoundException(message: 'Run not found'));
 
         // Should not throw - returns empty list gracefully
-        final messages =
-            await apiWithWarning.getThreadMessages('room-123', 'thread-456');
+        final messages = await apiWithWarning.getThreadMessages(
+          'room-123',
+          'thread-456',
+        );
 
         expect(messages, isEmpty);
         expect(warnings, hasLength(1));
@@ -2171,10 +2173,7 @@ void main() {
           const ApiException(message: 'Server error', statusCode: 500),
         );
 
-        expect(
-          () => api.getBackendVersionInfo(),
-          throwsA(isA<ApiException>()),
-        );
+        expect(() => api.getBackendVersionInfo(), throwsA(isA<ApiException>()));
       });
 
       test('uses correct URL', () async {
@@ -2198,10 +2197,7 @@ void main() {
 
         await api.getBackendVersionInfo();
 
-        expect(
-          capturedUri?.path,
-          equals('/api/v1/installation/versions'),
-        );
+        expect(capturedUri?.path, equals('/api/v1/installation/versions'));
       });
 
       test('supports cancellation', () async {

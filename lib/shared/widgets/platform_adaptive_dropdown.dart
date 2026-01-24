@@ -5,10 +5,7 @@ import 'package:soliplex_frontend/shared/utils/platform_resolver.dart';
 
 /// An item for [PlatformAdaptiveDropdown].
 class PlatformAdaptiveDropdownItem<T> {
-  const PlatformAdaptiveDropdownItem({
-    required this.text,
-    required this.value,
-  });
+  const PlatformAdaptiveDropdownItem({required this.text, required this.value});
 
   final String text;
   final T value;
@@ -45,21 +42,19 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
       onSelected: onSelected,
       dropdownMenuEntries: items
           .map(
-            (item) => DropdownMenuEntry<T>(
-              value: item.value,
-              label: item.text,
-            ),
+            (item) => DropdownMenuEntry<T>(value: item.value, label: item.text),
           )
           .toList(),
     );
   }
 
   Widget _buildCupertinoPicker(BuildContext context) {
-    final selectedItem =
-        items.cast<PlatformAdaptiveDropdownItem<T>?>().firstWhere(
-              (element) => element?.value == initialSelection,
-              orElse: () => null,
-            );
+    final selectedItem = items
+        .cast<PlatformAdaptiveDropdownItem<T>?>()
+        .firstWhere(
+          (element) => element?.value == initialSelection,
+          orElse: () => null,
+        );
 
     final displayText = selectedItem?.text ?? hint ?? 'Select';
     final isPlaceholder = selectedItem == null;
@@ -78,8 +73,9 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: isPlaceholder
                     ? TextStyle(
-                        color: CupertinoColors.placeholderText
-                            .resolveFrom(context),
+                        color: CupertinoColors.placeholderText.resolveFrom(
+                          context,
+                        ),
                       )
                     : null,
               ),
@@ -97,8 +93,9 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
   }
 
   void _showCupertinoModal(BuildContext context) {
-    var selectedIndex =
-        items.indexWhere((item) => item.value == initialSelection);
+    var selectedIndex = items.indexWhere(
+      (item) => item.value == initialSelection,
+    );
     if (selectedIndex == -1) selectedIndex = 0;
 
     // Track local selection - only commit on Done tap
@@ -115,8 +112,10 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
               decoration: const BoxDecoration(
                 color: CupertinoColors.tertiarySystemFill,
                 border: Border(
-                  bottom:
-                      BorderSide(color: CupertinoColors.separator, width: 0.5),
+                  bottom: BorderSide(
+                    color: CupertinoColors.separator,
+                    width: 0.5,
+                  ),
                 ),
               ),
               child: Row(
@@ -134,8 +133,9 @@ class PlatformAdaptiveDropdown<T> extends StatelessWidget {
             ),
             Expanded(
               child: CupertinoPicker(
-                scrollController:
-                    FixedExtentScrollController(initialItem: selectedIndex),
+                scrollController: FixedExtentScrollController(
+                  initialItem: selectedIndex,
+                ),
                 itemExtent: 32,
                 onSelectedItemChanged: (index) {
                   pendingIndex = index;

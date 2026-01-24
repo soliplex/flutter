@@ -39,10 +39,10 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
         });
 
       case WebCallbackParams(
-          accessToken: final token?,
-          :final refreshToken,
-          :final expiresIn,
-        ):
+        accessToken: final token?,
+        :final refreshToken,
+        :final expiresIn,
+      ):
         // Success - complete authentication
         await _completeAuth(
           accessToken: token,
@@ -72,15 +72,19 @@ class _AuthCallbackScreenState extends ConsumerState<AuthCallbackScreen> {
     int? expiresIn,
   }) async {
     try {
-      await ref.read(authProvider.notifier).completeWebAuth(
+      await ref
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: accessToken,
             refreshToken: refreshToken,
             expiresIn: expiresIn,
           );
 
       if (mounted) {
-        final landingRoute =
-            ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
+        final landingRoute = ref
+            .read(shellConfigProvider)
+            .routes
+            .authenticatedLandingRoute;
         context.go(landingRoute);
       }
     } on AuthException catch (e) {

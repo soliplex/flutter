@@ -375,7 +375,8 @@ void main() {
         expect(
           trackingClient.closeCalled,
           isFalse,
-          reason: 'AgUiClient disposal should NOT close the shared httpClient. '
+          reason:
+              'AgUiClient disposal should NOT close the shared httpClient. '
               'This is the core bug in issue #27.',
         );
       },
@@ -407,7 +408,8 @@ void main() {
         expect(
           identical(soliplexClient, soliplexClientAfter),
           isTrue,
-          reason: 'Shared SoliplexHttpClient should not be closed when '
+          reason:
+              'Shared SoliplexHttpClient should not be closed when '
               'httpClientProvider is invalidated',
         );
       },
@@ -457,7 +459,8 @@ void main() {
         expect(
           closeCallCount,
           equals(0),
-          reason: 'Shared HTTP client close() should never be called during '
+          reason:
+              'Shared HTTP client close() should never be called during '
               'config changes. Got $closeCallCount calls.',
         );
       },

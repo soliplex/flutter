@@ -66,13 +66,11 @@ class _RoomListTileState extends State<RoomListTile> {
                             room.description,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
+                            style: Theme.of(context).textTheme.bodyMedium
                                 ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                       ],
@@ -80,9 +78,9 @@ class _RoomListTileState extends State<RoomListTile> {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: Theme.of(context).iconTheme.color?.withAlpha(
-                          (0.6 * 255).toInt(),
-                        ),
+                    color: Theme.of(
+                      context,
+                    ).iconTheme.color?.withAlpha((0.6 * 255).toInt()),
                   ),
                 ],
               ),

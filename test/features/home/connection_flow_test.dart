@@ -130,8 +130,7 @@ void main() {
         },
       );
 
-      test(
-          'returns RequireLoginResult without exitNoAuthMode when '
+      test('returns RequireLoginResult without exitNoAuthMode when '
           'Unauthenticated', () {
         final result = determinePostConnectResult(
           hasProviders: true,

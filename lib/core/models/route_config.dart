@@ -13,9 +13,9 @@ class RouteConfig {
     this.initialRoute = '/',
     this.authenticatedLandingRoute = '/rooms',
   }) : assert(
-          showHomeRoute || showRoomsRoute,
-          'At least one main route (home or rooms) must be enabled',
-        );
+         showHomeRoute || showRoomsRoute,
+         'At least one main route (home or rooms) must be enabled',
+       );
 
   /// Whether the home route ('/') is accessible.
   final bool showHomeRoute;
@@ -64,14 +64,15 @@ class RouteConfig {
 
   @override
   int get hashCode => Object.hash(
-        showHomeRoute,
-        showRoomsRoute,
-        initialRoute,
-        authenticatedLandingRoute,
-      );
+    showHomeRoute,
+    showRoomsRoute,
+    initialRoute,
+    authenticatedLandingRoute,
+  );
 
   @override
-  String toString() => 'RouteConfig('
+  String toString() =>
+      'RouteConfig('
       'showHomeRoute: $showHomeRoute, '
       'showRoomsRoute: $showRoomsRoute, '
       'initialRoute: $initialRoute, '

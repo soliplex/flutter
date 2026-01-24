@@ -67,8 +67,9 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     });
 
     // Show suggestions only when thread is empty and not streaming
-    final messages =
-        messagesAsync.hasValue ? messagesAsync.value! : <ChatMessage>[];
+    final messages = messagesAsync.hasValue
+        ? messagesAsync.value!
+        : <ChatMessage>[];
     final showSuggestions = messages.isEmpty && !isStreaming;
 
     return LayoutBuilder(
@@ -76,8 +77,9 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         final width = constraints.maxWidth;
         final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
-        final maxContentWidth =
-            width >= SoliplexBreakpoints.desktop ? width * 2 / 3 : width;
+        final maxContentWidth = width >= SoliplexBreakpoints.desktop
+            ? width * 2 / 3
+            : width;
 
         return Align(
           alignment: AlignmentDirectional.topCenter,
@@ -106,8 +108,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                   ChatInput(
                     onSend: (text) => _handleSend(context, ref, text),
                     roomId: room?.id,
-                    selectedDocuments:
-                        _getSelectedDocuments(room?.id, currentThreadId),
+                    selectedDocuments: _getSelectedDocuments(
+                      room?.id,
+                      currentThreadId,
+                    ),
                     onDocumentsChanged: (docs) => _updateSelectedDocuments(
                       room?.id,
                       currentThreadId,
@@ -239,7 +243,9 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     if (!context.mounted) return;
     await _withErrorHandling(
       context,
-      () => ref.read(activeRunNotifierProvider.notifier).startRun(
+      () => ref
+          .read(activeRunNotifierProvider.notifier)
+          .startRun(
             roomId: room.id,
             threadId: effectiveThread.id,
             userMessage: text,

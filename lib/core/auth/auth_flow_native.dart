@@ -31,8 +31,8 @@ class NativeAuthFlow implements AuthFlow {
   NativeAuthFlow({
     required FlutterAppAuth appAuth,
     required String redirectScheme,
-  })  : _appAuth = appAuth,
-        _redirectUri = '$redirectScheme://callback';
+  }) : _appAuth = appAuth,
+       _redirectUri = '$redirectScheme://callback';
 
   final FlutterAppAuth _appAuth;
   final String _redirectUri;

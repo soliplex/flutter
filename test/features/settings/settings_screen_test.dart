@@ -30,9 +30,8 @@ Widget _createAppWithRouter({
         routes: [
           GoRoute(
             path: 'backend-versions',
-            builder: (_, __) => const Scaffold(
-              body: Text('Backend Versions Screen'),
-            ),
+            builder: (_, __) =>
+                const Scaffold(body: Text('Backend Versions Screen')),
           ),
         ],
       ),
@@ -313,9 +312,7 @@ void main() {
     group('Backend version', () {
       testWidgets('displays backend version when loaded', (tester) async {
         // Uses default testBackendVersionInfo from createTestApp
-        await tester.pumpWidget(
-          createTestApp(home: const SettingsScreen()),
-        );
+        await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
         // Just pump once - the value is immediately available via AsyncValue
         await tester.pump();
 
@@ -378,8 +375,9 @@ void main() {
         );
       });
 
-      testWidgets('View All navigates to backend-versions screen',
-          (tester) async {
+      testWidgets('View All navigates to backend-versions screen', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           _createAppWithRouter(
             home: const SettingsScreen(),

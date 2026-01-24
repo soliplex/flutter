@@ -207,18 +207,18 @@ QuestionType questionTypeFromJson(Map<String, dynamic> json) {
   final type = json['type'] as String;
   return switch (type) {
     'multiple-choice' || 'multiple_choice' => MultipleChoice(
-        (json['options'] as List<dynamic>).cast<String>(),
-      ),
+      (json['options'] as List<dynamic>).cast<String>(),
+    ),
     'fill-blank' || 'fill_blank' => const FillBlank(),
     'qa' => const FreeForm(),
     _ => () {
-        developer.log(
-          'Unknown question type "$type", falling back to FreeForm',
-          name: 'soliplex_client.quiz',
-          level: 900, // Warning level
-        );
-        return const FreeForm();
-      }(),
+      developer.log(
+        'Unknown question type "$type", falling back to FreeForm',
+        name: 'soliplex_client.quiz',
+        level: 900, // Warning level
+      );
+      return const FreeForm();
+    }(),
   };
 }
 
@@ -264,16 +264,17 @@ QuizAnswerResult quizAnswerResultFromJson(Map<String, dynamic> json) {
   return switch (correct) {
     'true' => const CorrectAnswer(),
     'false' => IncorrectAnswer(
-        expectedAnswer: expectedOutput ??
-            () {
-              developer.log(
-                'Missing expected_output for incorrect answer',
-                name: 'soliplex_client.quiz',
-                level: 900, // Warning level
-              );
-              return '(correct answer not provided)';
-            }(),
-      ),
+      expectedAnswer:
+          expectedOutput ??
+          () {
+            developer.log(
+              'Missing expected_output for incorrect answer',
+              name: 'soliplex_client.quiz',
+              level: 900, // Warning level
+            );
+            return '(correct answer not provided)';
+          }(),
+    ),
     _ => throw FormatException('Invalid correct value: $correct'),
   };
 }

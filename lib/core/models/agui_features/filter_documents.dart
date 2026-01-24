@@ -28,9 +28,7 @@ String filterDocumentsToJson(FilterDocuments data) =>
 class FilterDocuments {
   final List<String>? documentIds;
 
-  FilterDocuments({
-    this.documentIds,
-  });
+  FilterDocuments({this.documentIds});
 
   factory FilterDocuments.fromJson(Map<String, dynamic> json) =>
       FilterDocuments(
@@ -39,7 +37,5 @@ class FilterDocuments {
             : (json["document_ids"]! as List).cast<String>(),
       );
 
-  Map<String, dynamic> toJson() => {
-        "document_ids": documentIds ?? <String>[],
-      };
+  Map<String, dynamic> toJson() => {"document_ids": documentIds ?? <String>[]};
 }

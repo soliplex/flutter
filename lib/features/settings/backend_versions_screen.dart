@@ -69,7 +69,7 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
               _searchQuery.isEmpty
                   ? '${packageVersions.length} packages'
                   : '${sortedKeys.length} of '
-                      '${packageVersions.length} packages',
+                        '${packageVersions.length} packages',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
@@ -94,9 +94,7 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
                           IconButton(
                             icon: const Icon(Icons.copy),
                             onPressed: () => Clipboard.setData(
-                              ClipboardData(
-                                text: '$packageName $version',
-                              ),
+                              ClipboardData(text: '$packageName $version'),
                             ),
                           ),
                         ],

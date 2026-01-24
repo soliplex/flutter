@@ -55,24 +55,31 @@ Future<List<RagDocument>> _fetchWithRetry(
 
   for (var attempt = 0; attempt < maxAttempts; attempt++) {
     try {
+      debugPrint('[_fetchWithRetry] Attempt ${attempt + 1}/$maxAttempts');
       return await api.getDocuments(roomId);
     } catch (e, st) {
+      debugPrint('[_fetchWithRetry] Attempt ${attempt + 1} failed: $e');
       lastError = e;
       lastStackTrace = st;
 
       // Don't retry non-retryable errors
       if (!shouldRetryDocumentsFetch(e)) {
+        debugPrint('[_fetchWithRetry] Not retryable, rethrowing');
         rethrow;
       }
 
       // Don't delay after the last attempt
       if (attempt < maxAttempts - 1) {
+        debugPrint(
+          '[_fetchWithRetry] Waiting ${backoffDelays[attempt]} before retry',
+        );
         await Future<void>.delayed(backoffDelays[attempt]);
       }
     }
   }
 
   // All retries exhausted - rethrow last error
+  debugPrint('[_fetchWithRetry] All $maxAttempts attempts exhausted');
   Error.throwWithStackTrace(lastError!, lastStackTrace!);
 }
 
@@ -109,10 +116,17 @@ Future<List<RagDocument>> _fetchWithRetry(
 /// - [NotFoundException]: Room not found (404)
 /// - [AuthException]: 401/403 authentication errors
 /// - [ApiException]: Other server errors (after retries exhausted for 5xx)
+var _providerInvocationCount = 0; // TODO: Remove after debugging
+
 final documentsProvider = FutureProvider.family<List<RagDocument>, String>((
   ref,
   roomId,
 ) async {
+  _providerInvocationCount++;
+  debugPrint(
+    '[documentsProvider] Invocation #$_providerInvocationCount for room=$roomId',
+  );
+
   // Use ref.read instead of ref.watch to prevent provider re-execution
   // during retry delays. If apiProvider rebuilds mid-retry (e.g., due to
   // httpLogProvider updates), we don't want to restart the entire fetch.

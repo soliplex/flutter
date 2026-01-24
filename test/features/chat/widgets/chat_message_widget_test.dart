@@ -14,11 +14,11 @@ void main() {
     // Mock clipboard for tests
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (message) async {
-      if (message.method == 'Clipboard.setData') {
-        return null;
-      }
-      return null;
-    });
+          if (message.method == 'Clipboard.setData') {
+            return null;
+          }
+          return null;
+        });
   });
 
   tearDown(() {
