@@ -113,7 +113,10 @@ final documentsProvider = FutureProvider.family<List<RagDocument>, String>((
   ref,
   roomId,
 ) async {
-  final api = ref.watch(apiProvider);
-  final delays = ref.watch(documentsRetryDelaysProvider);
+  // Use ref.read instead of ref.watch to prevent provider re-execution
+  // during retry delays. If apiProvider rebuilds mid-retry (e.g., due to
+  // httpLogProvider updates), we don't want to restart the entire fetch.
+  final api = ref.read(apiProvider);
+  final delays = ref.read(documentsRetryDelaysProvider);
   return _fetchWithRetry(api, roomId, delays);
 });
