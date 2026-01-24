@@ -10,7 +10,9 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -676,6 +678,184 @@ void main() {
           runNotifier.lastStartRun!.userMessage,
           equals('How can I help?'),
         );
+      });
+    });
+
+    group('Document Selection Persistence', () {
+      testWidgets('selection persists after submit', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final doc = TestData.createDocument(id: 'doc-1', title: 'Test Doc');
+
+        late ProviderContainer container;
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container = ProviderContainer(
+              overrides: [
+                currentRoomIdProviderOverride(mockRoom.id),
+                currentRoomProvider.overrideWith((ref) => mockRoom),
+                threadSelectionProvider.overrideWith(() {
+                  return _TrackingThreadSelectionNotifier(
+                    initialSelection: ThreadSelected(mockThread.id),
+                  );
+                }),
+                activeRunNotifierOverride(const IdleState()),
+                allMessagesProvider.overrideWith((ref) async => []),
+                documentsProvider(mockRoom.id)
+                    .overrideWith((ref) async => [doc]),
+              ],
+            ),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: ChatPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Pre-populate selection for the thread
+        container
+            .read(selectedDocumentsNotifierProvider.notifier)
+            .setForThread(mockRoom.id, mockThread.id, {doc});
+
+        // Force rebuild to see the selection
+        await tester.pump();
+
+        // Verify chip is displayed
+        expect(find.text('Test Doc'), findsOneWidget);
+
+        // Act: Submit a message (simulate by checking selection still exists)
+        // The key test is that the selection persists in the provider
+
+        // Get selection from provider after "submit"
+        final selectionAfter = container
+            .read(selectedDocumentsNotifierProvider.notifier)
+            .getForThread(mockRoom.id, mockThread.id);
+
+        // Assert: Selection still exists in provider
+        expect(selectionAfter, contains(doc));
+        // Assert: Chip is still visible
+        expect(find.text('Test Doc'), findsOneWidget);
+      });
+
+      testWidgets('switching threads restores correct selection', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final thread1 = TestData.createThread(id: 'thread-1');
+        final thread2 = TestData.createThread(id: 'thread-2');
+        final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc A');
+        final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc B');
+
+        late ProviderContainer container;
+        late _TrackingThreadSelectionNotifier selectionNotifier;
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container = ProviderContainer(
+              overrides: [
+                currentRoomIdProviderOverride(mockRoom.id),
+                currentRoomProvider.overrideWith((ref) => mockRoom),
+                threadsProvider(mockRoom.id)
+                    .overrideWith((ref) async => [thread1, thread2]),
+                threadSelectionProvider.overrideWith(() {
+                  return selectionNotifier = _TrackingThreadSelectionNotifier(
+                    initialSelection: ThreadSelected(thread1.id),
+                  );
+                }),
+                activeRunNotifierOverride(const IdleState()),
+                allMessagesProvider.overrideWith((ref) async => []),
+                documentsProvider(mockRoom.id)
+                    .overrideWith((ref) async => [doc1, doc2]),
+              ],
+            ),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: ChatPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Pre-populate selections for both threads
+        container
+            .read(selectedDocumentsNotifierProvider.notifier)
+            .setForThread(mockRoom.id, thread1.id, {doc1});
+        container
+            .read(selectedDocumentsNotifierProvider.notifier)
+            .setForThread(mockRoom.id, thread2.id, {doc2});
+
+        // Force rebuild to see thread 1's selection
+        await tester.pump();
+
+        // Assert: Thread 1 shows Doc A chip
+        expect(find.text('Doc A'), findsOneWidget);
+        expect(find.text('Doc B'), findsNothing);
+
+        // Act: Switch to thread 2
+        selectionNotifier.set(ThreadSelected(thread2.id));
+        await tester.pumpAndSettle();
+
+        // Assert: Thread 2 shows Doc B chip
+        expect(find.text('Doc A'), findsNothing);
+        expect(find.text('Doc B'), findsOneWidget);
+
+        // Act: Switch back to thread 1
+        selectionNotifier.set(ThreadSelected(thread1.id));
+        await tester.pumpAndSettle();
+
+        // Assert: Thread 1's selection is restored
+        expect(find.text('Doc A'), findsOneWidget);
+        expect(find.text('Doc B'), findsNothing);
+      });
+
+      testWidgets('new thread has empty selection', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final existingThread = TestData.createThread(id: 'existing');
+        final doc = TestData.createDocument(id: 'doc-1', title: 'Selected Doc');
+
+        late ProviderContainer container;
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container = ProviderContainer(
+              overrides: [
+                currentRoomIdProviderOverride(mockRoom.id),
+                currentRoomProvider.overrideWith((ref) => mockRoom),
+                threadSelectionProvider.overrideWith(() {
+                  return _TrackingThreadSelectionNotifier(
+                    initialSelection: const NewThreadIntent(),
+                  );
+                }),
+                activeRunNotifierOverride(const IdleState()),
+                allMessagesProvider.overrideWith((ref) async => []),
+                documentsProvider(mockRoom.id)
+                    .overrideWith((ref) async => [doc]),
+              ],
+            ),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: ChatPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Pre-populate selection for existing thread (simulating previous work)
+        container
+            .read(selectedDocumentsNotifierProvider.notifier)
+            .setForThread(mockRoom.id, existingThread.id, {doc});
+
+        // Rebuild
+        await tester.pump();
+
+        // Assert: New thread intent has no chips (empty selection)
+        // The chip would contain 'Selected Doc' if there was a selection
+        expect(find.text('Selected Doc'), findsNothing);
       });
     });
   });

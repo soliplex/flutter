@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -41,7 +42,11 @@ class ChatPanel extends ConsumerStatefulWidget {
 }
 
 class _ChatPanelState extends ConsumerState<ChatPanel> {
-  Set<RagDocument> _selectedDocuments = {};
+  /// Pending document selection for when no thread exists yet.
+  ///
+  /// This holds the selection temporarily until a thread is created,
+  /// at which point it's transferred to the provider.
+  Set<RagDocument> _pendingDocuments = {};
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +54,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     final room = ref.watch(currentRoomProvider);
     final messagesAsync = ref.watch(allMessagesProvider);
     final isStreaming = ref.watch(isStreamingProvider);
+    final currentThreadId = ref.watch(currentThreadIdProvider);
 
     // Show suggestions only when thread is empty and not streaming
     final messages =
@@ -90,12 +96,13 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                   ChatInput(
                     onSend: (text) => _handleSend(context, ref, text),
                     roomId: room?.id,
-                    selectedDocuments: _selectedDocuments,
-                    onDocumentsChanged: (docs) {
-                      setState(() {
-                        _selectedDocuments = docs;
-                      });
-                    },
+                    selectedDocuments:
+                        _getSelectedDocuments(room?.id, currentThreadId),
+                    onDocumentsChanged: (docs) => _updateSelectedDocuments(
+                      room?.id,
+                      currentThreadId,
+                      docs,
+                    ),
                     suggestions: room?.suggestions ?? const [],
                     showSuggestions: showSuggestions,
                   ),
@@ -106,6 +113,37 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         );
       },
     );
+  }
+
+  /// Gets the selected documents for display.
+  ///
+  /// If a thread exists, reads from the provider. Otherwise, uses pending
+  /// documents stored locally until a thread is created.
+  Set<RagDocument> _getSelectedDocuments(String? roomId, String? threadId) {
+    if (roomId != null && threadId != null) {
+      return ref.watch(currentSelectedDocumentsProvider);
+    }
+    return _pendingDocuments;
+  }
+
+  /// Updates document selection.
+  ///
+  /// If a thread exists, updates the provider. Otherwise, stores in local
+  /// pending state until a thread is created.
+  void _updateSelectedDocuments(
+    String? roomId,
+    String? threadId,
+    Set<RagDocument> documents,
+  ) {
+    if (roomId != null && threadId != null) {
+      ref
+          .read(selectedDocumentsNotifierProvider.notifier)
+          .setForThread(roomId, threadId, documents);
+    } else {
+      setState(() {
+        _pendingDocuments = documents;
+      });
+    }
   }
 
   /// Handles sending a message.
@@ -129,7 +167,8 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
 
     // Create new thread if needed
     final ThreadInfo effectiveThread;
-    if (thread == null || selection is NewThreadIntent) {
+    final isNewThread = thread == null || selection is NewThreadIntent;
+    if (isNewThread) {
       final result = await _withErrorHandling(
         context,
         () => ref.read(apiProvider).createThread(room.id),
@@ -147,6 +186,14 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
           .read(threadSelectionProvider.notifier)
           .set(ThreadSelected(effectiveThread.id));
 
+      // Transfer pending document selection to the new thread
+      if (_pendingDocuments.isNotEmpty) {
+        ref
+            .read(selectedDocumentsNotifierProvider.notifier)
+            .setForThread(room.id, effectiveThread.id, _pendingDocuments);
+        _pendingDocuments = {};
+      }
+
       // Persist last viewed and update URL
       await setLastViewedThread(
         roomId: room.id,
@@ -163,12 +210,17 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       effectiveThread = thread;
     }
 
+    // Get selected documents from provider (now that thread exists)
+    final selectedDocuments = ref
+        .read(selectedDocumentsNotifierProvider.notifier)
+        .getForThread(room.id, effectiveThread.id);
+
     // Build initial state with filter_documents if documents are selected
     Map<String, dynamic>? initialState;
-    if (_selectedDocuments.isNotEmpty) {
+    if (selectedDocuments.isNotEmpty) {
       initialState = {
         'filter_documents': {
-          'document_ids': _selectedDocuments.map((d) => d.id).toList(),
+          'document_ids': selectedDocuments.map((d) => d.id).toList(),
         },
       };
     }
