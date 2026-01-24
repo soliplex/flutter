@@ -135,6 +135,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     final roomId = widget.roomId;
     if (roomId == null) return;
 
+    debugPrint('[ChatInput] _showDocumentPicker called for room=$roomId');
     final result = await showDialog<Set<RagDocument>>(
       context: context,
       builder: (context) => _DocumentPickerDialog(
@@ -327,16 +328,21 @@ class _DocumentPickerDialog extends ConsumerStatefulWidget {
 class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
   late Set<RagDocument> _selected;
   late TextEditingController _searchController;
+  static var _instanceCount = 0; // TODO: Remove after debugging
+  late final int _instanceId; // TODO: Remove after debugging
 
   @override
   void initState() {
     super.initState();
+    _instanceId = ++_instanceCount;
+    debugPrint('[_DocumentPickerDialogState] initState instance #$_instanceId');
     _selected = Set.from(widget.initialSelection);
     _searchController = TextEditingController();
   }
 
   @override
   void dispose() {
+    debugPrint('[_DocumentPickerDialogState] dispose instance #$_instanceId');
     _searchController.dispose();
     super.dispose();
   }
@@ -361,7 +367,12 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    debugPrint('[_DocumentPickerDialogState] build instance #$_instanceId');
     final documentsAsync = ref.watch(documentsProvider(widget.roomId));
+    debugPrint(
+      '[_DocumentPickerDialogState] documentsAsync state: '
+      '${documentsAsync.isLoading ? "loading" : documentsAsync.hasError ? "error" : "data"}',
+    );
 
     return AlertDialog(
       title: const Text('Select documents'),
@@ -409,7 +420,12 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (error, _) => ErrorDisplay(
             error: error,
-            onRetry: () => ref.invalidate(documentsProvider(widget.roomId)),
+            onRetry: () {
+              debugPrint(
+                '[_DocumentPickerDialogState] onRetry tapped, invalidating provider',
+              );
+              ref.invalidate(documentsProvider(widget.roomId));
+            },
           ),
         ),
       ),
