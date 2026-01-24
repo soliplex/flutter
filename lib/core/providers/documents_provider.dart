@@ -125,24 +125,23 @@ final documentsProvider = FutureProvider.family<List<RagDocument>, String>((
   // Keep provider alive during async operations (retry delays) to prevent
   // disposal/recreation if the watching widget rebuilds during delays.
   // Without this, the provider could restart mid-retry cycle.
-  final keepAlive = ref.keepAlive();
+  // NOTE: We intentionally do NOT close this link - the provider should
+  // remain alive until explicitly invalidated to prevent re-invocation
+  // after errors. This is a trade-off: slight memory overhead vs correct
+  // retry behavior.
+  ref.keepAlive();
 
-  _providerInvocationCount++;
-  debugPrint(
-    '[documentsProvider] Invocation #$_providerInvocationCount for room=$roomId',
-  );
+  final invocationId = ++_providerInvocationCount;
+  debugPrint('[documentsProvider] Invocation #$invocationId for room=$roomId');
 
-  try {
-    // Use ref.read instead of ref.watch to prevent provider re-execution
-    // during retry delays. If apiProvider rebuilds mid-retry (e.g., due to
-    // httpLogProvider updates), we don't want to restart the entire fetch.
-    final api = ref.read(apiProvider);
-    final delays = ref.read(documentsRetryDelaysProvider);
-    return await _fetchWithRetry(api, roomId, delays);
-  } finally {
-    // Allow disposal after fetch completes (success or failure).
-    // The provider will remain cached until explicitly invalidated or
-    // until no one is watching it anymore.
-    keepAlive.close();
-  }
+  ref.onDispose(() {
+    debugPrint('[documentsProvider] Disposed invocation #$invocationId');
+  });
+
+  // Use ref.read instead of ref.watch to prevent provider re-execution
+  // during retry delays. If apiProvider rebuilds mid-retry (e.g., due to
+  // httpLogProvider updates), we don't want to restart the entire fetch.
+  final api = ref.read(apiProvider);
+  final delays = ref.read(documentsRetryDelaysProvider);
+  return _fetchWithRetry(api, roomId, delays);
 });
