@@ -857,6 +857,67 @@ void main() {
         // The chip would contain 'Selected Doc' if there was a selection
         expect(find.text('Selected Doc'), findsNothing);
       });
+
+      testWidgets('switching rooms clears pending document selection', (
+        tester,
+      ) async {
+        // Arrange: Set up two rooms
+        final room1 = TestData.createRoom(id: 'room-1', name: 'Room 1');
+        final room2 = TestData.createRoom(id: 'room-2', name: 'Room 2');
+        final doc = TestData.createDocument(id: 'doc-1', title: 'Room1 Doc');
+
+        late MockCurrentRoomIdNotifier roomIdNotifier;
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: ProviderContainer(
+              overrides: [
+                currentRoomIdProvider.overrideWith(() {
+                  return roomIdNotifier =
+                      MockCurrentRoomIdNotifier(initialRoomId: room1.id);
+                }),
+                currentRoomProvider.overrideWith((ref) {
+                  final roomId = ref.watch(currentRoomIdProvider);
+                  if (roomId == room1.id) return room1;
+                  if (roomId == room2.id) return room2;
+                  return null;
+                }),
+                // No thread selected - using pending documents
+                threadSelectionProviderOverride(const NewThreadIntent()),
+                activeRunNotifierOverride(const IdleState()),
+                allMessagesProvider.overrideWith((ref) async => []),
+                documentsProvider(room1.id).overrideWith((ref) async => [doc]),
+                documentsProvider(room2.id).overrideWith((ref) async => []),
+              ],
+            ),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: ChatPanel()),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Simulate selecting a document in room 1 (via pending state)
+        // We can't easily tap the picker in this test, so we'll verify
+        // the behavior by checking that after room change, no chips appear
+
+        // Pre-populate pending documents by calling onDocumentsChanged
+        // This simulates the user selecting a document before sending
+        final chatInput = tester.widget<ChatInput>(find.byType(ChatInput));
+        chatInput.onDocumentsChanged?.call({doc});
+        await tester.pump();
+
+        // Verify the chip is displayed in room 1
+        expect(find.text('Room1 Doc'), findsOneWidget);
+
+        // Act: Switch to room 2
+        roomIdNotifier.set(room2.id);
+        await tester.pumpAndSettle();
+
+        // Assert: Pending selection is cleared, no chip visible
+        expect(find.text('Room1 Doc'), findsNothing);
+      });
     });
   });
 }
