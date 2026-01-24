@@ -524,6 +524,14 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
 
         // Act
         await tester.pumpWidget(
@@ -535,6 +543,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -576,10 +585,15 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
         final selectedDoc = TestData.createDocument(
           id: 'doc-1',
           title: 'Manual.pdf',
         );
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => [selectedDoc]);
 
         // Act
         await tester.pumpWidget(
@@ -595,6 +609,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -608,11 +623,16 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
         final selectedDoc = TestData.createDocument(
           id: 'doc-1',
           title: 'Manual.pdf',
         );
         var resultDocs = <RagDocument>{selectedDoc};
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => [selectedDoc]);
 
         // Act
         await tester.pumpWidget(
@@ -629,6 +649,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -735,6 +756,114 @@ void main() {
         expect(selectedDocs.length, equals(1));
         expect(selectedDocs.first.id, equals('doc-1'));
         expect(selectedDocs.first.title, equals('Document 1.pdf'));
+      });
+
+      testWidgets('picker button is disabled when room has no documents', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - button should be disabled
+        final attachButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+        );
+        expect(attachButton.onPressed, isNull);
+      });
+
+      testWidgets('picker button is enabled when room has documents', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - button should be enabled
+        final attachButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+        );
+        expect(attachButton.onPressed, isNotNull);
+      });
+
+      testWidgets('picker button tooltip explains disabled state', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - tooltip should explain why disabled
+        final attachButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.attach_file),
+        );
+        expect(attachButton.tooltip, 'No documents in this room');
       });
 
       testWidgets('shows empty state when no documents in room', (
@@ -890,8 +1019,13 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
         final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc1.pdf');
         final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc2.pdf');
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => [doc1, doc2]);
 
         // Act
         await tester.pumpWidget(
@@ -907,6 +1041,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -972,6 +1107,11 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
 
         // Act
         await tester.pumpWidget(
@@ -988,6 +1128,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -1004,6 +1145,11 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
 
         // Act
         await tester.pumpWidget(
@@ -1020,6 +1166,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -1036,7 +1183,12 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
         String? sentText;
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
 
         // Act
         await tester.pumpWidget(
@@ -1053,6 +1205,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
@@ -1071,6 +1224,11 @@ void main() {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => <RagDocument>[]);
 
         // Act
         await tester.pumpWidget(
@@ -1087,6 +1245,7 @@ void main() {
               currentRoomProvider.overrideWith((ref) => mockRoom),
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
             ],
           ),
         );
