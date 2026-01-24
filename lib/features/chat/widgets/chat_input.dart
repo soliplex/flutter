@@ -156,8 +156,22 @@ class _ChatInputState extends ConsumerState<ChatInput> {
   Widget build(BuildContext context) {
     final canSend = ref.watch(canSendMessageProvider);
     final runState = ref.watch(activeRunNotifierProvider);
-    final hasRoom = widget.roomId != null;
+    final roomId = widget.roomId;
+    final hasRoom = roomId != null;
     final selectedDocs = widget.selectedDocuments;
+
+    // Check if room has documents for picker button state
+    // Only disable when we KNOW the room is empty (not during loading/error)
+    final documentsAsync =
+        hasRoom ? ref.watch(documentsProvider(roomId)) : null;
+    final isEmptyRoom = documentsAsync?.maybeWhen(
+          data: (docs) => docs.isEmpty,
+          orElse: () => false,
+        ) ??
+        false;
+    final pickerEnabled = canSend && !isEmptyRoom;
+    final pickerTooltip =
+        isEmptyRoom ? 'No documents in this room' : 'Select document';
 
     final showChips = widget.showSuggestions && widget.suggestions.isNotEmpty;
 
@@ -235,8 +249,8 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               // Document picker button
               if (hasRoom)
                 IconButton(
-                  tooltip: 'Select document',
-                  onPressed: canSend ? _showDocumentPicker : null,
+                  tooltip: pickerTooltip,
+                  onPressed: pickerEnabled ? _showDocumentPicker : null,
                   icon: const Icon(Icons.filter_alt),
                 ),
               const SizedBox(width: 8),
