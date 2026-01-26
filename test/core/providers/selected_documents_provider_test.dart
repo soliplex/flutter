@@ -25,10 +25,9 @@ void main() {
 
     test('setForThread stores documents for specific thread', () {
       final doc = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
-      final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc});
+      container
+          .read(selectedDocumentsNotifierProvider.notifier)
+          .setForThread('room-1', 'thread-1', {doc});
 
       final state = container.read(selectedDocumentsNotifierProvider);
       expect(state[(roomId: 'room-1', threadId: 'thread-1')], equals({doc}));
@@ -36,10 +35,9 @@ void main() {
 
     test('getForThread returns documents for specific thread', () {
       final doc = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
-      final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc});
+      final notifier = container
+          .read(selectedDocumentsNotifierProvider.notifier)
+        ..setForThread('room-1', 'thread-1', {doc});
 
       final result = notifier.getForThread('room-1', 'thread-1');
       expect(result, equals({doc}));
@@ -57,10 +55,9 @@ void main() {
       final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc 2');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-1', 'thread-2', {doc2});
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc1})
+            ..setForThread('room-1', 'thread-2', {doc2});
 
       expect(notifier.getForThread('room-1', 'thread-1'), equals({doc1}));
       expect(notifier.getForThread('room-1', 'thread-2'), equals({doc2}));
@@ -70,10 +67,9 @@ void main() {
       final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc 2');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-2', 'thread-1', {doc2});
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc1})
+            ..setForThread('room-2', 'thread-1', {doc2});
 
       expect(notifier.getForThread('room-1', 'thread-1'), equals({doc1}));
       expect(notifier.getForThread('room-2', 'thread-1'), equals({doc2}));
@@ -83,10 +79,9 @@ void main() {
       final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc 2');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-1', 'thread-1', {doc2});
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc1})
+            ..setForThread('room-1', 'thread-1', {doc2});
 
       expect(notifier.getForThread('room-1', 'thread-1'), equals({doc2}));
     });
@@ -94,10 +89,9 @@ void main() {
     test('clearForThread removes selection for specific thread', () {
       final doc = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc});
-      notifier.clearForThread('room-1', 'thread-1');
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc})
+            ..clearForThread('room-1', 'thread-1');
 
       expect(notifier.getForThread('room-1', 'thread-1'), isEmpty);
     });
@@ -106,11 +100,10 @@ void main() {
       final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc 2');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-1', 'thread-2', {doc2});
-      notifier.clearForThread('room-1', 'thread-1');
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc1})
+            ..setForThread('room-1', 'thread-2', {doc2})
+            ..clearForThread('room-1', 'thread-1');
 
       expect(notifier.getForThread('room-1', 'thread-1'), isEmpty);
       expect(notifier.getForThread('room-1', 'thread-2'), equals({doc2}));
@@ -120,11 +113,10 @@ void main() {
       final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc 2');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-1', 'thread-2', {doc2});
-      notifier.clearForRoom('room-1');
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc1})
+            ..setForThread('room-1', 'thread-2', {doc2})
+            ..clearForRoom('room-1');
 
       expect(notifier.getForThread('room-1', 'thread-1'), isEmpty);
       expect(notifier.getForThread('room-1', 'thread-2'), isEmpty);
@@ -134,11 +126,10 @@ void main() {
       final doc1 = TestData.createDocument(id: 'doc-1', title: 'Doc 1');
       final doc2 = TestData.createDocument(id: 'doc-2', title: 'Doc 2');
       final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-2', 'thread-1', {doc2});
-      notifier.clearForRoom('room-1');
+          container.read(selectedDocumentsNotifierProvider.notifier)
+            ..setForThread('room-1', 'thread-1', {doc1})
+            ..setForThread('room-2', 'thread-1', {doc2})
+            ..clearForRoom('room-1');
 
       expect(notifier.getForThread('room-1', 'thread-1'), isEmpty);
       expect(notifier.getForThread('room-2', 'thread-1'), equals({doc2}));
@@ -149,9 +140,7 @@ void main() {
     test('returns empty set when no room selected', () {
       final container = ProviderContainer(
         overrides: [
-          currentRoomIdProvider.overrideWith(
-            () => MockCurrentRoomIdNotifier(initialRoomId: null),
-          ),
+          currentRoomIdProvider.overrideWith(MockCurrentRoomIdNotifier.new),
           threadSelectionProviderOverride(const NoThreadSelected()),
         ],
       );
@@ -209,10 +198,9 @@ void main() {
       addTearDown(container.dispose);
 
       // Set up selections for both threads
-      final notifier =
-          container.read(selectedDocumentsNotifierProvider.notifier);
-      notifier.setForThread('room-1', 'thread-1', {doc1});
-      notifier.setForThread('room-1', 'thread-2', {doc2});
+      container.read(selectedDocumentsNotifierProvider.notifier)
+        ..setForThread('room-1', 'thread-1', {doc1})
+        ..setForThread('room-1', 'thread-2', {doc2});
 
       // Verify initial selection
       expect(container.read(currentSelectedDocumentsProvider), equals({doc1}));
