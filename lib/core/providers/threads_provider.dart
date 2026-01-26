@@ -9,7 +9,8 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 
 /// Provider for threads in a specific room.
 ///
-/// Fetches threads from the backend API using [SoliplexApi.getThreads].
+/// Fetches threads from the backend API using [SoliplexApi.getThreads]
+/// and sorts them by newest first (createdAt descending).
 /// Each room's threads are cached separately by Riverpod's family provider.
 ///
 /// **Usage**:
@@ -32,7 +33,16 @@ final threadsProvider = FutureProvider.family<List<ThreadInfo>, String>((
   roomId,
 ) async {
   final api = ref.watch(apiProvider);
-  return api.getThreads(roomId);
+  final threads = await api.getThreads(roomId);
+
+  // Sort by newest first: createdAt desc, id asc (tiebreaker)
+  threads.sort((a, b) {
+    final cmp = b.createdAt.compareTo(a.createdAt);
+    if (cmp != 0) return cmp;
+    return a.id.compareTo(b.id);
+  });
+
+  return threads;
 });
 
 /// Sealed class representing the current thread selection state.

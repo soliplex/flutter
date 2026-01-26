@@ -284,13 +284,11 @@ class SoliplexApi {
     }
 
     // Normalize response: backend returns thread_id, we use id
-    final now = DateTime.now();
     return ThreadInfo(
       id: response['thread_id'] as String,
       roomId: roomId,
       initialRunId: initialRunId ?? '',
-      createdAt: now,
-      updatedAt: now,
+      createdAt: DateTime.now(),
     );
   }
 

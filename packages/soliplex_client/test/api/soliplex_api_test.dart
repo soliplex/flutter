@@ -477,7 +477,6 @@ void main() {
             id: 'thread-123',
             roomId: 'room-123',
             createdAt: DateTime(2025),
-            updatedAt: DateTime(2025),
           ),
         );
 
@@ -538,7 +537,6 @@ void main() {
             id: 'thread-123',
             roomId: 'room-123',
             createdAt: DateTime(2025),
-            updatedAt: DateTime(2025),
           );
         });
 

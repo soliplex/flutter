@@ -366,15 +366,12 @@ class TestData {
     String roomId = 'test-room',
     String name = '',
     DateTime? createdAt,
-    DateTime? updatedAt,
   }) {
-    final now = DateTime.now();
     return ThreadInfo(
       id: id,
       roomId: roomId,
       name: name,
-      createdAt: createdAt ?? now,
-      updatedAt: updatedAt ?? now,
+      createdAt: createdAt ?? DateTime.now(),
     );
   }
 

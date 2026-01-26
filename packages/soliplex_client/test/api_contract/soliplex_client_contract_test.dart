@@ -73,7 +73,6 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
           initialRunId: 'run-1',
           name: 'Thread',
           description: 'A thread',
@@ -86,7 +85,6 @@ void main() {
         expect(thread.name, isA<String>());
         expect(thread.description, isA<String>());
         expect(thread.createdAt, isA<DateTime>());
-        expect(thread.updatedAt, isA<DateTime>());
         expect(thread.metadata, isA<Map<String, dynamic>>());
         expect(thread.hasInitialRun, isA<bool>());
         expect(thread.hasName, isA<bool>());
@@ -98,7 +96,6 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
         );
         final copied = thread.copyWith(
           id: 'thread-2',
@@ -107,7 +104,6 @@ void main() {
           name: 'name',
           description: 'desc',
           createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
           metadata: {},
         );
         expect(copied, isA<ThreadInfo>());
@@ -720,7 +716,6 @@ void main() {
           id: 'test-thread',
           roomId: room.id,
           createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
         );
 
         final run = RunInfo(

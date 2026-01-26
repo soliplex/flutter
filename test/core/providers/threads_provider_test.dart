@@ -22,24 +22,9 @@ void main() {
       const roomId = 'general';
       final now = DateTime.now();
       final mockThreads = [
-        ThreadInfo(
-          id: 'thread1',
-          roomId: roomId,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        ThreadInfo(
-          id: 'thread2',
-          roomId: roomId,
-          createdAt: now,
-          updatedAt: now,
-        ),
-        ThreadInfo(
-          id: 'thread3',
-          roomId: roomId,
-          createdAt: now,
-          updatedAt: now,
-        ),
+        ThreadInfo(id: 'thread1', roomId: roomId, createdAt: now),
+        ThreadInfo(id: 'thread2', roomId: roomId, createdAt: now),
+        ThreadInfo(id: 'thread3', roomId: roomId, createdAt: now),
       ];
       when(
         () => mockApi.getThreads(roomId),
@@ -242,6 +227,74 @@ void main() {
       // Assert
       expect(threads, isEmpty);
       verify(() => mockApi.getThreads(roomId)).called(1);
+    });
+
+    test('sorts threads by createdAt descending (newest first)', () async {
+      // Arrange
+      const roomId = 'general';
+      final older = DateTime(2025);
+      final middle = DateTime(2025, 1, 15);
+      final newer = DateTime(2025, 1, 30);
+
+      final mockThreads = [
+        TestData.createThread(id: 'old', roomId: roomId, createdAt: older),
+        TestData.createThread(id: 'new', roomId: roomId, createdAt: newer),
+        TestData.createThread(id: 'mid', roomId: roomId, createdAt: middle),
+      ];
+      when(() => mockApi.getThreads(roomId))
+          .thenAnswer((_) async => mockThreads);
+
+      final container = ProviderContainer(
+        overrides: [apiProvider.overrideWithValue(mockApi)],
+      );
+      addTearDown(container.dispose);
+
+      // Act
+      final threads = await container.read(threadsProvider(roomId).future);
+
+      // Assert - newest first
+      expect(threads[0].id, 'new');
+      expect(threads[1].id, 'mid');
+      expect(threads[2].id, 'old');
+    });
+
+    test('sorts by id when createdAt is equal', () async {
+      // Arrange
+      const roomId = 'general';
+      final sameTime = DateTime(2025, 1, 15);
+
+      final mockThreads = [
+        TestData.createThread(
+          id: 'thread-c',
+          roomId: roomId,
+          createdAt: sameTime,
+        ),
+        TestData.createThread(
+          id: 'thread-a',
+          roomId: roomId,
+          createdAt: sameTime,
+        ),
+        TestData.createThread(
+          id: 'thread-b',
+          roomId: roomId,
+          createdAt: sameTime,
+        ),
+      ];
+      when(() => mockApi.getThreads(roomId))
+          .thenAnswer((_) async => mockThreads);
+
+      final container = ProviderContainer(
+        overrides: [apiProvider.overrideWithValue(mockApi)],
+      );
+      addTearDown(container.dispose);
+
+      // Act
+      final threads = await container.read(threadsProvider(roomId).future);
+
+      // Assert - alphabetical by id for deterministic ordering
+      expect(threads[0].id, 'thread-a');
+      expect(threads[1].id, 'thread-b');
+      expect(threads[2].id, 'thread-c');
     });
   });
 
