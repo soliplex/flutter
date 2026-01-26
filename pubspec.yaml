@@ -54,4 +54,6 @@ flutter_launcher_icons:
   web:
     generate: true
   image_path: "assets/branding/app_icon_1024.png"
+  adaptive_icon_background: "#424242"
+  adaptive_icon_foreground: "assets/branding/logo_1024.png"
   web_favicon_path: "assets/branding/favicon_48.png"
