@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:soliplex_frontend/app.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
 /// Entry point for running a Soliplex-based application.
@@ -16,7 +14,6 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 /// - OAuth callback handling
 /// - Auth storage initialization
 /// - Config loading
-/// - Package info retrieval
 ///
 /// Use this in your main.dart for a white-label app:
 /// ```dart
@@ -59,16 +56,12 @@ Future<void> runSoliplexApp({
     debugPrint('Failed to load saved base URL: $e');
   }
 
-  // Load package info for version display.
-  final packageInfo = await PackageInfo.fromPlatform();
-
   runApp(
     ProviderScope(
       overrides: [
         // Inject shell configuration via ProviderScope (no global state)
         shellConfigProvider.overrideWithValue(config),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
-        packageInfoProvider.overrideWithValue(packageInfo),
         // Inject user's saved base URL if available
         if (savedBaseUrl != null)
           preloadedBaseUrlProvider.overrideWithValue(savedBaseUrl),

@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 // Riverpod 3.0 doesn't export Override from a public location.
 // Using dynamic list + cast in createTestApp() avoids this import,
 // but helper functions need the type for signatures.
@@ -23,7 +22,6 @@ import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -224,24 +222,11 @@ Override configProviderOverride(AppConfig config) {
   );
 }
 
-/// Default test PackageInfo for widget tests.
-final testPackageInfo = PackageInfo(
-  appName: 'Soliplex',
-  packageName: 'com.soliplex.frontend',
-  version: '1.0.0',
-  buildNumber: '1',
-);
-
 /// Default test BackendVersionInfo for widget tests.
 const testBackendVersionInfo = BackendVersionInfo(
   soliplexVersion: '0.36.dev0',
   packageVersions: {'soliplex': '0.36.dev0'},
 );
-
-/// Creates an override for packageInfoProvider.
-Override packageInfoProviderOverride(PackageInfo info) {
-  return packageInfoProvider.overrideWithValue(info);
-}
 
 /// Mock CurrentRoomIdNotifier for testing.
 class MockCurrentRoomIdNotifier extends Notifier<String?>
@@ -540,7 +525,6 @@ final testThemeData = soliplexLightTheme();
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
 /// Automatically includes default overrides for:
-/// - [packageInfoProvider] with [testPackageInfo]
 /// - [shellConfigProvider] with default [SoliplexConfig]
 /// - [backendVersionInfoProvider] with [testBackendVersionInfo]
 ///
@@ -559,7 +543,6 @@ Widget createTestApp({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        packageInfoProvider.overrideWithValue(testPackageInfo),
         shellConfigProvider.overrideWithValue(
           const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
         ),

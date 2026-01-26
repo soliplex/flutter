@@ -11,7 +11,6 @@ import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -96,7 +95,6 @@ Widget createRouterAppAt(
 
   return ProviderScope(
     overrides: [
-      packageInfoProvider.overrideWithValue(testPackageInfo),
       shellConfigProvider.overrideWithValue(config),
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
@@ -544,7 +542,6 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           backendVersionInfoProvider.overrideWithValue(
             const AsyncValue.data(testBackendVersionInfo),
@@ -623,7 +620,6 @@ void main() {
       // Setup: showHomeRoute: false, trigger error page
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(
@@ -860,7 +856,6 @@ void main() {
       // Setup: showRoomsRoute: false, showHomeRoute: true
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(showRoomsRoute: false),
@@ -900,7 +895,6 @@ void main() {
       // Setup: showHomeRoute: false, showRoomsRoute: true
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(
@@ -942,7 +936,6 @@ void main() {
       // Setup: showHomeRoute: false - verify sign-out goes to /login not /
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(
@@ -993,7 +986,6 @@ void main() {
       // if it's their default route
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(showRoomsRoute: false),
@@ -1032,7 +1024,6 @@ void main() {
       // Setup: initialRoute: '/settings', enableSettings: false
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               features: Features(enableSettings: false),
@@ -1071,7 +1062,6 @@ void main() {
       // Setup: initialRoute: '/settings', enableSettings: true (defaults)
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(initialRoute: '/settings'),
@@ -1113,7 +1103,6 @@ void main() {
       // Config: RouteConfig(showRoomsRoute: false, showHomeRoute: true)
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(showRoomsRoute: false),
@@ -1150,7 +1139,6 @@ void main() {
       // Config: RouteConfig(showHomeRoute: false, showRoomsRoute: true)
       final container = ProviderContainer(
         overrides: [
-          packageInfoProvider.overrideWithValue(testPackageInfo),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               routes: RouteConfig(

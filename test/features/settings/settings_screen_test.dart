@@ -10,9 +10,9 @@ import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
+import 'package:soliplex_frontend/version.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -42,7 +42,6 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        packageInfoProvider.overrideWithValue(testPackageInfo),
         shellConfigProvider.overrideWithValue(const SoliplexConfig()),
         backendVersionInfoProvider.overrideWithValue(
           const AsyncValue.data(testBackendVersionInfo),
@@ -108,13 +107,11 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 
 void main() {
   group('SettingsScreen', () {
-    testWidgets('displays app version from packageInfoProvider', (
-      tester,
-    ) async {
+    testWidgets('displays frontend version', (tester) async {
       await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
-      expect(find.text('App Version'), findsOneWidget);
-      expect(find.text('1.0.0+1'), findsOneWidget);
+      expect(find.text('Frontend Version'), findsOneWidget);
+      expect(find.text(soliplexVersion), findsOneWidget);
     });
 
     testWidgets('displays backend URL', (tester) async {

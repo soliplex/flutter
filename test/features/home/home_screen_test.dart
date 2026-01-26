@@ -13,7 +13,6 @@ import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 
@@ -98,7 +97,6 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        packageInfoProvider.overrideWithValue(testPackageInfo),
         // Use localhost:8000 as default to match test URLs so connecting
         // is not treated as a backend change (which triggers signOut).
         shellConfigProvider.overrideWithValue(

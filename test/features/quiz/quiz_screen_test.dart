@@ -47,7 +47,6 @@ void main() {
     return UncontrolledProviderScope(
       container: ProviderContainer(
         overrides: [
-          packageInfoProviderOverride(testPackageInfo),
           shellConfigProvider.overrideWithValue(const SoliplexConfig()),
           apiProvider.overrideWithValue(api),
         ],

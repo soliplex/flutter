@@ -6,9 +6,9 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
 import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/version.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -19,26 +19,19 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(configProvider);
-    final packageInfo = ref.watch(packageInfoProvider);
     final authState = ref.watch(authProvider);
     final backendVersion = ref.watch(backendVersionInfoProvider);
-
-    final appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
 
     return ListView(
       children: [
         ListTile(
           leading: const Icon(Icons.info_outline),
-          title: const Text('App Version'),
-          subtitle: SelectableText(
-            appVersion,
-          ),
+          title: const Text('Frontend Version'),
+          subtitle: const SelectableText(soliplexVersion),
           trailing: IconButton(
             icon: const Icon(Icons.copy),
             onPressed: () => Clipboard.setData(
-              ClipboardData(
-                text: appVersion,
-              ),
+              const ClipboardData(text: soliplexVersion),
             ),
           ),
         ),
