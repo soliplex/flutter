@@ -300,8 +300,7 @@ void main() {
           'initial_run_id': 'run-1',
           'name': 'Test Thread',
           'description': 'A test thread',
-          'created_at': '2025-01-01T00:00:00.000Z',
-          'updated_at': '2025-01-02T00:00:00.000Z',
+          'created': '2025-01-01T00:00:00.000',
           'metadata': {'key': 'value'},
         };
 
@@ -312,8 +311,7 @@ void main() {
         expect(thread.initialRunId, equals('run-1'));
         expect(thread.name, equals('Test Thread'));
         expect(thread.description, equals('A test thread'));
-        expect(thread.createdAt, isNotNull);
-        expect(thread.updatedAt, isNotNull);
+        expect(thread.createdAt, equals(DateTime.utc(2025)));
         expect(thread.metadata, equals({'key': 'value'}));
       });
 
@@ -328,7 +326,6 @@ void main() {
         expect(thread.name, equals(''));
         expect(thread.description, equals(''));
         expect(thread.createdAt, isNotNull);
-        expect(thread.updatedAt, isNotNull);
         expect(thread.metadata, equals(const <String, dynamic>{}));
       });
 
@@ -351,22 +348,11 @@ void main() {
         expect(thread.roomId, equals(''));
       });
 
-      test('throws FormatException for invalid created_at DateTime', () {
+      test('throws FormatException for invalid created DateTime', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
-          'created_at': 'invalid-date',
-        };
-
-        expect(() => threadInfoFromJson(json), throwsFormatException);
-      });
-
-      test('throws FormatException for invalid updated_at DateTime', () {
-        final json = <String, dynamic>{
-          'id': 'thread-1',
-          'room_id': 'room-1',
-          'created_at': '2025-01-01T00:00:00.000Z',
-          'updated_at': 'invalid-date',
+          'created': 'invalid-date',
         };
 
         expect(() => threadInfoFromJson(json), throwsFormatException);
@@ -389,12 +375,60 @@ void main() {
         expect(thread.description, equals(''));
         expect(thread.metadata, equals(const <String, dynamic>{}));
       });
+
+      test('parses created timestamp', () {
+        final json = <String, dynamic>{
+          'thread_id': 'thread-1',
+          'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
+        };
+
+        final thread = threadInfoFromJson(json);
+
+        expect(thread.id, equals('thread-1'));
+        expect(thread.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
+      });
+
+      test('extracts name and description from metadata when not at top level',
+          () {
+        final json = <String, dynamic>{
+          'thread_id': 'thread-1',
+          'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
+          'metadata': {
+            'name': 'Thread from metadata',
+            'description': 'Description from metadata',
+          },
+        };
+
+        final thread = threadInfoFromJson(json);
+
+        expect(thread.name, equals('Thread from metadata'));
+        expect(thread.description, equals('Description from metadata'));
+      });
+
+      test('prefers top-level name/description over metadata', () {
+        final json = <String, dynamic>{
+          'id': 'thread-1',
+          'room_id': 'room-1',
+          'name': 'Top level name',
+          'description': 'Top level description',
+          'metadata': {
+            'name': 'Metadata name',
+            'description': 'Metadata description',
+          },
+        };
+
+        final thread = threadInfoFromJson(json);
+
+        expect(thread.name, equals('Top level name'));
+        expect(thread.description, equals('Top level description'));
+      });
     });
 
     group('threadInfoToJson', () {
       test('serializes correctly with all fields', () {
         final createdAt = DateTime.utc(2025);
-        final updatedAt = DateTime.utc(2025, 1, 2);
         final thread = ThreadInfo(
           id: 'thread-1',
           roomId: 'room-1',
@@ -402,7 +436,6 @@ void main() {
           name: 'Test Thread',
           description: 'A test thread',
           createdAt: createdAt,
-          updatedAt: updatedAt,
           metadata: const {'key': 'value'},
         );
 
@@ -413,8 +446,7 @@ void main() {
         expect(json['initial_run_id'], equals('run-1'));
         expect(json['name'], equals('Test Thread'));
         expect(json['description'], equals('A test thread'));
-        expect(json['created_at'], equals('2025-01-01T00:00:00.000Z'));
-        expect(json['updated_at'], equals('2025-01-02T00:00:00.000Z'));
+        expect(json['created'], equals('2025-01-01T00:00:00.000'));
         expect(json['metadata'], equals({'key': 'value'}));
       });
 
@@ -423,15 +455,13 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime.utc(2025),
-          updatedAt: DateTime.utc(2025),
         );
 
         final json = threadInfoToJson(thread);
 
         expect(json.containsKey('id'), isTrue);
         expect(json.containsKey('room_id'), isTrue);
-        expect(json.containsKey('created_at'), isTrue);
-        expect(json.containsKey('updated_at'), isTrue);
+        expect(json.containsKey('created'), isTrue);
         expect(json.containsKey('initial_run_id'), isFalse);
         expect(json.containsKey('name'), isFalse);
         expect(json.containsKey('description'), isFalse);
@@ -441,7 +471,6 @@ void main() {
 
     test('roundtrip serialization', () {
       final createdAt = DateTime.utc(2025);
-      final updatedAt = DateTime.utc(2025, 1, 2);
       final original = ThreadInfo(
         id: 'thread-1',
         roomId: 'room-1',
@@ -449,7 +478,6 @@ void main() {
         name: 'Test Thread',
         description: 'A test thread',
         createdAt: createdAt,
-        updatedAt: updatedAt,
         metadata: const {'key': 'value'},
       );
 
@@ -462,7 +490,6 @@ void main() {
       expect(restored.name, equals(original.name));
       expect(restored.description, equals(original.description));
       expect(restored.createdAt, equals(original.createdAt));
-      expect(restored.updatedAt, equals(original.updatedAt));
       expect(restored.metadata, equals(original.metadata));
     });
   });

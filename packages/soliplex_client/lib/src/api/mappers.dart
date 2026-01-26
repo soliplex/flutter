@@ -114,33 +114,47 @@ Map<String, dynamic> ragDocumentToJson(RagDocument doc) {
 ///
 /// Throws [FormatException] if date fields contain malformed values.
 ThreadInfo threadInfoFromJson(Map<String, dynamic> json) {
-  final createdAt = json['created_at'] != null
-      ? DateTime.parse(json['created_at'] as String)
-      : DateTime.now();
+  // Backend sends UTC timestamps without 'Z' suffix, so append 'Z' to parse
+  // as UTC.
+  final createdRaw = json['created'];
+  final createdAt =
+      createdRaw != null ? DateTime.parse('${createdRaw}Z') : DateTime.now();
+
+  // Name/description may be at top level or nested in metadata
+  final metadata = (json['metadata'] as Map<String, dynamic>?) ?? const {};
+  final name = (json['name'] as String?) ?? (metadata['name'] as String?) ?? '';
+  final description = (json['description'] as String?) ??
+      (metadata['description'] as String?) ??
+      '';
+
   return ThreadInfo(
     id: json['id'] as String? ?? json['thread_id'] as String,
     roomId: json['room_id'] as String? ?? '',
     initialRunId: (json['initial_run_id'] as String?) ?? '',
-    name: (json['name'] as String?) ?? '',
-    description: (json['description'] as String?) ?? '',
+    name: name,
+    description: description,
     createdAt: createdAt,
-    updatedAt: json['updated_at'] != null
-        ? DateTime.parse(json['updated_at'] as String)
-        : createdAt,
-    metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    metadata: metadata,
   );
 }
 
 /// Converts a [ThreadInfo] to JSON.
+///
+/// Outputs timestamps without 'Z' suffix to match backend format.
 Map<String, dynamic> threadInfoToJson(ThreadInfo thread) {
+  // Remove trailing 'Z' from ISO string to match backend format
+  String formatTimestamp(DateTime dt) {
+    final iso = dt.toUtc().toIso8601String();
+    return iso.endsWith('Z') ? iso.substring(0, iso.length - 1) : iso;
+  }
+
   return {
     'id': thread.id,
     'room_id': thread.roomId,
     if (thread.initialRunId.isNotEmpty) 'initial_run_id': thread.initialRunId,
     if (thread.name.isNotEmpty) 'name': thread.name,
     if (thread.description.isNotEmpty) 'description': thread.description,
-    'created_at': thread.createdAt.toIso8601String(),
-    'updated_at': thread.updatedAt.toIso8601String(),
+    'created': formatTimestamp(thread.createdAt),
     if (thread.metadata.isNotEmpty) 'metadata': thread.metadata,
   };
 }
