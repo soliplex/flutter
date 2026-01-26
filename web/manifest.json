@@ -1,6 +1,6 @@
 {
-    "name": "soliplex_frontend",
-    "short_name": "soliplex_frontend",
+    "name": "Soliplex",
+    "short_name": "Soliplex",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
