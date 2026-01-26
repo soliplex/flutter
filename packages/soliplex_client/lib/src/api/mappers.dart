@@ -8,6 +8,29 @@ import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
 
 // ============================================================
+// Timestamp helpers
+// ============================================================
+
+/// Parses a UTC timestamp from the backend.
+///
+/// Backend sends ISO 8601 timestamps without 'Z' suffix. This normalizes
+/// the format and ensures UTC parsing.
+///
+/// Throws [FormatException] if [raw] is malformed.
+DateTime parseTimestamp(String raw) {
+  final normalized = raw.endsWith('Z') ? raw : '${raw}Z';
+  return DateTime.parse(normalized).toUtc();
+}
+
+/// Formats a [DateTime] for the backend.
+///
+/// Outputs ISO 8601 without 'Z' suffix to match backend format.
+String formatTimestamp(DateTime dt) {
+  final iso = dt.toUtc().toIso8601String();
+  return iso.endsWith('Z') ? iso.substring(0, iso.length - 1) : iso;
+}
+
+// ============================================================
 // BackendVersionInfo mappers
 // ============================================================
 
@@ -112,13 +135,13 @@ Map<String, dynamic> ragDocumentToJson(RagDocument doc) {
 
 /// Creates a [ThreadInfo] from JSON.
 ///
-/// Throws [FormatException] if date fields contain malformed values.
+/// Throws [FormatException] if required fields are missing or malformed.
 ThreadInfo threadInfoFromJson(Map<String, dynamic> json) {
-  // Backend sends UTC timestamps without 'Z' suffix, so append 'Z' to parse
-  // as UTC.
-  final createdRaw = json['created'];
-  final createdAt =
-      createdRaw != null ? DateTime.parse('${createdRaw}Z') : DateTime.now();
+  final createdRaw = json['created'] as String?;
+  if (createdRaw == null) {
+    throw FormatException('Thread ${json['id']} missing required "created"');
+  }
+  final createdAt = parseTimestamp(createdRaw);
 
   // Name/description may be at top level or nested in metadata
   final metadata = (json['metadata'] as Map<String, dynamic>?) ?? const {};
@@ -139,15 +162,7 @@ ThreadInfo threadInfoFromJson(Map<String, dynamic> json) {
 }
 
 /// Converts a [ThreadInfo] to JSON.
-///
-/// Outputs timestamps without 'Z' suffix to match backend format.
 Map<String, dynamic> threadInfoToJson(ThreadInfo thread) {
-  // Remove trailing 'Z' from ISO string to match backend format
-  String formatTimestamp(DateTime dt) {
-    final iso = dt.toUtc().toIso8601String();
-    return iso.endsWith('Z') ? iso.substring(0, iso.length - 1) : iso;
-  }
-
   return {
     'id': thread.id,
     'room_id': thread.roomId,
@@ -165,17 +180,20 @@ Map<String, dynamic> threadInfoToJson(ThreadInfo thread) {
 
 /// Creates a [RunInfo] from JSON.
 ///
-/// Throws [FormatException] if date fields contain malformed values.
+/// Throws [FormatException] if required fields are missing or malformed.
 RunInfo runInfoFromJson(Map<String, dynamic> json) {
+  final createdRaw = json['created'] as String?;
+  if (createdRaw == null) {
+    throw FormatException('Run ${json['id']} missing required "created"');
+  }
+
   return RunInfo(
     id: json['id'] as String? ?? json['run_id'] as String,
     threadId: json['thread_id'] as String? ?? '',
     label: (json['label'] as String?) ?? '',
-    createdAt: json['created_at'] != null
-        ? DateTime.parse(json['created_at'] as String)
-        : DateTime.now(),
+    createdAt: parseTimestamp(createdRaw),
     completion: json['completed_at'] != null
-        ? CompletedAt(DateTime.parse(json['completed_at'] as String))
+        ? CompletedAt(parseTimestamp(json['completed_at'] as String))
         : const NotCompleted(),
     status: runStatusFromString(json['status'] as String?),
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
@@ -188,9 +206,9 @@ Map<String, dynamic> runInfoToJson(RunInfo run) {
     'id': run.id,
     'thread_id': run.threadId,
     if (run.label.isNotEmpty) 'label': run.label,
-    'created_at': run.createdAt.toIso8601String(),
+    'created': formatTimestamp(run.createdAt),
     if (run.completion case CompletedAt(:final time))
-      'completed_at': time.toIso8601String(),
+      'completed_at': formatTimestamp(time),
     'status': run.status.name,
     if (run.metadata.isNotEmpty) 'metadata': run.metadata,
   };
