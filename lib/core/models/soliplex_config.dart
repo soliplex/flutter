@@ -104,16 +104,17 @@ class SoliplexConfig {
 
   @override
   int get hashCode => Object.hash(
-        appName,
-        defaultBackendUrl,
-        oauthRedirectScheme,
-        features,
-        theme,
-        routes,
-      );
+    appName,
+    defaultBackendUrl,
+    oauthRedirectScheme,
+    features,
+    theme,
+    routes,
+  );
 
   @override
-  String toString() => 'SoliplexConfig('
+  String toString() =>
+      'SoliplexConfig('
       'appName: $appName, '
       'defaultBackendUrl: $defaultBackendUrl, '
       'oauthRedirectScheme: $oauthRedirectScheme, '

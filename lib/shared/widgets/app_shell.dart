@@ -94,11 +94,7 @@ class AppShell extends ConsumerWidget {
         child: SizedBox(
           width: _getDrawerWidth(context),
           child: Drawer(
-            child: SafeArea(
-              left: false,
-              right: false,
-              child: customEndDrawer!,
-            ),
+            child: SafeArea(left: false, right: false, child: customEndDrawer!),
           ),
         ),
       );

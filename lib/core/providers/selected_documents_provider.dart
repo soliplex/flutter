@@ -51,18 +51,14 @@ class SelectedDocumentsNotifier
   /// Clears the selection for a specific thread.
   void clearForThread(String roomId, String threadId) {
     final key = (roomId: roomId, threadId: threadId);
-    state = Map.fromEntries(
-      state.entries.where((e) => e.key != key),
-    );
+    state = Map.fromEntries(state.entries.where((e) => e.key != key));
   }
 
   /// Clears all selections for a specific room.
   ///
   /// Useful when a room is deleted or the user leaves a room.
   void clearForRoom(String roomId) {
-    state = Map.fromEntries(
-      state.entries.where((e) => e.key.roomId != roomId),
-    );
+    state = Map.fromEntries(state.entries.where((e) => e.key.roomId != roomId));
   }
 }
 
@@ -70,10 +66,11 @@ class SelectedDocumentsNotifier
 ///
 /// Use [currentSelectedDocumentsProvider] for read access to the current
 /// thread's selection, and the notifier's `setForThread` method for updates.
-final selectedDocumentsNotifierProvider = NotifierProvider<
-    SelectedDocumentsNotifier, Map<ThreadKey, Set<RagDocument>>>(
-  SelectedDocumentsNotifier.new,
-);
+final selectedDocumentsNotifierProvider =
+    NotifierProvider<
+      SelectedDocumentsNotifier,
+      Map<ThreadKey, Set<RagDocument>>
+    >(SelectedDocumentsNotifier.new);
 
 /// Provider for the current thread's document selection.
 ///

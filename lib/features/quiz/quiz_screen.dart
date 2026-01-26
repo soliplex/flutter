@@ -54,9 +54,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           tooltip: 'Back to room',
           onPressed: _handleBack,
         ),
-        title: quizAsync.whenOrNull(
-          data: (quiz) => Text(quiz.title),
-        ),
+        title: quizAsync.whenOrNull(data: (quiz) => Text(quiz.title)),
         actions: [
           if (features.enableSettings)
             Semantics(
@@ -74,14 +72,14 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         loading: () => const LoadingIndicator(),
         error: (error, stack) => switch (error) {
           NotFoundException() => ErrorDisplay(
-              error: error,
-              onRetry: _handleBack,
-              retryLabel: 'Back to Room',
-            ),
+            error: error,
+            onRetry: _handleBack,
+            retryLabel: 'Back to Room',
+          ),
           _ => ErrorDisplay(
-              error: error,
-              onRetry: () => ref.invalidate(quizProvider(_sessionKey)),
-            ),
+            error: error,
+            onRetry: () => ref.invalidate(quizProvider(_sessionKey)),
+          ),
         },
       ),
     );
@@ -123,8 +121,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     ? '1 question'
                     : '${quiz.questionCount} questions',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: SoliplexSpacing.s6),
               FilledButton.icon(
@@ -168,9 +166,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                       'Question ${session.currentIndex + 1} of '
                       '${session.quiz.questionCount}',
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: SoliplexSpacing.s2),
 
@@ -221,16 +218,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
     return switch (question.type) {
       MultipleChoice(:final options) => _buildMultipleChoice(
-          context,
-          options: options,
-          selectedOption: selectedOption,
-          questionState: questionState,
-        ),
+        context,
+        options: options,
+        selectedOption: selectedOption,
+        questionState: questionState,
+      ),
       FillBlank() || FreeForm() => _buildTextInput(
-          context,
-          hint: 'Type your answer...',
-          questionState: questionState,
-        ),
+        context,
+        hint: 'Type your answer...',
+        questionState: questionState,
+      ),
     };
   }
 
@@ -363,8 +360,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     final textTheme = Theme.of(context).textTheme;
 
     final isCorrect = result.isCorrect;
-    final containerColor =
-        isCorrect ? colorScheme.primaryContainer : colorScheme.errorContainer;
+    final containerColor = isCorrect
+        ? colorScheme.primaryContainer
+        : colorScheme.errorContainer;
     final contentColor = isCorrect
         ? colorScheme.onPrimaryContainer
         : colorScheme.onErrorContainer;
@@ -408,25 +406,25 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
     return switch (questionState) {
       AwaitingInput() => const FilledButton(
-          onPressed: null,
-          child: Text('Submit Answer'),
-        ),
+        onPressed: null,
+        child: Text('Submit Answer'),
+      ),
       Composing(:final canSubmit) => FilledButton(
-          onPressed: canSubmit ? _submitAnswer : null,
-          child: const Text('Submit Answer'),
-        ),
+        onPressed: canSubmit ? _submitAnswer : null,
+        child: const Text('Submit Answer'),
+      ),
       Submitting() => const FilledButton(
-          onPressed: null,
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
+        onPressed: null,
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
+      ),
       Answered() => FilledButton(
-          onPressed: _nextQuestion,
-          child: Text(session.isLastQuestion ? 'See Results' : 'Next Question'),
-        ),
+        onPressed: _nextQuestion,
+        child: Text(session.isLastQuestion ? 'See Results' : 'Next Question'),
+      ),
     };
   }
 
@@ -458,16 +456,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               Text(
                 '${session.scorePercent}%',
                 style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                      color: scoreColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  color: scoreColor,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: SoliplexSpacing.s2),
               Text(
                 '${session.correctCount} of ${session.totalAnswered} correct',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: SoliplexSpacing.s6),
               Wrap(
@@ -548,10 +546,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Unexpected error: $e'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: _submitAnswer,
-            ),
+            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
           ),
         );
       }

@@ -4,7 +4,8 @@ import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain
+import 'package:soliplex_client/soliplex_client.dart'
+    as domain
     show Cancelled, Completed, Conversation, Failed, Idle, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
@@ -352,30 +353,30 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ) {
     final newState = switch (result.conversation.status) {
       domain.Completed() => CompletedState(
-          conversation: result.conversation,
-          streaming: result.streaming,
-          result: const Success(),
-        ),
+        conversation: result.conversation,
+        streaming: result.streaming,
+        result: const Success(),
+      ),
       domain.Failed(:final error) => () {
-          _log('Run completed with failure: $error');
-          return CompletedState(
-            conversation: result.conversation,
-            streaming: result.streaming,
-            result: FailedResult(errorMessage: error),
-          );
-        }(),
+        _log('Run completed with failure: $error');
+        return CompletedState(
+          conversation: result.conversation,
+          streaming: result.streaming,
+          result: FailedResult(errorMessage: error),
+        );
+      }(),
       domain.Cancelled(:final reason) => CompletedState(
-          conversation: result.conversation,
-          streaming: result.streaming,
-          result: CancelledResult(reason: reason),
-        ),
+        conversation: result.conversation,
+        streaming: result.streaming,
+        result: CancelledResult(reason: reason),
+      ),
       domain.Running() => previousState.copyWith(
-          conversation: result.conversation,
-          streaming: result.streaming,
-        ),
+        conversation: result.conversation,
+        streaming: result.streaming,
+      ),
       domain.Idle() => throw StateError(
-          'Unexpected Idle status during event processing',
-        ),
+        'Unexpected Idle status during event processing',
+      ),
     };
 
     // Update cache when run completes via event (RUN_FINISHED, RUN_ERROR)

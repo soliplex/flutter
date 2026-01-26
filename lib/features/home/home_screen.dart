@@ -49,8 +49,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _setError(String detail, {String? serverDetail}) {
     if (!mounted) return;
     setState(() {
-      _error =
-          serverDetail != null ? '$detail\n\nDetails: $serverDetail' : detail;
+      _error = serverDetail != null
+          ? '$detail\n\nDetails: $serverDetail'
+          : detail;
     });
   }
 
@@ -128,8 +129,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         hasProviders: providers.isNotEmpty,
         currentAuthState: ref.read(authProvider),
       );
-      final landingRoute =
-          ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
+      final landingRoute = ref
+          .read(shellConfigProvider)
+          .routes
+          .authenticatedLandingRoute;
       switch (result) {
         case EnterNoAuthModeResult():
           await ref.read(authProvider.notifier).enterNoAuthMode();
@@ -148,14 +151,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       debugPrint('HomeScreen: Auth error: ${e.message}');
       final detail = e.statusCode == 401
           ? 'Authentication required. This server requires login credentials. '
-              '(${e.statusCode})'
+                '(${e.statusCode})'
           : 'Access denied by server. The server may require additional '
-              'configuration or may be blocking this connection. '
-              '(${e.statusCode})';
+                'configuration or may be blocking this connection. '
+                '(${e.statusCode})';
       _setError(detail, serverDetail: e.serverMessage);
     } on NotFoundException catch (e) {
       debugPrint('HomeScreen: Not found: ${e.message}');
-      const detail = 'Server reached, but the expected API endpoint was not '
+      const detail =
+          'Server reached, but the expected API endpoint was not '
           'found. The server version may be incompatible. (404)';
       _setError(detail, serverDetail: e.serverMessage);
     } on CancelledException catch (e) {

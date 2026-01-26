@@ -257,9 +257,7 @@ void main() {
           final c = QuizInProgress(
             quiz: quiz,
             currentIndex: 0,
-            results: const {
-              'q1': CorrectAnswer(),
-            },
+            results: const {'q1': CorrectAnswer()},
             questionState: const AwaitingInput(),
           );
 
@@ -324,9 +322,7 @@ void main() {
         final quiz = Quiz(id: 'quiz-1', title: 'Test', questions: const []);
         final session = QuizCompleted(
           quiz: quiz,
-          results: const {
-            'q1': CorrectAnswer(),
-          },
+          results: const {'q1': CorrectAnswer()},
         );
 
         expect(session.quiz.id, 'quiz-1');
@@ -352,10 +348,7 @@ void main() {
         final quiz = Quiz(id: 'quiz-1', title: 'Test', questions: const []);
         final allCorrect = QuizCompleted(
           quiz: quiz,
-          results: const {
-            'q1': CorrectAnswer(),
-            'q2': CorrectAnswer(),
-          },
+          results: const {'q1': CorrectAnswer(), 'q2': CorrectAnswer()},
         );
         final halfCorrect = QuizCompleted(
           quiz: quiz,
@@ -379,9 +372,7 @@ void main() {
         final c = QuizCompleted(quiz: quiz2, results: const {});
         final d = QuizCompleted(
           quiz: quiz1,
-          results: const {
-            'q1': CorrectAnswer(),
-          },
+          results: const {'q1': CorrectAnswer()},
         );
 
         expect(a, equals(b));
@@ -1021,9 +1012,7 @@ void main() {
       test('ignores input updates when already answered', () async {
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
-        ).thenAnswer(
-          (_) async => const CorrectAnswer(),
-        );
+        ).thenAnswer((_) async => const CorrectAnswer());
 
         final container = ProviderContainer(
           overrides: [apiProvider.overrideWithValue(mockApi)],
@@ -1143,17 +1132,13 @@ void main() {
         expect(session.questionState, isA<Submitting>());
 
         // Cleanup
-        completer.complete(
-          const CorrectAnswer(),
-        );
+        completer.complete(const CorrectAnswer());
       });
 
       test('no-op when in Answered state', () async {
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
-        ).thenAnswer(
-          (_) async => const CorrectAnswer(),
-        );
+        ).thenAnswer((_) async => const CorrectAnswer());
 
         final container = ProviderContainer(
           overrides: [apiProvider.overrideWithValue(mockApi)],
@@ -1243,9 +1228,7 @@ void main() {
         );
 
         // Complete the API call
-        completer.complete(
-          const CorrectAnswer(),
-        );
+        completer.complete(const CorrectAnswer());
 
         // Await should complete without throwing
         final result = await submitFuture;

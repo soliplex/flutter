@@ -5,6 +5,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
 /// Formats a document path/title to show filename with up to 2 parent folders.
 ///
@@ -25,9 +26,8 @@ String formatDocumentTitle(String title) {
   if (segments.isEmpty) return title;
 
   // Take the last 3 segments (filename + up to 2 parent folders)
-  final displaySegments = segments.length <= 3
-      ? segments
-      : segments.sublist(segments.length - 3);
+  final displaySegments =
+      segments.length <= 3 ? segments : segments.sublist(segments.length - 3);
 
   return displaySegments.join('/');
 }
@@ -205,7 +205,9 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                         const SizedBox(width: SoliplexSpacing.s1),
                         Text(
                           formatDocumentTitle(doc.title),
-                          style: Theme.of(context).textTheme.bodySmall
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
                               ?.copyWith(
                                 color: Theme.of(context).colorScheme.primary,
                               ),
@@ -243,9 +245,8 @@ class _ChatInputState extends ConsumerState<ChatInput> {
               Expanded(
                 child: CallbackShortcuts(
                   bindings: {
-                    const SingleActivator(LogicalKeyboardKey.enter): canSend
-                        ? _handleSend
-                        : () {},
+                    const SingleActivator(LogicalKeyboardKey.enter):
+                        canSend ? _handleSend : () {},
                     const SingleActivator(LogicalKeyboardKey.escape): () =>
                         _focusNode.unfocus(),
                   },
@@ -292,12 +293,12 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                   style: IconButton.styleFrom(
                     backgroundColor:
                         canSend && _controller.text.trim().isNotEmpty
-                        ? Theme.of(context).colorScheme.primary
-                        : null,
+                            ? Theme.of(context).colorScheme.primary
+                            : null,
                     foregroundColor:
                         canSend && _controller.text.trim().isNotEmpty
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : null,
+                            ? Theme.of(context).colorScheme.onPrimary
+                            : null,
                   ),
                 ),
             ],
@@ -406,7 +407,12 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('Error: $error')),
+          error: (error, _) => ErrorDisplay(
+            error: error,
+            onRetry: () {
+              ref.read(documentsProvider(widget.roomId).notifier).retry();
+            },
+          ),
         ),
       ),
       actions: [

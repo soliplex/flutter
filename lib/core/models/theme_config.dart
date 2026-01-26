@@ -44,6 +44,7 @@ class ThemeConfig {
   int get hashCode => Object.hash(lightColors, darkColors);
 
   @override
-  String toString() => 'ThemeConfig(lightColors: $lightColors, '
+  String toString() =>
+      'ThemeConfig(lightColors: $lightColors, '
       'darkColors: $darkColors)';
 }

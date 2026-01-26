@@ -103,7 +103,8 @@ final allMessagesProvider = FutureProvider<List<ChatMessage>>((ref) async {
   final cached = cacheState[thread.id];
 
   // Use cached messages if available, otherwise fetch (which updates cache).
-  final history = cached ??
+  final history =
+      cached ??
       await ref
           .read(threadMessageCacheProvider.notifier)
           .getMessages(room.id, thread.id);

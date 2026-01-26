@@ -87,10 +87,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     );
     if (!mounted) return;
 
-    if (lastViewed
-        case HasLastViewed(
-          :final threadId,
-        ) when threads.any((t) => t.id == threadId)) {
+    if (lastViewed case HasLastViewed(
+      :final threadId,
+    ) when threads.any((t) => t.id == threadId)) {
       ref.read(threadSelectionProvider.notifier).set(ThreadSelected(threadId));
       return;
     }

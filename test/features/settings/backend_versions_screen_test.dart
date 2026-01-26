@@ -115,8 +115,9 @@ void main() {
         expect(find.text('1 of 3 packages'), findsOneWidget);
       });
 
-      testWidgets('shows no results message when nothing matches',
-          (tester) async {
+      testWidgets('shows no results message when nothing matches', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           createTestApp(
             home: const BackendVersionsScreen(),
@@ -154,9 +155,7 @@ void main() {
                 const AsyncValue.data(
                   BackendVersionInfo(
                     soliplexVersion: '0.36.dev0',
-                    packageVersions: {
-                      'FastAPI': '0.115.0',
-                    },
+                    packageVersions: {'FastAPI': '0.115.0'},
                   ),
                 ),
               ),

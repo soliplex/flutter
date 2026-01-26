@@ -42,7 +42,8 @@ class WebCallbackParams extends CallbackParams {
   final String? errorDescription;
 
   @override
-  String toString() => 'WebCallbackParams('
+  String toString() =>
+      'WebCallbackParams('
       'hasAccessToken: ${accessToken != null}, '
       'hasRefreshToken: ${refreshToken != null}, '
       'expiresIn: $expiresIn, '

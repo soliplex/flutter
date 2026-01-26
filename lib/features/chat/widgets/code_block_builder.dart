@@ -22,8 +22,9 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
       language = className.replaceFirst('language-', '');
     }
 
-    final semanticLabel =
-        language == 'plaintext' ? 'Code block' : 'Code block in $language';
+    final semanticLabel = language == 'plaintext'
+        ? 'Code block'
+        : 'Code block in $language';
 
     return Semantics(
       label: semanticLabel,
