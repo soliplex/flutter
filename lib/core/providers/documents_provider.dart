@@ -39,54 +39,18 @@ final documentsRetryDelaysProvider = Provider<List<Duration>>(
   (ref) => _defaultBackoffDelays,
 );
 
-/// Fetches documents with automatic retry on transient failures.
-///
-/// Implements exponential backoff: 1s, 2s, 4s between attempts.
-/// Maximum 3 attempts before giving up.
-Future<List<RagDocument>> _fetchWithRetry(
-  SoliplexApi api,
-  String roomId,
-  List<Duration> backoffDelays,
-) async {
-  const maxAttempts = 3;
-
-  Object? lastError;
-  StackTrace? lastStackTrace;
-
-  for (var attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      debugPrint('[_fetchWithRetry] Attempt ${attempt + 1}/$maxAttempts');
-      return await api.getDocuments(roomId);
-    } catch (e, st) {
-      debugPrint('[_fetchWithRetry] Attempt ${attempt + 1} failed: $e');
-      lastError = e;
-      lastStackTrace = st;
-
-      // Don't retry non-retryable errors
-      if (!shouldRetryDocumentsFetch(e)) {
-        debugPrint('[_fetchWithRetry] Not retryable, rethrowing');
-        rethrow;
-      }
-
-      // Don't delay after the last attempt
-      if (attempt < maxAttempts - 1) {
-        debugPrint(
-          '[_fetchWithRetry] Waiting ${backoffDelays[attempt]} before retry',
-        );
-        await Future<void>.delayed(backoffDelays[attempt]);
-      }
-    }
-  }
-
-  // All retries exhausted - rethrow last error
-  debugPrint('[_fetchWithRetry] All $maxAttempts attempts exhausted');
-  Error.throwWithStackTrace(lastError!, lastStackTrace!);
-}
+/// Maximum number of retry attempts for document fetching.
+@visibleForTesting
+const maxRetryAttempts = 3;
 
 /// Provider for documents in a specific room.
 ///
 /// Fetches documents from the backend API using [SoliplexApi.getDocuments].
 /// Each room's documents are cached separately by Riverpod's family provider.
+///
+/// Uses a Notifier with manual AsyncValue state management to avoid
+/// Riverpod's error-handling race conditions that occur when throwing
+/// from async providers.
 ///
 /// **Retry Logic**:
 /// Automatically retries up to 3 times with exponential backoff (1s, 2s, 4s)
@@ -107,41 +71,77 @@ Future<List<RagDocument>> _fetchWithRetry(
 ///
 /// // Refresh documents for a room (bypasses cache, triggers new fetch)
 /// ref.invalidate(documentsProvider('room-id'));
+///
+/// // Manual retry after error
+/// ref.read(documentsProvider('room-id').notifier).retry();
 /// ```
 ///
 /// **Error Handling**:
-/// Throws [SoliplexException] subtypes which should be handled in the UI:
-/// - [NetworkException]: Connection failures, timeouts
-///   (after retries exhausted)
+/// Returns [AsyncValue.error] with [SoliplexException] subtypes:
+/// - [NetworkException]: Connection failures, timeouts (after retries)
 /// - [NotFoundException]: Room not found (404)
 /// - [AuthException]: 401/403 authentication errors
-/// - [ApiException]: Other server errors (after retries exhausted for 5xx)
-var _providerInvocationCount = 0; // TODO: Remove after debugging
+/// - [ApiException]: Other server errors (after retries for 5xx)
+final documentsProvider = NotifierProvider.family<DocumentsNotifier,
+    AsyncValue<List<RagDocument>>, String>(DocumentsNotifier.new);
 
-final documentsProvider = FutureProvider.family<List<RagDocument>, String>((
-  ref,
-  roomId,
-) async {
-  // Keep provider alive during async operations (retry delays) to prevent
-  // disposal/recreation if the watching widget rebuilds during delays.
-  // Without this, the provider could restart mid-retry cycle.
-  // NOTE: We intentionally do NOT close this link - the provider should
-  // remain alive until explicitly invalidated to prevent re-invocation
-  // after errors. This is a trade-off: slight memory overhead vs correct
-  // retry behavior.
-  ref.keepAlive();
+/// Notifier that manages document fetching with retry logic.
+///
+/// Uses manual [AsyncValue] state management instead of [AsyncNotifier]
+/// to have direct control over state transitions. This avoids the race
+/// condition where throwing errors causes dispose/recreate cycles.
+class DocumentsNotifier extends Notifier<AsyncValue<List<RagDocument>>> {
+  /// Creates a notifier for the given room ID.
+  DocumentsNotifier(this._roomId);
 
-  final invocationId = ++_providerInvocationCount;
-  debugPrint('[documentsProvider] Invocation #$invocationId for room=$roomId');
+  final String _roomId;
 
-  ref.onDispose(() {
-    debugPrint('[documentsProvider] Disposed invocation #$invocationId');
-  });
+  @override
+  AsyncValue<List<RagDocument>> build() {
+    // Start fetching asynchronously
+    _fetchDocuments();
 
-  // Use ref.read instead of ref.watch to prevent provider re-execution
-  // during retry delays. If apiProvider rebuilds mid-retry (e.g., due to
-  // httpLogProvider updates), we don't want to restart the entire fetch.
-  final api = ref.read(apiProvider);
-  final delays = ref.read(documentsRetryDelaysProvider);
-  return _fetchWithRetry(api, roomId, delays);
-});
+    // Return loading state immediately
+    return const AsyncValue.loading();
+  }
+
+  /// Fetches documents with retry logic and updates state directly.
+  Future<void> _fetchDocuments() async {
+    final api = ref.read(apiProvider);
+    final delays = ref.read(documentsRetryDelaysProvider);
+
+    Object? lastError;
+    StackTrace? lastStackTrace;
+
+    for (var attempt = 0; attempt < maxRetryAttempts; attempt++) {
+      try {
+        final documents = await api.getDocuments(_roomId);
+        state = AsyncValue.data(documents);
+        return;
+      } catch (e, st) {
+        lastError = e;
+        lastStackTrace = st;
+
+        // Don't retry non-retryable errors
+        if (!shouldRetryDocumentsFetch(e)) {
+          state = AsyncValue.error(e, st);
+          return;
+        }
+
+        // Don't delay after the last attempt
+        if (attempt < maxRetryAttempts - 1) {
+          await Future<void>.delayed(delays[attempt]);
+        }
+      }
+    }
+
+    // All retries exhausted - set error state directly
+    state = AsyncValue.error(lastError!, lastStackTrace!);
+  }
+
+  /// Retries fetching documents after an error.
+  void retry() {
+    state = const AsyncValue.loading();
+    _fetchDocuments();
+  }
+}

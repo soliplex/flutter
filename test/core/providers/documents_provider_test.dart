@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -9,6 +11,33 @@ import '../../helpers/test_helpers.dart';
 
 /// Zero delays for fast test execution.
 const _testDelays = [Duration.zero, Duration.zero, Duration.zero];
+
+/// Waits for the documents provider to complete loading.
+/// Returns the documents on success, throws on error.
+Future<List<RagDocument>> waitForDocuments(
+  ProviderContainer container,
+  String roomId,
+) async {
+  final completer = Completer<List<RagDocument>>();
+  final sub = container.listen<AsyncValue<List<RagDocument>>>(
+    documentsProvider(roomId),
+    (prev, next) {
+      if (!completer.isCompleted) {
+        if (next.hasValue) {
+          completer.complete(next.value);
+        } else if (next.hasError) {
+          completer.completeError(next.error!, next.stackTrace);
+        }
+      }
+    },
+    fireImmediately: true,
+  );
+  try {
+    return await completer.future;
+  } finally {
+    sub.close();
+  }
+}
 
 void main() {
   group('shouldRetryDocumentsFetch', () {
@@ -97,7 +126,7 @@ void main() {
       container = createContainer();
 
       // Act
-      final result = await container.read(documentsProvider('room-1').future);
+      final result = await waitForDocuments(container, 'room-1');
 
       // Assert
       expect(result, equals(documents));
@@ -124,7 +153,7 @@ void main() {
         container = createContainer();
 
         // Act
-        final result = await container.read(documentsProvider('room-1').future);
+        final result = await waitForDocuments(container, 'room-1');
 
         // Assert
         expect(result, equals(documents));
@@ -150,7 +179,7 @@ void main() {
         container = createContainer();
 
         // Act
-        final result = await container.read(documentsProvider('room-1').future);
+        final result = await waitForDocuments(container, 'room-1');
 
         // Assert
         expect(result, equals(documents));
@@ -176,7 +205,7 @@ void main() {
         container = createContainer();
 
         // Act
-        final result = await container.read(documentsProvider('room-1').future);
+        final result = await waitForDocuments(container, 'room-1');
 
         // Assert
         expect(result, equals(documents));
@@ -202,7 +231,7 @@ void main() {
         container = createContainer();
 
         // Act
-        final result = await container.read(documentsProvider('room-1').future);
+        final result = await waitForDocuments(container, 'room-1');
 
         // Assert
         expect(result, equals(documents));
@@ -225,7 +254,7 @@ void main() {
         container = createContainer();
 
         // Act
-        final result = await container.read(documentsProvider('room-1').future);
+        final result = await waitForDocuments(container, 'room-1');
 
         // Assert
         expect(result, equals(documents));
@@ -248,15 +277,17 @@ void main() {
         });
         container = createContainer();
 
-        // Act - trigger the provider
-        container.read(documentsProvider('room-1'));
+        // Act - trigger the provider and wait for error
+        Object? caughtError;
+        try {
+          await waitForDocuments(container, 'room-1');
+        } catch (e) {
+          caughtError = e;
+        }
 
-        // Let the provider execute
-        await Future<void>.delayed(Duration.zero);
-
-        // The provider should have the error state (no retry happened)
-        // Just verify the API was only called once
+        // Assert - only called once (no retry) and error was thrown
         expect(callCount, equals(1));
+        expect(caughtError, isA<NotFoundException>());
       });
 
       test('does not retry on 401 Unauthorized', () async {
@@ -277,12 +308,17 @@ void main() {
         });
         container = createContainer();
 
-        // Act - trigger the provider
-        container.read(documentsProvider('room-1'));
-        await Future<void>.delayed(Duration.zero);
+        // Act - trigger the provider and wait for error
+        Object? caughtError;
+        try {
+          await waitForDocuments(container, 'room-1');
+        } catch (e) {
+          caughtError = e;
+        }
 
         // Assert - only called once (no retry)
         expect(callCount, equals(1));
+        expect(caughtError, isA<AuthException>());
       });
 
       test('does not retry on 400 Bad Request', () async {
@@ -300,12 +336,17 @@ void main() {
         });
         container = createContainer();
 
-        // Act
-        container.read(documentsProvider('room-1'));
-        await Future<void>.delayed(Duration.zero);
+        // Act - trigger the provider and wait for error
+        Object? caughtError;
+        try {
+          await waitForDocuments(container, 'room-1');
+        } catch (e) {
+          caughtError = e;
+        }
 
-        // Assert
+        // Assert - only called once (no retry)
         expect(callCount, equals(1));
+        expect(caughtError, isA<ApiException>());
       });
     });
   });

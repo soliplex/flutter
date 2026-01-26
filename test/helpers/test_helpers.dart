@@ -72,8 +72,7 @@ void registerMocktailFallbacks() {
   MockAuthFlow authFlow,
   MockAuthStorage storage,
   MockTokenRefreshService refreshService,
-})
-createMockedAuthDependencies() {
+}) createMockedAuthDependencies() {
   final authFlow = MockAuthFlow();
   final storage = MockAuthStorage();
   final refreshService = MockTokenRefreshService();
@@ -338,7 +337,8 @@ class FakeUrlBuilder implements UrlBuilder {
     String? path,
     List<String>? pathSegments,
     Map<String, String>? queryParameters,
-  }) => Uri.parse('http://localhost/${path ?? ''}');
+  }) =>
+      Uri.parse('http://localhost/${path ?? ''}');
 }
 
 /// Test data factory for creating mock objects.
