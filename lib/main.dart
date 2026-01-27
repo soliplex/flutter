@@ -19,7 +19,11 @@ import 'package:soliplex_frontend/soliplex_frontend.dart';
 Future<void> main() async {
   await runSoliplexApp(
     config: const SoliplexConfig(
-      logo: LogoConfig.soliplex,
+      // When running soliplex_frontend directly as the main app, assets are
+      // bundled without a package prefix. LogoConfig.soliplex uses
+      // package: 'soliplex_frontend' which is for white-label apps that
+      // import this as a library.
+      logo: LogoConfig(assetPath: 'assets/branding/logo_1024.png'),
       oauthRedirectScheme: 'ai.soliplex.client',
     ),
   );
