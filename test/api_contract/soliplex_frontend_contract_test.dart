@@ -206,6 +206,7 @@ void main() {
     group('SoliplexConfig', () {
       test('default constructor with all parameters', () {
         const config = SoliplexConfig(
+          logo: LogoConfig.soliplex,
           appName: 'TestApp',
           defaultBackendUrl: 'https://api.test.com',
           oauthRedirectScheme: 'com.test.app',
@@ -224,7 +225,7 @@ void main() {
       });
 
       test('copyWith signature', () {
-        const config = SoliplexConfig();
+        const config = SoliplexConfig(logo: LogoConfig.soliplex);
         final copied = config.copyWith(
           appName: 'NewApp',
           defaultBackendUrl: 'https://new.api.com',
@@ -238,25 +239,26 @@ void main() {
       });
 
       test('equality and hashCode', () {
-        const a = SoliplexConfig();
-        const b = SoliplexConfig();
+        const a = SoliplexConfig(logo: LogoConfig.soliplex);
+        const b = SoliplexConfig(logo: LogoConfig.soliplex);
 
         expect(a == b, isTrue);
         expect(a.hashCode, isA<int>());
       });
 
       test('toString', () {
-        const config = SoliplexConfig();
+        const config = SoliplexConfig(logo: LogoConfig.soliplex);
         expect(config.toString(), isA<String>());
       });
 
       test('oauthRedirectScheme is nullable', () {
         // Null is valid - web doesn't need it, native validates at runtime
-        const config = SoliplexConfig();
+        const config = SoliplexConfig(logo: LogoConfig.soliplex);
         expect(config.oauthRedirectScheme, isNull);
 
         // Non-null is also valid
         const configWithScheme = SoliplexConfig(
+          logo: LogoConfig.soliplex,
           oauthRedirectScheme: 'com.example.app',
         );
         expect(configWithScheme.oauthRedirectScheme, 'com.example.app');
@@ -270,7 +272,7 @@ void main() {
         // This test fails to compile if the signature changes.
         expect(
           runSoliplexApp,
-          isA<Future<void> Function({SoliplexConfig config})>(),
+          isA<Future<void> Function({required SoliplexConfig config})>(),
         );
       });
     });
@@ -279,6 +281,7 @@ void main() {
       test('typical white-label app setup', () {
         // Simulates how an external project would configure the app
         const config = SoliplexConfig(
+          logo: LogoConfig(assetPath: 'assets/brand_logo.png'),
           appName: 'MyBrand',
           defaultBackendUrl: 'https://api.mybrand.com',
           oauthRedirectScheme: 'com.mybrand.app',
@@ -306,8 +309,8 @@ void main() {
       });
 
       test('minimal configuration with defaults', () {
-        // External project using all defaults
-        const config = SoliplexConfig();
+        // External project using all defaults except logo (which is required)
+        const config = SoliplexConfig(logo: LogoConfig.soliplex);
 
         expect(config.appName, equals('Soliplex'));
         // null means "use platform default" (localhost on native, origin on
@@ -340,6 +343,7 @@ void main() {
         );
 
         const config = SoliplexConfig(
+          logo: LogoConfig.soliplex,
           theme: ThemeConfig(lightColors: customLightColors),
         );
 

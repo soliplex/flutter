@@ -20,6 +20,7 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 /// Future<void> main() async {
 ///   await runSoliplexApp(
 ///     config: SoliplexConfig(
+///       logo: LogoConfig(assetPath: 'assets/my_logo.png'),
 ///       appName: 'MyBrand',
 ///       defaultBackendUrl: 'https://api.mybrand.com',
 ///       features: Features(enableHttpInspector: false),
@@ -28,7 +29,7 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 /// }
 /// ```
 Future<void> runSoliplexApp({
-  SoliplexConfig config = const SoliplexConfig(),
+  required SoliplexConfig config,
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
 

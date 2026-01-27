@@ -11,6 +11,7 @@
 /// Future<void> main() async {
 ///   await runSoliplexApp(
 ///     config: SoliplexConfig(
+///       logo: LogoConfig(assetPath: 'assets/my_logo.png'),
 ///       appName: 'MyBrand',
 ///       features: Features(enableHttpInspector: false),
 ///     ),
@@ -30,6 +31,7 @@ library soliplex_frontend;
 
 // Configuration models
 export 'package:soliplex_frontend/core/models/features.dart';
+export 'package:soliplex_frontend/core/models/logo_config.dart';
 export 'package:soliplex_frontend/core/models/route_config.dart';
 export 'package:soliplex_frontend/core/models/soliplex_config.dart';
 export 'package:soliplex_frontend/core/models/theme_config.dart';
