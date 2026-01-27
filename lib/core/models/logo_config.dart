@@ -22,7 +22,6 @@ class LogoConfig {
   /// custom branding assets.
   static const soliplex = LogoConfig(
     assetPath: 'assets/branding/logo_1024.png',
-    package: 'soliplex_frontend',
   );
 
   /// Path to the logo asset, relative to the assets directory.

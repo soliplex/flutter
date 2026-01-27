@@ -27,11 +27,11 @@ void main() {
       expect(config.package, equals('my_package'));
     });
 
-    test('soliplex uses library bundled assets', () {
+    test('soliplex uses default asset path without package', () {
       const config = LogoConfig.soliplex;
 
       expect(config.assetPath, equals('assets/branding/logo_1024.png'));
-      expect(config.package, equals('soliplex_frontend'));
+      expect(config.package, isNull);
     });
 
     test('equality works correctly', () {

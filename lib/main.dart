@@ -20,10 +20,8 @@ Future<void> main() async {
   await runSoliplexApp(
     config: const SoliplexConfig(
       // When running soliplex_frontend directly as the main app, assets are
-      // bundled without a package prefix. LogoConfig.soliplex uses
-      // package: 'soliplex_frontend' which is for white-label apps that
-      // import this as a library.
-      logo: LogoConfig(assetPath: 'assets/branding/logo_1024.png'),
+      // bundled without a package prefix.
+      logo: LogoConfig.soliplex,
       oauthRedirectScheme: 'ai.soliplex.client',
     ),
   );
