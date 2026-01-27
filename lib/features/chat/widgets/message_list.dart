@@ -1,16 +1,74 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show ChatMessage, Streaming;
+    show ChatMessage, Streaming, TextMessage;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
-
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
+
+/// Result of computing display messages from history and streaming state.
+@immutable
+class DisplayMessagesResult {
+  /// Creates a result with the computed messages and synthetic message flag.
+  const DisplayMessagesResult(
+    this.messages, {
+    required this.hasSyntheticMessage,
+  });
+
+  /// The messages to display.
+  final List<ChatMessage> messages;
+
+  /// Whether a synthetic streaming message was appended.
+  final bool hasSyntheticMessage;
+}
+
+/// Computes the list of messages to display by merging historical messages
+/// with the active streaming state.
+///
+/// Returns a [DisplayMessagesResult] containing:
+/// - The merged message list
+/// - Whether a synthetic message was created from streaming state
+///
+/// This is a pure function for testability.
+@visibleForTesting
+DisplayMessagesResult computeDisplayMessages(
+  List<ChatMessage> historicalMessages,
+  ActiveRunState runState,
+) {
+  // Only RunningState can have active streaming
+  if (runState is! RunningState) {
+    return DisplayMessagesResult(
+      historicalMessages,
+      hasSyntheticMessage: false,
+    );
+  }
+
+  final streaming = runState.streaming;
+
+  // Not actively streaming text - return history unchanged
+  if (streaming is! Streaming) {
+    return DisplayMessagesResult(
+      historicalMessages,
+      hasSyntheticMessage: false,
+    );
+  }
+
+  // Create synthetic message from streaming state
+  final syntheticMessage = TextMessage.create(
+    id: streaming.messageId,
+    user: streaming.user,
+    text: streaming.text,
+  );
+
+  return DisplayMessagesResult(
+    [...historicalMessages, syntheticMessage],
+    hasSyntheticMessage: true,
+  );
+}
 
 /// Widget that displays the list of messages in the current thread.
 ///
@@ -140,11 +198,15 @@ class _MessageListState extends ConsumerState<MessageList> {
 
   Widget _buildMessageList(
     BuildContext context,
-    List<ChatMessage> messages,
+    List<ChatMessage> historicalMessages,
     bool isStreaming,
     ActiveRunState runState,
   ) {
     final soliplexTheme = SoliplexTheme.of(context);
+
+    // Merge historical messages with streaming state
+    final computation = computeDisplayMessages(historicalMessages, runState);
+    final messages = computation.messages;
 
     // Empty state
     if (messages.isEmpty && !isStreaming) {
@@ -154,19 +216,17 @@ class _MessageListState extends ConsumerState<MessageList> {
       );
     }
 
-    final streamingMessageId = switch (runState) {
-      RunningState(streaming: Streaming(:final messageId)) => messageId,
-      _ => null,
-    };
+    // Show spinner only in the brief gap before streaming content arrives
+    final showSpinner = isStreaming && !computation.hasSyntheticMessage;
 
     return Stack(
       children: [
         ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
-          itemCount: messages.length + (isStreaming ? 1 : 0),
+          itemCount: messages.length + (showSpinner ? 1 : 0),
           itemBuilder: (context, index) {
-            // Show streaming indicator at the bottom
+            // Show streaming indicator at the bottom (only when no synthetic)
             if (index == messages.length) {
               return Semantics(
                 label: 'Assistant is thinking',
@@ -204,11 +264,12 @@ class _MessageListState extends ConsumerState<MessageList> {
             }
 
             final message = messages[index];
+            final isLast = index == messages.length - 1;
 
             return ChatMessageWidget(
               key: ValueKey(message.id),
               message: message,
-              isStreaming: streamingMessageId == message.id,
+              isStreaming: isLast && computation.hasSyntheticMessage,
             );
           },
         ),

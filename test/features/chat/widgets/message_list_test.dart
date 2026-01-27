@@ -11,6 +11,8 @@ import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
+import 'package:soliplex_frontend/features/chat/widgets/message_list.dart'
+    as sut show computeDisplayMessages, DisplayMessagesResult;
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
@@ -306,19 +308,18 @@ void main() {
     });
 
     group('Streaming Status', () {
-      testWidgets('passes isStreaming to message being streamed', (
+      testWidgets('passes isStreaming to synthetic streaming message', (
         tester,
       ) async {
-        // Arrange
+        // Arrange: User message in history, assistant streaming response
         final messages = [
-          TestData.createMessage(id: 'msg-1', text: 'Complete message'),
+          TestData.createMessage(id: 'msg-1', text: 'User question'),
         ];
 
         final mockThread = TestData.createThread();
-        final conversation = domain.Conversation(
+        const conversation = domain.Conversation(
           threadId: 'test-thread',
-          messages: messages,
-          status: const domain.Running(runId: 'test-run'),
+          status: domain.Running(runId: 'test-run'),
         );
 
         // Act
@@ -329,58 +330,9 @@ void main() {
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
               activeRunNotifierOverride(
-                RunningState(
+                const RunningState(
                   conversation: conversation,
-                  streaming: const Streaming(
-                    messageId: 'msg-1',
-                    user: ChatUser.assistant,
-                    text: 'Typing...',
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-        // Use pump() instead of pumpAndSettle() because the streaming
-        // indicator's CircularProgressIndicator animation never settles.
-        await tester.pump();
-        await tester.pump();
-
-        // Assert
-        // Now there should be only one message widget
-        final messageWidget = tester.widget<ChatMessageWidget>(
-          find.byType(ChatMessageWidget),
-        );
-        expect(messageWidget.isStreaming, isTrue);
-      });
-
-      testWidgets('does not pass isStreaming to other messages', (
-        tester,
-      ) async {
-        // Arrange
-        final messages = [
-          TestData.createMessage(id: 'msg-1', text: 'Old message'),
-          TestData.createMessage(id: 'msg-2', text: 'Current message'),
-        ];
-
-        final mockThread = TestData.createThread();
-        final conversation = domain.Conversation(
-          threadId: 'test-thread',
-          messages: messages,
-          status: const domain.Running(runId: 'test-run'),
-        );
-
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(body: MessageList()),
-            overrides: [
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider.overrideWith((ref) async => messages),
-              activeRunNotifierOverride(
-                RunningState(
-                  conversation: conversation,
-                  streaming: const Streaming(
+                  streaming: Streaming(
                     messageId: 'msg-2',
                     user: ChatUser.assistant,
                     text: 'Typing...',
@@ -395,12 +347,63 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        // Assert
+        // Assert: 2 messages - user (not streaming) + synthetic (streaming)
         final messageWidgets = tester.widgetList<ChatMessageWidget>(
           find.byType(ChatMessageWidget),
         );
+        expect(messageWidgets.length, equals(2));
         expect(messageWidgets.first.isStreaming, isFalse);
         expect(messageWidgets.last.isStreaming, isTrue);
+      });
+
+      testWidgets('does not pass isStreaming to historical messages', (
+        tester,
+      ) async {
+        // Arrange: Two historical messages, new streaming response
+        final messages = [
+          TestData.createMessage(id: 'msg-1', text: 'First message'),
+          TestData.createMessage(id: 'msg-2', text: 'Second message'),
+        ];
+
+        final mockThread = TestData.createThread();
+        const conversation = domain.Conversation(
+          threadId: 'test-thread',
+          status: domain.Running(runId: 'test-run'),
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: const Scaffold(body: MessageList()),
+            overrides: [
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              allMessagesProvider.overrideWith((ref) async => messages),
+              activeRunNotifierOverride(
+                const RunningState(
+                  conversation: conversation,
+                  streaming: Streaming(
+                    messageId: 'msg-3',
+                    user: ChatUser.assistant,
+                    text: 'Typing...',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        // Use pump() instead of pumpAndSettle() because the streaming
+        // indicator's CircularProgressIndicator animation never settles.
+        await tester.pump();
+        await tester.pump();
+
+        // Assert: 3 messages - 2 historical (not streaming) + 1 synthetic
+        final messageWidgets = tester
+            .widgetList<ChatMessageWidget>(find.byType(ChatMessageWidget))
+            .toList();
+        expect(messageWidgets.length, equals(3));
+        expect(messageWidgets[0].isStreaming, isFalse);
+        expect(messageWidgets[1].isStreaming, isFalse);
+        expect(messageWidgets[2].isStreaming, isTrue);
       });
     });
 
@@ -537,6 +540,188 @@ void main() {
 
         // Assert - ListView should handle many items efficiently
         expect(find.byType(ListView), findsOneWidget);
+      });
+    });
+  });
+
+  group('computeDisplayMessages', () {
+    group('when not running', () {
+      test('returns historical messages unchanged for IdleState', () {
+        // Arrange
+        final history = [
+          TestData.createMessage(id: 'msg-1', text: 'Hello'),
+          TestData.createMessage(id: 'msg-2', text: 'World'),
+        ];
+        const runState = IdleState();
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages, equals(history));
+        expect(result.hasSyntheticMessage, isFalse);
+      });
+
+      test('returns historical messages unchanged for CompletedState', () {
+        // Arrange
+        final history = [
+          TestData.createMessage(id: 'msg-1', text: 'Hello'),
+        ];
+        const runState = CompletedState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Idle(),
+          ),
+          result: Success(),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages, equals(history));
+        expect(result.hasSyntheticMessage, isFalse);
+      });
+    });
+
+    group('when running with NotStreaming', () {
+      test('returns historical messages unchanged', () {
+        // Arrange
+        final history = [
+          TestData.createMessage(id: 'msg-1', text: 'User message'),
+        ];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages, equals(history));
+        expect(result.hasSyntheticMessage, isFalse);
+      });
+    });
+
+    group('when running with Streaming', () {
+      test('appends synthetic message with streaming text', () {
+        // Arrange
+        final history = [
+          TestData.createMessage(id: 'msg-1', text: 'User message'),
+        ];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: Streaming(
+            messageId: 'msg-2',
+            user: ChatUser.assistant,
+            text: 'Hello, I am streaming...',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages.length, equals(2));
+        expect(result.hasSyntheticMessage, isTrue);
+
+        final syntheticMessage = result.messages.last;
+        expect(syntheticMessage, isA<TextMessage>());
+        expect(syntheticMessage.id, equals('msg-2'));
+        expect(
+          (syntheticMessage as TextMessage).text,
+          'Hello, I am streaming...',
+        );
+        expect(syntheticMessage.user, equals(ChatUser.assistant));
+      });
+
+      test('appends synthetic after all historical messages', () {
+        // Arrange: Multiple historical messages
+        final history = [
+          TestData.createMessage(id: 'msg-1', text: 'First message'),
+          TestData.createMessage(id: 'msg-2', text: 'Second message'),
+        ];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: Streaming(
+            messageId: 'msg-3',
+            user: ChatUser.assistant,
+            text: 'Streaming response...',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert: All history preserved, synthetic appended at end
+        expect(result.messages.length, equals(3));
+        expect(result.hasSyntheticMessage, isTrue);
+
+        expect(result.messages[0].id, equals('msg-1'));
+        expect(result.messages[1].id, equals('msg-2'));
+
+        final syntheticMessage = result.messages[2] as TextMessage;
+        expect(syntheticMessage.id, equals('msg-3'));
+        expect(syntheticMessage.text, equals('Streaming response...'));
+      });
+
+      test('handles empty streaming text', () {
+        // Arrange: Streaming just started, no text yet
+        final history = [
+          TestData.createMessage(id: 'msg-1', text: 'User message'),
+        ];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: Streaming(
+            messageId: 'msg-2',
+            user: ChatUser.assistant,
+            text: '',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert: Still creates synthetic message even with empty text
+        expect(result.messages.length, equals(2));
+        expect(result.hasSyntheticMessage, isTrue);
+        expect((result.messages.last as TextMessage).text, isEmpty);
+      });
+
+      test('handles empty history with streaming', () {
+        // Arrange: No history, just streaming
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: Streaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'First response...',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages.length, equals(1));
+        expect(result.hasSyntheticMessage, isTrue);
+        expect(result.messages.first.id, equals('msg-1'));
       });
     });
   });
