@@ -70,9 +70,8 @@ class SoliplexConfig {
 
   /// Logo configuration for branding.
   ///
-  /// When running the app directly (not as a library), use a [LogoConfig]
-  /// without a package parameter. When white-label apps import this library
-  /// as a dependency, use [LogoConfig.soliplex] to load from bundled assets.
+  /// Use [LogoConfig.soliplex] for the default Soliplex logo.
+  /// White-label apps should provide their own [LogoConfig] with custom assets.
   final LogoConfig logo;
 
   /// Feature flags controlling which functionality is available.
