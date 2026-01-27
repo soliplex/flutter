@@ -25,6 +25,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const _logoSize = 64.0;
+
   final _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isConnecting = false;
@@ -186,6 +188,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
+  Widget _buildLogo(ThemeData theme) {
+    final config = ref.watch(shellConfigProvider);
+    return Image.asset(
+      config.logo.assetPath,
+      package: config.logo.package,
+      width: _logoSize,
+      height: _logoSize,
+      semanticLabel: '${config.appName} logo',
+      errorBuilder: (context, error, stack) => Icon(
+        Icons.dns_outlined,
+        size: _logoSize,
+        color: theme.colorScheme.primary,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -201,11 +219,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header
-              Icon(
-                Icons.dns_outlined,
-                size: 64,
-                color: theme.colorScheme.primary,
-              ),
+              _buildLogo(theme),
               const SizedBox(height: 16),
               Text(
                 ref.watch(shellConfigProvider).appName,

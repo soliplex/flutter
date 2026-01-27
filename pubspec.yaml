@@ -48,6 +48,8 @@ dev_dependencies:
   very_good_analysis: ^10.0.0
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/
 
 flutter_launcher_icons:
   android: true

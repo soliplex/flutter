@@ -11,6 +11,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -100,7 +101,10 @@ Widget _createAppWithRouter({
         // Use localhost:8000 as default to match test URLs so connecting
         // is not treated as a backend change (which triggers signOut).
         shellConfigProvider.overrideWithValue(
-          const SoliplexConfig(defaultBackendUrl: 'http://localhost:8000'),
+          const SoliplexConfig(
+            logo: LogoConfig.soliplex,
+            defaultBackendUrl: 'http://localhost:8000',
+          ),
         ),
         ...overrides.cast(),
       ],
@@ -126,6 +130,40 @@ void main() {
         );
         expect(find.text('Backend URL'), findsOneWidget);
         expect(find.text('Connect'), findsOneWidget);
+      });
+
+      testWidgets('displays logo from config', (tester) async {
+        const customLogo = LogoConfig(
+          assetPath: 'assets/custom_logo.png',
+          package: 'test_package',
+        );
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: ProviderContainer(
+              overrides: [
+                shellConfigProvider.overrideWithValue(
+                  const SoliplexConfig(
+                    oauthRedirectScheme: 'test.app',
+                    logo: customLogo,
+                  ),
+                ),
+              ],
+            ),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: HomeScreen()),
+            ),
+          ),
+        );
+
+        // Find the Image widget and verify its configuration
+        final imageFinder = find.byType(Image);
+        expect(imageFinder, findsOneWidget);
+
+        final image = tester.widget<Image>(imageFinder);
+        final assetImage = image.image as AssetImage;
+        expect(assetImage.assetName, equals('assets/custom_logo.png'));
+        expect(assetImage.package, equals('test_package'));
       });
 
       testWidgets('loads initial URL from config', (tester) async {
