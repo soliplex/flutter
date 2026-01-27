@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
@@ -58,7 +59,7 @@ Widget createRouterApp({
   List<dynamic> overrides = const [],
   bool authenticated = true,
   bool noAuthMode = false,
-  SoliplexConfig config = const SoliplexConfig(),
+  SoliplexConfig config = const SoliplexConfig(logo: LogoConfig.soliplex),
 }) {
   return createRouterAppAt(
     '/',
@@ -86,7 +87,7 @@ Widget createRouterAppAt(
   List<dynamic> overrides = const [],
   bool authenticated = true,
   bool noAuthMode = false,
-  SoliplexConfig config = const SoliplexConfig(),
+  SoliplexConfig config = const SoliplexConfig(logo: LogoConfig.soliplex),
 }) {
   final authState = _resolveAuthState(
     authenticated: authenticated,
@@ -359,7 +360,7 @@ void main() {
     testWidgets('session expiry redirects to /login', (tester) async {
       final container = ProviderContainer(
         overrides: [
-          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          shellConfigProvider.overrideWithValue(testSoliplexConfig),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -399,7 +400,7 @@ void main() {
     testWidgets('explicit sign-out redirects to home', (tester) async {
       final container = ProviderContainer(
         overrides: [
-          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          shellConfigProvider.overrideWithValue(testSoliplexConfig),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -439,7 +440,7 @@ void main() {
     testWidgets('token refresh preserves navigation location', (tester) async {
       final container = ProviderContainer(
         overrides: [
-          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          shellConfigProvider.overrideWithValue(testSoliplexConfig),
           authProvider.overrideWith(
             () => _ControllableAuthNotifier(_createAuthenticatedState()),
           ),
@@ -483,7 +484,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
-          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          shellConfigProvider.overrideWithValue(testSoliplexConfig),
           capturedCallbackParamsProvider.overrideWithValue(
             const NoCallbackParams(),
           ),
@@ -542,7 +543,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
-          shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+          shellConfigProvider.overrideWithValue(testSoliplexConfig),
           backendVersionInfoProvider.overrideWithValue(
             const AsyncValue.data(testBackendVersionInfo),
           ),
@@ -622,6 +623,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(
                 showHomeRoute: false,
                 initialRoute: '/rooms',
@@ -858,6 +860,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(showRoomsRoute: false),
             ),
           ),
@@ -897,6 +900,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(
                 showHomeRoute: false,
                 initialRoute: '/rooms',
@@ -938,6 +942,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(
                 showHomeRoute: false,
                 initialRoute: '/rooms',
@@ -988,6 +993,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(showRoomsRoute: false),
             ),
           ),
@@ -1026,6 +1032,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               features: Features(enableSettings: false),
               routes: RouteConfig(initialRoute: '/settings'),
             ),
@@ -1064,6 +1071,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(initialRoute: '/settings'),
             ),
           ),
@@ -1105,6 +1113,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(showRoomsRoute: false),
             ),
           ),
@@ -1141,6 +1150,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               routes: RouteConfig(
                 showHomeRoute: false,
                 initialRoute: '/rooms',

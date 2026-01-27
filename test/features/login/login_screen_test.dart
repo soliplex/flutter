@@ -11,7 +11,6 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
-import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 
@@ -110,7 +109,7 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
         ...overrides.cast(),
       ],
     ),
@@ -330,7 +329,7 @@ void main() {
         UncontrolledProviderScope(
           container: ProviderContainer(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
               oidcIssuersProvider.overrideWith(
                 (ref) async => [_createIssuer()],
               ),

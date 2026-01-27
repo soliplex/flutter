@@ -17,6 +17,7 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
@@ -26,6 +27,12 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
+
+/// Standard test configuration for widget tests.
+const testSoliplexConfig = SoliplexConfig(
+  logo: LogoConfig.soliplex,
+  oauthRedirectScheme: 'test.soliplex.app',
+);
 
 /// Mock AuthFlow for testing.
 class MockAuthFlow extends Mock implements AuthFlow {}
@@ -89,9 +96,7 @@ void registerMocktailFallbacks() {
       authFlowProvider.overrideWithValue(authFlow),
       authStorageProvider.overrideWithValue(storage),
       tokenRefreshServiceProvider.overrideWithValue(refreshService),
-      shellConfigProvider.overrideWithValue(
-        const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
-      ),
+      shellConfigProvider.overrideWithValue(testSoliplexConfig),
     ],
     authFlow: authFlow,
     storage: storage,
@@ -543,9 +548,7 @@ Widget createTestApp({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        shellConfigProvider.overrideWithValue(
-          const SoliplexConfig(oauthRedirectScheme: 'test.soliplex.app'),
-        ),
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
         if (!skipBackendVersionOverride)
           // Use AsyncValue.data for immediate value without pending Futures
           backendVersionInfoProvider.overrideWithValue(

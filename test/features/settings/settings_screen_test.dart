@@ -8,7 +8,6 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
-import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
@@ -42,7 +41,7 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
         backendVersionInfoProvider.overrideWithValue(
           const AsyncValue.data(testBackendVersionInfo),
         ),

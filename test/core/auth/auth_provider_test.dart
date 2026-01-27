@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
@@ -246,8 +247,10 @@ void main() {
 
         final container = ProviderContainer(
           overrides: [
-            // oauthRedirectScheme defaults to null
-            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            // oauthRedirectScheme is null (not provided)
+            shellConfigProvider.overrideWithValue(
+              const SoliplexConfig(logo: LogoConfig.soliplex),
+            ),
           ],
         );
         addTearDown(container.dispose);
@@ -276,7 +279,10 @@ void main() {
         final container = ProviderContainer(
           overrides: [
             shellConfigProvider.overrideWithValue(
-              const SoliplexConfig(oauthRedirectScheme: 'com.test.app'),
+              const SoliplexConfig(
+                logo: LogoConfig.soliplex,
+                oauthRedirectScheme: 'com.test.app',
+              ),
             ),
           ],
         );

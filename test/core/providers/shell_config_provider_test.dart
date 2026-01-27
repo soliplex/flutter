@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
@@ -24,6 +25,7 @@ void main() {
 
     test('provides config when overridden via ProviderScope', () {
       const customConfig = SoliplexConfig(
+        logo: LogoConfig.soliplex,
         appName: 'TestApp',
         defaultBackendUrl: 'https://test.example.com',
       );
@@ -48,6 +50,7 @@ void main() {
         overrides: [
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
+              logo: LogoConfig.soliplex,
               features: Features(enableHttpInspector: false),
             ),
           ),

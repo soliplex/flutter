@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
+
+import '../../helpers/test_helpers.dart';
 
 void main() {
   group('AppShell', () {
@@ -14,7 +17,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
           ],
           child: MaterialApp(
             home: AppShell(
@@ -33,7 +36,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
           ],
           child: const MaterialApp(
             home: AppShell(
@@ -52,7 +55,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
           ],
           child: MaterialApp(
             home: AppShell(
@@ -77,7 +80,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
           ],
           child: MaterialApp(
             home: AppShell(
@@ -105,7 +108,7 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
           ],
           child: const MaterialApp(
             home: AppShell(
@@ -125,7 +128,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -143,7 +146,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -168,7 +171,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: MaterialApp(
               home: AppShell(
@@ -196,7 +199,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -217,7 +220,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -246,7 +249,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -267,7 +270,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -293,7 +296,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(config: ShellConfig(), body: SizedBox.shrink()),
@@ -315,6 +318,7 @@ void main() {
               overrides: [
                 shellConfigProvider.overrideWithValue(
                   const SoliplexConfig(
+                    logo: LogoConfig.soliplex,
                     features: Features(enableHttpInspector: false),
                   ),
                 ),
@@ -340,6 +344,7 @@ void main() {
               overrides: [
                 shellConfigProvider.overrideWithValue(
                   const SoliplexConfig(
+                    logo: LogoConfig.soliplex,
                     features: Features(enableHttpInspector: false),
                   ),
                 ),
@@ -366,7 +371,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
@@ -392,7 +397,7 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              shellConfigProvider.overrideWithValue(const SoliplexConfig()),
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
             ],
             child: const MaterialApp(
               home: AppShell(
