@@ -32,6 +32,9 @@ dependencies:
 dev_dependencies:
   # Icon generation
   flutter_launcher_icons: ^0.14.4
+
+  # Splash screen generation
+  flutter_native_splash: ^2.4.7
   flutter_test:
     sdk: flutter
 
@@ -57,3 +60,13 @@ flutter_launcher_icons:
   adaptive_icon_background: "#424242"
   adaptive_icon_foreground: "assets/branding/logo_1024.png"
   web_favicon_path: "assets/branding/favicon_48.png"
+
+flutter_native_splash:
+  color: "#424242"
+  image: assets/branding/logo_1024.png
+
+  android_12:
+    image: assets/branding/logo_splash_android12.png
+    color: "#424242"
+
+  web: true
