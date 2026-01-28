@@ -304,24 +304,24 @@ void main() {
         expect(state.activeToolCalls, [toolCall]);
       });
 
-      test('streaming defaults to NotStreaming', () {
+      test('streaming defaults to AwaitingText', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'r'),
         );
         const state = RunningState(conversation: conversation);
 
-        expect(state.streaming, isA<NotStreaming>());
+        expect(state.streaming, isA<AwaitingText>());
       });
 
-      test('isStreaming returns true when Streaming', () {
+      test('isStreaming returns true when TextStreaming', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'r'),
         );
         const state = RunningState(
           conversation: conversation,
-          streaming: Streaming(
+          streaming: TextStreaming(
             messageId: 'msg-1',
             user: ChatUser.assistant,
             text: 'Hello',

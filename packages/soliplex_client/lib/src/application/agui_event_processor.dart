@@ -48,18 +48,18 @@ EventProcessingResult processEvent(
       ),
     RunFinishedEvent() => EventProcessingResult(
         conversation: conversation.withStatus(const Completed()),
-        streaming: const NotStreaming(),
+        streaming: const AwaitingText(),
       ),
     RunErrorEvent(:final message) => EventProcessingResult(
         conversation: conversation.withStatus(Failed(error: message)),
-        streaming: const NotStreaming(),
+        streaming: const AwaitingText(),
       ),
 
     // Text message streaming events
     TextMessageStartEvent(:final messageId, :final role) =>
       EventProcessingResult(
         conversation: conversation,
-        streaming: Streaming(
+        streaming: TextStreaming(
           messageId: messageId,
           user: _mapRoleToChatUser(role),
           text: '',
@@ -107,7 +107,7 @@ EventProcessingResult _processTextContent(
   String messageId,
   String delta,
 ) {
-  if (streaming is Streaming && streaming.messageId == messageId) {
+  if (streaming is TextStreaming && streaming.messageId == messageId) {
     return EventProcessingResult(
       conversation: conversation,
       streaming: streaming.appendDelta(delta),
@@ -124,7 +124,7 @@ EventProcessingResult _processTextEnd(
   StreamingState streaming,
   String messageId,
 ) {
-  if (streaming is Streaming && streaming.messageId == messageId) {
+  if (streaming is TextStreaming && streaming.messageId == messageId) {
     final newMessage = TextMessage.create(
       id: messageId,
       user: streaming.user,
@@ -132,7 +132,7 @@ EventProcessingResult _processTextEnd(
     );
     return EventProcessingResult(
       conversation: conversation.withAppendedMessage(newMessage),
-      streaming: const NotStreaming(),
+      streaming: const AwaitingText(),
     );
   }
   return EventProcessingResult(

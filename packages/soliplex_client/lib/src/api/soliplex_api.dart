@@ -563,7 +563,7 @@ class SoliplexApi {
     if (events.isEmpty) return [];
 
     var conversation = Conversation.empty(threadId: threadId);
-    var streaming = const NotStreaming() as StreamingState;
+    var streaming = const AwaitingText() as StreamingState;
     const decoder = EventDecoder();
     var skippedEventCount = 0;
 

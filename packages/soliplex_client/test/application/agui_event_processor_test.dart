@@ -15,7 +15,7 @@ void main() {
 
     setUp(() {
       conversation = Conversation.empty(threadId: 'thread-1');
-      streaming = const app_streaming.NotStreaming();
+      streaming = const app_streaming.AwaitingText();
     });
 
     group('run lifecycle events', () {
@@ -26,7 +26,7 @@ void main() {
 
         expect(result.conversation.status, isA<Running>());
         expect((result.conversation.status as Running).runId, equals('run-1'));
-        expect(result.streaming, isA<app_streaming.NotStreaming>());
+        expect(result.streaming, isA<app_streaming.AwaitingText>());
       });
 
       test('RunFinishedEvent sets status to Completed', () {
@@ -38,7 +38,7 @@ void main() {
         final result = processEvent(runningConversation, streaming, event);
 
         expect(result.conversation.status, isA<Completed>());
-        expect(result.streaming, isA<app_streaming.NotStreaming>());
+        expect(result.streaming, isA<app_streaming.AwaitingText>());
       });
 
       test('RunErrorEvent sets status to Failed with message', () {
@@ -57,7 +57,7 @@ void main() {
           (result.conversation.status as Failed).error,
           equals('Something went wrong'),
         );
-        expect(result.streaming, isA<app_streaming.NotStreaming>());
+        expect(result.streaming, isA<app_streaming.AwaitingText>());
       });
     });
 
@@ -67,13 +67,13 @@ void main() {
 
         final result = processEvent(conversation, streaming, event);
 
-        expect(result.streaming, isA<app_streaming.Streaming>());
-        final streamingState = result.streaming as app_streaming.Streaming;
+        expect(result.streaming, isA<app_streaming.TextStreaming>());
+        final streamingState = result.streaming as app_streaming.TextStreaming;
         expect(streamingState.messageId, equals('msg-1'));
         expect(streamingState.text, isEmpty);
       });
 
-      test('TextMessageContentEvent is ignored when NotStreaming', () {
+      test('TextMessageContentEvent is ignored when AwaitingText', () {
         const event = TextMessageContentEvent(
           messageId: 'msg-1',
           delta: 'Hello',
@@ -81,12 +81,12 @@ void main() {
 
         final result = processEvent(conversation, streaming, event);
 
-        expect(result.streaming, isA<app_streaming.NotStreaming>());
+        expect(result.streaming, isA<app_streaming.AwaitingText>());
         expect(result.conversation.messages, isEmpty);
       });
 
       test('TextMessageContentEvent appends delta to streaming text', () {
-        const streamingState = app_streaming.Streaming(
+        const streamingState = app_streaming.TextStreaming(
           messageId: 'msg-1',
           user: _defaultUser,
           text: 'Hello',
@@ -98,8 +98,8 @@ void main() {
 
         final result = processEvent(conversation, streamingState, event);
 
-        expect(result.streaming, isA<app_streaming.Streaming>());
-        final newStreaming = result.streaming as app_streaming.Streaming;
+        expect(result.streaming, isA<app_streaming.TextStreaming>());
+        final newStreaming = result.streaming as app_streaming.TextStreaming;
         expect(newStreaming.messageId, equals('msg-1'));
         expect(newStreaming.text, equals('Hello world'));
       });
@@ -107,7 +107,7 @@ void main() {
       test(
         'TextMessageContentEvent ignores delta if messageId does not match',
         () {
-          const streamingState = app_streaming.Streaming(
+          const streamingState = app_streaming.TextStreaming(
             messageId: 'msg-1',
             user: _defaultUser,
             text: 'Hello',
@@ -124,7 +124,7 @@ void main() {
       );
 
       test('TextMessageEndEvent finalizes message and resets streaming', () {
-        const streamingState = app_streaming.Streaming(
+        const streamingState = app_streaming.TextStreaming(
           messageId: 'msg-1',
           user: _defaultUser,
           text: 'Hello world',
@@ -133,7 +133,7 @@ void main() {
 
         final result = processEvent(conversation, streamingState, event);
 
-        expect(result.streaming, isA<app_streaming.NotStreaming>());
+        expect(result.streaming, isA<app_streaming.AwaitingText>());
         expect(result.conversation.messages, hasLength(1));
         final message = result.conversation.messages.first;
         expect(message.id, equals('msg-1'));
@@ -141,7 +141,7 @@ void main() {
 
       test('TextMessageEndEvent preserves user role from streaming state', () {
         // Verify role propagation: user from streaming state goes into message
-        const streamingState = app_streaming.Streaming(
+        const streamingState = app_streaming.TextStreaming(
           messageId: 'msg-1',
           user: ChatUser.user, // User role, not assistant
           text: 'User message',
@@ -157,7 +157,7 @@ void main() {
       test(
         'TextMessageEndEvent ignores if messageId does not match streaming',
         () {
-          const streamingState = app_streaming.Streaming(
+          const streamingState = app_streaming.TextStreaming(
             messageId: 'msg-1',
             user: _defaultUser,
             text: 'Hello',
@@ -179,7 +179,7 @@ void main() {
 
         final result = processEvent(conversation, streaming, event);
 
-        final streamingState = result.streaming as app_streaming.Streaming;
+        final streamingState = result.streaming as app_streaming.TextStreaming;
         expect(streamingState.user, equals(ChatUser.user));
       });
 
@@ -191,7 +191,7 @@ void main() {
 
         final result = processEvent(conversation, streaming, event);
 
-        final streamingState = result.streaming as app_streaming.Streaming;
+        final streamingState = result.streaming as app_streaming.TextStreaming;
         expect(streamingState.user, equals(ChatUser.system));
       });
 
@@ -203,7 +203,7 @@ void main() {
 
         final result = processEvent(conversation, streaming, event);
 
-        final streamingState = result.streaming as app_streaming.Streaming;
+        final streamingState = result.streaming as app_streaming.TextStreaming;
         expect(streamingState.user, equals(ChatUser.system));
       });
     });

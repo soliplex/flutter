@@ -12,7 +12,7 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart'
-    as sut show computeDisplayMessages, DisplayMessagesResult;
+    as sut show computeDisplayMessages;
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
@@ -332,7 +332,7 @@ void main() {
               activeRunNotifierOverride(
                 const RunningState(
                   conversation: conversation,
-                  streaming: Streaming(
+                  streaming: TextStreaming(
                     messageId: 'msg-2',
                     user: ChatUser.assistant,
                     text: 'Typing...',
@@ -381,7 +381,7 @@ void main() {
               activeRunNotifierOverride(
                 const RunningState(
                   conversation: conversation,
-                  streaming: Streaming(
+                  streaming: TextStreaming(
                     messageId: 'msg-3',
                     user: ChatUser.assistant,
                     text: 'Typing...',
@@ -568,10 +568,7 @@ void main() {
           TestData.createMessage(id: 'msg-1', text: 'Hello'),
         ];
         const runState = CompletedState(
-          conversation: Conversation(
-            threadId: 'thread-1',
-            status: Idle(),
-          ),
+          conversation: Conversation(threadId: 'thread-1'),
           result: Success(),
         );
 
@@ -584,7 +581,7 @@ void main() {
       });
     });
 
-    group('when running with NotStreaming', () {
+    group('when running with AwaitingText', () {
       test('returns historical messages unchanged', () {
         // Arrange
         final history = [
@@ -606,7 +603,7 @@ void main() {
       });
     });
 
-    group('when running with Streaming', () {
+    group('when running with TextStreaming', () {
       test('appends synthetic message with streaming text', () {
         // Arrange
         final history = [
@@ -617,7 +614,7 @@ void main() {
             threadId: 'thread-1',
             status: Running(runId: 'run-1'),
           ),
-          streaming: Streaming(
+          streaming: TextStreaming(
             messageId: 'msg-2',
             user: ChatUser.assistant,
             text: 'Hello, I am streaming...',
@@ -652,7 +649,7 @@ void main() {
             threadId: 'thread-1',
             status: Running(runId: 'run-1'),
           ),
-          streaming: Streaming(
+          streaming: TextStreaming(
             messageId: 'msg-3',
             user: ChatUser.assistant,
             text: 'Streaming response...',
@@ -684,7 +681,7 @@ void main() {
             threadId: 'thread-1',
             status: Running(runId: 'run-1'),
           ),
-          streaming: Streaming(
+          streaming: TextStreaming(
             messageId: 'msg-2',
             user: ChatUser.assistant,
             text: '',
@@ -708,7 +705,7 @@ void main() {
             threadId: 'thread-1',
             status: Running(runId: 'run-1'),
           ),
-          streaming: Streaming(
+          streaming: TextStreaming(
             messageId: 'msg-1',
             user: ChatUser.assistant,
             text: 'First response...',

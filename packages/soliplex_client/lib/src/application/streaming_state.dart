@@ -9,10 +9,10 @@ import 'package:soliplex_client/src/domain/chat_message.dart';
 /// Use pattern matching for exhaustive handling:
 /// ```dart
 /// switch (streaming) {
-///   case NotStreaming():
-///     // No message being streamed
-///   case Streaming(:final messageId, :final text):
-///     // Message is streaming
+///   case AwaitingText():
+///     // Waiting for text to start
+///   case TextStreaming(:final messageId, :final text):
+///     // Text message is streaming
 /// }
 /// ```
 @immutable
@@ -20,30 +20,30 @@ sealed class StreamingState {
   const StreamingState();
 }
 
-/// No message is currently streaming.
+/// Waiting for text to start streaming.
 @immutable
-class NotStreaming extends StreamingState {
+class AwaitingText extends StreamingState {
   /// Creates a not streaming state.
-  const NotStreaming();
+  const AwaitingText();
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is NotStreaming && runtimeType == other.runtimeType;
+      other is AwaitingText && runtimeType == other.runtimeType;
 
   @override
   int get hashCode => runtimeType.hashCode;
 
   @override
-  String toString() => 'NotStreaming()';
+  String toString() => 'AwaitingText()';
 }
 
-/// A message is currently streaming.
+/// Text is currently streaming.
 @immutable
-class Streaming extends StreamingState {
+class TextStreaming extends StreamingState {
   /// Creates a streaming state with the given [messageId], [user], and
   /// accumulated [text].
-  const Streaming({
+  const TextStreaming({
     required this.messageId,
     required this.user,
     required this.text,
@@ -60,16 +60,16 @@ class Streaming extends StreamingState {
 
   // TODO(cleanup): Consider inlining this in agui_event_processor.dart.
   // This method is only used by one caller (Feature Envy smell). Keeping
-  // Streaming as pure data would be cleaner.
+  // TextStreaming as pure data would be cleaner.
   /// Creates a copy with the delta appended to text.
-  Streaming appendDelta(String delta) {
-    return Streaming(messageId: messageId, user: user, text: text + delta);
+  TextStreaming appendDelta(String delta) {
+    return TextStreaming(messageId: messageId, user: user, text: text + delta);
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is Streaming &&
+      other is TextStreaming &&
           runtimeType == other.runtimeType &&
           messageId == other.messageId &&
           user == other.user &&
@@ -79,6 +79,6 @@ class Streaming extends StreamingState {
   int get hashCode => Object.hash(runtimeType, messageId, user, text);
 
   @override
-  String toString() => 'Streaming('
+  String toString() => 'TextStreaming('
       'messageId: $messageId, user: $user, text: ${text.length} chars)';
 }

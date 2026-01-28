@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show ChatMessage, Streaming, TextMessage;
+    show ChatMessage, TextMessage, TextStreaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
@@ -50,7 +50,7 @@ DisplayMessagesResult computeDisplayMessages(
   final streaming = runState.streaming;
 
   // Not actively streaming text - return history unchanged
-  if (streaming is! Streaming) {
+  if (streaming is! TextStreaming) {
     return DisplayMessagesResult(
       historicalMessages,
       hasSyntheticMessage: false,
