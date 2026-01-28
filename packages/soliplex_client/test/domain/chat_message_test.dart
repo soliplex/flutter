@@ -63,13 +63,9 @@ void main() {
         user: ChatUser.assistant,
         text: 'Response',
       );
-      final copy = original.copyWith(
-        thinkingText: 'Thinking...',
-        isThinkingStreaming: true,
-      );
+      final copy = original.copyWith(thinkingText: 'Thinking...');
 
       expect(copy.thinkingText, equals('Thinking...'));
-      expect(copy.isThinkingStreaming, isTrue);
     });
 
     test('copyWith modifies id', () {

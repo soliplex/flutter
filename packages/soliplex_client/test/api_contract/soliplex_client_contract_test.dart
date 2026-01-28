@@ -191,7 +191,6 @@ void main() {
           text: 'Hello',
           isStreaming: false,
           thinkingText: '',
-          isThinkingStreaming: false,
         );
 
         expect(msg, isA<ChatMessage>());
@@ -201,7 +200,6 @@ void main() {
         expect(msg.text, isA<String>());
         expect(msg.isStreaming, isA<bool>());
         expect(msg.thinkingText, isA<String>());
-        expect(msg.isThinkingStreaming, isA<bool>());
         expect(msg.hasThinkingText, isA<bool>());
       });
 
@@ -228,7 +226,6 @@ void main() {
           text: 'Hi',
           isStreaming: true,
           thinkingText: 'thinking',
-          isThinkingStreaming: true,
         );
         expect(copied, isA<TextMessage>());
       });
