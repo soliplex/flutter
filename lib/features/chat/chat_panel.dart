@@ -12,6 +12,7 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
+import 'package:soliplex_frontend/features/chat/widgets/status_indicator.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
 /// Main chat panel that combines message list and input.
@@ -85,6 +86,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                       _ => const MessageList(),
                     },
                   ),
+
+                  // Status indicator (above input, shown only when streaming)
+                  if (isStreaming)
+                    StatusIndicator(streaming: runState.streaming),
 
                   // Input
                   ChatInput(

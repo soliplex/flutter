@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show ChatMessage, TextMessage, TextStreaming;
+    show AwaitingText, ChatMessage, ChatUser, TextMessage, TextStreaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
@@ -13,10 +13,11 @@ import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 /// Result of computing display messages from history and streaming state.
 @immutable
 class DisplayMessagesResult {
-  /// Creates a result with the computed messages and synthetic message flag.
+  /// Creates a result with the computed messages and streaming flags.
   const DisplayMessagesResult(
     this.messages, {
     required this.hasSyntheticMessage,
+    this.isThinkingStreaming = false,
   });
 
   /// The messages to display.
@@ -24,6 +25,10 @@ class DisplayMessagesResult {
 
   /// Whether a synthetic streaming message was appended.
   final bool hasSyntheticMessage;
+
+  /// Whether thinking is currently streaming (only relevant for synthetic
+  /// message).
+  final bool isThinkingStreaming;
 }
 
 /// Computes the list of messages to display by merging historical messages
@@ -34,6 +39,9 @@ class DisplayMessagesResult {
 /// - Whether a synthetic message was created from streaming state
 ///
 /// This is a pure function for testability.
+/// Temporary ID for synthetic message during pre-text thinking phase.
+const _kPendingThinkingId = '__pending_thinking__';
+
 @visibleForTesting
 DisplayMessagesResult computeDisplayMessages(
   List<ChatMessage> historicalMessages,
@@ -49,24 +57,42 @@ DisplayMessagesResult computeDisplayMessages(
 
   final streaming = runState.streaming;
 
-  // Not actively streaming text - return history unchanged
-  if (streaming is! TextStreaming) {
+  // Actively streaming text - create synthetic message with text and thinking
+  if (streaming is TextStreaming) {
+    final syntheticMessage = TextMessage.create(
+      id: streaming.messageId,
+      user: streaming.user,
+      text: streaming.text,
+      thinkingText: streaming.thinkingText,
+    );
+
     return DisplayMessagesResult(
-      historicalMessages,
-      hasSyntheticMessage: false,
+      [...historicalMessages, syntheticMessage],
+      hasSyntheticMessage: true,
+      isThinkingStreaming: streaming.isThinkingStreaming,
     );
   }
 
-  // Create synthetic message from streaming state
-  final syntheticMessage = TextMessage.create(
-    id: streaming.messageId,
-    user: streaming.user,
-    text: streaming.text,
-  );
+  // Pre-text thinking: thinking events arrived but text hasn't started yet
+  if (streaming is AwaitingText && streaming.hasThinkingContent) {
+    final syntheticMessage = TextMessage.create(
+      id: _kPendingThinkingId,
+      user: ChatUser.assistant,
+      text: '',
+      thinkingText: streaming.bufferedThinkingText,
+    );
 
+    return DisplayMessagesResult(
+      [...historicalMessages, syntheticMessage],
+      hasSyntheticMessage: true,
+      isThinkingStreaming: streaming.isThinkingStreaming,
+    );
+  }
+
+  // Not streaming and no thinking - return history unchanged
   return DisplayMessagesResult(
-    [...historicalMessages, syntheticMessage],
-    hasSyntheticMessage: true,
+    historicalMessages,
+    hasSyntheticMessage: false,
   );
 }
 
@@ -216,60 +242,25 @@ class _MessageListState extends ConsumerState<MessageList> {
       );
     }
 
-    // Show spinner only in the brief gap before streaming content arrives
-    final showSpinner = isStreaming && !computation.hasSyntheticMessage;
-
     return Stack(
       children: [
         ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
-          itemCount: messages.length + (showSpinner ? 1 : 0),
+          itemCount: messages.length,
           itemBuilder: (context, index) {
-            // Show streaming indicator at the bottom (only when no synthetic)
-            if (index == messages.length) {
-              return Semantics(
-                label: 'Assistant is thinking',
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Assistant is thinking...',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              fontStyle: FontStyle.italic,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-
             final message = messages[index];
             final isLast = index == messages.length - 1;
+            final isSyntheticMessage =
+                isLast && computation.hasSyntheticMessage;
 
             return ChatMessageWidget(
               key: ValueKey(message.id),
               message: message,
-              isStreaming: isLast && computation.hasSyntheticMessage,
+              isStreaming: isSyntheticMessage,
+              // Only the synthetic message can have streaming thinking
+              isThinkingStreaming:
+                  isSyntheticMessage && computation.isThinkingStreaming,
             );
           },
         ),
