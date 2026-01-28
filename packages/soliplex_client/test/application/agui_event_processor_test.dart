@@ -232,6 +232,169 @@ void main() {
 
         expect(result.conversation.toolCalls, isEmpty);
       });
+
+      test('multiple ToolCallStartEvents accumulate tool names in activity',
+          () {
+        const event1 = ToolCallStartEvent(
+          toolCallId: 'tc-1',
+          toolCallName: 'search',
+        );
+        final result1 = processEvent(conversation, streaming, event1);
+
+        const event2 = ToolCallStartEvent(
+          toolCallId: 'tc-2',
+          toolCallName: 'summarize',
+        );
+        final result2 = processEvent(
+          result1.conversation,
+          result1.streaming,
+          event2,
+        );
+
+        final awaitingText = result2.streaming as app_streaming.AwaitingText;
+        final activity =
+            awaitingText.currentActivity as app_streaming.ToolCallActivity;
+        expect(activity.allToolNames, equals({'search', 'summarize'}));
+      });
+
+      test('ToolCallEndEvent does not change activity', () {
+        const awaitingWithTool = app_streaming.AwaitingText(
+          currentActivity: app_streaming.ToolCallActivity(toolName: 'search'),
+        );
+        final conversationWithTool = conversation.withToolCall(
+          const ToolCallInfo(id: 'tc-1', name: 'search'),
+        );
+        const event = ToolCallEndEvent(toolCallId: 'tc-1');
+
+        final result = processEvent(
+          conversationWithTool,
+          awaitingWithTool,
+          event,
+        );
+
+        expect(
+          (result.streaming as app_streaming.AwaitingText).currentActivity,
+          isA<app_streaming.ToolCallActivity>(),
+        );
+      });
+    });
+
+    group('thinking events', () {
+      test(
+        'ThinkingTextMessageStartEvent sets isThinkingStreaming and activity',
+        () {
+          const event = ThinkingTextMessageStartEvent();
+
+          final result = processEvent(conversation, streaming, event);
+
+          final awaitingText = result.streaming as app_streaming.AwaitingText;
+          expect(awaitingText.isThinkingStreaming, isTrue);
+          expect(
+            awaitingText.currentActivity,
+            isA<app_streaming.ThinkingActivity>(),
+          );
+        },
+      );
+
+      test('ThinkingTextMessageContentEvent buffers text in AwaitingText', () {
+        const startedState = app_streaming.AwaitingText(
+          isThinkingStreaming: true,
+        );
+        const event = ThinkingTextMessageContentEvent(delta: 'Thinking...');
+
+        final result = processEvent(conversation, startedState, event);
+
+        final awaitingText = result.streaming as app_streaming.AwaitingText;
+        expect(awaitingText.bufferedThinkingText, equals('Thinking...'));
+      });
+
+      test('ThinkingTextMessageContentEvent appends to existing buffer', () {
+        const startedState = app_streaming.AwaitingText(
+          isThinkingStreaming: true,
+          bufferedThinkingText: 'Part 1. ',
+        );
+        const event = ThinkingTextMessageContentEvent(delta: 'Part 2.');
+
+        final result = processEvent(conversation, startedState, event);
+
+        expect(
+          (result.streaming as app_streaming.AwaitingText).bufferedThinkingText,
+          equals('Part 1. Part 2.'),
+        );
+      });
+
+      test('ThinkingTextMessageEndEvent sets isThinkingStreaming to false', () {
+        const startedState = app_streaming.AwaitingText(
+          isThinkingStreaming: true,
+          bufferedThinkingText: 'Done thinking',
+        );
+        const event = ThinkingTextMessageEndEvent();
+
+        final result = processEvent(conversation, startedState, event);
+
+        final awaitingText = result.streaming as app_streaming.AwaitingText;
+        expect(awaitingText.isThinkingStreaming, isFalse);
+        expect(awaitingText.bufferedThinkingText, equals('Done thinking'));
+      });
+
+      test(
+        'TextMessageStartEvent transfers buffered thinking to TextStreaming',
+        () {
+          const awaitingWithThinking = app_streaming.AwaitingText(
+            bufferedThinkingText: 'Pre-text thinking',
+          );
+          const event = TextMessageStartEvent(messageId: 'msg-1');
+
+          final result = processEvent(
+            conversation,
+            awaitingWithThinking,
+            event,
+          );
+
+          final textStreaming = result.streaming as app_streaming.TextStreaming;
+          expect(textStreaming.thinkingText, equals('Pre-text thinking'));
+          expect(textStreaming.text, isEmpty);
+        },
+      );
+
+      test(
+        'ThinkingTextMessageContentEvent appends to TextStreaming.thinkingText',
+        () {
+          const textStreamingState = app_streaming.TextStreaming(
+            messageId: 'msg-1',
+            user: _defaultUser,
+            text: 'Response text',
+            thinkingText: 'Initial thinking',
+            isThinkingStreaming: true,
+          );
+          const event = ThinkingTextMessageContentEvent(
+            delta: ' more thinking',
+          );
+
+          final result = processEvent(conversation, textStreamingState, event);
+
+          expect(
+            (result.streaming as app_streaming.TextStreaming).thinkingText,
+            equals('Initial thinking more thinking'),
+          );
+        },
+      );
+
+      test('TextMessageEndEvent preserves thinkingText in finalized message',
+          () {
+        const streamingState = app_streaming.TextStreaming(
+          messageId: 'msg-1',
+          user: _defaultUser,
+          text: 'Response',
+          thinkingText: 'My reasoning',
+        );
+        const event = TextMessageEndEvent(messageId: 'msg-1');
+
+        final result = processEvent(conversation, streamingState, event);
+
+        final message = result.conversation.messages.first as TextMessage;
+        expect(message.thinkingText, equals('My reasoning'));
+      });
     });
 
     group('passthrough events', () {
