@@ -212,41 +212,9 @@ void main() {
       });
     });
 
-    group('Streaming Indicator', () {
-      testWidgets('shows activity indicator when streaming', (tester) async {
-        // Arrange
-        final mockThread = TestData.createThread();
-        const conversation = domain.Conversation(
-          threadId: 'test-thread',
-          status: domain.Running(runId: 'test-run'),
-        );
-
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(body: MessageList()),
-            overrides: [
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider.overrideWith(
-                (ref) async => <domain.ChatMessage>[],
-              ),
-              activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
-              ),
-            ],
-          ),
-        );
-        // Use pump() instead of pumpAndSettle() because
-        // CircularProgressIndicator animation never settles.
-        await tester.pump();
-        await tester.pump();
-
-        // Assert - One in loading state, one as streaming indicator
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        expect(find.text('Assistant is thinking...'), findsOneWidget);
-      });
-
-      testWidgets('does not show indicator when not streaming', (tester) async {
+    group('Streaming Behavior', () {
+      testWidgets('shows messages without extra widget when not streaming',
+          (tester) async {
         // Arrange
         final messages = [TestData.createMessage(text: 'Hello')];
 
@@ -266,45 +234,43 @@ void main() {
         await tester.pumpAndSettle();
 
         // Assert
-        expect(find.text('Assistant is thinking...'), findsNothing);
+        expect(find.byType(ChatMessageWidget), findsOneWidget);
       });
 
-      testWidgets('shows indicator at bottom of list', (tester) async {
-        // Arrange
-        final messages = [
-          TestData.createMessage(id: 'msg-1', text: 'Message 1'),
-          TestData.createMessage(id: 'msg-2', text: 'Message 2'),
-        ];
+      testWidgets(
+        'shows only historical messages when running with AwaitingText',
+        (tester) async {
+          // Arrange: Running with AwaitingText (no thinking content)
+          final messages = [
+            TestData.createMessage(id: 'msg-1', text: 'Message 1'),
+            TestData.createMessage(id: 'msg-2', text: 'Message 2'),
+          ];
 
-        final mockThread = TestData.createThread();
-        const conversation = domain.Conversation(
-          threadId: 'test-thread',
-          status: domain.Running(runId: 'test-run'),
-        );
+          final mockThread = TestData.createThread();
+          const conversation = domain.Conversation(
+            threadId: 'test-thread',
+            status: domain.Running(runId: 'test-run'),
+          );
 
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(body: MessageList()),
-            overrides: [
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider.overrideWith((ref) async => messages),
-              activeRunNotifierOverride(
-                const RunningState(conversation: conversation),
-              ),
-            ],
-          ),
-        );
-        // Use pump() instead of pumpAndSettle() because
-        // CircularProgressIndicator animation never settles.
-        await tester.pump();
-        await tester.pump();
+          // Act
+          await tester.pumpWidget(
+            createTestApp(
+              home: const Scaffold(body: MessageList()),
+              overrides: [
+                currentThreadProvider.overrideWith((ref) => mockThread),
+                allMessagesProvider.overrideWith((ref) async => messages),
+                activeRunNotifierOverride(
+                  const RunningState(conversation: conversation),
+                ),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-        // Assert
-        // Should have 2 messages + 1 indicator
-        expect(find.byType(ChatMessageWidget), findsNWidgets(2));
-        expect(find.text('Assistant is thinking...'), findsOneWidget);
-      });
+          // Assert: Only 2 historical messages, no synthetic
+          expect(find.byType(ChatMessageWidget), findsNWidgets(2));
+        },
+      );
     });
 
     group('Streaming Status', () {
@@ -582,7 +548,8 @@ void main() {
     });
 
     group('when running with AwaitingText', () {
-      test('returns historical messages unchanged', () {
+      test('returns historical messages unchanged when no thinking content',
+          () {
         // Arrange
         final history = [
           TestData.createMessage(id: 'msg-1', text: 'User message'),
@@ -600,6 +567,52 @@ void main() {
         // Assert
         expect(result.messages, equals(history));
         expect(result.hasSyntheticMessage, isFalse);
+      });
+
+      test('creates synthetic message for pre-text thinking', () {
+        // Arrange
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: AwaitingText(
+            bufferedThinkingText: 'Thinking before response...',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.hasSyntheticMessage, isTrue);
+        expect(result.messages.length, equals(1));
+        final message = result.messages.first as TextMessage;
+        expect(message.text, isEmpty);
+        expect(
+          message.thinkingText,
+          equals('Thinking before response...'),
+        );
+      });
+
+      test('sets isThinkingStreaming when thinking is active', () {
+        // Arrange
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: AwaitingText(isThinkingStreaming: true),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.hasSyntheticMessage, isTrue);
+        expect(result.isThinkingStreaming, isTrue);
       });
     });
 
@@ -719,6 +732,54 @@ void main() {
         expect(result.messages.length, equals(1));
         expect(result.hasSyntheticMessage, isTrue);
         expect(result.messages.first.id, equals('msg-1'));
+      });
+
+      test('synthetic message includes thinkingText from TextStreaming', () {
+        // Arrange
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Response text',
+            thinkingText: 'Thinking while responding',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        final message = result.messages.first as TextMessage;
+        expect(message.text, equals('Response text'));
+        expect(message.thinkingText, equals('Thinking while responding'));
+      });
+
+      test('passes through isThinkingStreaming from TextStreaming', () {
+        // Arrange
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: '',
+            isThinkingStreaming: true,
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.isThinkingStreaming, isTrue);
       });
     });
   });

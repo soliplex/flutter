@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_client/soliplex_client.dart' hide State;
 
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/code_block_builder.dart';
@@ -14,11 +14,16 @@ class ChatMessageWidget extends StatelessWidget {
   const ChatMessageWidget({
     required this.message,
     this.isStreaming = false,
+    this.isThinkingStreaming = false,
     super.key,
   });
 
   final ChatMessage message;
   final bool isStreaming;
+
+  /// Whether thinking is currently streaming. Only meaningful for the synthetic
+  /// streaming message; historical messages always have this as false.
+  final bool isThinkingStreaming;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +40,10 @@ class ChatMessageWidget extends StatelessWidget {
       ErrorMessage(:final errorText) => errorText,
       _ => '',
     };
+    final thinkingText = switch (message) {
+      TextMessage(:final thinkingText) => thinkingText,
+      _ => '',
+    };
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -43,80 +52,99 @@ class ChatMessageWidget extends StatelessWidget {
             isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         spacing: SoliplexSpacing.s2,
         children: [
-          SelectionArea(
-            child: Container(
+          // Show thinking section for assistant messages with thinking content
+          if (!isUser && (thinkingText.isNotEmpty || isThinkingStreaming))
+            Container(
               constraints: BoxConstraints(
                 maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
               ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: isUser
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (isUser)
-                    TextSelectionTheme(
-                      data: TextSelectionThemeData(
-                        selectionColor:
-                            theme.colorScheme.onPrimaryContainer.withAlpha(
-                          (0.4 * 255).toInt(),
-                        ),
-                        selectionHandleColor:
-                            theme.colorScheme.onPrimaryContainer,
-                      ),
-                      child: Text(
-                        text,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: message is ErrorMessage
-                              ? theme.colorScheme.error
-                              : theme.colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                    )
-                  else
-                    // NOTE: Do not set selectable: true here
-                    // The markdown is rendered as separate widgets,
-                    // if you set selectable: true, you'll have to select
-                    // each widget separately.
-                    MarkdownBody(
-                      data: text,
-                      styleSheet: MarkdownStyleSheet(
-                        p: theme.textTheme.bodyLarge?.copyWith(
-                          color: message is ErrorMessage
-                              ? theme.colorScheme.error
-                              : theme.colorScheme.onSurface,
-                        ),
-                        code: context.monospace.copyWith(
-                          backgroundColor:
-                              theme.colorScheme.surfaceContainerHigh,
-                        ),
-                        codeblockDecoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(
-                            soliplexTheme.radii.sm,
-                          ),
-                        ),
-                      ),
-                      builders: {
-                        'code': CodeBlockBuilder(
-                          preferredStyle: context.monospace.copyWith(
-                            fontSize: 14,
-                          ),
-                        ),
-                      },
-                    ),
-                  if (isStreaming) ...[
-                    const SizedBox(height: 8),
-                    _buildStreamingIndicator(context, theme),
-                  ],
-                ],
+              child: ThinkingSection(
+                thinkingText: thinkingText,
+                isStreaming: isThinkingStreaming,
               ),
             ),
-          ),
+          // Hide message bubble when text is empty and streaming (assistant
+          // is still processing). The thinking section and status indicator
+          // show what's happening.
+          if (text.isNotEmpty || !isStreaming)
+            SelectionArea(
+              child: Container(
+                constraints: BoxConstraints(
+                  maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
+                ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: isUser
+                      ? theme.colorScheme.primaryContainer
+                      : theme.colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (isUser)
+                      TextSelectionTheme(
+                        data: TextSelectionThemeData(
+                          selectionColor:
+                              theme.colorScheme.onPrimaryContainer.withAlpha(
+                            (0.4 * 255).toInt(),
+                          ),
+                          selectionHandleColor:
+                              theme.colorScheme.onPrimaryContainer,
+                        ),
+                        child: Text(
+                          text,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: message is ErrorMessage
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      )
+                    else
+                      // NOTE: Do not set selectable: true here
+                      // The markdown is rendered as separate widgets,
+                      // if you set selectable: true, you'll have to select
+                      // each widget separately.
+                      MarkdownBody(
+                        data: text,
+                        styleSheet: MarkdownStyleSheet(
+                          p: theme.textTheme.bodyLarge?.copyWith(
+                            color: message is ErrorMessage
+                                ? theme.colorScheme.error
+                                : theme.colorScheme.onSurface,
+                          ),
+                          code: context.monospace.copyWith(
+                            backgroundColor:
+                                theme.colorScheme.surfaceContainerHigh,
+                          ),
+                          codeblockDecoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(
+                              soliplexTheme.radii.sm,
+                            ),
+                          ),
+                        ),
+                        builders: {
+                          'code': CodeBlockBuilder(
+                            preferredStyle: context.monospace.copyWith(
+                              fontSize: 14,
+                            ),
+                          ),
+                        },
+                      ),
+                    // Only show streaming indicator when there's actual text
+                    // being streamed. When text is empty, the status indicator
+                    // at the bottom of the list shows what's happening.
+                    if (isStreaming && text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildStreamingIndicator(context, theme),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           if (isUser)
             _buildUserMessageActionsRow(
               context,
@@ -249,6 +277,119 @@ class ChatMessageWidget extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Collapsible section that displays the model's thinking/reasoning process.
+class ThinkingSection extends StatefulWidget {
+  const ThinkingSection({
+    required this.thinkingText,
+    required this.isStreaming,
+    super.key,
+  });
+
+  final String thinkingText;
+  final bool isStreaming;
+
+  @override
+  State<ThinkingSection> createState() => _ThinkingSectionState();
+}
+
+class _ThinkingSectionState extends State<ThinkingSection> {
+  late bool _isExpanded;
+  late bool _wasStreaming;
+
+  @override
+  void initState() {
+    super.initState();
+    _isExpanded = widget.thinkingText.isNotEmpty || widget.isStreaming;
+    _wasStreaming = widget.isStreaming;
+  }
+
+  @override
+  void didUpdateWidget(ThinkingSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    // Auto-expand when streaming starts
+    if (widget.isStreaming && !_wasStreaming) {
+      setState(() {
+        _isExpanded = true;
+      });
+    }
+    // Auto-collapse when streaming ends
+    else if (!widget.isStreaming && _wasStreaming) {
+      setState(() {
+        _isExpanded = false;
+      });
+    }
+
+    _wasStreaming = widget.isStreaming;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final soliplexTheme = SoliplexTheme.of(context);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      decoration: BoxDecoration(
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant,
+        ),
+        borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header (always visible)
+          InkWell(
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.psychology,
+                    size: 18,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Thinking',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Content (expandable)
+          if (_isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+              child: SelectionArea(
+                child: Text(
+                  widget.thinkingText,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
