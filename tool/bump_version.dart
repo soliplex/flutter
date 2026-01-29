@@ -9,9 +9,9 @@
 ///
 /// Examples:
 /// ```sh
-/// dart run tool/bump_version.dart patch  # 0.52.1+0 -> 0.52.2+0
-/// dart run tool/bump_version.dart minor  # 0.52.1+0 -> 0.53.0+0
-/// dart run tool/bump_version.dart major  # 0.52.1+0 -> 1.0.0+0
+/// dart run tool/bump_version.dart patch  # 0.52.1+0 -> 0.52.2+1
+/// dart run tool/bump_version.dart minor  # 0.52.1+0 -> 0.53.0+1
+/// dart run tool/bump_version.dart major  # 0.52.1+0 -> 1.0.0+1
 /// dart run tool/bump_version.dart build  # 0.52.1+0 -> 0.52.1+1
 /// ```
 library;
@@ -54,9 +54,9 @@ void main(List<String> args) {
 
   final (major, minor, patch, build) = parsed;
   final newVersion = switch (bumpType) {
-    'major' => '${major + 1}.0.0+0',
-    'minor' => '$major.${minor + 1}.0+0',
-    'patch' => '$major.$minor.${patch + 1}+0',
+    'major' => '${major + 1}.0.0+${build + 1}',
+    'minor' => '$major.${minor + 1}.0+${build + 1}',
+    'patch' => '$major.$minor.${patch + 1}+${build + 1}',
     'build' => '$major.$minor.$patch+${build + 1}',
     _ => currentVersion,
   };
