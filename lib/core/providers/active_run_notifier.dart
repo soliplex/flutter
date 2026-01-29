@@ -6,8 +6,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Cancelled, Completed, Conversation, Failed, Idle, Running;
+import 'package:soliplex_frontend/core/domain/interfaces/run_lifecycle.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/infrastructure_providers.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
@@ -46,7 +48,14 @@ class IdleInternalState extends NotifierInternalState {
 ///
 /// Not marked as @immutable because it holds mutable StreamSubscription.
 class RunningInternalState extends NotifierInternalState {
-  RunningInternalState({required this.cancelToken, required this.subscription});
+  RunningInternalState({
+    required this.runId,
+    required this.cancelToken,
+    required this.subscription,
+  });
+
+  /// The ID of the active run.
+  final String runId;
 
   /// Token for cancelling the run.
   final CancelToken cancelToken;
@@ -80,12 +89,14 @@ class RunningInternalState extends NotifierInternalState {
 /// ```
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
+  late RunLifecycle _runLifecycle;
   NotifierInternalState _internalState = const IdleInternalState();
   bool _isStarting = false;
 
   @override
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
+    _runLifecycle = ref.read(runLifecycleProvider);
 
     ref
       // Reset when leaving a selected thread (run state is scoped to thread)
@@ -129,6 +140,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
     _isStarting = true;
     StreamSubscription<BaseEvent>? subscription;
+    String? runId;
+    var runLifecycleStarted = false;
 
     try {
       // Dispose any previous resources
@@ -140,7 +153,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final cancelToken = CancelToken();
 
       // Step 1: Get run_id (use existing or create new)
-      final String runId;
       if (existingRunId != null && existingRunId.isNotEmpty) {
         runId = existingRunId;
       } else {
@@ -185,6 +197,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Set running state
       state = RunningState(conversation: conversation);
 
+      // Notify lifecycle that run has started
+      _runLifecycle.onRunStarted(runId);
+      runLifecycleStarted = true;
+
       // Step 2: Build the streaming endpoint URL with backend run_id
       final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
 
@@ -224,6 +240,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
             );
             state = completed;
             _updateCacheOnCompletion(completed);
+            _runLifecycle.onRunEnded(runId!);
           }
         },
         onDone: () {
@@ -239,6 +256,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
             );
             state = completed;
             _updateCacheOnCompletion(completed);
+            _runLifecycle.onRunEnded(runId!);
           }
         },
         cancelOnError: false,
@@ -246,6 +264,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       // Store running state
       _internalState = RunningInternalState(
+        runId: runId,
         cancelToken: cancelToken,
         subscription: subscription,
       );
@@ -261,6 +280,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
       state = completed;
       _updateCacheOnCompletion(completed);
+      if (runLifecycleStarted) {
+        _runLifecycle.onRunEnded(runId!);
+      }
       _internalState = const IdleInternalState();
     } catch (e, stackTrace) {
       // Clean up subscription on any error
@@ -275,6 +297,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
       state = completed;
       _updateCacheOnCompletion(completed);
+      if (runLifecycleStarted) {
+        _runLifecycle.onRunEnded(runId!);
+      }
       _internalState = const IdleInternalState();
     } finally {
       _isStarting = false;
@@ -286,9 +311,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Preserves all completed messages but clears streaming state.
   Future<void> cancelRun() async {
     final currentState = state;
+    final previousInternalState = _internalState;
 
-    if (_internalState is RunningInternalState) {
-      await (_internalState as RunningInternalState).dispose();
+    if (previousInternalState is RunningInternalState) {
+      await previousInternalState.dispose();
+      _runLifecycle.onRunEnded(previousInternalState.runId);
       _internalState = const IdleInternalState();
     }
 
@@ -315,6 +342,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     state = const IdleState();
 
     if (previousState is RunningInternalState) {
+      _runLifecycle.onRunEnded(previousState.runId);
       try {
         await previousState.dispose();
       } on Exception catch (e, st) {
@@ -380,9 +408,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
     };
 
-    // Update cache when run completes via event (RUN_FINISHED, RUN_ERROR)
+    // Update cache and lifecycle when run completes via event
     if (newState is CompletedState) {
       _updateCacheOnCompletion(newState);
+      if (_internalState is RunningInternalState) {
+        _runLifecycle.onRunEnded(
+          (_internalState as RunningInternalState).runId,
+        );
+      }
     }
 
     return newState;
