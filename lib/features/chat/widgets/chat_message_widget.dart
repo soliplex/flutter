@@ -162,7 +162,10 @@ class ChatMessageWidget extends StatelessWidget {
                 constraints: BoxConstraints(
                   maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
                 ),
-                child: CitationsSection(citations: citations),
+                child: CitationsSection(
+                  messageId: message.id,
+                  citations: citations,
+                ),
               ),
             if (!isStreaming)
               _buildAgentMessageActionsRow(

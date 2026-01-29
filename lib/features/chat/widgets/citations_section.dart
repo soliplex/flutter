@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
+import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 
 /// Expandable section showing source citations for a message.
@@ -7,25 +9,38 @@ import 'package:soliplex_frontend/design/design.dart';
 /// Displays a header with citation count that can be tapped to expand/collapse
 /// the full citation list. Each citation shows the document title, a snippet
 /// of content, and an optional link to view the source.
-class CitationsSection extends StatefulWidget {
+///
+/// Section expand state is persisted via Riverpod provider, so it survives
+/// widget rebuilds (e.g., during scrolling or state updates).
+class CitationsSection extends ConsumerStatefulWidget {
   /// Creates a citations section with the given citations.
-  const CitationsSection({required this.citations, super.key});
+  const CitationsSection({
+    required this.messageId,
+    required this.citations,
+    super.key,
+  });
+
+  /// The message ID used to persist expand state.
+  final String messageId;
 
   /// The citations to display.
   final List<Citation> citations;
 
   @override
-  State<CitationsSection> createState() => _CitationsSectionState();
+  ConsumerState<CitationsSection> createState() => _CitationsSectionState();
 }
 
-class _CitationsSectionState extends State<CitationsSection> {
-  bool _expanded = false;
+class _CitationsSectionState extends ConsumerState<CitationsSection> {
   final Set<int> _expandedCitations = {};
 
   @override
   Widget build(BuildContext context) {
     if (widget.citations.isEmpty) return const SizedBox.shrink();
 
+    final notifier = ref.read(citationsExpandedProvider.notifier);
+    final expanded = ref.watch(citationsExpandedProvider).contains(
+          widget.messageId,
+        );
     final theme = Theme.of(context);
     final count = widget.citations.length;
 
@@ -39,16 +54,21 @@ class _CitationsSectionState extends State<CitationsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(theme, count),
-          if (_expanded) ..._buildCitationRows(),
+          _buildHeader(theme, count, expanded: expanded, notifier: notifier),
+          if (expanded) ..._buildCitationRows(),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme, int count) {
+  Widget _buildHeader(
+    ThemeData theme,
+    int count, {
+    required bool expanded,
+    required CitationsExpandedNotifier notifier,
+  }) {
     return InkWell(
-      onTap: () => setState(() => _expanded = !_expanded),
+      onTap: () => notifier.toggle(widget.messageId),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s2),
         child: Row(
@@ -70,7 +90,7 @@ class _CitationsSectionState extends State<CitationsSection> {
             ),
             const Spacer(),
             Icon(
-              _expanded ? Icons.expand_less : Icons.expand_more,
+              expanded ? Icons.expand_less : Icons.expand_more,
               size: 20,
               color: theme.colorScheme.onSurfaceVariant,
             ),

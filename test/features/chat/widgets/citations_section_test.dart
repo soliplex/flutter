@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
+import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
 
 import '../../../helpers/test_helpers.dart';
@@ -36,7 +38,9 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        createTestApp(home: CitationsSection(citations: citations)),
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+        ),
       );
 
       expect(find.text('2 sources'), findsOneWidget);
@@ -50,7 +54,9 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        createTestApp(home: CitationsSection(citations: citations)),
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+        ),
       );
 
       // Initially collapsed - no document titles visible
@@ -68,11 +74,54 @@ void main() {
     testWidgets('returns empty widget when citations list is empty',
         (tester) async {
       await tester.pumpWidget(
-        createTestApp(home: const CitationsSection(citations: [])),
+        createTestApp(
+          home: const CitationsSection(messageId: 'empty-msg', citations: []),
+        ),
       );
 
       expect(find.byType(CitationsSection), findsOneWidget);
       expect(find.byType(SizedBox), findsWidgets);
+    });
+
+    testWidgets('expand state persists in provider', (tester) async {
+      final citations = [_createCitation(documentTitle: 'Document A')];
+      late ProviderContainer container;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(
+            messageId: 'persist-msg',
+            citations: citations,
+          ),
+          onContainerCreated: (c) => container = c,
+        ),
+      );
+
+      // Initially collapsed
+      expect(
+        container.read(citationsExpandedProvider).contains('persist-msg'),
+        isFalse,
+      );
+
+      // Tap to expand
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Provider state updated
+      expect(
+        container.read(citationsExpandedProvider).contains('persist-msg'),
+        isTrue,
+      );
+
+      // Tap to collapse
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Provider state updated
+      expect(
+        container.read(citationsExpandedProvider).contains('persist-msg'),
+        isFalse,
+      );
     });
   });
 
@@ -86,7 +135,9 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        createTestApp(home: CitationsSection(citations: citations)),
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+        ),
       );
 
       // Expand the section first
@@ -118,7 +169,9 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        createTestApp(home: CitationsSection(citations: citations)),
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+        ),
       );
 
       // Expand section
@@ -149,7 +202,9 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        createTestApp(home: CitationsSection(citations: citations)),
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+        ),
       );
 
       // Expand section
@@ -184,7 +239,9 @@ void main() {
       ];
 
       await tester.pumpWidget(
-        createTestApp(home: CitationsSection(citations: citations)),
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+        ),
       );
 
       // Expand section
