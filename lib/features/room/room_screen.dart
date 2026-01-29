@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -10,7 +11,6 @@ import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
-import 'package:soliplex_frontend/shared/widgets/platform_adaptive_dropdown.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Screen displaying threads within a specific room.
@@ -207,19 +207,20 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         label: 'Room selector, current: ${currentRoom?.name ?? 'none'}',
         child: Tooltip(
           message: 'Switch to another room',
-          child: PlatformAdaptiveDropdown<String>(
-            initialSelection: currentRoom?.id,
-            items: rooms
-                .map(
-                  (r) => PlatformAdaptiveDropdownItem(
-                    value: r.id,
-                    text: trimRoomName(r.name),
+          child: InkWell(
+            onTap: () => _showRoomPicker(rooms),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    trimRoomName(currentRoom?.name ?? 'Select Room'),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                )
-                .toList(),
-            onSelected: (id) {
-              if (id != null) context.go('/rooms/$id');
-            },
+                ),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
           ),
         ),
       ),
@@ -243,6 +244,40 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         );
       },
     );
+  }
+
+  Future<void> _showRoomPicker(List<Room> rooms) async {
+    final currentRoom = ref.read(currentRoomProvider);
+    final sortedRooms = [...rooms]..sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+
+    final selectedId = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Switch Room'),
+        children: [
+          for (final room in sortedRooms)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, room.id),
+              child: Row(
+                children: [
+                  Expanded(child: Text(room.name)),
+                  if (room.id == currentRoom?.id)
+                    Icon(
+                      Icons.check,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (selectedId != null && mounted) {
+      context.go('/rooms/$selectedId');
+    }
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
