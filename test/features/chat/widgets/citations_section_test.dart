@@ -378,4 +378,110 @@ void main() {
       );
     });
   });
+
+  group('CitationsSection PDF visibility button', () {
+    testWidgets('shows visibility button for PDF citations', (tester) async {
+      // Default _createCitation uses .pdf extension
+      final citations = [_createCitation()];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+            currentRoomIdProviderOverride('test-room'),
+          ],
+        ),
+      );
+
+      // Expand section
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Visibility button should be visible
+      expect(find.byIcon(Icons.visibility_outlined), findsOneWidget);
+    });
+
+    testWidgets('does not show visibility button for non-PDF citations',
+        (tester) async {
+      final citations = [
+        _createCitation(documentUri: 'https://example.com/doc.html'),
+      ];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+            currentRoomIdProviderOverride('test-room'),
+          ],
+        ),
+      );
+
+      // Expand section
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Visibility button should NOT be visible
+      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+    });
+
+    testWidgets('does not show visibility button when no room selected',
+        (tester) async {
+      // Default _createCitation uses .pdf extension
+      final citations = [_createCitation()];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+            currentRoomIdProviderOverride(null),
+          ],
+        ),
+      );
+
+      // Expand section
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Visibility button should NOT be visible (no room context)
+      expect(find.byIcon(Icons.visibility_outlined), findsNothing);
+    });
+
+    testWidgets('opens dialog when visibility button tapped', (tester) async {
+      // Default _createCitation uses .pdf extension
+      final citations = [_createCitation()];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+            currentRoomIdProviderOverride('test-room'),
+          ],
+        ),
+      );
+
+      // Expand section
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Tap visibility button
+      await tester.tap(find.byIcon(Icons.visibility_outlined));
+      await tester.pumpAndSettle();
+
+      // Dialog should open with document title
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('Test Document'), findsWidgets);
+    });
+  });
 }

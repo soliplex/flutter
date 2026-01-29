@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_dialog.dart';
 
 /// Expandable section showing source citations for a message.
 ///
@@ -191,6 +193,7 @@ class _CitationRow extends ConsumerWidget {
                     ),
                   ),
                 ),
+                if (citation.isPdf) _PdfViewButton(citation: citation),
                 Icon(
                   isExpanded ? Icons.expand_less : Icons.expand_more,
                   size: 20,
@@ -243,6 +246,42 @@ class _CitationRow extends ConsumerWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _PdfViewButton extends ConsumerWidget {
+  const _PdfViewButton({required this.citation});
+
+  final Citation citation;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final roomId = ref.watch(currentRoomIdProvider);
+
+    // Can't show button without room context
+    if (roomId == null) {
+      return const SizedBox.shrink();
+    }
+
+    final theme = Theme.of(context);
+
+    return IconButton(
+      icon: Icon(
+        Icons.visibility_outlined,
+        size: 18,
+        color: theme.colorScheme.primary,
+      ),
+      onPressed: () => ChunkVisualizationDialog.show(
+        context: context,
+        roomId: roomId,
+        chunkId: citation.chunkId,
+        documentTitle: citation.displayTitle,
+      ),
+      tooltip: 'View page',
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
     );
   }
 }
