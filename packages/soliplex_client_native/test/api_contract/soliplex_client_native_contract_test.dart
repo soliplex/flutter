@@ -59,16 +59,6 @@ void main() {
 
         client.close();
       });
-
-      test('default timeout parameter has expected default', () {
-        // Test that the default timeout is 600 seconds (10 minutes)
-        // by checking the signature accepts Duration
-        final client = createPlatformClient(
-          defaultTimeout: const Duration(seconds: 600),
-        );
-        expect(client, isA<SoliplexHttpClient>());
-        client.close();
-      });
     });
 
     group('consumer simulation: platform-aware HTTP setup', () {

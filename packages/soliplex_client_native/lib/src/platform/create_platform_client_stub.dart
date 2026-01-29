@@ -4,7 +4,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 ///
 /// Returns [DartHttpClient] as the default client for web platform.
 SoliplexHttpClient createPlatformClientImpl({
-  Duration defaultTimeout = const Duration(seconds: 600),
+  Duration defaultTimeout = defaultHttpTimeout,
 }) {
   // Web platform uses DartHttpClient
   return DartHttpClient(defaultTimeout: defaultTimeout);

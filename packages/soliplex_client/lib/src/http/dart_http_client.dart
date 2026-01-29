@@ -35,10 +35,10 @@ class DartHttpClient implements SoliplexHttpClient {
   /// Parameters:
   /// - [client]: Optional [http.Client] to use. Creates a new one if not
   ///   provided.
-  /// - [defaultTimeout]: Default timeout for requests. Defaults to 30 seconds.
+  /// - [defaultTimeout]: Default timeout for requests.
   DartHttpClient({
     http.Client? client,
-    this.defaultTimeout = const Duration(seconds: 600),
+    this.defaultTimeout = defaultHttpTimeout,
   }) : _client = client ?? http.Client();
 
   final http.Client _client;

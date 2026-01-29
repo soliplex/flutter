@@ -32,15 +32,16 @@ class CupertinoHttpClient implements SoliplexHttpClient {
   /// Creates a Cupertino HTTP client.
   ///
   /// Parameters:
-  /// - [configuration]: Optional URLSessionConfiguration. Uses ephemeral
-  ///   session configuration if not provided.
-  /// - [defaultTimeout]: Default timeout for requests. Defaults to 30 seconds.
+  /// - [configuration]: Optional URLSessionConfiguration. If not provided,
+  ///   an ephemeral configuration is created with [defaultTimeout] applied
+  ///   to timeoutIntervalForRequest. When providing your own configuration,
+  ///   you are responsible for its timeout settings.
+  /// - [defaultTimeout]: Default timeout for requests.
   CupertinoHttpClient({
     URLSessionConfiguration? configuration,
-    this.defaultTimeout = const Duration(seconds: 600),
+    this.defaultTimeout = defaultHttpTimeout,
   }) : _client = CupertinoClient.fromSessionConfiguration(
-          configuration ??
-              URLSessionConfiguration.ephemeralSessionConfiguration(),
+          configuration ?? _createConfiguration(defaultTimeout),
         );
 
   /// Creates a Cupertino HTTP client with a custom client for testing.
@@ -49,8 +50,14 @@ class CupertinoHttpClient implements SoliplexHttpClient {
   @visibleForTesting
   CupertinoHttpClient.forTesting({
     required http.Client client,
-    this.defaultTimeout = const Duration(seconds: 600),
+    this.defaultTimeout = defaultHttpTimeout,
   }) : _client = client;
+
+  /// Creates a URLSessionConfiguration with the given timeout.
+  static URLSessionConfiguration _createConfiguration(Duration timeout) {
+    return URLSessionConfiguration.ephemeralSessionConfiguration()
+      ..timeoutIntervalForRequest = timeout;
+  }
 
   final http.Client _client;
 

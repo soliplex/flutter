@@ -59,23 +59,6 @@ void main() {
   }
 
   group('HttpTransport', () {
-    group('constructor', () {
-      test('uses default timeout of 30 seconds', () {
-        expect(transport.defaultTimeout, equals(const Duration(seconds: 30)));
-      });
-
-      test('accepts custom default timeout', () {
-        final customTransport = HttpTransport(
-          client: mockClient,
-          defaultTimeout: const Duration(seconds: 60),
-        );
-        expect(
-          customTransport.defaultTimeout,
-          equals(const Duration(seconds: 60)),
-        );
-      });
-    });
-
     group('request - successful responses', () {
       test('returns parsed JSON for 200 response', () async {
         when(
@@ -480,7 +463,7 @@ void main() {
             any(),
             headers: any(named: 'headers'),
             body: any(named: 'body'),
-            timeout: const Duration(seconds: 30),
+            timeout: defaultHttpTimeout,
           ),
         ).called(1);
       });

@@ -9,7 +9,6 @@ import 'package:soliplex_client_native/src/platform/create_platform_client_stub.
 /// - `DartHttpClient` on all other platforms (Android, Windows, Linux, Web)
 ///
 /// The [defaultTimeout] parameter sets the default request timeout.
-/// Defaults to 30 seconds.
 ///
 /// Example:
 /// ```dart
@@ -23,7 +22,7 @@ import 'package:soliplex_client_native/src/platform/create_platform_client_stub.
 /// client.close();
 /// ```
 SoliplexHttpClient createPlatformClient({
-  Duration defaultTimeout = const Duration(seconds: 600),
+  Duration defaultTimeout = defaultHttpTimeout,
 }) {
   return createPlatformClientImpl(defaultTimeout: defaultTimeout);
 }

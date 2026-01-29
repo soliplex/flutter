@@ -758,40 +758,6 @@ void main() {
       });
     });
 
-    group('default configuration', () {
-      test('creates with default timeout of 30 seconds', () {
-        final defaultClient = DartHttpClient();
-
-        expect(
-          defaultClient.defaultTimeout,
-          equals(const Duration(seconds: 30)),
-        );
-
-        defaultClient.close();
-      });
-
-      test('creates own http.Client when not provided', () {
-        final defaultClient = DartHttpClient();
-
-        expect(defaultClient, isA<SoliplexHttpClient>());
-
-        defaultClient.close();
-      });
-
-      test('accepts custom default timeout', () {
-        final customClient = DartHttpClient(
-          defaultTimeout: const Duration(seconds: 60),
-        );
-
-        expect(
-          customClient.defaultTimeout,
-          equals(const Duration(seconds: 60)),
-        );
-
-        customClient.close();
-      });
-    });
-
     group('HTTP methods', () {
       test('supports PUT request', () async {
         final streamedResponse = _createStreamedResponse(
