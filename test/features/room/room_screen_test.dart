@@ -410,8 +410,8 @@ void main() {
     });
   });
 
-  group('RoomScreen room dropdown', () {
-    testWidgets('shows room dropdown', (tester) async {
+  group('RoomScreen room picker', () {
+    testWidgets('shows current room name with dropdown icon', (tester) async {
       await tester.pumpWidget(
         createTestApp(
           home: const RoomScreen(roomId: 'general'),
@@ -432,7 +432,131 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.byType(DropdownMenu<String>), findsOneWidget);
+      expect(find.text('General'), findsOneWidget);
+      expect(find.byIcon(Icons.arrow_drop_down), findsOneWidget);
+    });
+
+    testWidgets('opens dialog with alphabetically sorted rooms on tap', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomScreen(roomId: 'general'),
+          overrides: [
+            threadsProvider('general').overrideWith((ref) async => []),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [
+                TestData.createRoom(id: 'general', name: 'General'),
+                TestData.createRoom(id: 'zebra', name: 'Zebra Room'),
+                TestData.createRoom(id: 'alpha', name: 'Alpha Room'),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap room picker to open dialog
+      await tester.tap(find.text('General'));
+      await tester.pumpAndSettle();
+
+      // Dialog should show with title
+      expect(find.text('Switch Room'), findsOneWidget);
+      expect(find.byType(SimpleDialog), findsOneWidget);
+
+      // Rooms should be listed alphabetically (Alpha, General, Zebra)
+      final alphaFinder = find.text('Alpha Room');
+      final generalFinder = find.text('General');
+      final zebraFinder = find.text('Zebra Room');
+
+      expect(alphaFinder, findsOneWidget);
+      expect(generalFinder, findsNWidgets(2)); // One in app bar, one in dialog
+      expect(zebraFinder, findsOneWidget);
+    });
+
+    testWidgets('navigates to selected room', (tester) async {
+      final router = GoRouter(
+        initialLocation: '/rooms/general',
+        routes: [
+          GoRoute(
+            path: '/rooms/:roomId',
+            builder: (_, state) =>
+                RoomScreen(roomId: state.pathParameters['roomId']!),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: ProviderContainer(
+            overrides: [
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
+              threadsProvider('general').overrideWith((ref) async => []),
+              threadsProvider('support').overrideWith((ref) async => []),
+              lastViewedThreadProvider(
+                'general',
+              ).overrideWith((ref) async => const NoLastViewed()),
+              lastViewedThreadProvider(
+                'support',
+              ).overrideWith((ref) async => const NoLastViewed()),
+              roomsProvider.overrideWith(
+                (ref) async => [
+                  TestData.createRoom(id: 'general', name: 'General'),
+                  TestData.createRoom(id: 'support', name: 'Support'),
+                ],
+              ),
+            ],
+          ),
+          child: MaterialApp.router(theme: testThemeData, routerConfig: router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Open room picker
+      await tester.tap(find.text('General'));
+      await tester.pumpAndSettle();
+
+      // Select Support room
+      await tester.tap(find.text('Support'));
+      await tester.pumpAndSettle();
+
+      // Should navigate to Support room (dialog closes, Support now shown)
+      expect(find.byType(SimpleDialog), findsNothing);
+      expect(router.state.uri.path, equals('/rooms/support'));
+    });
+
+    testWidgets('shows checkmark next to current room', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomScreen(roomId: 'general'),
+          overrides: [
+            threadsProvider('general').overrideWith((ref) async => []),
+            lastViewedThreadProvider(
+              'general',
+            ).overrideWith((ref) async => const NoLastViewed()),
+            roomsProvider.overrideWith(
+              (ref) async => [
+                TestData.createRoom(id: 'general', name: 'General'),
+                TestData.createRoom(id: 'support', name: 'Support'),
+              ],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Open room picker
+      await tester.tap(find.text('General'));
+      await tester.pumpAndSettle();
+
+      // Current room should have a checkmark
+      expect(find.byIcon(Icons.check), findsOneWidget);
     });
   });
 
