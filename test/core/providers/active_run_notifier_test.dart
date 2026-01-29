@@ -6,14 +6,26 @@ import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Cancelled, Completed, Conversation, Failed, Running;
+import 'package:soliplex_frontend/core/domain/interfaces/run_lifecycle.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/infrastructure_providers.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 import '../../helpers/test_helpers.dart';
+
+/// No-op RunLifecycle for tests that don't need to verify lifecycle calls.
+final _noOpRunLifecycle = _NoOpRunLifecycle();
+
+class _NoOpRunLifecycle implements RunLifecycle {
+  @override
+  void onRunStarted(String runId) {}
+  @override
+  void onRunEnded(String runId) {}
+}
 
 void main() {
   late MockAgUiClient mockAgUiClient;
@@ -34,7 +46,10 @@ void main() {
 
     setUp(() {
       container = ProviderContainer(
-        overrides: [agUiClientProvider.overrideWithValue(mockAgUiClient)],
+        overrides: [
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
+        ],
       );
     });
 
@@ -106,6 +121,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           ],
         );
 
@@ -188,6 +204,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           ],
         );
 
@@ -344,11 +361,13 @@ void main() {
       final controller = StreamController<BaseEvent>();
 
       final state = RunningInternalState(
+        runId: 'test-run-id',
         cancelToken: cancelToken,
         subscription: controller.stream.listen((_) {}),
       );
 
       expect(state, isA<NotifierInternalState>());
+      expect(state.runId, equals('test-run-id'));
       expect(state.cancelToken, equals(cancelToken));
 
       // Cleanup
@@ -392,6 +411,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
     });
@@ -556,6 +576,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
     });
@@ -641,6 +662,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -681,6 +703,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -720,6 +743,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -791,6 +815,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -836,6 +861,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -912,6 +938,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -949,6 +976,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -989,6 +1017,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           ],
         );
 
@@ -1023,6 +1052,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1099,6 +1129,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1138,6 +1169,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1212,6 +1244,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1249,6 +1282,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1281,6 +1315,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1342,6 +1377,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1417,6 +1453,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           ],
         );
 
@@ -1461,6 +1498,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1516,6 +1554,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
         ],
       );
 
@@ -1571,4 +1610,221 @@ void main() {
       expect((state.messages[2] as TextMessage).text, 'Second message');
     });
   });
+
+  group('RunLifecycle integration', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late StreamController<BaseEvent> eventStreamController;
+    late MockRunLifecycle mockRunLifecycle;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      mockRunLifecycle = MockRunLifecycle();
+      eventStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    ProviderContainer createContainer() {
+      return ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(mockRunLifecycle),
+        ],
+      );
+    }
+
+    test('calls onRunStarted when run starts', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      expect(mockRunLifecycle.startedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded when RUN_FINISHED event is received', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      eventStreamController.add(
+        const RunFinishedEvent(threadId: 'thread-1', runId: 'run-1'),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded when RUN_ERROR event is received', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      eventStreamController.add(const RunErrorEvent(message: 'Error'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded when cancelRun is called', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      await container.read(activeRunNotifierProvider.notifier).cancelRun();
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded when reset is called', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      await container.read(activeRunNotifierProvider.notifier).reset();
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded on stream error', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      eventStreamController.addError(Exception('Stream error'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded on stream done without RUN_FINISHED', () async {
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      await eventStreamController.close();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded on CancellationError', () async {
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenThrow(const CancellationError('Cancelled'));
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+
+    test('calls onRunEnded on general exception', () async {
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenThrow(Exception('General error'));
+
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      expect(mockRunLifecycle.endedRunIds, contains('run-1'));
+    });
+  });
+}
+
+/// Mock RunLifecycle that tracks calls.
+class MockRunLifecycle implements RunLifecycle {
+  final List<String> startedRunIds = [];
+  final List<String> endedRunIds = [];
+
+  @override
+  void onRunStarted(String runId) {
+    startedRunIds.add(runId);
+  }
+
+  @override
+  void onRunEnded(String runId) {
+    endedRunIds.add(runId);
+  }
 }
