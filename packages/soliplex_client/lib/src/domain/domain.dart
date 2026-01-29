@@ -2,6 +2,7 @@ export 'agui_features/agui_features.dart';
 export 'auth_provider_config.dart';
 export 'backend_version_info.dart';
 export 'chat_message.dart';
+export 'citation_formatting.dart';
 export 'conversation.dart';
 export 'quiz.dart';
 export 'rag_document.dart';
