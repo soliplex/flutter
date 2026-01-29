@@ -20,6 +20,7 @@ class CitationsSection extends StatefulWidget {
 
 class _CitationsSectionState extends State<CitationsSection> {
   bool _expanded = false;
+  final Set<int> _expandedCitations = {};
 
   @override
   Widget build(BuildContext context) {
@@ -81,16 +82,37 @@ class _CitationsSectionState extends State<CitationsSection> {
 
   List<Widget> _buildCitationRows() {
     return widget.citations.asMap().entries.map((entry) {
-      return _CitationRow(index: entry.key + 1, citation: entry.value);
+      final index = entry.key;
+      return _CitationRow(
+        index: index + 1,
+        citation: entry.value,
+        isExpanded: _expandedCitations.contains(index),
+        onToggle: () {
+          setState(() {
+            if (_expandedCitations.contains(index)) {
+              _expandedCitations.remove(index);
+            } else {
+              _expandedCitations.add(index);
+            }
+          });
+        },
+      );
     }).toList();
   }
 }
 
 class _CitationRow extends StatelessWidget {
-  const _CitationRow({required this.index, required this.citation});
+  const _CitationRow({
+    required this.index,
+    required this.citation,
+    required this.isExpanded,
+    required this.onToggle,
+  });
 
   final int index;
   final Citation citation;
+  final bool isExpanded;
+  final VoidCallback onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -99,50 +121,89 @@ class _CitationRow extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: SoliplexSpacing.s2),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 24,
-            height: 24,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
-            ),
-            child: Text(
-              '$index',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
-            ),
-          ),
-          const SizedBox(width: SoliplexSpacing.s2),
-          Expanded(
-            child: Column(
+          // Header row (always visible, tappable to toggle)
+          InkWell(
+            onTap: onToggle,
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  citation.documentTitle ?? citation.documentUri,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
+                  ),
+                  child: Text(
+                    '$index',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                    ),
                   ),
                 ),
-                if (citation.content.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    citation.content,
+                const SizedBox(width: SoliplexSpacing.s2),
+                Expanded(
+                  child: Text(
+                    citation.displayTitle,
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w600,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
+                ),
+                Icon(
+                  isExpanded ? Icons.expand_less : Icons.expand_more,
+                  size: 20,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
+
+          // Expanded content
+          if (isExpanded) ...[
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 32, // 24 badge + 8 spacing
+                top: SoliplexSpacing.s2,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Headings breadcrumb
+                  if (citation.headings != null &&
+                      citation.headings!.isNotEmpty) ...[
+                    Text(
+                      citation.headings!.join(' > '),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: SoliplexSpacing.s1),
+                  ],
+                  // Scrollable content preview
+                  if (citation.content.isNotEmpty)
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 150),
+                      child: SingleChildScrollView(
+                        child: Text(
+                          citation.content,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
