@@ -7,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
 import 'package:soliplex_frontend/features/chat/widgets/code_block_builder.dart';
 
 /// Widget that displays a single chat message.
@@ -15,6 +16,7 @@ class ChatMessageWidget extends StatelessWidget {
     required this.message,
     this.isStreaming = false,
     this.isThinkingStreaming = false,
+    this.citations = const [],
     super.key,
   });
 
@@ -24,6 +26,9 @@ class ChatMessageWidget extends StatelessWidget {
   /// Whether thinking is currently streaming. Only meaningful for the synthetic
   /// streaming message; historical messages always have this as false.
   final bool isThinkingStreaming;
+
+  /// Citations associated with this message (for assistant messages).
+  final List<Citation> citations;
 
   @override
   Widget build(BuildContext context) {
@@ -150,11 +155,21 @@ class ChatMessageWidget extends StatelessWidget {
               context,
               messageText: text,
             )
-          else if (!isUser && !isStreaming)
-            _buildAgentMessageActionsRow(
-              context,
-              messageText: text,
-            ),
+          else ...[
+            // Show citations section after the message for assistant messages
+            if (citations.isNotEmpty)
+              Container(
+                constraints: BoxConstraints(
+                  maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
+                ),
+                child: CitationsSection(citations: citations),
+              ),
+            if (!isStreaming)
+              _buildAgentMessageActionsRow(
+                context,
+                messageText: text,
+              ),
+          ],
         ],
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 
 /// Standard error display widget with retry button.
@@ -30,8 +30,8 @@ class ErrorDisplay extends StatelessWidget {
 
   /// Unwraps wrapper exceptions to get the underlying cause.
   Object _unwrapError() {
-    if (error is MessageFetchException) {
-      return (error as MessageFetchException).cause;
+    if (error is HistoryFetchException) {
+      return (error as HistoryFetchException).cause;
     }
     return error;
   }
@@ -156,8 +156,8 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
   bool _expanded = false;
 
   Object _unwrapError() {
-    if (widget.error is MessageFetchException) {
-      return (widget.error as MessageFetchException).cause;
+    if (widget.error is HistoryFetchException) {
+      return (widget.error as HistoryFetchException).cause;
     }
     return widget.error;
   }
@@ -194,8 +194,8 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
       details['Error'] = unwrapped.toString();
     }
 
-    if (widget.error is MessageFetchException) {
-      final wrapper = widget.error as MessageFetchException;
+    if (widget.error is HistoryFetchException) {
+      final wrapper = widget.error as HistoryFetchException;
       details['Thread ID'] = wrapper.threadId;
     }
 

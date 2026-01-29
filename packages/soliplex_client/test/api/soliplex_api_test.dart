@@ -105,7 +105,7 @@ void main() {
         );
 
         // First call populates cache
-        await api.getThreadMessages('room-123', 'thread-456');
+        await api.getThreadHistory('room-123', 'thread-456');
 
         // Close clears the cache
         api.close();
@@ -117,7 +117,7 @@ void main() {
         );
 
         // Second call should fetch from network (cache was cleared)
-        await api2.getThreadMessages('room-123', 'thread-456');
+        await api2.getThreadHistory('room-123', 'thread-456');
 
         // Run endpoint should be called twice (once per API instance)
         verify(
@@ -372,8 +372,16 @@ void main() {
         ).thenAnswer(
           (_) async => {
             'threads': [
-              {'id': 'thread-1', 'room_id': 'room-123'},
-              {'id': 'thread-2', 'room_id': 'room-123'},
+              {
+                'id': 'thread-1',
+                'room_id': 'room-123',
+                'created': '2024-01-01T00:00:00Z',
+              },
+              {
+                'id': 'thread-2',
+                'room_id': 'room-123',
+                'created': '2024-01-01T00:00:00Z',
+              },
             ],
           },
         );
@@ -827,7 +835,7 @@ void main() {
     // Thread Messages
     // ============================================================
 
-    group('getThreadMessages', () {
+    group('getThreadHistory', () {
       test('fetches events from individual run endpoints', () async {
         // Thread endpoint returns run metadata (no events)
         when(
@@ -893,11 +901,14 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages.length, equals(1));
-        expect(messages[0].id, equals('msg-1'));
-        expect((messages[0] as TextMessage).text, equals('Hello World'));
+        expect(messages.messages.length, equals(1));
+        expect(messages.messages[0].id, equals('msg-1'));
+        expect(
+          (messages.messages[0] as TextMessage).text,
+          equals('Hello World'),
+        );
       });
 
       test('fetches multiple runs in parallel and orders by creation time',
@@ -999,12 +1010,12 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages.length, equals(2));
+        expect(messages.messages.length, equals(2));
         // First message should be from run-1 (earlier timestamp)
-        expect((messages[0] as TextMessage).text, equals('First'));
-        expect((messages[1] as TextMessage).text, equals('Second'));
+        expect((messages.messages[0] as TextMessage).text, equals('First'));
+        expect((messages.messages[1] as TextMessage).text, equals('Second'));
 
         // Verify both run endpoints were called
         verify(
@@ -1096,13 +1107,13 @@ void main() {
         );
 
         // First call
-        await api.getThreadMessages('room-123', 'thread-456');
+        await api.getThreadHistory('room-123', 'thread-456');
 
         // Second call - should use cache for run events
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages.length, equals(1));
-        expect((messages[0] as TextMessage).text, equals('Cached'));
+        expect(messages.messages.length, equals(1));
+        expect((messages.messages[0] as TextMessage).text, equals('Cached'));
 
         // Thread endpoint called twice, but run endpoint only once (cached)
         verify(
@@ -1160,9 +1171,9 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final history = await api.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages, isEmpty);
+        expect(history.messages, isEmpty);
 
         // Run endpoint should not be called for in-progress runs
         verifyNever(
@@ -1260,11 +1271,11 @@ void main() {
           ),
         ).thenThrow(const NetworkException(message: 'Connection failed'));
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
         // Should still return messages from successful run
-        expect(messages.length, equals(1));
-        expect((messages[0] as TextMessage).text, equals('First'));
+        expect(messages.messages.length, equals(1));
+        expect((messages.messages[0] as TextMessage).text, equals('First'));
       });
 
       test('returns empty list when no runs', () async {
@@ -1286,9 +1297,9 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final history = await api.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages, isEmpty);
+        expect(history.messages, isEmpty);
       });
 
       test('handles null runs gracefully', () async {
@@ -1310,21 +1321,21 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final history = await api.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages, isEmpty);
+        expect(history.messages, isEmpty);
       });
 
       test('validates non-empty roomId', () {
         expect(
-          () => api.getThreadMessages('', 'thread-123'),
+          () => api.getThreadHistory('', 'thread-123'),
           throwsA(isA<ArgumentError>()),
         );
       });
 
       test('validates non-empty threadId', () {
         expect(
-          () => api.getThreadMessages('room-123', ''),
+          () => api.getThreadHistory('room-123', ''),
           throwsA(isA<ArgumentError>()),
         );
       });
@@ -1350,7 +1361,7 @@ void main() {
           };
         });
 
-        await api.getThreadMessages('room-123', 'thread-456');
+        await api.getThreadHistory('room-123', 'thread-456');
 
         expect(
           capturedUri?.path,
@@ -1379,7 +1390,7 @@ void main() {
           },
         );
 
-        await api.getThreadMessages(
+        await api.getThreadHistory(
           'room-123',
           'thread-456',
           cancelToken: cancelToken,
@@ -1467,19 +1478,19 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
         // Should have both user and assistant messages
-        expect(messages.length, equals(2));
+        expect(messages.messages.length, equals(2));
 
         // User message comes first (from run_input.messages)
-        final userMessage = messages[0] as TextMessage;
+        final userMessage = messages.messages[0] as TextMessage;
         expect(userMessage.id, equals('user-msg-1'));
         expect(userMessage.user, equals(ChatUser.user));
         expect(userMessage.text, equals('Hello from user'));
 
         // Assistant message comes second (from events)
-        final assistantMessage = messages[1] as TextMessage;
+        final assistantMessage = messages.messages[1] as TextMessage;
         expect(assistantMessage.id, equals('assistant-msg-1'));
         expect(assistantMessage.user, equals(ChatUser.assistant));
         expect(assistantMessage.text, equals('Hello from assistant'));
@@ -1559,12 +1570,12 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
         // Only user message from run_input + assistant from events
-        expect(messages.length, equals(2));
-        expect(messages[0].id, equals('user-msg-1'));
-        expect(messages[1].id, equals('assistant-new'));
+        expect(messages.messages.length, equals(2));
+        expect(messages.messages[0].id, equals('user-msg-1'));
+        expect(messages.messages[1].id, equals('assistant-new'));
       });
 
       test('uses fallback values for missing fields in run_input.messages',
@@ -1637,18 +1648,18 @@ void main() {
           },
         );
 
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
 
         // Two user messages (with fallback ids) + one assistant from events
-        expect(messages.length, equals(3));
+        expect(messages.messages.length, equals(3));
         // First message uses index-based fallback id
-        expect(messages[0].id, equals('user-0'));
-        expect(messages[0].user, equals(ChatUser.user));
+        expect(messages.messages[0].id, equals('user-0'));
+        expect(messages.messages[0].user, equals(ChatUser.user));
         // Second message uses provided id, fallback role
-        expect(messages[1].id, equals('has-id'));
-        expect(messages[1].user, equals(ChatUser.user));
+        expect(messages.messages[1].id, equals('has-id'));
+        expect(messages.messages[1].user, equals(ChatUser.user));
         // Third is from events
-        expect(messages[2].id, equals('m1'));
+        expect(messages.messages[2].id, equals('m1'));
       });
 
       test('calls onWarning callback on partial failure', () async {
@@ -1701,7 +1712,7 @@ void main() {
           ),
         ).thenThrow(const NetworkException(message: 'Connection failed'));
 
-        await apiWithWarning.getThreadMessages('room-123', 'thread-456');
+        await apiWithWarning.getThreadHistory('room-123', 'thread-456');
 
         expect(warnings, hasLength(1));
         expect(warnings[0], contains('run-1'));
@@ -1760,11 +1771,11 @@ void main() {
           ),
         ).thenThrow(const NotFoundException(message: 'Run not found'));
 
-        // Should not throw - returns empty list gracefully
-        final messages =
-            await apiWithWarning.getThreadMessages('room-123', 'thread-456');
+        // Should not throw - returns empty history gracefully
+        final history =
+            await apiWithWarning.getThreadHistory('room-123', 'thread-456');
 
-        expect(messages, isEmpty);
+        expect(history.messages, isEmpty);
         expect(warnings, hasLength(1));
         expect(warnings[0], contains('run-1'));
 
@@ -1816,7 +1827,7 @@ void main() {
         );
 
         expect(
-          () => api.getThreadMessages('room-123', 'thread-456'),
+          () => api.getThreadHistory('room-123', 'thread-456'),
           throwsA(isA<ApiException>()),
         );
       });
@@ -1863,7 +1874,7 @@ void main() {
         ).thenThrow(const CancelledException());
 
         expect(
-          () => api.getThreadMessages('room-123', 'thread-456'),
+          () => api.getThreadHistory('room-123', 'thread-456'),
           throwsA(isA<CancelledException>()),
         );
       });
@@ -1910,7 +1921,7 @@ void main() {
         ).thenThrow(const AuthException(message: 'Token expired'));
 
         expect(
-          () => api.getThreadMessages('room-123', 'thread-456'),
+          () => api.getThreadHistory('room-123', 'thread-456'),
           throwsA(isA<AuthException>()),
         );
       });
@@ -1986,8 +1997,8 @@ void main() {
         }
 
         // First call loads all 5 runs
-        final messages = await api.getThreadMessages('room-123', 'thread-456');
-        expect(messages.length, equals(5));
+        final messages = await api.getThreadHistory('room-123', 'thread-456');
+        expect(messages.messages.length, equals(5));
 
         // Verify all 5 run endpoints were called
         for (var i = 0; i < 5; i++) {
@@ -2007,7 +2018,7 @@ void main() {
         }
 
         // Second call should use cache (no additional run endpoint calls)
-        await api.getThreadMessages('room-123', 'thread-456');
+        await api.getThreadHistory('room-123', 'thread-456');
 
         // Run endpoints should still have been called only once each
         for (var i = 0; i < 5; i++) {

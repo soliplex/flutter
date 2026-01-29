@@ -657,7 +657,7 @@ void main() {
         expect(api.deleteThread, isA<Function>());
         expect(api.createRun, isA<Function>());
         expect(api.getRun, isA<Function>());
-        expect(api.getThreadMessages, isA<Function>());
+        expect(api.getThreadHistory, isA<Function>());
         expect(api.getQuiz, isA<Function>());
         expect(api.submitQuizAnswer, isA<Function>());
         expect(api.getBackendVersionInfo, isA<Function>());
