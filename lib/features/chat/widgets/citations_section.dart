@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
+import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 
 /// Expandable section showing source citations for a message.
@@ -10,9 +11,10 @@ import 'package:soliplex_frontend/design/design.dart';
 /// the full citation list. Each citation shows the document title, a snippet
 /// of content, and an optional link to view the source.
 ///
-/// Section expand state is persisted via Riverpod provider, so it survives
-/// widget rebuilds (e.g., during scrolling or state updates).
-class CitationsSection extends ConsumerStatefulWidget {
+/// Both section and individual citation expand state is persisted via Riverpod
+/// provider, scoped by thread. State survives widget rebuilds and is cleaned up
+/// when leaving the thread.
+class CitationsSection extends ConsumerWidget {
   /// Creates a citations section with the given citations.
   const CitationsSection({
     required this.messageId,
@@ -27,22 +29,26 @@ class CitationsSection extends ConsumerStatefulWidget {
   final List<Citation> citations;
 
   @override
-  ConsumerState<CitationsSection> createState() => _CitationsSectionState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (citations.isEmpty) return const SizedBox.shrink();
 
-class _CitationsSectionState extends ConsumerState<CitationsSection> {
-  final Set<int> _expandedCitations = {};
+    // Get current thread ID from selection state
+    final selection = ref.watch(threadSelectionProvider);
+    final threadId = switch (selection) {
+      ThreadSelected(:final threadId) => threadId,
+      _ => null,
+    };
 
-  @override
-  Widget build(BuildContext context) {
-    if (widget.citations.isEmpty) return const SizedBox.shrink();
+    // No thread selected - can't persist expand state
+    if (threadId == null) return const SizedBox.shrink();
 
-    final notifier = ref.read(citationsExpandedProvider.notifier);
-    final expanded = ref.watch(citationsExpandedProvider).contains(
-          widget.messageId,
-        );
+    // Use select to only rebuild when this section's expand state changes
+    final expanded = ref.watch(
+      citationsExpandedProvider(threadId).select((s) => s.contains(messageId)),
+    );
+
     final theme = Theme.of(context);
-    final count = widget.citations.length;
+    final count = citations.length;
 
     return Container(
       margin: const EdgeInsets.only(top: SoliplexSpacing.s2),
@@ -54,21 +60,42 @@ class _CitationsSectionState extends ConsumerState<CitationsSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildHeader(theme, count, expanded: expanded, notifier: notifier),
-          if (expanded) ..._buildCitationRows(),
+          _buildHeader(
+            context,
+            ref,
+            theme,
+            count,
+            threadId: threadId,
+            expanded: expanded,
+          ),
+          if (expanded)
+            ...citations.asMap().entries.map((entry) {
+              return _CitationRow(
+                index: entry.key + 1,
+                citation: entry.value,
+                threadId: threadId,
+                messageId: messageId,
+                citationIndex: entry.key,
+              );
+            }),
         ],
       ),
     );
   }
 
   Widget _buildHeader(
+    BuildContext context,
+    WidgetRef ref,
     ThemeData theme,
     int count, {
+    required String threadId,
     required bool expanded,
-    required CitationsExpandedNotifier notifier,
   }) {
     return InkWell(
-      onTap: () => notifier.toggle(widget.messageId),
+      onTap: () =>
+          ref.read(citationsExpandedProvider(threadId).notifier).toggle(
+                messageId,
+              ),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s2),
         child: Row(
@@ -99,43 +126,31 @@ class _CitationsSectionState extends ConsumerState<CitationsSection> {
       ),
     );
   }
-
-  List<Widget> _buildCitationRows() {
-    return widget.citations.asMap().entries.map((entry) {
-      final index = entry.key;
-      return _CitationRow(
-        index: index + 1,
-        citation: entry.value,
-        isExpanded: _expandedCitations.contains(index),
-        onToggle: () {
-          setState(() {
-            if (_expandedCitations.contains(index)) {
-              _expandedCitations.remove(index);
-            } else {
-              _expandedCitations.add(index);
-            }
-          });
-        },
-      );
-    }).toList();
-  }
 }
 
-class _CitationRow extends StatelessWidget {
+class _CitationRow extends ConsumerWidget {
   const _CitationRow({
     required this.index,
     required this.citation,
-    required this.isExpanded,
-    required this.onToggle,
+    required this.threadId,
+    required this.messageId,
+    required this.citationIndex,
   });
 
   final int index;
   final Citation citation;
-  final bool isExpanded;
-  final VoidCallback onToggle;
+  final String threadId;
+  final String messageId;
+  final int citationIndex;
+
+  String get _expandKey => '$messageId:$citationIndex';
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isExpanded = ref.watch(
+      citationsExpandedProvider(threadId).select((s) => s.contains(_expandKey)),
+    );
+
     final theme = Theme.of(context);
     final soliplexTheme = SoliplexTheme.of(context);
 
@@ -146,7 +161,9 @@ class _CitationRow extends StatelessWidget {
         children: [
           // Header row (always visible, tappable to toggle)
           InkWell(
-            onTap: onToggle,
+            onTap: () => ref
+                .read(citationsExpandedProvider(threadId).notifier)
+                .toggle(_expandKey),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

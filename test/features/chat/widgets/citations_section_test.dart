@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
+import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
 
 import '../../../helpers/test_helpers.dart';
+
+const _testThreadId = 'test-thread';
 
 Citation _createCitation({
   String chunkId = 'chunk-1',
@@ -40,6 +43,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
@@ -56,6 +64,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
@@ -76,11 +89,32 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const CitationsSection(messageId: 'empty-msg', citations: []),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
       expect(find.byType(CitationsSection), findsOneWidget);
       expect(find.byType(SizedBox), findsWidgets);
+    });
+
+    testWidgets('returns empty widget when no thread selected', (tester) async {
+      final citations = [_createCitation(documentTitle: 'Document A')];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(const NoThreadSelected()),
+          ],
+        ),
+      );
+
+      // Should render nothing when no thread is selected
+      expect(find.text('1 source'), findsNothing);
     });
 
     testWidgets('expand state persists in provider', (tester) async {
@@ -93,13 +127,20 @@ void main() {
             messageId: 'persist-msg',
             citations: citations,
           ),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
           onContainerCreated: (c) => container = c,
         ),
       );
 
       // Initially collapsed
       expect(
-        container.read(citationsExpandedProvider).contains('persist-msg'),
+        container
+            .read(citationsExpandedProvider(_testThreadId))
+            .contains('persist-msg'),
         isFalse,
       );
 
@@ -109,7 +150,9 @@ void main() {
 
       // Provider state updated
       expect(
-        container.read(citationsExpandedProvider).contains('persist-msg'),
+        container
+            .read(citationsExpandedProvider(_testThreadId))
+            .contains('persist-msg'),
         isTrue,
       );
 
@@ -119,7 +162,9 @@ void main() {
 
       // Provider state updated
       expect(
-        container.read(citationsExpandedProvider).contains('persist-msg'),
+        container
+            .read(citationsExpandedProvider(_testThreadId))
+            .contains('persist-msg'),
         isFalse,
       );
     });
@@ -137,6 +182,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
@@ -171,6 +221,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
@@ -204,6 +259,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
@@ -241,6 +301,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
         ),
       );
 
@@ -264,6 +329,53 @@ void main() {
 
       // Headings hidden again
       expect(find.text('Chapter 1'), findsNothing);
+    });
+
+    testWidgets('individual citation expand state persists in provider',
+        (tester) async {
+      final citations = [
+        _createCitation(documentTitle: 'Document A', content: 'Content A'),
+      ];
+      late ProviderContainer container;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(
+            messageId: 'persist-msg',
+            citations: citations,
+          ),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
+          onContainerCreated: (c) => container = c,
+        ),
+      );
+
+      // Expand section first
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Individual citation initially collapsed
+      expect(
+        container
+            .read(citationsExpandedProvider(_testThreadId))
+            .contains('persist-msg:0'),
+        isFalse,
+      );
+
+      // Expand citation
+      await tester.tap(find.byIcon(Icons.expand_more).last);
+      await tester.pumpAndSettle();
+
+      // Provider state updated with composite key
+      expect(
+        container
+            .read(citationsExpandedProvider(_testThreadId))
+            .contains('persist-msg:0'),
+        isTrue,
+      );
     });
   });
 }
