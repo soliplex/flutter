@@ -4,6 +4,7 @@ import 'package:soliplex_client/soliplex_client.dart'
     show AwaitingText, ChatMessage, ChatUser, TextMessage, TextStreaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/citation_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
@@ -254,6 +255,10 @@ class _MessageListState extends ConsumerState<MessageList> {
             final isSyntheticMessage =
                 isLast && computation.hasSyntheticMessage;
 
+            // Get citations for this message (only for assistant messages)
+            final citations =
+                ref.watch(citationsForMessageProvider(message.id));
+
             return ChatMessageWidget(
               key: ValueKey(message.id),
               message: message,
@@ -261,6 +266,7 @@ class _MessageListState extends ConsumerState<MessageList> {
               // Only the synthetic message can have streaming thinking
               isThinkingStreaming:
                   isSyntheticMessage && computation.isThinkingStreaming,
+              citations: citations,
             );
           },
         ),

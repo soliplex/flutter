@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -199,14 +199,14 @@ void main() {
       });
     });
 
-    group('MessageFetchException unwrapping', () {
-      testWidgets('unwraps NetworkException from MessageFetchException', (
+    group('HistoryFetchException unwrapping', () {
+      testWidgets('unwraps NetworkException from HistoryFetchException', (
         tester,
       ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Connection failed'),
               ),
@@ -218,13 +218,13 @@ void main() {
         expect(find.byIcon(Icons.wifi_off), findsOneWidget);
       });
 
-      testWidgets('unwraps ApiException from MessageFetchException', (
+      testWidgets('unwraps ApiException from HistoryFetchException', (
         tester,
       ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const ApiException(
                   statusCode: 500,
@@ -245,7 +245,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Failed'),
               ),
@@ -268,7 +268,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Failed'),
               ),
@@ -291,7 +291,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const AuthException(message: 'Unauthorized'),
               ),
