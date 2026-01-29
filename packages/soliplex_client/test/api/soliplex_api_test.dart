@@ -2136,6 +2136,140 @@ void main() {
     });
 
     // ============================================================
+    // Chunk Visualization
+    // ============================================================
+
+    group('getChunkVisualization', () {
+      test('returns chunk visualization', () async {
+        when(
+          () => mockTransport.request<ChunkVisualization>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => const ChunkVisualization(
+            chunkId: 'chunk-123',
+            documentUri: 'doc.pdf',
+            imagesBase64: ['abc123'],
+          ),
+        );
+
+        final result = await api.getChunkVisualization('room-123', 'chunk-123');
+
+        expect(result.chunkId, equals('chunk-123'));
+        expect(result.documentUri, equals('doc.pdf'));
+        expect(result.imagesBase64, equals(['abc123']));
+      });
+
+      test('validates non-empty roomId', () {
+        expect(
+          () => api.getChunkVisualization('', 'chunk-123'),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('validates non-empty chunkId', () {
+        expect(
+          () => api.getChunkVisualization('room-123', ''),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('propagates NotFoundException', () async {
+        when(
+          () => mockTransport.request<ChunkVisualization>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const NotFoundException(message: 'Chunk not found'));
+
+        expect(
+          () => api.getChunkVisualization('room-123', 'nonexistent'),
+          throwsA(isA<NotFoundException>()),
+        );
+      });
+
+      test('uses correct URL', () async {
+        Uri? capturedUri;
+        when(
+          () => mockTransport.request<ChunkVisualization>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedUri = invocation.positionalArguments[1] as Uri;
+          return const ChunkVisualization(
+            chunkId: 'chunk-123',
+            documentUri: null,
+            imagesBase64: [],
+          );
+        });
+
+        await api.getChunkVisualization('room-123', 'chunk-456');
+
+        expect(
+          capturedUri?.path,
+          equals('/api/v1/rooms/room-123/chunk/chunk-456'),
+        );
+      });
+
+      test('supports cancellation', () async {
+        final cancelToken = CancelToken();
+
+        when(
+          () => mockTransport.request<ChunkVisualization>(
+            'GET',
+            any(),
+            cancelToken: cancelToken,
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => const ChunkVisualization(
+            chunkId: 'chunk-123',
+            documentUri: null,
+            imagesBase64: [],
+          ),
+        );
+
+        await api.getChunkVisualization(
+          'room-123',
+          'chunk-123',
+          cancelToken: cancelToken,
+        );
+
+        verify(
+          () => mockTransport.request<ChunkVisualization>(
+            'GET',
+            any(),
+            cancelToken: cancelToken,
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(1);
+      });
+    });
+
+    // ============================================================
     // Installation Info
     // ============================================================
 

@@ -3,6 +3,7 @@ import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/application/agui_event_processor.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/backend_version_info.dart';
+import 'package:soliplex_client/src/domain/chunk_visualization.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
@@ -688,6 +689,41 @@ class SoliplexApi {
       body: {'text': answer},
       cancelToken: cancelToken,
       fromJson: quizAnswerResultFromJson,
+    );
+  }
+
+  // ============================================================
+  // Chunk Visualization
+  // ============================================================
+
+  /// Gets page images for a chunk with highlighted text.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  /// - [chunkId]: The chunk ID (must not be empty)
+  ///
+  /// Returns [ChunkVisualization] containing base64-encoded page images.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if [roomId] or [chunkId] is empty
+  /// - [NotFoundException] if chunk not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<ChunkVisualization> getChunkVisualization(
+    String roomId,
+    String chunkId, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+    _requireNonEmpty(chunkId, 'chunkId');
+
+    return _transport.request<ChunkVisualization>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['rooms', roomId, 'chunk', chunkId]),
+      cancelToken: cancelToken,
+      fromJson: ChunkVisualization.fromJson,
     );
   }
 
