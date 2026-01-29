@@ -222,24 +222,38 @@ class _CitationRow extends ConsumerWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: SoliplexSpacing.s1),
                   ],
-                  // Scrollable content preview
-                  if (citation.content.isNotEmpty)
-                    ConstrainedBox(
+                  // Content preview in styled container
+                  if (citation.content.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.all(SoliplexSpacing.s3),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(
+                          soliplexTheme.radii.sm,
+                        ),
+                      ),
                       constraints: const BoxConstraints(maxHeight: 150),
                       child: SingleChildScrollView(
                         child: Text(
                           citation.content,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          style: theme.textTheme.bodySmall,
                         ),
                       ),
                     ),
+                    const SizedBox(height: SoliplexSpacing.s2),
+                  ],
+                  // File path
+                  Text(
+                    citation.documentUri,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),

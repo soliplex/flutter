@@ -289,6 +289,37 @@ void main() {
       expect(find.text('Content B'), findsNothing); // Still collapsed
     });
 
+    testWidgets('expanded citation shows file path', (tester) async {
+      final citations = [
+        _createCitation(
+          documentTitle: 'Document A',
+          documentUri: 'file:///path/to/document.pdf',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
+        ),
+      );
+
+      // Expand section
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Expand citation row
+      await tester.tap(find.byIcon(Icons.expand_more).last);
+      await tester.pumpAndSettle();
+
+      // File path should be visible
+      expect(find.text('file:///path/to/document.pdf'), findsOneWidget);
+    });
+
     testWidgets('collapsed citation hides detailed content', (tester) async {
       final citations = [
         _createCitation(
