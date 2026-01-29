@@ -3,12 +3,12 @@ import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/application/agui_event_processor.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/backend_version_info.dart';
-import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
+import 'package:soliplex_client/src/domain/thread_history.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_transport.dart';
@@ -408,13 +408,13 @@ class SoliplexApi {
   /// - [roomId]: The room ID (must not be empty)
   /// - [threadId]: The thread ID (must not be empty)
   ///
-  /// Returns a list of [ChatMessage] reconstructed from stored AG-UI events.
-  /// Messages are ordered chronologically (oldest first) based on run creation
-  /// time.
+  /// Returns [ThreadHistory] containing messages and AG-UI state reconstructed
+  /// from stored events. Messages are ordered chronologically (oldest first)
+  /// based on run creation time.
   ///
   /// This method fetches events from individual run endpoints in parallel,
   /// caches them (completed runs are immutable), and replays them to
-  /// reconstruct the message history.
+  /// reconstruct the thread history including citations and other AG-UI state.
   ///
   /// Throws:
   /// - [ArgumentError] if [roomId] or [threadId] is empty
@@ -423,7 +423,7 @@ class SoliplexApi {
   /// - [NetworkException] if connection fails
   /// - [ApiException] for other server errors
   /// - [CancelledException] if cancelled via [cancelToken]
-  Future<List<ChatMessage>> getThreadMessages(
+  Future<ThreadHistory> getThreadHistory(
     String roomId,
     String threadId, {
     CancelToken? cancelToken,
@@ -439,7 +439,7 @@ class SoliplexApi {
     );
 
     final runs = response['runs'] as Map<String, dynamic>? ?? {};
-    if (runs.isEmpty) return [];
+    if (runs.isEmpty) return ThreadHistory(messages: const []);
 
     // 2. Get completed run IDs sorted by creation time
     final completedRunIds = _sortRunsByCreationTime(runs)
@@ -447,7 +447,7 @@ class SoliplexApi {
         .map((e) => (e.value as Map<String, dynamic>)['run_id'] as String)
         .toList();
 
-    if (completedRunIds.isEmpty) return [];
+    if (completedRunIds.isEmpty) return ThreadHistory(messages: const []);
 
     // 3. Fetch all run events in parallel (cache handles duplicates)
     final eventFutures = completedRunIds.map((runId) {
@@ -476,8 +476,8 @@ class SoliplexApi {
       allEvents.addAll(runIdToEvents[runId] ?? []);
     }
 
-    // 5. Replay events to reconstruct messages
-    return _replayEventsToMessages(allEvents, threadId);
+    // 5. Replay events to reconstruct history (messages + AG-UI state)
+    return _replayEventsToHistory(allEvents, threadId);
   }
 
   /// Fetches events for a single run, using cache for completed runs.
@@ -555,12 +555,12 @@ class SoliplexApi {
     return syntheticEvents;
   }
 
-  /// Replays events to reconstruct messages.
-  List<ChatMessage> _replayEventsToMessages(
+  /// Replays events to reconstruct thread history (messages + AG-UI state).
+  ThreadHistory _replayEventsToHistory(
     List<Map<String, dynamic>> events,
     String threadId,
   ) {
-    if (events.isEmpty) return [];
+    if (events.isEmpty) return ThreadHistory(messages: const []);
 
     var conversation = Conversation.empty(threadId: threadId);
     var streaming = const AwaitingText() as StreamingState;
@@ -578,14 +578,6 @@ class SoliplexApi {
         // event. This can happen if the backend stores events from a newer
         // protocol version or if data corruption occurs.
         skippedEventCount++;
-        assert(
-          () {
-            // ignore: avoid_print
-            print('Skipped malformed event during replay: $eventJson');
-            return true;
-          }(),
-          'Debug logging for malformed events',
-        );
       }
     }
 
@@ -596,7 +588,10 @@ class SoliplexApi {
       );
     }
 
-    return conversation.messages;
+    return ThreadHistory(
+      messages: conversation.messages,
+      aguiState: conversation.aguiState,
+    );
   }
 
   /// Sorts runs by creation time (oldest first).

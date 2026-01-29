@@ -1,5 +1,10 @@
 include: package:very_good_analysis/analysis_options.6.0.0.yaml
 
+analyzer:
+  exclude:
+    # Generated files from quicktype - maintained in backend repo
+    - lib/src/domain/agui_features/*
+
 linter:
   rules:
     public_member_api_docs: true

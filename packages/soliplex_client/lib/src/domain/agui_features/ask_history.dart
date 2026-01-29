@@ -4,6 +4,9 @@
 // ignore_for_file: always_put_required_named_parameters_first
 // ignore_for_file: argument_type_not_assignable
 // ignore_for_file: unnecessary_ignore
+// ignore_for_file: avoid_dynamic_calls
+// ignore_for_file: inference_failure_on_untyped_parameter
+// ignore_for_file: inference_failure_on_collection_literal
 
 // To parse this JSON data, do
 //
@@ -24,25 +27,21 @@ String askHistoryToJson(AskHistory data) => json.encode(data.toJson());
 class AskHistory {
   final List<QuestionResponseCitations>? questions;
 
-  AskHistory({
-    this.questions,
-  });
+  AskHistory({this.questions});
 
   factory AskHistory.fromJson(Map<String, dynamic> json) => AskHistory(
         questions: json["questions"] == null
-            ? <QuestionResponseCitations>[]
+            ? []
             : List<QuestionResponseCitations>.from(
-                (json["questions"]! as List).map<QuestionResponseCitations>(
-                  (dynamic x) => QuestionResponseCitations.fromJson(
-                    x as Map<String, dynamic>,
-                  ),
+                json["questions"]!.map(
+                  (x) => QuestionResponseCitations.fromJson(x),
                 ),
               ),
       );
 
   Map<String, dynamic> toJson() => {
         "questions": questions == null
-            ? <dynamic>[]
+            ? []
             : List<dynamic>.from(questions!.map((x) => x.toJson())),
       };
 }
@@ -64,11 +63,9 @@ class QuestionResponseCitations {
   factory QuestionResponseCitations.fromJson(Map<String, dynamic> json) =>
       QuestionResponseCitations(
         citations: json["citations"] == null
-            ? <Citation>[]
+            ? []
             : List<Citation>.from(
-                (json["citations"]! as List).map<Citation>(
-                  (dynamic x) => Citation.fromJson(x as Map<String, dynamic>),
-                ),
+                json["citations"]!.map((x) => Citation.fromJson(x)),
               ),
         question: json["question"],
         response: json["response"],
@@ -76,7 +73,7 @@ class QuestionResponseCitations {
 
   Map<String, dynamic> toJson() => {
         "citations": citations == null
-            ? <dynamic>[]
+            ? []
             : List<dynamic>.from(citations!.map((x) => x.toJson())),
         "question": question,
         "response": response,
@@ -84,6 +81,9 @@ class QuestionResponseCitations {
 }
 
 ///Resolved citation with full metadata for display/visual grounding.
+///
+///Used by both research graph and chat agent. The optional index field
+///supports UI display ordering in chat contexts.
 class Citation {
   final String chunkId;
   final String content;
@@ -91,6 +91,7 @@ class Citation {
   final String? documentTitle;
   final String documentUri;
   final List<String>? headings;
+  final int? index;
   final List<int>? pageNumbers;
 
   Citation({
@@ -100,6 +101,7 @@ class Citation {
     this.documentTitle,
     required this.documentUri,
     this.headings,
+    this.index,
     this.pageNumbers,
   });
 
@@ -110,11 +112,12 @@ class Citation {
         documentTitle: json["document_title"],
         documentUri: json["document_uri"],
         headings: json["headings"] == null
-            ? <String>[]
-            : (json["headings"]! as List).cast<String>(),
+            ? []
+            : List<String>.from(json["headings"]!.map((x) => x)),
+        index: json["index"],
         pageNumbers: json["page_numbers"] == null
-            ? <int>[]
-            : (json["page_numbers"]! as List).cast<int>(),
+            ? []
+            : List<int>.from(json["page_numbers"]!.map((x) => x)),
       );
 
   Map<String, dynamic> toJson() => {
@@ -123,7 +126,11 @@ class Citation {
         "document_id": documentId,
         "document_title": documentTitle,
         "document_uri": documentUri,
-        "headings": headings ?? <String>[],
-        "page_numbers": pageNumbers ?? <int>[],
+        "headings":
+            headings == null ? [] : List<dynamic>.from(headings!.map((x) => x)),
+        "index": index,
+        "page_numbers": pageNumbers == null
+            ? []
+            : List<dynamic>.from(pageNumbers!.map((x) => x)),
       };
 }

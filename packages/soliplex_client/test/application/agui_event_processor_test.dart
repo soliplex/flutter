@@ -397,16 +397,35 @@ void main() {
       });
     });
 
-    group('passthrough events', () {
-      test('StateSnapshotEvent passes through unchanged', () {
+    group('state events', () {
+      test('StateSnapshotEvent replaces aguiState', () {
         const event = StateSnapshotEvent(snapshot: {'key': 'value'});
 
         final result = processEvent(conversation, streaming, event);
 
-        expect(result.conversation, equals(conversation));
+        expect(result.conversation.aguiState, equals({'key': 'value'}));
         expect(result.streaming, equals(streaming));
       });
 
+      test('StateDeltaEvent applies JSON Patch to aguiState', () {
+        final conversationWithState = conversation.copyWith(
+          aguiState: {'count': 0},
+        );
+        const event = StateDeltaEvent(
+          delta: [
+            {'op': 'replace', 'path': '/count', 'value': 1},
+            {'op': 'add', 'path': '/name', 'value': 'test'},
+          ],
+        );
+
+        final result = processEvent(conversationWithState, streaming, event);
+
+        expect(result.conversation.aguiState['count'], 1);
+        expect(result.conversation.aguiState['name'], 'test');
+      });
+    });
+
+    group('passthrough events', () {
       test('CustomEvent passes through unchanged', () {
         const event = CustomEvent(name: 'custom', value: {'data': 123});
 

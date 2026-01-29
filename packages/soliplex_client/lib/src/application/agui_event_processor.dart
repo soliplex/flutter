@@ -1,5 +1,6 @@
 import 'package:ag_ui/ag_ui.dart';
 import 'package:meta/meta.dart';
+import 'package:soliplex_client/src/application/json_patch.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
@@ -106,6 +107,19 @@ EventProcessingResult processEvent(
               .toList(),
         ),
         streaming: streaming,
+      ),
+
+    // State events - apply to conversation.aguiState
+    StateSnapshotEvent(:final snapshot) => EventProcessingResult(
+        conversation: conversation.copyWith(
+          aguiState: snapshot as Map<String, dynamic>,
+        ),
+        streaming: streaming,
+      ),
+    StateDeltaEvent(:final delta) => _processStateDelta(
+        conversation,
+        streaming,
+        delta,
       ),
 
     // All other events pass through unchanged
@@ -251,6 +265,7 @@ EventProcessingResult _processTextEnd(
       text: streaming.text,
       thinkingText: streaming.thinkingText,
     );
+
     return EventProcessingResult(
       conversation: conversation.withAppendedMessage(newMessage),
       streaming: const AwaitingText(),
@@ -270,4 +285,18 @@ ChatUser _mapRoleToChatUser(TextMessageRole role) {
     TextMessageRole.system => ChatUser.system,
     TextMessageRole.developer => ChatUser.system,
   };
+}
+
+// State events - apply JSON Patch
+
+EventProcessingResult _processStateDelta(
+  Conversation conversation,
+  StreamingState streaming,
+  List<dynamic> delta,
+) {
+  final newState = applyJsonPatch(conversation.aguiState, delta);
+  return EventProcessingResult(
+    conversation: conversation.copyWith(aguiState: newState),
+    streaming: streaming,
+  );
 }
