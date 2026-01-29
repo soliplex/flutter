@@ -270,6 +270,53 @@ void main() {
         expect(result, equals({'key': 'value'}));
       });
 
+      test('handles invalid array index beyond bounds', () {
+        final state = <String, dynamic>{
+          'items': ['a', 'b'],
+        };
+        final operations = [
+          {'op': 'add', 'path': '/items/10', 'value': 'out of bounds'},
+        ];
+
+        // Should handle gracefully - either skip or extend
+        final result = applyJsonPatch(state, operations);
+
+        // Verify original items preserved
+        final items = result['items'] as List;
+        expect(items.contains('a'), isTrue);
+        expect(items.contains('b'), isTrue);
+      });
+
+      test('handles negative array index', () {
+        final state = <String, dynamic>{
+          'items': ['a', 'b', 'c'],
+        };
+        final operations = [
+          {'op': 'remove', 'path': '/items/-1'},
+        ];
+
+        // Should handle gracefully - skip invalid operation
+        final result = applyJsonPatch(state, operations);
+
+        // Original array should be unchanged since -1 is not a valid index
+        expect(result['items'], ['a', 'b', 'c']);
+      });
+
+      test('handles non-numeric array index', () {
+        final state = <String, dynamic>{
+          'items': ['a', 'b'],
+        };
+        final operations = [
+          {'op': 'add', 'path': '/items/notanumber', 'value': 'invalid'},
+        ];
+
+        // Should handle gracefully
+        final result = applyJsonPatch(state, operations);
+
+        // Array should be unchanged
+        expect(result['items'], ['a', 'b']);
+      });
+
       test('handles root path by replacing entire state', () {
         final state = <String, dynamic>{'key': 'value'};
         final operations = [

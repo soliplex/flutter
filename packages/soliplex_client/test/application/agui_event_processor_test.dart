@@ -423,6 +423,27 @@ void main() {
         expect(result.conversation.aguiState['count'], 1);
         expect(result.conversation.aguiState['name'], 'test');
       });
+
+      test('StateDeltaEvent applies JSON Patch to empty aguiState', () {
+        // Default conversation has empty aguiState
+        expect(conversation.aguiState, isEmpty);
+
+        const event = StateDeltaEvent(
+          delta: [
+            {'op': 'add', 'path': '/count', 'value': 1},
+            {
+              'op': 'add',
+              'path': '/nested',
+              'value': {'key': 'value'},
+            },
+          ],
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        expect(result.conversation.aguiState['count'], 1);
+        expect(result.conversation.aguiState['nested'], {'key': 'value'});
+      });
     });
 
     group('passthrough events', () {
