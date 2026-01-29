@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
 
 import '../../../helpers/test_helpers.dart';
@@ -510,8 +511,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.visibility_outlined));
       await tester.pumpAndSettle();
 
-      // Dialog should open with document title
-      expect(find.byType(Dialog), findsOneWidget);
+      // Full-screen page should open with document title
+      expect(find.byType(ChunkVisualizationPage), findsOneWidget);
       expect(find.text('Test Document'), findsWidgets);
     });
   });

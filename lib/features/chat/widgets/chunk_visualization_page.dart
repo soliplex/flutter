@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,13 +6,13 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/chunk_visualization_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 
-/// Dialog for viewing PDF chunk page images with highlighted text.
+/// Full-screen page for viewing PDF chunk page images with zoom support.
 ///
-/// Shows loading state, handles errors with retry, and displays images in a
-/// horizontally scrollable row with page numbers.
-class ChunkVisualizationDialog extends ConsumerWidget {
-  /// Creates a dialog for the given room and chunk.
-  const ChunkVisualizationDialog({
+/// Shows loading state, handles errors with retry, and displays images with
+/// pinch-to-zoom via InteractiveViewer.
+class ChunkVisualizationPage extends ConsumerWidget {
+  /// Creates a page for the given room and chunk.
+  const ChunkVisualizationPage({
     required this.roomId,
     required this.chunkId,
     required this.documentTitle,
@@ -26,22 +25,23 @@ class ChunkVisualizationDialog extends ConsumerWidget {
   /// The chunk ID to visualize.
   final String chunkId;
 
-  /// Document title for the dialog header.
+  /// Document title for the app bar.
   final String documentTitle;
 
-  /// Shows the dialog.
+  /// Navigates to this page.
   static Future<void> show({
     required BuildContext context,
     required String roomId,
     required String chunkId,
     required String documentTitle,
   }) {
-    return showDialog<void>(
-      context: context,
-      builder: (context) => ChunkVisualizationDialog(
-        roomId: roomId,
-        chunkId: chunkId,
-        documentTitle: documentTitle,
+    return Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (context) => ChunkVisualizationPage(
+          roomId: roomId,
+          chunkId: chunkId,
+          documentTitle: documentTitle,
+        ),
       ),
     );
   }
@@ -53,73 +53,49 @@ class ChunkVisualizationDialog extends ConsumerWidget {
     );
 
     final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
 
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: min(700, size.width * 0.9),
-          maxHeight: min(600, size.height * 0.85),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(),
+          tooltip: 'Back',
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        title: Row(
           children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.all(SoliplexSpacing.s4),
-              child: Row(
-                children: [
-                  const Icon(Icons.picture_as_pdf, size: 24),
-                  const SizedBox(width: SoliplexSpacing.s2),
-                  Expanded(
-                    child: Text(
-                      documentTitle,
-                      style: theme.textTheme.titleMedium,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                    tooltip: 'Close',
-                  ),
-                ],
-              ),
-            ),
-
-            const Divider(height: 1),
-
-            // Content
-            Flexible(
-              child: asyncValue.when(
-                loading: () => const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(SoliplexSpacing.s6),
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
-                error: (error, _) => _buildError(context, ref, error),
-                data: (visualization) => _buildContent(context, visualization),
+            const Icon(Icons.picture_as_pdf, size: 20),
+            const SizedBox(width: SoliplexSpacing.s2),
+            Expanded(
+              child: Text(
+                documentTitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
       ),
+      body: asyncValue.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => _buildError(context, ref, error, theme),
+        data: (visualization) => _buildContent(context, visualization, theme),
+      ),
     );
   }
 
-  Widget _buildError(BuildContext context, WidgetRef ref, Object error) {
-    final theme = Theme.of(context);
+  Widget _buildError(
+    BuildContext context,
+    WidgetRef ref,
+    Object error,
+    ThemeData theme,
+  ) {
     final message = switch (error) {
       NotFoundException() => 'Page images not available for this citation.',
       NetworkException() => 'Could not connect to server.',
       _ => 'Failed to load page images.',
     };
 
-    return Padding(
-      padding: const EdgeInsets.all(SoliplexSpacing.s6),
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -147,12 +123,13 @@ class ChunkVisualizationDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, ChunkVisualization visualization) {
-    final theme = Theme.of(context);
-
+  Widget _buildContent(
+    BuildContext context,
+    ChunkVisualization visualization,
+    ThemeData theme,
+  ) {
     if (!visualization.hasImages) {
-      return Padding(
-        padding: const EdgeInsets.all(SoliplexSpacing.s6),
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -173,20 +150,22 @@ class ChunkVisualizationDialog extends ConsumerWidget {
       );
     }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(SoliplexSpacing.s4),
-      child: Center(
-        child: Wrap(
-          spacing: SoliplexSpacing.s4,
-          runSpacing: SoliplexSpacing.s4,
-          alignment: WrapAlignment.center,
+    return InteractiveViewer(
+      constrained: false,
+      minScale: 0.5,
+      maxScale: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(SoliplexSpacing.s4),
+        child: Column(
           children: [
-            for (var i = 0; i < visualization.imageCount; i++)
+            for (var i = 0; i < visualization.imageCount; i++) ...[
+              if (i > 0) const SizedBox(height: SoliplexSpacing.s4),
               _PageImage(
                 imageBase64: visualization.imagesBase64[i],
                 pageNumber: i + 1,
                 totalPages: visualization.imageCount,
               ),
+            ],
           ],
         ),
       ),

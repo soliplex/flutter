@@ -5,7 +5,7 @@ import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dar
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
-import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_dialog.dart';
+import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page.dart';
 
 /// Expandable section showing source citations for a message.
 ///
@@ -216,14 +216,27 @@ class _CitationRow extends ConsumerWidget {
                   // Headings breadcrumb
                   if (citation.headings != null &&
                       citation.headings!.isNotEmpty) ...[
-                    Text(
-                      citation.headings!.join(' > '),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontStyle: FontStyle.italic,
-                      ),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.subdirectory_arrow_right,
+                          size: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: SoliplexSpacing.s1),
+                        Expanded(
+                          child: Text(
+                            citation.headings!.join(' > '),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: SoliplexSpacing.s1),
+                    const SizedBox(height: SoliplexSpacing.s2),
                   ],
                   // Content preview in styled container
                   if (citation.content.isNotEmpty) ...[
@@ -245,14 +258,44 @@ class _CitationRow extends ConsumerWidget {
                     ),
                     const SizedBox(height: SoliplexSpacing.s2),
                   ],
-                  // File path
-                  Text(
-                    citation.documentUri,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                  // File path and page numbers
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        citation.isPdf
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.insert_drive_file_outlined,
+                        size: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: SoliplexSpacing.s1),
+                      Expanded(
+                        child: Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: citation.documentUri,
+                                style: theme.textTheme.labelSmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontFamily: 'monospace',
+                                  fontSize: 11,
+                                ),
+                              ),
+                              if (citation.formattedPageNumbers != null) ...[
+                                TextSpan(
+                                  text: '  •  ${citation.formattedPageNumbers}',
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -286,7 +329,7 @@ class _PdfViewButton extends ConsumerWidget {
         size: 18,
         color: theme.colorScheme.primary,
       ),
-      onPressed: () => ChunkVisualizationDialog.show(
+      onPressed: () => ChunkVisualizationPage.show(
         context: context,
         roomId: roomId,
         chunkId: citation.chunkId,

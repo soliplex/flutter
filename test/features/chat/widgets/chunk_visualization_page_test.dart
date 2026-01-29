@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_dialog.dart';
+import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -14,7 +14,7 @@ void main() {
     mockApi = MockSoliplexApi();
   });
 
-  group('ChunkVisualizationDialog', () {
+  group('ChunkVisualizationPage', () {
     testWidgets('shows loading indicator while fetching', (tester) async {
       // Never complete the future to keep loading state
       when(() => mockApi.getChunkVisualization(any(), any()))
@@ -22,7 +22,7 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'Test Document',
@@ -51,7 +51,7 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'Test Document',
@@ -78,7 +78,7 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'Test Document',
@@ -100,7 +100,7 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'Test Document',
@@ -126,7 +126,7 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'Test Document',
@@ -147,7 +147,7 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'Test Document',
@@ -164,7 +164,7 @@ void main() {
       expect(find.byIcon(Icons.refresh), findsOneWidget);
     });
 
-    testWidgets('close button dismisses dialog', (tester) async {
+    testWidgets('back button pops the page', (tester) async {
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
         (_) async => const ChunkVisualization(
           chunkId: 'chunk-1',
@@ -177,39 +177,39 @@ void main() {
         createTestApp(
           home: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => ChunkVisualizationDialog.show(
+              onPressed: () => ChunkVisualizationPage.show(
                 context: context,
                 roomId: 'room-1',
                 chunkId: 'chunk-1',
                 documentTitle: 'Test Document',
               ),
-              child: const Text('Open Dialog'),
+              child: const Text('Open Page'),
             ),
           ),
           overrides: [apiProvider.overrideWithValue(mockApi)],
         ),
       );
 
-      // Open dialog
-      await tester.tap(find.text('Open Dialog'));
+      // Open page
+      await tester.tap(find.text('Open Page'));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ChunkVisualizationDialog), findsOneWidget);
+      expect(find.byType(ChunkVisualizationPage), findsOneWidget);
 
-      // Close dialog
-      await tester.tap(find.byIcon(Icons.close));
+      // Tap back button
+      await tester.tap(find.byIcon(Icons.arrow_back));
       await tester.pumpAndSettle();
 
-      expect(find.byType(ChunkVisualizationDialog), findsNothing);
+      expect(find.byType(ChunkVisualizationPage), findsNothing);
     });
 
-    testWidgets('displays document title in header', (tester) async {
+    testWidgets('displays document title in app bar', (tester) async {
       when(() => mockApi.getChunkVisualization(any(), any()))
           .thenAnswer((_) => Future.delayed(const Duration(days: 1)));
 
       await tester.pumpWidget(
         createTestApp(
-          home: const ChunkVisualizationDialog(
+          home: const ChunkVisualizationPage(
             roomId: 'room-1',
             chunkId: 'chunk-1',
             documentTitle: 'My Important Document.pdf',
@@ -220,6 +220,35 @@ void main() {
 
       expect(find.text('My Important Document.pdf'), findsOneWidget);
       expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
+    });
+
+    testWidgets('has InteractiveViewer for zoom support', (tester) async {
+      const base64Png =
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk'
+          '+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+      when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
+        (_) async => const ChunkVisualization(
+          chunkId: 'chunk-1',
+          documentUri: 'doc.pdf',
+          imagesBase64: [base64Png],
+        ),
+      );
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const ChunkVisualizationPage(
+            roomId: 'room-1',
+            chunkId: 'chunk-1',
+            documentTitle: 'Test Document',
+          ),
+          overrides: [apiProvider.overrideWithValue(mockApi)],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(InteractiveViewer), findsOneWidget);
     });
   });
 }
