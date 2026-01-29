@@ -207,12 +207,20 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Convert all messages to AG-UI format for backend
       final aguiMessages = convertToAgui(allMessages);
 
+      // Merge accumulated AG-UI state with any client-provided initial state.
+      // Order: cached state first (backend-generated), then initial state
+      // (client-generated like filter_documents) so client can override.
+      final mergedState = <String, dynamic>{
+        ...cachedAguiState,
+        ...?initialState,
+      };
+
       // Create the input for the run
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
-        state: initialState,
+        state: mergedState,
       );
 
       // Start streaming
