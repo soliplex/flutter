@@ -8,7 +8,7 @@ import 'package:soliplex_client/soliplex_client.dart' as domain
     show Cancelled, Completed, Conversation, Failed, Idle, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 void _log(String message, {Object? error, StackTrace? stackTrace}) {
@@ -158,7 +158,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         text: userMessage,
       );
 
-      // Read historical messages from cache.
+      // Read historical thread data from cache.
       // Cache is populated by allMessagesProvider when thread is selected.
       // If cache is empty (e.g., direct URL navigation + immediate send),
       // we proceed without history - backend still processes correctly.
@@ -167,17 +167,19 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // because normal UI flow ensures cache is populated before user can
       // send. Adding async fetch here would block UI for a rare edge case.
       // See issue #30 for details.
-      final cachedMessages =
-          ref.read(threadMessageCacheProvider)[threadId] ?? [];
+      final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+      final cachedMessages = cachedHistory?.messages ?? [];
+      final cachedAguiState = cachedHistory?.aguiState ?? const {};
 
       // Combine historical messages with new user message
       final allMessages = [...cachedMessages, userMessageObj];
 
-      // Create conversation with full history and Running status
+      // Create conversation with full history, AG-UI state, and Running status
       final conversation = domain.Conversation(
         threadId: threadId,
         messages: allMessages,
         status: domain.Running(runId: runId),
+        aguiState: cachedAguiState,
       );
 
       // Set running state
@@ -386,12 +388,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     return newState;
   }
 
-  /// Updates the message cache when a run completes.
+  /// Updates the history cache when a run completes.
   void _updateCacheOnCompletion(CompletedState completedState) {
     final threadId = completedState.threadId;
     if (threadId.isEmpty) return;
+    final history = ThreadHistory(
+      messages: completedState.messages,
+      aguiState: completedState.conversation.aguiState,
+    );
     ref
-        .read(threadMessageCacheProvider.notifier)
-        .updateMessages(threadId, completedState.messages);
+        .read(threadHistoryCacheProvider.notifier)
+        .updateHistory(threadId, history);
   }
 }

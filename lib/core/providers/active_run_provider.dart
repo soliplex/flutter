@@ -3,7 +3,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 /// Provider for active run state and actions.
@@ -98,18 +98,18 @@ final allMessagesProvider = FutureProvider<List<ChatMessage>>((ref) async {
   final room = ref.watch(currentRoomProvider);
   if (thread == null || room == null) return [];
 
-  // Watch cache state to react to updates from updateMessages().
-  final cacheState = ref.watch(threadMessageCacheProvider);
+  // Watch cache state to react to updates from updateHistory().
+  final cacheState = ref.watch(threadHistoryCacheProvider);
   final cached = cacheState[thread.id];
 
-  // Use cached messages if available, otherwise fetch (which updates cache).
+  // Use cached history if available, otherwise fetch (which updates cache).
   final history = cached ??
       await ref
-          .read(threadMessageCacheProvider.notifier)
-          .getMessages(room.id, thread.id);
+          .read(threadHistoryCacheProvider.notifier)
+          .getHistory(room.id, thread.id);
 
   final runState = ref.watch(activeRunNotifierProvider);
-  return _mergeMessages(history, runState.messages);
+  return _mergeMessages(history.messages, runState.messages);
 });
 
 /// Merges cached and running messages, deduplicating by ID.

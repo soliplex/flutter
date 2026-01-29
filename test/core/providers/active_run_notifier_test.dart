@@ -10,7 +10,7 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -807,7 +807,7 @@ void main() {
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
       // Cache should be empty initially
-      final cacheBefore = container.read(threadMessageCacheProvider);
+      final cacheBefore = container.read(threadHistoryCacheProvider);
       expect(cacheBefore['thread-1'], isNull);
 
       // Send RUN_FINISHED event
@@ -822,10 +822,13 @@ void main() {
       expect(container.read(activeRunNotifierProvider), isA<CompletedState>());
 
       // Cache should now contain the messages
-      final cacheAfter = container.read(threadMessageCacheProvider);
+      final cacheAfter = container.read(threadHistoryCacheProvider);
       expect(cacheAfter['thread-1'], isNotNull);
-      expect(cacheAfter['thread-1'], hasLength(1));
-      expect((cacheAfter['thread-1']!.first as TextMessage).text, 'Hello');
+      expect(cacheAfter['thread-1']!.messages, hasLength(1));
+      expect(
+        (cacheAfter['thread-1']!.messages.first as TextMessage).text,
+        'Hello',
+      );
     });
 
     test('updates cache when RUN_ERROR event is received', () async {
@@ -846,7 +849,7 @@ void main() {
           );
 
       // Cache should be empty initially
-      final cacheBefore = container.read(threadMessageCacheProvider);
+      final cacheBefore = container.read(threadHistoryCacheProvider);
       expect(cacheBefore['thread-1'], isNull);
 
       // Send RUN_ERROR event
@@ -861,9 +864,9 @@ void main() {
       expect((state as CompletedState).result, isA<FailedResult>());
 
       // Cache should still contain the messages (even on error)
-      final cacheAfter = container.read(threadMessageCacheProvider);
+      final cacheAfter = container.read(threadHistoryCacheProvider);
       expect(cacheAfter['thread-1'], isNotNull);
-      expect(cacheAfter['thread-1'], hasLength(1));
+      expect(cacheAfter['thread-1']!.messages, hasLength(1));
     });
   });
 
@@ -974,9 +977,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify cache was updated despite error
-      final cache = container.read(threadMessageCacheProvider);
+      final cache = container.read(threadHistoryCacheProvider);
       expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.length, greaterThan(0));
+      expect(cache['thread-1']!.messages.length, greaterThan(0));
     });
 
     test(
@@ -1048,9 +1051,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify cache was updated
-      final cache = container.read(threadMessageCacheProvider);
+      final cache = container.read(threadHistoryCacheProvider);
       expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.length, greaterThan(0));
+      expect(cache['thread-1']!.messages.length, greaterThan(0));
     });
   });
 
@@ -1291,9 +1294,9 @@ void main() {
           );
 
       // Cache should be updated
-      final cache = container.read(threadMessageCacheProvider);
+      final cache = container.read(threadHistoryCacheProvider);
       expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1'], hasLength(1));
+      expect(cache['thread-1']!.messages, hasLength(1));
     });
   });
 
@@ -1432,9 +1435,10 @@ void main() {
             text: 'First answer',
           ),
         ];
-        container
-            .read(threadMessageCacheProvider.notifier)
-            .updateMessages('thread-1', historicalMessages);
+        container.read(threadHistoryCacheProvider.notifier).updateHistory(
+              'thread-1',
+              ThreadHistory(messages: historicalMessages),
+            );
 
         // Start a new run
         await container.read(activeRunNotifierProvider.notifier).startRun(
@@ -1475,9 +1479,10 @@ void main() {
           text: 'First answer',
         ),
       ];
-      container
-          .read(threadMessageCacheProvider.notifier)
-          .updateMessages('thread-1', historicalMessages);
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'thread-1',
+            ThreadHistory(messages: historicalMessages),
+          );
 
       // Start a new run
       await container.read(activeRunNotifierProvider.notifier).startRun(

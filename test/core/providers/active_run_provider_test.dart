@@ -5,7 +5,7 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -34,9 +34,9 @@ void main() {
         final mockRoom = TestData.createRoom(id: 'room-abc');
 
         // Shared map that persists across provider rebuilds
-        final sharedData = <String, List<ChatMessage>>{
-          'thread-a': threadAMessages,
-          'thread-b': threadBMessages,
+        final sharedData = <String, ThreadHistory>{
+          'thread-a': ThreadHistory(messages: threadAMessages),
+          'thread-b': ThreadHistory(messages: threadBMessages),
         };
 
         // Step 1: View Thread A
@@ -45,7 +45,7 @@ void main() {
             apiProvider.overrideWithValue(mockApi),
             currentThreadProvider.overrideWith((ref) => threadA),
             currentRoomProvider.overrideWith((ref) => mockRoom),
-            threadMessageCacheProvider.overrideWith(
+            threadHistoryCacheProvider.overrideWith(
               () => _SharedDataCache(sharedData),
             ),
             activeRunNotifierOverride(const IdleState()),
@@ -64,7 +64,7 @@ void main() {
             apiProvider.overrideWithValue(mockApi),
             currentThreadProvider.overrideWith((ref) => threadB),
             currentRoomProvider.overrideWith((ref) => mockRoom),
-            threadMessageCacheProvider.overrideWith(
+            threadHistoryCacheProvider.overrideWith(
               () => _SharedDataCache(sharedData),
             ),
             activeRunNotifierOverride(const IdleState()),
@@ -82,7 +82,7 @@ void main() {
             apiProvider.overrideWithValue(mockApi),
             currentThreadProvider.overrideWith((ref) => threadA),
             currentRoomProvider.overrideWith((ref) => mockRoom),
-            threadMessageCacheProvider.overrideWith(
+            threadHistoryCacheProvider.overrideWith(
               () => _SharedDataCache(sharedData),
             ),
             activeRunNotifierOverride(const IdleState()),
@@ -103,19 +103,19 @@ void main() {
       });
 
       test('cache persists messages when run completes on thread', () async {
-        // This tests that updateMessages() correctly persists run results
+        // This tests that updateHistory() correctly persists run results
         final mockRoom = TestData.createRoom(id: 'room-abc');
         final threadA = TestData.createThread(id: 'thread-a');
 
-        // Start with empty cache, then populate via updateMessages
-        final sharedData = <String, List<ChatMessage>>{};
+        // Start with empty cache, then populate via updateHistory
+        final sharedData = <String, ThreadHistory>{};
 
         final container = ProviderContainer(
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             currentThreadProvider.overrideWith((ref) => threadA),
             currentRoomProvider.overrideWith((ref) => mockRoom),
-            threadMessageCacheProvider.overrideWith(
+            threadHistoryCacheProvider.overrideWith(
               () => _SharedDataCache(sharedData),
             ),
             activeRunNotifierOverride(const IdleState()),
@@ -128,15 +128,16 @@ void main() {
           TestData.createMessage(id: 'msg-1', text: 'User message'),
           TestData.createMessage(id: 'msg-2', text: 'AI response'),
         ];
-        container
-            .read(threadMessageCacheProvider.notifier)
-            .updateMessages('thread-a', newMessages);
+        container.read(threadHistoryCacheProvider.notifier).updateHistory(
+              'thread-a',
+              ThreadHistory(messages: newMessages),
+            );
 
         // Verify messages are retrievable
-        final cacheState = container.read(threadMessageCacheProvider);
-        expect(cacheState['thread-a'], hasLength(2));
-        expect(cacheState['thread-a']![0].id, 'msg-1');
-        expect(cacheState['thread-a']![1].id, 'msg-2');
+        final cacheState = container.read(threadHistoryCacheProvider);
+        expect(cacheState['thread-a']!.messages, hasLength(2));
+        expect(cacheState['thread-a']!.messages[0].id, 'msg-1');
+        expect(cacheState['thread-a']!.messages[1].id, 'msg-2');
       });
     });
 
@@ -162,7 +163,7 @@ void main() {
               apiProvider.overrideWithValue(mockApi),
               currentThreadProvider.overrideWith((ref) => mockThread),
               currentRoomProvider.overrideWith((ref) => mockRoom),
-              threadMessageCacheProvider.overrideWith(() {
+              threadHistoryCacheProvider.overrideWith(() {
                 return _PrePopulatedCache({
                   'thread-123': [cachedMessage],
                 });
@@ -210,7 +211,7 @@ void main() {
               apiProvider.overrideWithValue(mockApi),
               currentThreadProvider.overrideWith((ref) => mockThread),
               currentRoomProvider.overrideWith((ref) => mockRoom),
-              threadMessageCacheProvider.overrideWith(() {
+              threadHistoryCacheProvider.overrideWith(() {
                 return _PrePopulatedCache({'thread-123': cachedMessages});
               }),
               activeRunNotifierOverride(
@@ -283,43 +284,49 @@ void main() {
 }
 
 /// Test helper: Pre-populated cache that doesn't fetch from API.
-class _PrePopulatedCache extends ThreadMessageCache {
-  _PrePopulatedCache(this._initialState);
+class _PrePopulatedCache extends ThreadHistoryCache {
+  _PrePopulatedCache(Map<String, List<ChatMessage>> messageMap)
+      : _initialState = {
+          for (final entry in messageMap.entries)
+            entry.key: ThreadHistory(messages: entry.value),
+        };
 
-  final ThreadMessageCacheState _initialState;
+  final ThreadHistoryCacheState _initialState;
 
   @override
-  ThreadMessageCacheState build() => _initialState;
+  ThreadHistoryCacheState build() => _initialState;
 }
 
 /// Test helper: Cache backed by shared map for thread switching tests.
 ///
 /// Each ProviderContainer creates a new instance, but they all
 /// read/write to the same shared map to simulate cache persistence.
-class _SharedDataCache extends ThreadMessageCache {
+class _SharedDataCache extends ThreadHistoryCache {
   _SharedDataCache(this._sharedData);
 
-  final Map<String, List<ChatMessage>> _sharedData;
+  final Map<String, ThreadHistory> _sharedData;
 
   @override
-  ThreadMessageCacheState build() => Map.from(_sharedData);
+  ThreadHistoryCacheState build() {
+    return Map<String, ThreadHistory>.from(_sharedData);
+  }
 
   @override
-  Future<List<ChatMessage>> getMessages(String roomId, String threadId) async {
+  Future<ThreadHistory> getHistory(String roomId, String threadId) async {
     // Check shared data first (simulates persistent cache)
     final cached = _sharedData[threadId];
     if (cached != null) return cached;
 
     // Delegate to parent for API fetch
-    final messages = await super.getMessages(roomId, threadId);
+    final history = await super.getHistory(roomId, threadId);
     // Persist to shared data
-    _sharedData[threadId] = messages;
-    return messages;
+    _sharedData[threadId] = history;
+    return history;
   }
 
   @override
-  void updateMessages(String threadId, List<ChatMessage> messages) {
-    _sharedData[threadId] = messages;
-    state = Map.from(_sharedData);
+  void updateHistory(String threadId, ThreadHistory history) {
+    _sharedData[threadId] = history;
+    state = Map<String, ThreadHistory>.from(_sharedData);
   }
 }
