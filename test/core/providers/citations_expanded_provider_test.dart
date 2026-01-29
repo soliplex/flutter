@@ -32,9 +32,9 @@ void main() {
     });
 
     test('toggle removes key when already present', () {
-      final notifier =
-          container.read(citationsExpandedProvider('thread-1').notifier)
-            ..toggle('msg-1');
+      final notifier = container
+          .read(citationsExpandedProvider('thread-1').notifier)
+        ..toggle('msg-1');
       expect(
         container.read(citationsExpandedProvider('thread-1')),
         contains('msg-1'),
@@ -77,9 +77,9 @@ void main() {
     });
 
     test('state is immutable - creates new set on toggle', () {
-      final notifier =
-          container.read(citationsExpandedProvider('thread-1').notifier)
-            ..toggle('msg-1');
+      final notifier = container
+          .read(citationsExpandedProvider('thread-1').notifier)
+        ..toggle('msg-1');
       final state1 = container.read(citationsExpandedProvider('thread-1'));
 
       notifier.toggle('msg-2');

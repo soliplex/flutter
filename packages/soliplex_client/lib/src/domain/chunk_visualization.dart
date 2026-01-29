@@ -52,8 +52,7 @@ class ChunkVisualization {
       other is ChunkVisualization &&
           chunkId == other.chunkId &&
           documentUri == other.documentUri &&
-          const ListEquality<String>()
-              .equals(imagesBase64, other.imagesBase64);
+          const ListEquality<String>().equals(imagesBase64, other.imagesBase64);
 
   @override
   int get hashCode => Object.hash(
