@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -89,6 +90,8 @@ class ChunkVisualizationPage extends ConsumerWidget {
     Object error,
     ThemeData theme,
   ) {
+    debugPrint('ChunkVisualization error for chunk $chunkId: $error');
+
     final message = switch (error) {
       NotFoundException() => 'Page images not available for this citation.',
       NetworkException() => 'Could not connect to server.',
@@ -184,10 +187,20 @@ class _PageImage extends StatelessWidget {
   final int pageNumber;
   final int totalPages;
 
+  Uint8List? _decodeImage() {
+    try {
+      return base64Decode(imageBase64);
+    } on FormatException catch (e) {
+      debugPrint('Failed to decode base64 for page $pageNumber: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final soliplexTheme = SoliplexTheme.of(context);
+    final imageBytes = _decodeImage();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -199,22 +212,18 @@ class _PageImage extends StatelessWidget {
             borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.memory(
-            base64Decode(imageBase64),
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stack) => Container(
-              width: 200,
-              height: 250,
-              color: theme.colorScheme.errorContainer,
-              child: Center(
-                child: Icon(
-                  Icons.broken_image,
-                  color: theme.colorScheme.onErrorContainer,
-                  size: 48,
-                ),
-              ),
-            ),
-          ),
+          child: imageBytes != null
+              ? Image.memory(
+                  imageBytes,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stack) {
+                    debugPrint(
+                      'Image decode error for page $pageNumber: $error',
+                    );
+                    return _buildBrokenImage(theme);
+                  },
+                )
+              : _buildBrokenImage(theme),
         ),
         const SizedBox(height: SoliplexSpacing.s2),
         Text(
@@ -224,6 +233,21 @@ class _PageImage extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildBrokenImage(ThemeData theme) {
+    return Container(
+      width: 200,
+      height: 250,
+      color: theme.colorScheme.errorContainer,
+      child: Center(
+        child: Icon(
+          Icons.broken_image,
+          color: theme.colorScheme.onErrorContainer,
+          size: 48,
+        ),
+      ),
     );
   }
 }

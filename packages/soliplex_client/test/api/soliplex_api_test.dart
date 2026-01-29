@@ -2152,10 +2152,10 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => const ChunkVisualization(
+          (_) async => ChunkVisualization(
             chunkId: 'chunk-123',
             documentUri: 'doc.pdf',
-            imagesBase64: ['abc123'],
+            imagesBase64: const ['abc123'],
           ),
         );
 
@@ -2213,10 +2213,10 @@ void main() {
           ),
         ).thenAnswer((invocation) async {
           capturedUri = invocation.positionalArguments[1] as Uri;
-          return const ChunkVisualization(
+          return ChunkVisualization(
             chunkId: 'chunk-123',
             documentUri: null,
-            imagesBase64: [],
+            imagesBase64: const [],
           );
         });
 
@@ -2242,10 +2242,10 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => const ChunkVisualization(
+          (_) async => ChunkVisualization(
             chunkId: 'chunk-123',
             documentUri: null,
-            imagesBase64: [],
+            imagesBase64: const [],
           ),
         );
 

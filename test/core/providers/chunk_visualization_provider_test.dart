@@ -16,10 +16,10 @@ void main() {
 
   group('chunkVisualizationProvider', () {
     test('fetches chunk visualization from API', () async {
-      const expected = ChunkVisualization(
+      final expected = ChunkVisualization(
         chunkId: 'chunk-123',
         documentUri: 'doc.pdf',
-        imagesBase64: ['img1', 'img2'],
+        imagesBase64: const ['img1', 'img2'],
       );
 
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-123'))
@@ -42,10 +42,10 @@ void main() {
 
     test('uses correct parameters for different family keys', () async {
       when(() => mockApi.getChunkVisualization(any(), any())).thenAnswer(
-        (_) async => const ChunkVisualization(
+        (_) async => ChunkVisualization(
           chunkId: 'any',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         ),
       );
 
@@ -72,10 +72,10 @@ void main() {
 
     test('caches result for same family key', () async {
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
-        (_) async => const ChunkVisualization(
+        (_) async => ChunkVisualization(
           chunkId: 'chunk-1',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         ),
       );
 

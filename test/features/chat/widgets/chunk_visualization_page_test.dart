@@ -42,10 +42,10 @@ void main() {
           '+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
-        (_) async => const ChunkVisualization(
+        (_) async => ChunkVisualization(
           chunkId: 'chunk-1',
           documentUri: 'doc.pdf',
-          imagesBase64: [base64Png, base64Png],
+          imagesBase64: const [base64Png, base64Png],
         ),
       );
 
@@ -69,10 +69,10 @@ void main() {
 
     testWidgets('shows empty state when no images', (tester) async {
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
-        (_) async => const ChunkVisualization(
+        (_) async => ChunkVisualization(
           chunkId: 'chunk-1',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         ),
       );
 
@@ -166,10 +166,10 @@ void main() {
 
     testWidgets('back button pops the page', (tester) async {
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
-        (_) async => const ChunkVisualization(
+        (_) async => ChunkVisualization(
           chunkId: 'chunk-1',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         ),
       );
 
@@ -228,10 +228,10 @@ void main() {
           '+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
       when(() => mockApi.getChunkVisualization('room-1', 'chunk-1')).thenAnswer(
-        (_) async => const ChunkVisualization(
+        (_) async => ChunkVisualization(
           chunkId: 'chunk-1',
           documentUri: 'doc.pdf',
-          imagesBase64: [base64Png],
+          imagesBase64: const [base64Png],
         ),
       );
 

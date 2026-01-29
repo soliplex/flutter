@@ -5,10 +5,10 @@ void main() {
   group('ChunkVisualization', () {
     group('construction', () {
       test('creates with all required fields', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: 'doc.pdf',
-          imagesBase64: ['abc123', 'def456'],
+          imagesBase64: const ['abc123', 'def456'],
         );
 
         expect(visualization.chunkId, equals('chunk-123'));
@@ -17,20 +17,20 @@ void main() {
       });
 
       test('creates with null documentUri', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: ['abc123'],
+          imagesBase64: const ['abc123'],
         );
 
         expect(visualization.documentUri, isNull);
       });
 
       test('creates with empty images list', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         );
 
         expect(visualization.imagesBase64, isEmpty);
@@ -79,10 +79,10 @@ void main() {
 
     group('toJson', () {
       test('serializes all fields', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: 'doc.pdf',
-          imagesBase64: ['abc', 'def'],
+          imagesBase64: const ['abc', 'def'],
         );
 
         final json = visualization.toJson();
@@ -93,10 +93,10 @@ void main() {
       });
 
       test('serializes null document_uri', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         );
 
         final json = visualization.toJson();
@@ -107,10 +107,10 @@ void main() {
 
     group('roundtrip', () {
       test('fromJson/toJson preserves all data', () {
-        const original = ChunkVisualization(
+        final original = ChunkVisualization(
           chunkId: 'chunk-roundtrip',
           documentUri: 'test.pdf',
-          imagesBase64: ['img1', 'img2', 'img3'],
+          imagesBase64: const ['img1', 'img2', 'img3'],
         );
 
         final json = original.toJson();
@@ -124,40 +124,40 @@ void main() {
 
     group('computed properties', () {
       test('hasImages returns true when images exist', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: ['img1'],
+          imagesBase64: const ['img1'],
         );
 
         expect(visualization.hasImages, isTrue);
       });
 
       test('hasImages returns false when images empty', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         );
 
         expect(visualization.hasImages, isFalse);
       });
 
       test('imageCount returns correct count', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: ['a', 'b', 'c'],
+          imagesBase64: const ['a', 'b', 'c'],
         );
 
         expect(visualization.imageCount, equals(3));
       });
 
       test('imageCount returns zero for empty list', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: null,
-          imagesBase64: [],
+          imagesBase64: const [],
         );
 
         expect(visualization.imageCount, equals(0));
@@ -165,16 +165,16 @@ void main() {
     });
 
     group('equality', () {
-      test('equal when chunkId matches', () {
-        const a = ChunkVisualization(
+      test('equal when all fields match', () {
+        final a = ChunkVisualization(
           chunkId: 'chunk-123',
-          documentUri: 'doc1.pdf',
-          imagesBase64: ['img1'],
+          documentUri: 'doc.pdf',
+          imagesBase64: const ['img1', 'img2'],
         );
-        const b = ChunkVisualization(
+        final b = ChunkVisualization(
           chunkId: 'chunk-123',
-          documentUri: 'doc2.pdf',
-          imagesBase64: ['img2', 'img3'],
+          documentUri: 'doc.pdf',
+          imagesBase64: const ['img1', 'img2'],
         );
 
         expect(a, equals(b));
@@ -182,15 +182,45 @@ void main() {
       });
 
       test('not equal when chunkId differs', () {
-        const a = ChunkVisualization(
+        final a = ChunkVisualization(
           chunkId: 'chunk-123',
           documentUri: 'doc.pdf',
-          imagesBase64: ['img1'],
+          imagesBase64: const ['img1'],
         );
-        const b = ChunkVisualization(
+        final b = ChunkVisualization(
           chunkId: 'chunk-456',
           documentUri: 'doc.pdf',
-          imagesBase64: ['img1'],
+          imagesBase64: const ['img1'],
+        );
+
+        expect(a, isNot(equals(b)));
+      });
+
+      test('not equal when documentUri differs', () {
+        final a = ChunkVisualization(
+          chunkId: 'chunk-123',
+          documentUri: 'doc1.pdf',
+          imagesBase64: const ['img1'],
+        );
+        final b = ChunkVisualization(
+          chunkId: 'chunk-123',
+          documentUri: 'doc2.pdf',
+          imagesBase64: const ['img1'],
+        );
+
+        expect(a, isNot(equals(b)));
+      });
+
+      test('not equal when imagesBase64 differs', () {
+        final a = ChunkVisualization(
+          chunkId: 'chunk-123',
+          documentUri: 'doc.pdf',
+          imagesBase64: const ['img1'],
+        );
+        final b = ChunkVisualization(
+          chunkId: 'chunk-123',
+          documentUri: 'doc.pdf',
+          imagesBase64: const ['img1', 'img2'],
         );
 
         expect(a, isNot(equals(b)));
@@ -199,10 +229,10 @@ void main() {
 
     group('toString', () {
       test('includes chunkId and image count', () {
-        const visualization = ChunkVisualization(
+        final visualization = ChunkVisualization(
           chunkId: 'chunk-test',
           documentUri: null,
-          imagesBase64: ['a', 'b'],
+          imagesBase64: const ['a', 'b'],
         );
 
         expect(visualization.toString(), contains('chunk-test'));

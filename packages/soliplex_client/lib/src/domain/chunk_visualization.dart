@@ -1,3 +1,4 @@
+import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
 /// Page images for a chunk, with chunk text highlighted.
@@ -6,11 +7,11 @@ import 'package:meta/meta.dart';
 @immutable
 class ChunkVisualization {
   /// Creates a ChunkVisualization with the given properties.
-  const ChunkVisualization({
+  ChunkVisualization({
     required this.chunkId,
     required this.documentUri,
-    required this.imagesBase64,
-  });
+    required List<String> imagesBase64,
+  }) : imagesBase64 = List.unmodifiable(imagesBase64);
 
   /// Creates a ChunkVisualization from JSON.
   factory ChunkVisualization.fromJson(Map<String, dynamic> json) {
@@ -48,10 +49,18 @@ class ChunkVisualization {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChunkVisualization && chunkId == other.chunkId;
+      other is ChunkVisualization &&
+          chunkId == other.chunkId &&
+          documentUri == other.documentUri &&
+          const ListEquality<String>()
+              .equals(imagesBase64, other.imagesBase64);
 
   @override
-  int get hashCode => chunkId.hashCode;
+  int get hashCode => Object.hash(
+        chunkId,
+        documentUri,
+        const ListEquality<String>().hash(imagesBase64),
+      );
 
   @override
   String toString() =>
