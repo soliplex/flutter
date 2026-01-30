@@ -44,7 +44,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -66,7 +68,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -113,7 +117,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(const NoThreadSelected()),
           ],
@@ -189,7 +195,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -229,7 +237,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -268,7 +278,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -310,7 +322,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -343,7 +357,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -378,7 +394,9 @@ void main() {
         (tester) async {
       final sourceRefs = [
         _createSourceReference(
-            documentTitle: 'Document A', content: 'Content A',),
+          documentTitle: 'Document A',
+          content: 'Content A',
+        ),
       ];
       late ProviderContainer container;
 
@@ -431,7 +449,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -458,7 +478,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -484,7 +506,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -509,7 +533,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
-              messageId: 'test-msg', sourceReferences: sourceRefs,),
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
