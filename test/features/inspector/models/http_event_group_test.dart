@@ -663,6 +663,150 @@ void main() {
       });
     });
 
+    group('formatBody', () {
+      test('returns empty string for null', () {
+        expect(HttpEventGroup.formatBody(null), '');
+      });
+
+      test('returns string as-is when not JSON', () {
+        expect(HttpEventGroup.formatBody('plain text'), 'plain text');
+      });
+
+      test('pretty prints JSON string', () {
+        const json = '{"name":"test","value":123}';
+        final result = HttpEventGroup.formatBody(json);
+        expect(result, contains('"name": "test"'));
+        expect(result, contains('"value": 123'));
+      });
+
+      test('pretty prints Map', () {
+        final map = {'name': 'test', 'value': 123};
+        final result = HttpEventGroup.formatBody(map);
+        expect(result, contains('"name": "test"'));
+        expect(result, contains('"value": 123'));
+      });
+
+      test('pretty prints List', () {
+        final list = [1, 2, 3];
+        final result = HttpEventGroup.formatBody(list);
+        expect(result, '[\n  1,\n  2,\n  3\n]');
+      });
+
+      test('handles nested structures', () {
+        final nested = {
+          'user': {'name': 'Alice', 'age': 30},
+        };
+        final result = HttpEventGroup.formatBody(nested);
+        expect(result, contains('"user"'));
+        expect(result, contains('"name": "Alice"'));
+      });
+
+      test('returns toString for non-JSON-encodable objects', () {
+        final obj = DateTime(2024);
+        final result = HttpEventGroup.formatBody(obj);
+        expect(result, obj.toString());
+      });
+    });
+
+    group('toCurl', () {
+      test('returns null when no request', () {
+        final group = HttpEventGroup(requestId: 'req-1');
+        expect(group.toCurl(), isNull);
+      });
+
+      test('generates basic GET request', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: TestData.createRequestEvent(
+            uri: Uri.parse('http://example.com/api'),
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains("'http://example.com/api'"));
+        expect(curl, isNot(contains('-X GET'))); // GET is default
+      });
+
+      test('includes method for non-GET requests', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains('-X POST'));
+      });
+
+      test('includes headers', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'GET',
+            uri: Uri.parse('http://example.com/api'),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains("-H 'Content-Type: application/json'"));
+        expect(curl, contains("-H 'Accept: application/json'"));
+      });
+
+      test('includes body for POST requests', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            body: const {'name': 'test'},
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains('-d'));
+        expect(curl, contains('"name":"test"'));
+      });
+
+      test('escapes single quotes in values', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            body: "it's a test",
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains(r"it'\''s a test"));
+      });
+
+      test('URL is last', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            headers: const {'X-Custom': 'value'},
+            body: 'data',
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl.trim().endsWith("'http://example.com/api'"), isTrue);
+      });
+    });
+
     group('copyWith', () {
       test('preserves requestId', () {
         final group = HttpEventGroup(requestId: 'req-1');

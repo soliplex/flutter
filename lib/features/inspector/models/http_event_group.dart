@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:soliplex_client/soliplex_client.dart';
 
 /// Status of an HTTP event group.
@@ -166,5 +168,75 @@ class HttpEventGroup {
   String get semanticLabel {
     final methodText = isStream ? 'SSE stream' : '$method request';
     return '$methodText to $pathWithQuery, $statusDescription';
+  }
+
+  /// Formats a body value as pretty-printed JSON if possible.
+  ///
+  /// Returns the original value as a string if JSON encoding fails.
+  static String formatBody(dynamic body) {
+    if (body == null) return '';
+    if (body is String) {
+      // Try to parse and re-format JSON strings
+      try {
+        final parsed = jsonDecode(body);
+        return _jsonEncoder.convert(parsed);
+      } on FormatException {
+        return body;
+      }
+    }
+    // Already parsed JSON (Map/List) - encode directly, fallback to toString
+    // for non-JSON-encodable objects
+    try {
+      return _jsonEncoder.convert(body);
+    } on Object {
+      return body.toString();
+    }
+  }
+
+  static const _jsonEncoder = JsonEncoder.withIndent('  ');
+
+  /// Generates a curl command that reproduces this request.
+  ///
+  /// The command includes method, headers, body (if present), and URL.
+  /// Values are properly escaped for shell execution.
+  ///
+  /// Returns null if the request event is not available.
+  String? toCurl() {
+    final req = request;
+    if (req == null) return null;
+
+    final parts = <String>['curl'];
+
+    // Method (skip for GET since it's the default)
+    if (req.method != 'GET') {
+      parts.add('-X ${req.method}');
+    }
+
+    // Headers
+    for (final entry in req.headers.entries) {
+      final escapedValue = _shellEscape(entry.value);
+      parts.add("-H '${entry.key}: $escapedValue'");
+    }
+
+    // Body
+    if (req.body != null) {
+      final bodyString =
+          req.body is String ? req.body as String : jsonEncode(req.body);
+      final escapedBody = _shellEscape(bodyString);
+      parts.add("-d '$escapedBody'");
+    }
+
+    // URL (must be last)
+    parts.add("'${req.uri}'");
+
+    return parts.join(' \\\n  ');
+  }
+
+  /// Escapes a string for safe use in single-quoted shell arguments.
+  ///
+  /// In single quotes, only single quotes need escaping.
+  /// The pattern 'foo'\''bar' ends the quote, adds escaped quote, resumes.
+  static String _shellEscape(String value) {
+    return value.replaceAll("'", r"'\''");
   }
 }
