@@ -48,9 +48,9 @@ class SoliplexApi {
     required HttpTransport transport,
     required UrlBuilder urlBuilder,
     void Function(String message)? onWarning,
-  })  : _transport = transport,
-        _urlBuilder = urlBuilder,
-        _onWarning = onWarning;
+  }) : _transport = transport,
+       _urlBuilder = urlBuilder,
+       _onWarning = onWarning;
 
   final HttpTransport _transport;
   final UrlBuilder _urlBuilder;
@@ -453,9 +453,12 @@ class SoliplexApi {
 
     // 3. Fetch all run events in parallel (cache handles duplicates)
     final eventFutures = completedRunIds.map((runId) {
-      return _fetchRunEvents(roomId, threadId, runId, cancelToken: cancelToken)
-          .then((events) => (runId: runId, events: events))
-          .catchError(
+      return _fetchRunEvents(
+        roomId,
+        threadId,
+        runId,
+        cancelToken: cancelToken,
+      ).then((events) => (runId: runId, events: events)).catchError(
         (Object e) {
           // Log transient failure but continue with other runs
           _onWarning?.call('Failed to fetch events for run $runId: $e');
@@ -508,8 +511,8 @@ class SoliplexApi {
     // Extract user messages from run_input and create synthetic events
     final userMessageEvents = _extractUserMessageEvents(rawRun);
 
-    final events =
-        (rawRun['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+    final events = (rawRun['events'] as List<dynamic>? ?? [])
+        .cast<Map<String, dynamic>>();
 
     // Combine: user message events first, then actual streamed events
     final allEvents = [...userMessageEvents, ...events];
@@ -541,11 +544,7 @@ class SoliplexApi {
 
       // Create synthetic TEXT_MESSAGE events (START, CONTENT, END)
       syntheticEvents
-        ..add({
-          'type': 'TEXT_MESSAGE_START',
-          'messageId': id,
-          'role': role,
-        })
+        ..add({'type': 'TEXT_MESSAGE_START', 'messageId': id, 'role': role})
         ..add({
           'type': 'TEXT_MESSAGE_CONTENT',
           'messageId': id,
@@ -580,14 +579,11 @@ class SoliplexApi {
         // event. This can happen if the backend stores events from a newer
         // protocol version or if data corruption occurs.
         skippedEventCount++;
-        assert(
-          () {
-            // ignore: avoid_print
-            print('Skipped malformed event during replay: $eventJson');
-            return true;
-          }(),
-          'Debug logging for malformed events',
-        );
+        assert(() {
+          // ignore: avoid_print
+          print('Skipped malformed event during replay: $eventJson');
+          return true;
+        }(), 'Debug logging for malformed events');
       }
     }
 
@@ -605,23 +601,22 @@ class SoliplexApi {
   List<MapEntry<String, dynamic>> _sortRunsByCreationTime(
     Map<String, dynamic> runs,
   ) {
-    return runs.entries.toList()
-      ..sort((a, b) {
-        final aData = a.value as Map<String, dynamic>;
-        final bData = b.value as Map<String, dynamic>;
-        final aCreated = aData['created'] as String?;
-        final bCreated = bData['created'] as String?;
+    return runs.entries.toList()..sort((a, b) {
+      final aData = a.value as Map<String, dynamic>;
+      final bData = b.value as Map<String, dynamic>;
+      final aCreated = aData['created'] as String?;
+      final bCreated = bData['created'] as String?;
 
-        if (aCreated == null && bCreated == null) return 0;
-        if (aCreated == null) return 1;
-        if (bCreated == null) return -1;
+      if (aCreated == null && bCreated == null) return 0;
+      if (aCreated == null) return 1;
+      if (bCreated == null) return -1;
 
-        // Use tryParse to handle malformed timestamps gracefully
-        final epoch = DateTime.fromMillisecondsSinceEpoch(0);
-        final aTime = DateTime.tryParse(aCreated) ?? epoch;
-        final bTime = DateTime.tryParse(bCreated) ?? epoch;
-        return aTime.compareTo(bTime);
-      });
+      // Use tryParse to handle malformed timestamps gracefully
+      final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+      final aTime = DateTime.tryParse(aCreated) ?? epoch;
+      final bTime = DateTime.tryParse(bCreated) ?? epoch;
+      return aTime.compareTo(bTime);
+    });
   }
 
   // ============================================================

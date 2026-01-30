@@ -34,8 +34,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authProvider.notifier).signIn(issuer);
       // Native: sign in complete - navigate to landing route
       if (mounted) {
-        final landingRoute =
-            ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
+        final landingRoute = ref
+            .read(shellConfigProvider)
+            .routes
+            .authenticatedLandingRoute;
         context.go(landingRoute);
       }
     } on AuthRedirectInitiated {
@@ -80,8 +82,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Text(
                   'Sign in to continue',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),

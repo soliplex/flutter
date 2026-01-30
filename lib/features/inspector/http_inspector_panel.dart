@@ -72,8 +72,9 @@ class HttpInspectorPanel extends ConsumerWidget {
     int requestCount,
     bool isCompact,
   ) {
-    final titleStyle =
-        isCompact ? theme.textTheme.titleSmall : theme.textTheme.titleMedium;
+    final titleStyle = isCompact
+        ? theme.textTheme.titleSmall
+        : theme.textTheme.titleMedium;
 
     return Padding(
       padding: EdgeInsets.symmetric(

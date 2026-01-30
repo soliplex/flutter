@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+// ignore: implementation_imports, depend_on_referenced_packages
+import 'package:riverpod/src/framework.dart' show Override;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
-    show Conversation, Failed, Running, ThreadInfo;
+    show Conversation, Failed, RagDocument, Running, ThreadInfo;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
@@ -83,6 +85,28 @@ class _TrackingSoliplexApi extends Mock implements MockSoliplexApi {
   _TrackingSoliplexApi({required this.threadToCreate});
 
   final domain.ThreadInfo threadToCreate;
+}
+
+/// Mock DocumentsNotifier that immediately returns the provided documents.
+class _MockDocumentsNotifier extends DocumentsNotifier {
+  _MockDocumentsNotifier(super.roomId, this._documents);
+
+  final List<domain.RagDocument> _documents;
+
+  @override
+  AsyncValue<List<domain.RagDocument>> build() {
+    return AsyncValue.data(_documents);
+  }
+}
+
+/// Creates a provider override for documents with immediate data.
+Override documentsProviderOverride(
+  String roomId,
+  List<domain.RagDocument> documents,
+) {
+  return documentsProvider(roomId).overrideWith(() {
+    return _MockDocumentsNotifier(roomId, documents);
+  });
 }
 
 /// Creates a test app with GoRouter for testing navigation.
@@ -575,13 +599,9 @@ void main() {
         expect(find.byType(ActionChip), findsNWidgets(2));
       });
 
-      testWidgets('hides suggestions when thread has messages', (
-        tester,
-      ) async {
+      testWidgets('hides suggestions when thread has messages', (tester) async {
         // Arrange
-        final mockRoom = TestData.createRoom(
-          suggestions: ['How can I help?'],
-        );
+        final mockRoom = TestData.createRoom(suggestions: ['How can I help?']);
         final mockThread = TestData.createThread();
         final messages = [TestData.createMessage(text: 'Hello')];
 
@@ -605,9 +625,7 @@ void main() {
 
       testWidgets('hides suggestions when streaming', (tester) async {
         // Arrange
-        final mockRoom = TestData.createRoom(
-          suggestions: ['How can I help?'],
-        );
+        final mockRoom = TestData.createRoom(suggestions: ['How can I help?']);
         final mockThread = TestData.createThread();
         const conversation = domain.Conversation(
           threadId: 'test-thread',
@@ -639,9 +657,7 @@ void main() {
       testWidgets('tapping suggestion sends message', (tester) async {
         // Arrange
         SharedPreferences.setMockInitialValues({});
-        final mockRoom = TestData.createRoom(
-          suggestions: ['How can I help?'],
-        );
+        final mockRoom = TestData.createRoom(suggestions: ['How can I help?']);
         final mockThread = TestData.createThread();
 
         late _TrackingActiveRunNotifier runNotifier;
@@ -703,8 +719,7 @@ void main() {
                 }),
                 activeRunNotifierOverride(const IdleState()),
                 allMessagesProvider.overrideWith((ref) async => []),
-                documentsProvider(mockRoom.id)
-                    .overrideWith((ref) async => [doc]),
+                documentsProviderOverride(mockRoom.id, [doc]),
               ],
             ),
             child: MaterialApp(
@@ -716,9 +731,11 @@ void main() {
         await tester.pumpAndSettle();
 
         // Pre-populate selection for the thread
-        container
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, mockThread.id, {doc});
+        container.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          mockRoom.id,
+          mockThread.id,
+          {doc},
+        );
 
         // Force rebuild to see the selection
         await tester.pump();
@@ -759,8 +776,9 @@ void main() {
               overrides: [
                 currentRoomIdProviderOverride(mockRoom.id),
                 currentRoomProvider.overrideWith((ref) => mockRoom),
-                threadsProvider(mockRoom.id)
-                    .overrideWith((ref) async => [thread1, thread2]),
+                threadsProvider(
+                  mockRoom.id,
+                ).overrideWith((ref) async => [thread1, thread2]),
                 threadSelectionProvider.overrideWith(() {
                   return selectionNotifier = _TrackingThreadSelectionNotifier(
                     initialSelection: ThreadSelected(thread1.id),
@@ -768,8 +786,7 @@ void main() {
                 }),
                 activeRunNotifierOverride(const IdleState()),
                 allMessagesProvider.overrideWith((ref) async => []),
-                documentsProvider(mockRoom.id)
-                    .overrideWith((ref) async => [doc1, doc2]),
+                documentsProviderOverride(mockRoom.id, [doc1, doc2]),
               ],
             ),
             child: MaterialApp(
@@ -781,12 +798,16 @@ void main() {
         await tester.pumpAndSettle();
 
         // Pre-populate selections for both threads
-        container
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, thread1.id, {doc1});
-        container
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, thread2.id, {doc2});
+        container.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          mockRoom.id,
+          thread1.id,
+          {doc1},
+        );
+        container.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          mockRoom.id,
+          thread2.id,
+          {doc2},
+        );
 
         // Force rebuild to see thread 1's selection
         await tester.pump();
@@ -833,8 +854,7 @@ void main() {
                 }),
                 activeRunNotifierOverride(const IdleState()),
                 allMessagesProvider.overrideWith((ref) async => []),
-                documentsProvider(mockRoom.id)
-                    .overrideWith((ref) async => [doc]),
+                documentsProviderOverride(mockRoom.id, [doc]),
               ],
             ),
             child: MaterialApp(
@@ -846,9 +866,11 @@ void main() {
         await tester.pumpAndSettle();
 
         // Pre-populate selection for existing thread (simulating previous work)
-        container
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, existingThread.id, {doc});
+        container.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          mockRoom.id,
+          existingThread.id,
+          {doc},
+        );
 
         // Rebuild
         await tester.pump();
@@ -873,8 +895,9 @@ void main() {
             container: ProviderContainer(
               overrides: [
                 currentRoomIdProvider.overrideWith(() {
-                  return roomIdNotifier =
-                      MockCurrentRoomIdNotifier(initialRoomId: room1.id);
+                  return roomIdNotifier = MockCurrentRoomIdNotifier(
+                    initialRoomId: room1.id,
+                  );
                 }),
                 currentRoomProvider.overrideWith((ref) {
                   final roomId = ref.watch(currentRoomIdProvider);
@@ -886,8 +909,8 @@ void main() {
                 threadSelectionProviderOverride(const NewThreadIntent()),
                 activeRunNotifierOverride(const IdleState()),
                 allMessagesProvider.overrideWith((ref) async => []),
-                documentsProvider(room1.id).overrideWith((ref) async => [doc]),
-                documentsProvider(room2.id).overrideWith((ref) async => []),
+                documentsProviderOverride(room1.id, [doc]),
+                documentsProviderOverride(room2.id, []),
               ],
             ),
             child: MaterialApp(

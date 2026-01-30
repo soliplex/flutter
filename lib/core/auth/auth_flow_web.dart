@@ -32,8 +32,7 @@ AuthFlow createAuthFlow({
   String? backendBaseUrl,
   String? redirectScheme,
   UrlNavigator? navigator,
-}) =>
-    WebAuthFlow(backendBaseUrl: backendBaseUrl, navigator: navigator);
+}) => WebAuthFlow(backendBaseUrl: backendBaseUrl, navigator: navigator);
 
 /// Web implementation of OIDC authentication using BFF pattern.
 ///
@@ -48,8 +47,8 @@ class WebAuthFlow implements AuthFlow {
   /// [navigator] is injected for testability. Defaults to [WindowUrlNavigator].
   @visibleForTesting
   WebAuthFlow({String? backendBaseUrl, UrlNavigator? navigator})
-      : _backendBaseUrl = backendBaseUrl,
-        _navigator = navigator ?? WindowUrlNavigator();
+    : _backendBaseUrl = backendBaseUrl,
+      _navigator = navigator ?? WindowUrlNavigator();
 
   final String? _backendBaseUrl;
   final UrlNavigator _navigator;

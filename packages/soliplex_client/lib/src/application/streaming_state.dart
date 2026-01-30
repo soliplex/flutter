@@ -79,6 +79,7 @@ class Streaming extends StreamingState {
   int get hashCode => Object.hash(runtimeType, messageId, user, text);
 
   @override
-  String toString() => 'Streaming('
+  String toString() =>
+      'Streaming('
       'messageId: $messageId, user: $user, text: ${text.length} chars)';
 }

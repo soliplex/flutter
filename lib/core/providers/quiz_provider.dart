@@ -20,12 +20,12 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 /// - [ApiException]: Other server errors
 final quizProvider =
     FutureProvider.family<Quiz, ({String roomId, String quizId})>((
-  ref,
-  params,
-) async {
-  final api = ref.watch(apiProvider);
-  return api.getQuiz(params.roomId, params.quizId);
-});
+      ref,
+      params,
+    ) async {
+      final api = ref.watch(apiProvider);
+      return api.getQuiz(params.roomId, params.quizId);
+    });
 
 // ============================================================
 // QuizInput - user's answer input (null-free)
@@ -274,8 +274,8 @@ class QuizInProgress extends QuizSession {
     required this.currentIndex,
     required Map<String, QuizAnswerResult> results,
     required this.questionState,
-  })  : assert(currentIndex >= 0, 'currentIndex must be non-negative'),
-        results = Map.unmodifiable(results);
+  }) : assert(currentIndex >= 0, 'currentIndex must be non-negative'),
+       results = Map.unmodifiable(results);
 
   /// The quiz being taken.
   final Quiz quiz;
@@ -307,13 +307,12 @@ class QuizInProgress extends QuizSession {
     int? currentIndex,
     Map<String, QuizAnswerResult>? results,
     QuestionState? questionState,
-  }) =>
-      QuizInProgress(
-        quiz: quiz,
-        currentIndex: currentIndex ?? this.currentIndex,
-        results: results ?? this.results,
-        questionState: questionState ?? this.questionState,
-      );
+  }) => QuizInProgress(
+    quiz: quiz,
+    currentIndex: currentIndex ?? this.currentIndex,
+    results: results ?? this.results,
+    questionState: questionState ?? this.questionState,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -326,11 +325,11 @@ class QuizInProgress extends QuizSession {
 
   @override
   int get hashCode => Object.hash(
-        quiz,
-        currentIndex,
-        Object.hashAll(results.entries),
-        questionState,
-      );
+    quiz,
+    currentIndex,
+    Object.hashAll(results.entries),
+    questionState,
+  );
 
   @override
   String toString() =>
@@ -587,8 +586,8 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
       QuizInProgress(:final quiz) => quiz,
       QuizCompleted(:final quiz) => quiz,
       QuizNotStarted() => throw StateError(
-          'Cannot retake quiz that was never started',
-        ),
+        'Cannot retake quiz that was never started',
+      ),
     };
 
     state = QuizInProgress(
@@ -616,5 +615,5 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
 /// ```
 final quizSessionProvider =
     NotifierProvider.family<QuizSessionNotifier, QuizSession, QuizSessionKey>(
-  QuizSessionNotifier.new,
-);
+      QuizSessionNotifier.new,
+    );

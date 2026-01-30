@@ -178,7 +178,8 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
         details['Timeout'] = unwrapped.isTimeout ? 'Yes' : 'No';
       }
       if (unwrapped is ApiException) {
-        details['Status Code'] = '${unwrapped.statusCode} '
+        details['Status Code'] =
+            '${unwrapped.statusCode} '
             '(${ErrorDisplay._httpStatusText(unwrapped.statusCode)})';
         if (unwrapped.body != null && unwrapped.body!.isNotEmpty) {
           details['Response Body'] = unwrapped.body!;

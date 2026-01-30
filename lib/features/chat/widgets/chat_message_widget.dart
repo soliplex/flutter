@@ -39,8 +39,9 @@ class ChatMessageWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         spacing: SoliplexSpacing.s2,
         children: [
           SelectionArea(
@@ -61,10 +62,8 @@ class ChatMessageWidget extends StatelessWidget {
                   if (isUser)
                     TextSelectionTheme(
                       data: TextSelectionThemeData(
-                        selectionColor:
-                            theme.colorScheme.onPrimaryContainer.withAlpha(
-                          (0.4 * 255).toInt(),
-                        ),
+                        selectionColor: theme.colorScheme.onPrimaryContainer
+                            .withAlpha((0.4 * 255).toInt()),
                         selectionHandleColor:
                             theme.colorScheme.onPrimaryContainer,
                       ),
@@ -118,15 +117,9 @@ class ChatMessageWidget extends StatelessWidget {
             ),
           ),
           if (isUser)
-            _buildUserMessageActionsRow(
-              context,
-              messageText: text,
-            )
+            _buildUserMessageActionsRow(context, messageText: text)
           else if (!isUser && !isStreaming)
-            _buildAgentMessageActionsRow(
-              context,
-              messageText: text,
-            ),
+            _buildAgentMessageActionsRow(context, messageText: text),
         ],
       ),
     );
@@ -210,9 +203,9 @@ class ChatMessageWidget extends StatelessWidget {
   Future<void> _copyToClipboard(BuildContext context, String text) async {
     void showSnackBar(String message) {
       if (!context.mounted) return;
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(message)));
     }
 
     try {
@@ -254,11 +247,7 @@ class ChatMessageWidget extends StatelessWidget {
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.tooltip,
-    required this.icon,
-    this.onTap,
-  });
+  const _ActionButton({required this.tooltip, required this.icon, this.onTap});
 
   final String tooltip;
   final IconData icon;

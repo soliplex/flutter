@@ -469,8 +469,8 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         return _handleRefreshSuccess(result, current);
 
       case TokenRefreshFailure(
-          reason: TokenRefreshFailureReason.noRefreshToken,
-        ):
+        reason: TokenRefreshFailureReason.noRefreshToken,
+      ):
         _log('No refresh token available');
         return false;
 

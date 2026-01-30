@@ -21,8 +21,9 @@ class IsGridViewNotifier extends Notifier<bool> {
   void toggle() => state = !state;
 }
 
-final isGridViewProvider =
-    NotifierProvider<IsGridViewNotifier, bool>(IsGridViewNotifier.new);
+final isGridViewProvider = NotifierProvider<IsGridViewNotifier, bool>(
+  IsGridViewNotifier.new,
+);
 
 class RoomSearchQueryNotifier extends Notifier<String> {
   @override
@@ -36,8 +37,8 @@ class RoomSearchQueryNotifier extends Notifier<String> {
 
 final roomSearchQueryProvider =
     NotifierProvider<RoomSearchQueryNotifier, String>(
-  RoomSearchQueryNotifier.new,
-);
+      RoomSearchQueryNotifier.new,
+    );
 
 final filteredRoomsProvider = Provider<AsyncValue<List<Room>>>((ref) {
   final roomsAsync = ref.watch(roomsProvider);
@@ -77,9 +78,7 @@ class RoomsScreen extends ConsumerWidget {
         return Align(
           alignment: AlignmentDirectional.topCenter,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxContentWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
             child: Column(
               spacing: SoliplexSpacing.s4,
               children: [
@@ -111,11 +110,11 @@ class RoomsScreen extends ConsumerWidget {
                         return GridView.builder(
                           gridDelegate:
                               const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 300,
-                            childAspectRatio: 3 / 2,
-                            crossAxisSpacing: SoliplexSpacing.s2,
-                            mainAxisSpacing: SoliplexSpacing.s2,
-                          ),
+                                maxCrossAxisExtent: 300,
+                                childAspectRatio: 3 / 2,
+                                crossAxisSpacing: SoliplexSpacing.s2,
+                                mainAxisSpacing: SoliplexSpacing.s2,
+                              ),
                           itemCount: rooms.length,
                           itemBuilder: (context, index) {
                             final room = rooms[index];

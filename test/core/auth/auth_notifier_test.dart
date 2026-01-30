@@ -528,10 +528,9 @@ void main() {
       when(() => mockStorage.loadPreAuthState()).thenAnswer((_) async => null);
       when(() => mockStorage.clearPreAuthState()).thenAnswer((_) async {});
 
-      final container = (withHttpClient
-          ? createContainerWithHttpClient()
-          : createContainer())
-        ..read(authProvider);
+      final container =
+          (withHttpClient ? createContainerWithHttpClient() : createContainer())
+            ..read(authProvider);
       await waitForAuthRestore(container);
 
       expect(container.read(authProvider), isA<Unauthenticated>());
@@ -552,7 +551,9 @@ void main() {
         () => mockStorage.loadPreAuthState(),
       ).thenAnswer((_) async => preAuthState);
 
-      await container.read(authProvider.notifier).completeWebAuth(
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
             expiresIn: 3600,
@@ -642,7 +643,9 @@ void main() {
         () => mockStorage.loadPreAuthState(),
       ).thenAnswer((_) async => preAuthState);
 
-      await container.read(authProvider.notifier).completeWebAuth(
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
           );
@@ -702,7 +705,9 @@ void main() {
         ),
       );
 
-      await container.read(authProvider.notifier).completeWebAuth(
+      await container
+          .read(authProvider.notifier)
+          .completeWebAuth(
             accessToken: 'web-access-token',
             refreshToken: 'web-refresh-token',
             expiresIn: 3600,

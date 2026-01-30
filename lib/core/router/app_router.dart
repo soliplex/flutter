@@ -188,8 +188,8 @@ final routerProvider = Provider<GoRouter>((ref) {
   final configuredInitial = routeConfig.initialRoute;
   final validatedInitial =
       isRouteVisible(configuredInitial, features, routeConfig)
-          ? configuredInitial
-          : getDefaultAuthenticatedRoute(features, routeConfig);
+      ? configuredInitial
+      : getDefaultAuthenticatedRoute(features, routeConfig);
   // Route to callback screen if we have OAuth tokens to process
   final initialPath = isOAuthCallback ? '/auth/callback' : validatedInitial;
 
@@ -215,10 +215,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!hasAccess && !isPublicRoute) {
         // Explicit sign-out → home (to choose different backend), if available.
         // Falls back to /login when home route is disabled (whitelabel config).
-        final isExplicitSignOut = authState is Unauthenticated &&
+        final isExplicitSignOut =
+            authState is Unauthenticated &&
             authState.reason == UnauthenticatedReason.explicitSignOut;
-        final target =
-            isExplicitSignOut && routeConfig.showHomeRoute ? '/' : '/login';
+        final target = isExplicitSignOut && routeConfig.showHomeRoute
+            ? '/'
+            : '/login';
         _log('redirecting to $target');
         return target;
       }
@@ -259,9 +261,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             return _staticPage(
               title: Text(shellConfig.appName),
               body: const HomeScreen(),
-              actions: [
-                if (features.enableSettings) const _SettingsButton(),
-              ],
+              actions: [if (features.enableSettings) const _SettingsButton()],
             );
           },
         ),
@@ -272,9 +272,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (context, state) => _staticPage(
             title: const Text('Rooms'),
             body: const RoomsScreen(),
-            actions: [
-              if (features.enableSettings) const _SettingsButton(),
-            ],
+            actions: [if (features.enableSettings) const _SettingsButton()],
           ),
         ),
       if (routeConfig.showRoomsRoute)
@@ -324,9 +322,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(
               path: 'backend-versions',
               name: 'backend-versions',
-              pageBuilder: (context, state) => const NoTransitionPage(
-                child: BackendVersionsScreen(),
-              ),
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: BackendVersionsScreen()),
             ),
           ],
         ),

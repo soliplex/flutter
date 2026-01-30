@@ -16,10 +16,10 @@ class Features {
 
   /// Creates feature flags with all features disabled.
   const Features.minimal()
-      : enableHttpInspector = false,
-        enableQuizzes = false,
-        enableSettings = false,
-        showVersionInfo = false;
+    : enableHttpInspector = false,
+      enableQuizzes = false,
+      enableSettings = false,
+      showVersionInfo = false;
 
   /// Whether to show the HTTP inspector button and drawer.
   ///
@@ -65,14 +65,15 @@ class Features {
 
   @override
   int get hashCode => Object.hash(
-        enableHttpInspector,
-        enableQuizzes,
-        enableSettings,
-        showVersionInfo,
-      );
+    enableHttpInspector,
+    enableQuizzes,
+    enableSettings,
+    showVersionInfo,
+  );
 
   @override
-  String toString() => 'Features('
+  String toString() =>
+      'Features('
       'enableHttpInspector: $enableHttpInspector, '
       'enableQuizzes: $enableQuizzes, '
       'enableSettings: $enableSettings, '

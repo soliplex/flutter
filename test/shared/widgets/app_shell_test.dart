@@ -307,56 +307,54 @@ void main() {
     });
 
     group('feature flags', () {
-      testWidgets(
-        'hides inspector button when enableHttpInspector is false',
-        (tester) async {
-          await tester.pumpWidget(
-            ProviderScope(
-              overrides: [
-                shellConfigProvider.overrideWithValue(
-                  const SoliplexConfig(
-                    features: Features(enableHttpInspector: false),
-                  ),
-                ),
-              ],
-              child: const MaterialApp(
-                home: AppShell(
-                  config: ShellConfig(),
-                  body: Center(child: Text('Content')),
+      testWidgets('hides inspector button when enableHttpInspector is false', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(
+                const SoliplexConfig(
+                  features: Features(enableHttpInspector: false),
                 ),
               ),
-            ),
-          );
-
-          expect(find.byIcon(Icons.bug_report), findsNothing);
-        },
-      );
-
-      testWidgets(
-        'hides endDrawer when enableHttpInspector is false',
-        (tester) async {
-          await tester.pumpWidget(
-            ProviderScope(
-              overrides: [
-                shellConfigProvider.overrideWithValue(
-                  const SoliplexConfig(
-                    features: Features(enableHttpInspector: false),
-                  ),
-                ),
-              ],
-              child: const MaterialApp(
-                home: AppShell(
-                  config: ShellConfig(),
-                  body: Center(child: Text('Content')),
-                ),
+            ],
+            child: const MaterialApp(
+              home: AppShell(
+                config: ShellConfig(),
+                body: Center(child: Text('Content')),
               ),
             ),
-          );
+          ),
+        );
 
-          final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-          expect(scaffold.endDrawer, isNull);
-        },
-      );
+        expect(find.byIcon(Icons.bug_report), findsNothing);
+      });
+
+      testWidgets('hides endDrawer when enableHttpInspector is false', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(
+                const SoliplexConfig(
+                  features: Features(enableHttpInspector: false),
+                ),
+              ),
+            ],
+            child: const MaterialApp(
+              home: AppShell(
+                config: ShellConfig(),
+                body: Center(child: Text('Content')),
+              ),
+            ),
+          ),
+        );
+
+        final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+        expect(scaffold.endDrawer, isNull);
+      });
     });
 
     group('custom end drawer', () {
