@@ -1,4 +1,6 @@
 import 'package:soliplex_client/src/domain/chat_message.dart';
+import 'package:soliplex_client/src/domain/message_state.dart';
+import 'package:soliplex_client/src/domain/source_reference.dart';
 import 'package:soliplex_client/src/domain/thread_history.dart';
 import 'package:test/test.dart';
 
@@ -53,6 +55,56 @@ void main() {
       aguiState['newKey'] = 'newValue';
 
       expect(history.aguiState.containsKey('newKey'), isFalse);
+    });
+
+    test('messageStates defaults to empty map', () {
+      final history = ThreadHistory(messages: const []);
+
+      expect(history.messageStates, isEmpty);
+    });
+
+    test('constructs with messageStates', () {
+      const refs = [
+        SourceReference(
+          documentId: 'doc-1',
+          documentUri: 'https://example.com/doc.pdf',
+          content: 'Content',
+          chunkId: 'chunk-1',
+        ),
+      ];
+      final state = MessageState(
+        userMessageId: 'user-123',
+        sourceReferences: refs,
+      );
+
+      final history = ThreadHistory(
+        messages: const [],
+        messageStates: {'user-123': state},
+      );
+
+      expect(history.messageStates, hasLength(1));
+      expect(history.messageStates['user-123'], state);
+    });
+
+    test('is immutable - messageStates cannot be modified externally', () {
+      final messageStates = <String, MessageState>{
+        'user-1': MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: const [],
+        ),
+      };
+      final history = ThreadHistory(
+        messages: const [],
+        messageStates: messageStates,
+      );
+
+      // Modifying the original map should not affect the history
+      messageStates['user-2'] = MessageState(
+        userMessageId: 'user-2',
+        sourceReferences: const [],
+      );
+
+      expect(history.messageStates.containsKey('user-2'), isFalse);
     });
   });
 }
