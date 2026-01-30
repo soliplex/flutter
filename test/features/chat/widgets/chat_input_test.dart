@@ -541,7 +541,7 @@ void main() {
 
         // Assert
         expect(
-          find.widgetWithIcon(IconButton, Icons.attach_file),
+          find.widgetWithIcon(IconButton, Icons.filter_alt),
           findsOneWidget,
         );
       });
@@ -567,7 +567,7 @@ void main() {
 
         // Assert
         expect(
-          find.widgetWithIcon(IconButton, Icons.attach_file),
+          find.widgetWithIcon(IconButton, Icons.filter_alt),
           findsNothing,
         );
       });
@@ -673,7 +673,7 @@ void main() {
         );
 
         // Tap the attach button
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Assert - dialog should be open with checkboxes
@@ -720,7 +720,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Tap on the first document checkbox
@@ -765,7 +765,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Assert
@@ -808,7 +808,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Select first and third documents
@@ -858,7 +858,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Checkbox should start unchecked
@@ -953,7 +953,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Assert - first doc should be pre-selected
@@ -1126,7 +1126,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Assert
@@ -1165,7 +1165,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // All documents should be visible
@@ -1218,7 +1218,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Search with different case
@@ -1267,7 +1267,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Search for something that doesn't exist
@@ -1312,7 +1312,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Assert - search field in dialog should have autofocus enabled
@@ -1354,7 +1354,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Find the search field inside the dialog
@@ -1414,7 +1414,7 @@ void main() {
         );
 
         // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.attach_file));
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
         // Find the search field inside the dialog
