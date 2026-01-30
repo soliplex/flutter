@@ -364,6 +364,8 @@ void main() {
         runId: 'test-run-id',
         cancelToken: cancelToken,
         subscription: controller.stream.listen((_) {}),
+        userMessageId: 'user_123',
+        previousAguiState: const <String, dynamic>{},
       );
 
       expect(state, isA<NotifierInternalState>());
