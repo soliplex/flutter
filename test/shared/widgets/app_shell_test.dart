@@ -213,7 +213,7 @@ void main() {
         await tester.tap(find.byIcon(Icons.bug_report));
         await tester.pumpAndSettle();
 
-        expect(find.text('HTTP Inspector'), findsOneWidget);
+        expect(find.text('Requests (0)'), findsOneWidget);
       });
 
       testWidgets('endDrawer has Semantics label', (tester) async {

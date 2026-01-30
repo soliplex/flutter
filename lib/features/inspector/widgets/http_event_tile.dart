@@ -9,17 +9,25 @@ import 'package:soliplex_frontend/shared/utils/format_utils.dart';
 /// Groups related events (request + response/error) into a single tile
 /// showing method, path, timestamp, and result status.
 class HttpEventTile extends StatelessWidget {
-  const HttpEventTile({required this.group, this.dense = false, super.key});
+  const HttpEventTile({
+    required this.group,
+    this.dense = false,
+    this.onTap,
+    super.key,
+  });
 
   /// The grouped events for a single HTTP request.
   final HttpEventGroup group;
   final bool dense;
 
+  /// Callback when the tile is tapped.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Semantics(
+    final content = Semantics(
       label: group.semanticLabel,
       child: Padding(
         padding: EdgeInsets.symmetric(
@@ -37,6 +45,10 @@ class HttpEventTile extends StatelessWidget {
         ),
       ),
     );
+
+    if (onTap == null) return content;
+
+    return InkWell(onTap: onTap, child: content);
   }
 
   Widget _buildRequestLine(ThemeData theme) {
