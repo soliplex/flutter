@@ -228,94 +228,96 @@ class _SourceReferenceRow extends ConsumerWidget {
                 left: 32, // 24 badge + 8 spacing
                 top: SoliplexSpacing.s2,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Headings breadcrumb
-                  if (sourceReference.headings.isNotEmpty) ...[
+              child: SelectionArea(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Headings breadcrumb
+                    if (sourceReference.headings.isNotEmpty) ...[
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            Icons.subdirectory_arrow_right,
+                            size: 14,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: SoliplexSpacing.s1),
+                          Expanded(
+                            child: Text(
+                              sourceReference.headings.join(' > '),
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: SoliplexSpacing.s2),
+                    ],
+                    // Content preview in styled container
+                    if (sourceReference.content.isNotEmpty) ...[
+                      Container(
+                        padding: const EdgeInsets.all(SoliplexSpacing.s3),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(
+                            soliplexTheme.radii.sm,
+                          ),
+                        ),
+                        constraints: const BoxConstraints(maxHeight: 150),
+                        child: SingleChildScrollView(
+                          child: Text(
+                            sourceReference.content,
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: SoliplexSpacing.s2),
+                    ],
+                    // File path and page numbers
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(
-                          Icons.subdirectory_arrow_right,
+                          sourceReference.isPdf
+                              ? Icons.picture_as_pdf_outlined
+                              : Icons.insert_drive_file_outlined,
                           size: 14,
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
                         const SizedBox(width: SoliplexSpacing.s1),
                         Expanded(
-                          child: Text(
-                            sourceReference.headings.join(' > '),
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                              fontStyle: FontStyle.italic,
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: sourceReference.documentUri,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                    fontFamily: 'monospace',
+                                    fontSize: 11,
+                                  ),
+                                ),
+                                if (sourceReference.formattedPageNumbers
+                                    case final pageNums?) ...[
+                                  TextSpan(
+                                    text: '  •  $pageNums',
+                                    style: theme.textTheme.labelSmall?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: SoliplexSpacing.s2),
                   ],
-                  // Content preview in styled container
-                  if (sourceReference.content.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.all(SoliplexSpacing.s3),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(
-                          soliplexTheme.radii.sm,
-                        ),
-                      ),
-                      constraints: const BoxConstraints(maxHeight: 150),
-                      child: SingleChildScrollView(
-                        child: Text(
-                          sourceReference.content,
-                          style: theme.textTheme.bodySmall,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: SoliplexSpacing.s2),
-                  ],
-                  // File path and page numbers
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        sourceReference.isPdf
-                            ? Icons.picture_as_pdf_outlined
-                            : Icons.insert_drive_file_outlined,
-                        size: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      const SizedBox(width: SoliplexSpacing.s1),
-                      Expanded(
-                        child: Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: sourceReference.documentUri,
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                  fontFamily: 'monospace',
-                                  fontSize: 11,
-                                ),
-                              ),
-                              if (sourceReference.formattedPageNumbers
-                                  case final pageNums?) ...[
-                                TextSpan(
-                                  text: '  •  $pageNums',
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ],
