@@ -187,10 +187,26 @@ class _SourceReferenceRow extends ConsumerWidget {
                 ),
                 const SizedBox(width: SoliplexSpacing.s2),
                 Expanded(
-                  child: Text(
-                    sourceReference.displayTitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: sourceReference.displayTitle,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (sourceReference.formattedPageNumbers
+                            case final pageNums?) ...[
+                          TextSpan(
+                            text: '  •  $pageNums',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ),
