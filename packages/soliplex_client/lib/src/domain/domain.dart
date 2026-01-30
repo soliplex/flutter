@@ -1,4 +1,6 @@
-export 'agui_features/agui_features.dart';
+// TODO(smell): Delete this schema export after AG-UI state management.
+// Frontend needs Citation; introduce domain type with schema conversion.
+export '../schema/agui_features/haiku_rag_chat.dart';
 export 'auth_provider_config.dart';
 export 'backend_version_info.dart';
 export 'chat_message.dart';

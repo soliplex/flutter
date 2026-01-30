@@ -1,10 +1,10 @@
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
-import 'package:soliplex_client/src/domain/agui_features/ask_history.dart'
-    as ask_history;
-import 'package:soliplex_client/src/domain/agui_features/haiku_rag_chat.dart';
 import 'package:soliplex_client/src/domain/chat_message.dart';
+import 'package:soliplex_client/src/schema/agui_features/ask_history.dart'
+    as ask_history;
+import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
 
 /// Status of a conversation.
 ///

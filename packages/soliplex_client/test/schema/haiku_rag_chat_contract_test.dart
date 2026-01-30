@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 
-import 'package:soliplex_client/src/domain/agui_features/haiku_rag_chat.dart';
+import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
 import 'package:test/test.dart';
 
 /// Contract tests for haiku_rag_chat.dart generated types.
