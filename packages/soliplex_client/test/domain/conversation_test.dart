@@ -1,45 +1,6 @@
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:test/test.dart';
 
-/// Creates test ask_history aguiState with given questions.
-Map<String, dynamic> createAskHistoryState(
-  List<Map<String, dynamic>> questions,
-) {
-  return {
-    'ask_history': {
-      'questions': questions,
-    },
-  };
-}
-
-/// Creates a test question entry for ask_history.
-Map<String, dynamic> createQuestion({
-  required String question,
-  required String response,
-  List<Map<String, dynamic>> citations = const [],
-}) {
-  return {
-    'question': question,
-    'response': response,
-    'citations': citations,
-  };
-}
-
-/// Creates a test citation.
-Map<String, dynamic> createCitation({
-  required String chunkId,
-  String content = 'test content',
-  String documentId = 'doc-1',
-  String documentUri = 'https://example.com',
-}) {
-  return {
-    'chunk_id': chunkId,
-    'content': content,
-    'document_id': documentId,
-    'document_uri': documentUri,
-  };
-}
-
 void main() {
   group('Conversation', () {
     late Conversation conversation;
@@ -236,6 +197,76 @@ void main() {
         final conv1 = Conversation.empty(threadId: 'thread-1');
         final conv2 = conv1.withStatus(const Running(runId: 'run-1'));
         expect(conv1, isNot(equals(conv2)));
+      });
+
+      test('conversations with different messageStates are not equal', () {
+        final conv1 = Conversation.empty(threadId: 'thread-1');
+        final conv2 = conv1.withMessageState(
+          'user-1',
+          MessageState(
+            userMessageId: 'user-1',
+            sourceReferences: const [],
+          ),
+        );
+        expect(conv1, isNot(equals(conv2)));
+      });
+    });
+
+    group('messageStates', () {
+      test('defaults to empty map', () {
+        expect(conversation.messageStates, isEmpty);
+      });
+
+      test('withMessageState adds new entry', () {
+        const refs = [
+          SourceReference(
+            documentId: 'doc-1',
+            documentUri: 'https://example.com/doc.pdf',
+            content: 'Content',
+            chunkId: 'chunk-1',
+          ),
+        ];
+        final state = MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: refs,
+        );
+
+        final updated = conversation.withMessageState('user-1', state);
+
+        expect(updated.messageStates, hasLength(1));
+        expect(updated.messageStates['user-1'], state);
+      });
+
+      test('withMessageState preserves existing entries', () {
+        final state1 = MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: const [],
+        );
+        final state2 = MessageState(
+          userMessageId: 'user-2',
+          sourceReferences: const [],
+        );
+
+        final updated = conversation
+            .withMessageState('user-1', state1)
+            .withMessageState('user-2', state2);
+
+        expect(updated.messageStates, hasLength(2));
+        expect(updated.messageStates['user-1'], state1);
+        expect(updated.messageStates['user-2'], state2);
+      });
+
+      test('copyWith messageStates', () {
+        final state = MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: const [],
+        );
+
+        final updated = conversation.copyWith(
+          messageStates: {'user-1': state},
+        );
+
+        expect(updated.messageStates, hasLength(1));
       });
     });
   });
@@ -466,306 +497,6 @@ void main() {
     test('identical conversations return true for equality', () {
       final conv = Conversation.empty(threadId: 'thread-1');
       expect(conv == conv, isTrue);
-    });
-  });
-
-  group('citationsForMessage with haiku.rag.chat', () {
-    Map<String, dynamic> createHaikuRagChatState({
-      List<Map<String, dynamic>> qaHistory = const [],
-      List<Map<String, dynamic>> flatCitations = const [],
-    }) {
-      return {
-        'haiku.rag.chat': {
-          'qa_history': qaHistory,
-          'citations': flatCitations,
-          'citation_registry': <String, int>{},
-        },
-      };
-    }
-
-    Map<String, dynamic> createQaResponse({
-      required String question,
-      required String answer,
-      List<Map<String, dynamic>> citations = const [],
-    }) {
-      return {
-        'question': question,
-        'answer': answer,
-        'citations': citations,
-      };
-    }
-
-    test('returns citations for first assistant message from qaHistory', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-        ],
-        aguiState: createHaikuRagChatState(
-          qaHistory: [
-            createQaResponse(
-              question: 'Q1',
-              answer: 'A1',
-              citations: [createCitation(chunkId: 'c1')],
-            ),
-          ],
-        ),
-      );
-
-      final citations = conversation.citationsForMessage('asst-1');
-
-      expect(citations, hasLength(1));
-      expect(citations.first.chunkId, 'c1');
-    });
-
-    test('returns citations for multiple messages from qaHistory', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-          TextMessage.create(id: 'user-2', user: ChatUser.user, text: 'Q2'),
-          TextMessage.create(
-            id: 'asst-2',
-            user: ChatUser.assistant,
-            text: 'A2',
-          ),
-        ],
-        aguiState: createHaikuRagChatState(
-          qaHistory: [
-            createQaResponse(
-              question: 'Q1',
-              answer: 'A1',
-              citations: [createCitation(chunkId: 'c1')],
-            ),
-            createQaResponse(
-              question: 'Q2',
-              answer: 'A2',
-              citations: [createCitation(chunkId: 'c2')],
-            ),
-          ],
-        ),
-      );
-
-      final citations1 = conversation.citationsForMessage('asst-1');
-      final citations2 = conversation.citationsForMessage('asst-2');
-
-      expect(citations1, hasLength(1));
-      expect(citations1.first.chunkId, 'c1');
-      expect(citations2, hasLength(1));
-      expect(citations2.first.chunkId, 'c2');
-    });
-
-    test('returns empty for user messages', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-        ],
-        aguiState: createHaikuRagChatState(
-          qaHistory: [
-            createQaResponse(
-              question: 'Q1',
-              answer: 'A1',
-              citations: [createCitation(chunkId: 'c1')],
-            ),
-          ],
-        ),
-      );
-
-      final citations = conversation.citationsForMessage('user-1');
-
-      expect(citations, isEmpty);
-    });
-  });
-
-  group('citationsForMessage with ask_history', () {
-    test('returns citations for first assistant message', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-        ],
-        aguiState: createAskHistoryState([
-          createQuestion(
-            question: 'Q1',
-            response: 'A1',
-            citations: [createCitation(chunkId: 'c1')],
-          ),
-        ]),
-      );
-
-      final citations = conversation.citationsForMessage('asst-1');
-
-      expect(citations, hasLength(1));
-      expect(citations.first.chunkId, 'c1');
-    });
-
-    test('returns citations for multiple assistant messages', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-          TextMessage.create(id: 'user-2', user: ChatUser.user, text: 'Q2'),
-          TextMessage.create(
-            id: 'asst-2',
-            user: ChatUser.assistant,
-            text: 'A2',
-          ),
-        ],
-        aguiState: createAskHistoryState([
-          createQuestion(
-            question: 'Q1',
-            response: 'A1',
-            citations: [createCitation(chunkId: 'c1')],
-          ),
-          createQuestion(
-            question: 'Q2',
-            response: 'A2',
-            citations: [createCitation(chunkId: 'c2')],
-          ),
-        ]),
-      );
-
-      final citations1 = conversation.citationsForMessage('asst-1');
-      final citations2 = conversation.citationsForMessage('asst-2');
-
-      expect(citations1, hasLength(1));
-      expect(citations1.first.chunkId, 'c1');
-      expect(citations2, hasLength(1));
-      expect(citations2.first.chunkId, 'c2');
-    });
-
-    test('returns citations for last message when state arrives late', () {
-      // Simulates timing issue: message exists but question entry not yet added
-      // This happens when TextMessageEndEvent fires before StateDeltaEvent
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-          TextMessage.create(id: 'user-2', user: ChatUser.user, text: 'Q2'),
-          TextMessage.create(
-            id: 'asst-2',
-            user: ChatUser.assistant,
-            text: 'A2',
-          ), // Last message added
-        ],
-        aguiState: createAskHistoryState([
-          createQuestion(
-            question: 'Q1',
-            response: 'A1',
-            citations: [createCitation(chunkId: 'c1')],
-          ),
-          // Q2's entry not added yet - simulates late STATE_DELTA
-        ]),
-      );
-
-      // First message should still work
-      final citations1 = conversation.citationsForMessage('asst-1');
-      expect(citations1, hasLength(1));
-
-      // Last message: currently returns [] due to timing, but should return
-      // the most recent available citations for this streaming message
-      final citations2 = conversation.citationsForMessage('asst-2');
-      // BUG: returns [] because messageIndex (1) >= questions.length (1)
-      // Expected: return [] gracefully (no citations available yet)
-      // OR: return last available citations if we want optimistic behavior
-      expect(citations2, isEmpty); // Current behavior - document it
-    });
-
-    test('returns empty for user messages', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(id: 'user-1', user: ChatUser.user, text: 'Q1'),
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-        ],
-        aguiState: createAskHistoryState([
-          createQuestion(
-            question: 'Q1',
-            response: 'A1',
-            citations: [createCitation(chunkId: 'c1')],
-          ),
-        ]),
-      );
-
-      final citations = conversation.citationsForMessage('user-1');
-
-      expect(citations, isEmpty);
-    });
-
-    test('returns empty when no ask_history state', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-        ],
-      );
-
-      final citations = conversation.citationsForMessage('asst-1');
-
-      expect(citations, isEmpty);
-    });
-
-    test('returns empty for unknown message id', () {
-      final conversation = Conversation(
-        threadId: 'thread-1',
-        messages: [
-          TextMessage.create(
-            id: 'asst-1',
-            user: ChatUser.assistant,
-            text: 'A1',
-          ),
-        ],
-        aguiState: createAskHistoryState([
-          createQuestion(
-            question: 'Q1',
-            response: 'A1',
-            citations: [createCitation(chunkId: 'c1')],
-          ),
-        ]),
-      );
-
-      final citations = conversation.citationsForMessage('unknown-id');
-
-      expect(citations, isEmpty);
     });
   });
 }

@@ -1,10 +1,12 @@
 import 'package:ag_ui/ag_ui.dart' hide CancelToken;
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/application/agui_event_processor.dart';
+import 'package:soliplex_client/src/application/citation_extractor.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/backend_version_info.dart';
 import 'package:soliplex_client/src/domain/chunk_visualization.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
+import 'package:soliplex_client/src/domain/message_state.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
@@ -472,13 +474,16 @@ class SoliplexApi {
 
     // 4. Collect events in run order (results may arrive out of order)
     final runIdToEvents = {for (final r in results) r.runId: r.events};
-    final allEvents = <Map<String, dynamic>>[];
+    final eventsPerRun = <List<Map<String, dynamic>>>[];
     for (final runId in completedRunIds) {
-      allEvents.addAll(runIdToEvents[runId] ?? []);
+      final runEvents = runIdToEvents[runId] ?? [];
+      if (runEvents.isNotEmpty) {
+        eventsPerRun.add(runEvents);
+      }
     }
 
     // 5. Replay events to reconstruct history (messages + AG-UI state)
-    return _replayEventsToHistory(allEvents, threadId);
+    return _replayEventsToHistory(eventsPerRun, threadId);
   }
 
   /// Fetches events for a single run, using cache for completed runs.
@@ -557,28 +562,64 @@ class SoliplexApi {
   }
 
   /// Replays events to reconstruct thread history (messages + AG-UI state).
+  ///
+  /// Processes events per-run to properly correlate citations with user
+  /// messages. Each run's citations are keyed by the user message ID that
+  /// initiated that run.
   ThreadHistory _replayEventsToHistory(
-    List<Map<String, dynamic>> events,
+    List<List<Map<String, dynamic>>> eventsPerRun,
     String threadId,
   ) {
-    if (events.isEmpty) return ThreadHistory(messages: const []);
+    if (eventsPerRun.isEmpty) return ThreadHistory(messages: const []);
 
     var conversation = Conversation.empty(threadId: threadId);
     var streaming = const AwaitingText() as StreamingState;
     const decoder = EventDecoder();
+    final extractor = CitationExtractor();
+    final messageStates = <String, MessageState>{};
     var skippedEventCount = 0;
 
-    for (final eventJson in events) {
-      try {
-        final event = decoder.decodeJson(eventJson);
-        final result = processEvent(conversation, streaming, event);
-        conversation = result.conversation;
-        streaming = result.streaming;
-      } on DecodeError {
-        // Skip malformed events - don't fail entire history for one bad
-        // event. This can happen if the backend stores events from a newer
-        // protocol version or if data corruption occurs.
-        skippedEventCount++;
+    for (final runEvents in eventsPerRun) {
+      // Capture AG-UI state before processing this run
+      final previousAguiState = conversation.aguiState;
+
+      // Find user message ID from LAST TEXT_MESSAGE_START with role=user.
+      // The run_input.messages contains ALL conversation messages, but the
+      // LAST user message is the one that initiated THIS run.
+      String? userMessageId;
+      for (final eventJson in runEvents) {
+        final type = eventJson['type'] as String?;
+        if (type == 'TEXT_MESSAGE_START') {
+          final role = eventJson['role'] as String?;
+          if (role == 'user') {
+            userMessageId = eventJson['messageId'] as String?;
+            // Don't break - keep iterating to find the last one
+          }
+        }
+      }
+
+      // Process all events in this run
+      for (final eventJson in runEvents) {
+        try {
+          final event = decoder.decodeJson(eventJson);
+          final result = processEvent(conversation, streaming, event);
+          conversation = result.conversation;
+          streaming = result.streaming;
+        } on DecodeError {
+          skippedEventCount++;
+        }
+      }
+
+      // Extract new citations by comparing state before/after this run
+      if (userMessageId != null) {
+        final sourceReferences = extractor.extractNew(
+          previousAguiState,
+          conversation.aguiState,
+        );
+        messageStates[userMessageId] = MessageState(
+          userMessageId: userMessageId,
+          sourceReferences: sourceReferences,
+        );
       }
     }
 
@@ -592,6 +633,7 @@ class SoliplexApi {
     return ThreadHistory(
       messages: conversation.messages,
       aguiState: conversation.aguiState,
+      messageStates: messageStates,
     );
   }
 

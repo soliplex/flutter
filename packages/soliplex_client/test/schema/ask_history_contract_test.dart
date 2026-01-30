@@ -2,8 +2,8 @@
 
 import 'dart:convert';
 
-import 'package:soliplex_client/src/domain/agui_features/ask_history.dart';
-import 'package:soliplex_client/src/domain/agui_features/haiku_rag_chat.dart'
+import 'package:soliplex_client/src/schema/agui_features/ask_history.dart';
+import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart'
     as haiku_rag_chat;
 import 'package:test/test.dart';
 

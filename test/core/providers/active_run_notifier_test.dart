@@ -364,6 +364,8 @@ void main() {
         runId: 'test-run-id',
         cancelToken: cancelToken,
         subscription: controller.stream.listen((_) {}),
+        userMessageId: 'user_123',
+        previousAguiState: const <String, dynamic>{},
       );
 
       expect(state, isA<NotifierInternalState>());
@@ -1608,6 +1610,82 @@ void main() {
       expect((state.messages[0] as TextMessage).text, 'First message');
       expect((state.messages[1] as TextMessage).text, 'First response');
       expect((state.messages[2] as TextMessage).text, 'Second message');
+    });
+
+    test('sends accumulated AG-UI state merged with initial state', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Pre-populate cache with AG-UI state from previous runs
+      final cachedAguiState = <String, dynamic>{
+        'ask_history': {
+          'questions': [
+            {
+              'question': 'Previous question',
+              'response': 'Previous answer',
+              'citations': <Map<String, dynamic>>[],
+            },
+          ],
+        },
+        'haiku.rag.chat': {
+          'qa_history': [
+            {'question': 'Q1', 'answer': 'A1'},
+          ],
+        },
+      };
+
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'thread-1',
+            ThreadHistory(messages: const [], aguiState: cachedAguiState),
+          );
+
+      // Start a run with initial state (filter_documents)
+      final initialState = <String, dynamic>{
+        'filter_documents': {
+          'document_ids': ['doc-1', 'doc-2'],
+        },
+      };
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'New question',
+            initialState: initialState,
+          );
+
+      // Capture the input sent to the backend
+      final captured = verify(
+        () => mockAgUiClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured.single as SimpleRunAgentInput;
+
+      // Verify state contains BOTH cached AG-UI state AND initial state
+      final sentState = captured.state as Map<String, dynamic>;
+
+      // Cached state should be preserved
+      expect(sentState['ask_history'], isNotNull);
+      expect(
+        (sentState['ask_history'] as Map)['questions'],
+        hasLength(1),
+      );
+      expect(sentState['haiku.rag.chat'], isNotNull);
+
+      // Initial state (filter_documents) should be included
+      expect(sentState['filter_documents'], isNotNull);
+      expect(
+        (sentState['filter_documents'] as Map)['document_ids'],
+        ['doc-1', 'doc-2'],
+      );
     });
   });
 

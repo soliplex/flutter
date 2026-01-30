@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 
-import 'package:soliplex_client/src/domain/agui_features/haiku_rag_chat.dart';
+import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
 import 'package:test/test.dart';
 
 /// Contract tests for haiku_rag_chat.dart generated types.
@@ -15,11 +15,11 @@ import 'package:test/test.dart';
 /// They are tests of the SHAPE of the API we consume.
 void main() {
   group('HaikuRagChat contract', () {
-    group('fields required by Conversation.citationsForMessage()', () {
+    group('fields required by CitationExtractor', () {
       test('citations field exists and returns List<Citation>?', () {
-        // Conversation.citationsForMessage() accesses:
+        // CitationExtractor accesses:
         //   final haikuRagChat = HaikuRagChat.fromJson(ragChat);
-        //   final citations = haikuRagChat.citations ?? [];
+        //   final qaHistory = haikuRagChat.qaHistory ?? [];
         final ragChat = HaikuRagChat();
 
         // This access will fail to compile if the field is renamed or removed

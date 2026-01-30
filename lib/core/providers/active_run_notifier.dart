@@ -52,6 +52,8 @@ class RunningInternalState extends NotifierInternalState {
     required this.runId,
     required this.cancelToken,
     required this.subscription,
+    required this.userMessageId,
+    required this.previousAguiState,
   });
 
   /// The ID of the active run.
@@ -62,6 +64,14 @@ class RunningInternalState extends NotifierInternalState {
 
   /// Subscription to the event stream.
   final StreamSubscription<BaseEvent> subscription;
+
+  /// The ID of the user message that triggered this run.
+  /// Used to correlate citations at run completion.
+  final String userMessageId;
+
+  /// AG-UI state snapshot from before the run started.
+  /// Used to detect new citations via length-based comparison.
+  final Map<String, dynamic> previousAguiState;
 
   /// Disposes of all resources.
   Future<void> dispose() async {
@@ -207,12 +217,20 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Convert all messages to AG-UI format for backend
       final aguiMessages = convertToAgui(allMessages);
 
+      // Merge accumulated AG-UI state with any client-provided initial state.
+      // Order: cached state first (backend-generated), then initial state
+      // (client-generated like filter_documents) so client can override.
+      final mergedState = <String, dynamic>{
+        ...cachedAguiState,
+        ...?initialState,
+      };
+
       // Create the input for the run
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
-        state: initialState,
+        state: mergedState,
       );
 
       // Start streaming
@@ -262,11 +280,13 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         cancelOnError: false,
       );
 
-      // Store running state
+      // Store running state with correlation data
       _internalState = RunningInternalState(
         runId: runId,
         cancelToken: cancelToken,
         subscription: subscription,
+        userMessageId: userMessageObj.id,
+        previousAguiState: cachedAguiState,
       );
     } on CancellationError catch (e, stackTrace) {
       // User cancelled - clean up resources
@@ -380,27 +400,30 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     RunningState previousState,
     EventProcessingResult result,
   ) {
-    final newState = switch (result.conversation.status) {
+    // On completion, correlate citations with the user message
+    final conversation = _correlateMessageStateOnCompletion(result);
+
+    final newState = switch (conversation.status) {
       domain.Completed() => CompletedState(
-          conversation: result.conversation,
+          conversation: conversation,
           streaming: result.streaming,
           result: const Success(),
         ),
       domain.Failed(:final error) => () {
           _log('Run completed with failure: $error');
           return CompletedState(
-            conversation: result.conversation,
+            conversation: conversation,
             streaming: result.streaming,
             result: FailedResult(errorMessage: error),
           );
         }(),
       domain.Cancelled(:final reason) => CompletedState(
-          conversation: result.conversation,
+          conversation: conversation,
           streaming: result.streaming,
           result: CancelledResult(reason: reason),
         ),
       domain.Running() => previousState.copyWith(
-          conversation: result.conversation,
+          conversation: conversation,
           streaming: result.streaming,
         ),
       domain.Idle() => throw StateError(
@@ -421,13 +444,60 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     return newState;
   }
 
+  /// Correlates AG-UI state changes with the user message on run completion.
+  ///
+  /// Uses [CitationExtractor] to find new citations by comparing the
+  /// previous AG-UI state (captured at run start) with the current state.
+  /// Creates a [MessageState] and adds it to the conversation.
+  domain.Conversation _correlateMessageStateOnCompletion(
+    EventProcessingResult result,
+  ) {
+    final conversation = result.conversation;
+
+    // Only correlate on completion (Completed, Failed, Cancelled)
+    if (conversation.status is domain.Running) {
+      return conversation;
+    }
+
+    // Need internal state for correlation data
+    if (_internalState is! RunningInternalState) {
+      return conversation;
+    }
+
+    final runningState = _internalState as RunningInternalState;
+    final userMessageId = runningState.userMessageId;
+    final previousAguiState = runningState.previousAguiState;
+
+    // Extract new citations using the schema firewall
+    final extractor = CitationExtractor();
+    final sourceReferences = extractor.extractNew(
+      previousAguiState,
+      conversation.aguiState,
+    );
+
+    // Create MessageState and add to conversation
+    final messageState = MessageState(
+      userMessageId: userMessageId,
+      sourceReferences: sourceReferences,
+    );
+
+    return conversation.withMessageState(userMessageId, messageState);
+  }
+
   /// Updates the history cache when a run completes.
   void _updateCacheOnCompletion(CompletedState completedState) {
     final threadId = completedState.threadId;
     if (threadId.isEmpty) return;
+
+    // Merge existing messageStates from cache with new ones from this run
+    final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+    final existingMessageStates = cachedHistory?.messageStates ?? const {};
+    final newMessageStates = completedState.conversation.messageStates;
+
     final history = ThreadHistory(
       messages: completedState.messages,
       aguiState: completedState.conversation.aguiState,
+      messageStates: {...existingMessageStates, ...newMessageStates},
     );
     ref
         .read(threadHistoryCacheProvider.notifier)

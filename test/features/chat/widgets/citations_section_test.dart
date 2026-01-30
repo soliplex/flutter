@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soliplex_client/soliplex_client.dart' hide State;
+import 'package:soliplex_client/soliplex_client.dart' show SourceReference;
 import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page.dart';
@@ -11,17 +11,17 @@ import '../../../helpers/test_helpers.dart';
 
 const _testThreadId = 'test-thread';
 
-Citation _createCitation({
+SourceReference _createSourceReference({
   String chunkId = 'chunk-1',
   String content = 'Test citation content for display.',
   String documentId = 'doc-1',
   String? documentTitle = 'Test Document',
   String documentUri = 'https://example.com/doc.pdf',
-  List<String>? headings,
+  List<String> headings = const [],
   int? index,
-  List<int>? pageNumbers,
+  List<int> pageNumbers = const [],
 }) {
-  return Citation(
+  return SourceReference(
     chunkId: chunkId,
     content: content,
     documentId: documentId,
@@ -36,14 +36,17 @@ Citation _createCitation({
 void main() {
   group('CitationsSection', () {
     testWidgets('shows citation count in header', (tester) async {
-      final citations = [
-        _createCitation(chunkId: 'c1'),
-        _createCitation(chunkId: 'c2'),
+      final sourceRefs = [
+        _createSourceReference(chunkId: 'c1'),
+        _createSourceReference(chunkId: 'c2'),
       ];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -57,14 +60,17 @@ void main() {
 
     testWidgets('expands to show citation rows when header tapped',
         (tester) async {
-      final citations = [
-        _createCitation(documentTitle: 'Document A'),
-        _createCitation(documentTitle: 'Document B'),
+      final sourceRefs = [
+        _createSourceReference(documentTitle: 'Document A'),
+        _createSourceReference(documentTitle: 'Document B'),
       ];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -85,11 +91,14 @@ void main() {
       expect(find.text('Document B'), findsOneWidget);
     });
 
-    testWidgets('returns empty widget when citations list is empty',
+    testWidgets('returns empty widget when sourceReferences list is empty',
         (tester) async {
       await tester.pumpWidget(
         createTestApp(
-          home: const CitationsSection(messageId: 'empty-msg', citations: []),
+          home: const CitationsSection(
+            messageId: 'empty-msg',
+            sourceReferences: [],
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -103,11 +112,14 @@ void main() {
     });
 
     testWidgets('returns empty widget when no thread selected', (tester) async {
-      final citations = [_createCitation(documentTitle: 'Document A')];
+      final sourceRefs = [_createSourceReference(documentTitle: 'Document A')];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(const NoThreadSelected()),
           ],
@@ -119,14 +131,14 @@ void main() {
     });
 
     testWidgets('expand state persists in provider', (tester) async {
-      final citations = [_createCitation(documentTitle: 'Document A')];
+      final sourceRefs = [_createSourceReference(documentTitle: 'Document A')];
       late ProviderContainer container;
 
       await tester.pumpWidget(
         createTestApp(
           home: CitationsSection(
             messageId: 'persist-msg',
-            citations: citations,
+            sourceReferences: sourceRefs,
           ),
           overrides: [
             threadSelectionProviderOverride(
@@ -173,8 +185,8 @@ void main() {
 
   group('CitationsSection individual expand', () {
     testWidgets('citation row can be expanded by tapping', (tester) async {
-      final citations = [
-        _createCitation(
+      final sourceRefs = [
+        _createSourceReference(
           documentTitle: 'Document A',
           content: 'Full content of the citation that should be visible.',
         ),
@@ -182,7 +194,10 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -212,8 +227,8 @@ void main() {
     });
 
     testWidgets('expanded citation shows headings breadcrumb', (tester) async {
-      final citations = [
-        _createCitation(
+      final sourceRefs = [
+        _createSourceReference(
           documentTitle: 'Document A',
           headings: ['Chapter 1', 'Section 2', 'Subsection'],
         ),
@@ -221,7 +236,10 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -244,13 +262,13 @@ void main() {
 
     testWidgets('multiple citations can be expanded independently',
         (tester) async {
-      final citations = [
-        _createCitation(
+      final sourceRefs = [
+        _createSourceReference(
           chunkId: 'c1',
           documentTitle: 'Document A',
           content: 'Content A',
         ),
-        _createCitation(
+        _createSourceReference(
           chunkId: 'c2',
           documentTitle: 'Document B',
           content: 'Content B',
@@ -259,7 +277,10 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -291,8 +312,8 @@ void main() {
     });
 
     testWidgets('expanded citation shows file path', (tester) async {
-      final citations = [
-        _createCitation(
+      final sourceRefs = [
+        _createSourceReference(
           documentTitle: 'Document A',
           documentUri: 'file:///path/to/document.pdf',
         ),
@@ -300,7 +321,10 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -322,8 +346,8 @@ void main() {
     });
 
     testWidgets('collapsed citation hides detailed content', (tester) async {
-      final citations = [
-        _createCitation(
+      final sourceRefs = [
+        _createSourceReference(
           documentTitle: 'Document A',
           content: 'Short preview of citation content.',
           headings: ['Chapter 1'],
@@ -332,7 +356,10 @@ void main() {
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -365,8 +392,11 @@ void main() {
 
     testWidgets('individual citation expand state persists in provider',
         (tester) async {
-      final citations = [
-        _createCitation(documentTitle: 'Document A', content: 'Content A'),
+      final sourceRefs = [
+        _createSourceReference(
+          documentTitle: 'Document A',
+          content: 'Content A',
+        ),
       ];
       late ProviderContainer container;
 
@@ -374,7 +404,7 @@ void main() {
         createTestApp(
           home: CitationsSection(
             messageId: 'persist-msg',
-            citations: citations,
+            sourceReferences: sourceRefs,
           ),
           overrides: [
             threadSelectionProviderOverride(
@@ -414,11 +444,14 @@ void main() {
   group('CitationsSection PDF visibility button', () {
     testWidgets('shows visibility button for PDF citations', (tester) async {
       // Default _createCitation uses .pdf extension
-      final citations = [_createCitation()];
+      final sourceRefs = [_createSourceReference()];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -438,13 +471,16 @@ void main() {
 
     testWidgets('does not show visibility button for non-PDF citations',
         (tester) async {
-      final citations = [
-        _createCitation(documentUri: 'https://example.com/doc.html'),
+      final sourceRefs = [
+        _createSourceReference(documentUri: 'https://example.com/doc.html'),
       ];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -465,11 +501,14 @@ void main() {
     testWidgets('does not show visibility button when no room selected',
         (tester) async {
       // Default _createCitation uses .pdf extension
-      final citations = [_createCitation()];
+      final sourceRefs = [_createSourceReference()];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),
@@ -489,11 +528,14 @@ void main() {
 
     testWidgets('opens dialog when visibility button tapped', (tester) async {
       // Default _createCitation uses .pdf extension
-      final citations = [_createCitation()];
+      final sourceRefs = [_createSourceReference()];
 
       await tester.pumpWidget(
         createTestApp(
-          home: CitationsSection(messageId: 'test-msg', citations: citations),
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
           overrides: [
             threadSelectionProviderOverride(
               const ThreadSelected(_testThreadId),

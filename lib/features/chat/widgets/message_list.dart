@@ -4,7 +4,7 @@ import 'package:soliplex_client/soliplex_client.dart'
     show AwaitingText, ChatMessage, ChatUser, TextMessage, TextStreaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
-import 'package:soliplex_frontend/core/providers/citation_provider.dart';
+import 'package:soliplex_frontend/core/providers/source_references_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
@@ -255,18 +255,28 @@ class _MessageListState extends ConsumerState<MessageList> {
             final isSyntheticMessage =
                 isLast && computation.hasSyntheticMessage;
 
-            // Get citations for this message (only for assistant messages)
-            final citations =
-                ref.watch(citationsForMessageProvider(message.id));
+            // Derive user message ID for citation lookup.
+            // Citations are keyed by the user message that triggered the run,
+            // so for an assistant message at index i, we look at index i-1.
+            String? userMessageId;
+            if (message.user == ChatUser.assistant && index > 0) {
+              final preceding = messages[index - 1];
+              if (preceding.user == ChatUser.user) {
+                userMessageId = preceding.id;
+              }
+            }
+
+            final sourceRefs = ref.watch(
+              sourceReferencesForUserMessageProvider(userMessageId),
+            );
 
             return ChatMessageWidget(
               key: ValueKey(message.id),
               message: message,
               isStreaming: isSyntheticMessage,
-              // Only the synthetic message can have streaming thinking
               isThinkingStreaming:
                   isSyntheticMessage && computation.isThinkingStreaming,
-              citations: citations,
+              sourceReferences: sourceRefs,
             );
           },
         ),

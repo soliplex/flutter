@@ -34,7 +34,10 @@ jobs:
         run: flutter pub get
 
       - name: Check formatting
-        run: dart format --set-exit-if-changed .
+        run: |
+          find . -name "*.dart" \
+            -not -path "./packages/soliplex_client/lib/src/schema/*" \
+            | xargs dart format --set-exit-if-changed
 
       - name: Analyze code
         run: flutter analyze --fatal-infos

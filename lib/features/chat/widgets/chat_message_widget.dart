@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:flutter_markdown/flutter_markdown.dart';
-import 'package:soliplex_client/soliplex_client.dart' hide State;
+import 'package:soliplex_client/soliplex_client.dart'
+    show ChatMessage, ChatUser, ErrorMessage, SourceReference, TextMessage;
 
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
@@ -16,7 +17,7 @@ class ChatMessageWidget extends StatelessWidget {
     required this.message,
     this.isStreaming = false,
     this.isThinkingStreaming = false,
-    this.citations = const [],
+    this.sourceReferences = const [],
     super.key,
   });
 
@@ -27,8 +28,8 @@ class ChatMessageWidget extends StatelessWidget {
   /// streaming message; historical messages always have this as false.
   final bool isThinkingStreaming;
 
-  /// Citations associated with this message (for assistant messages).
-  final List<Citation> citations;
+  /// Source references (citations) associated with this message.
+  final List<SourceReference> sourceReferences;
 
   @override
   Widget build(BuildContext context) {
@@ -157,14 +158,14 @@ class ChatMessageWidget extends StatelessWidget {
             )
           else ...[
             // Show citations section after the message for assistant messages
-            if (citations.isNotEmpty)
+            if (sourceReferences.isNotEmpty)
               Container(
                 constraints: BoxConstraints(
                   maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
                 ),
                 child: CitationsSection(
                   messageId: message.id,
-                  citations: citations,
+                  sourceReferences: sourceReferences,
                 ),
               ),
             if (!isStreaming)

@@ -1,10 +1,8 @@
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
-import 'package:soliplex_client/src/domain/agui_features/ask_history.dart'
-    as ask_history;
-import 'package:soliplex_client/src/domain/agui_features/haiku_rag_chat.dart';
 import 'package:soliplex_client/src/domain/chat_message.dart';
+import 'package:soliplex_client/src/domain/message_state.dart';
 
 /// Status of a conversation.
 ///
@@ -139,6 +137,7 @@ class Conversation {
     this.toolCalls = const [],
     this.status = const Idle(),
     this.aguiState = const {},
+    this.messageStates = const {},
   });
 
   /// Creates an empty conversation for the given thread.
@@ -164,6 +163,13 @@ class Conversation {
   /// queries.
   final Map<String, dynamic> aguiState;
 
+  /// Per-message state keyed by user message ID.
+  ///
+  /// Each entry contains source references (citations) associated with the
+  /// assistant's response to that user message. Populated at run completion
+  /// by correlating AG-UI state changes.
+  final Map<String, MessageState> messageStates;
+
   /// Whether a run is currently active.
   bool get isRunning => status is Running;
 
@@ -182,59 +188,9 @@ class Conversation {
     return copyWith(status: newStatus);
   }
 
-  /// Returns citations associated with a specific message ID.
-  ///
-  /// Uses index-based mapping: assistant message at index i gets citations
-  /// from history entry at the same index. Checks both AG-UI state formats:
-  /// - `haiku.rag.chat`: Citations from `qaHistory[i].citations`
-  /// - `ask_history`: Citations from `questions[i].citations`
-  List<Citation> citationsForMessage(String messageId) {
-    // Find the index of this message among assistant messages
-    final assistantMessages =
-        messages.where((m) => m.user == ChatUser.assistant).toList();
-    if (assistantMessages.isEmpty) return [];
-
-    final messageIndex = assistantMessages.indexWhere((m) => m.id == messageId);
-    if (messageIndex == -1) return [];
-
-    // Try haiku.rag.chat path (using qaHistory for per-message citations)
-    // TODO(jaemin): Replace hardcoded key with generated constant (#521)
-    final ragChat = aguiState['haiku.rag.chat'] as Map<String, dynamic>?;
-    if (ragChat != null) {
-      final haikuRagChat = HaikuRagChat.fromJson(ragChat);
-      final qaHistory = haikuRagChat.qaHistory ?? [];
-      if (messageIndex < qaHistory.length) {
-        return qaHistory[messageIndex].citations ?? [];
-      }
-    }
-
-    // Try ask_history path
-    // TODO(jaemin): Replace hardcoded key with generated constant (#521)
-    final askHistoryData = aguiState['ask_history'] as Map<String, dynamic>?;
-    if (askHistoryData != null) {
-      final history = ask_history.AskHistory.fromJson(askHistoryData);
-      final questions = history.questions ?? [];
-      if (messageIndex < questions.length) {
-        final askCitations = questions[messageIndex].citations ?? [];
-        // Convert ask_history.Citation to haiku_rag_chat.Citation
-        return askCitations
-            .map(
-              (c) => Citation(
-                chunkId: c.chunkId,
-                content: c.content,
-                documentId: c.documentId,
-                documentTitle: c.documentTitle,
-                documentUri: c.documentUri,
-                headings: c.headings,
-                index: c.index,
-                pageNumbers: c.pageNumbers,
-              ),
-            )
-            .toList();
-      }
-    }
-
-    return [];
+  /// Returns a new conversation with the given message state added.
+  Conversation withMessageState(String userMessageId, MessageState state) {
+    return copyWith(messageStates: {...messageStates, userMessageId: state});
   }
 
   /// Creates a copy with the given fields replaced.
@@ -244,6 +200,7 @@ class Conversation {
     List<ToolCallInfo>? toolCalls,
     ConversationStatus? status,
     Map<String, dynamic>? aguiState,
+    Map<String, MessageState>? messageStates,
   }) {
     return Conversation(
       threadId: threadId ?? this.threadId,
@@ -251,6 +208,7 @@ class Conversation {
       toolCalls: toolCalls ?? this.toolCalls,
       status: status ?? this.status,
       aguiState: aguiState ?? this.aguiState,
+      messageStates: messageStates ?? this.messageStates,
     );
   }
 
@@ -261,11 +219,13 @@ class Conversation {
     const listEquals = ListEquality<ChatMessage>();
     const toolCallListEquals = ListEquality<ToolCallInfo>();
     const mapEquals = DeepCollectionEquality();
+    const messageStateMapEquals = MapEquality<String, MessageState>();
     return threadId == other.threadId &&
         listEquals.equals(messages, other.messages) &&
         toolCallListEquals.equals(toolCalls, other.toolCalls) &&
         status == other.status &&
-        mapEquals.equals(aguiState, other.aguiState);
+        mapEquals.equals(aguiState, other.aguiState) &&
+        messageStateMapEquals.equals(messageStates, other.messageStates);
   }
 
   @override
@@ -275,6 +235,7 @@ class Conversation {
         const ListEquality<ToolCallInfo>().hash(toolCalls),
         status,
         const DeepCollectionEquality().hash(aguiState),
+        const MapEquality<String, MessageState>().hash(messageStates),
       );
 
   @override
