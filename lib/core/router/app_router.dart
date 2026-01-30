@@ -10,6 +10,7 @@ import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
+import 'package:soliplex_frontend/features/inspector/network_inspector_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
@@ -326,6 +327,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               name: 'backend-versions',
               pageBuilder: (context, state) => const NoTransitionPage(
                 child: BackendVersionsScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'network',
+              name: 'network-inspector',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: NetworkInspectorScreen(),
               ),
             ),
           ],

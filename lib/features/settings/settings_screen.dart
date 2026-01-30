@@ -6,6 +6,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/version.dart';
@@ -84,8 +85,28 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
         const Divider(),
+        const _NetworkRequestsTile(),
+        const Divider(),
         _AuthSection(authState: authState),
       ],
+    );
+  }
+}
+
+class _NetworkRequestsTile extends ConsumerWidget {
+  const _NetworkRequestsTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final events = ref.watch(httpLogProvider);
+    final count = events.length;
+
+    return ListTile(
+      leading: const Icon(Icons.http),
+      title: const Text('Network Requests'),
+      subtitle: Text('$count ${count == 1 ? 'request' : 'requests'} captured'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push('/settings/network'),
     );
   }
 }
