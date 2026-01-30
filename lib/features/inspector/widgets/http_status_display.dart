@@ -18,17 +18,27 @@ extension HTTPStatusColors on ColorScheme {
 
 /// Builds status display widget based on event group status.
 class HttpStatusDisplay extends StatelessWidget {
-  const HttpStatusDisplay({required this.group, super.key});
+  const HttpStatusDisplay({
+    required this.group,
+    this.isSelected = false,
+    super.key,
+  });
 
   static const double _spinnerSize = 12;
   static const double _spinnerStroke = 2;
 
   final HttpEventGroup group;
 
+  /// Whether this display is in a selected tile.
+  final bool isSelected;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = _colorForStatus(group.status, theme.colorScheme);
+    final colorScheme = theme.colorScheme;
+    final color = isSelected
+        ? colorScheme.onPrimaryContainer
+        : _colorForStatus(group.status, colorScheme);
     final statusText = _buildStatusText();
 
     final child = group.hasSpinner
@@ -50,7 +60,7 @@ class HttpStatusDisplay extends StatelessWidget {
       HttpEventStatus.serverError => colorScheme.error,
       HttpEventStatus.networkError => colorScheme.error,
       HttpEventStatus.streaming => colorScheme.secondary,
-      HttpEventStatus.streamComplete => colorScheme.tertiary,
+      HttpEventStatus.streamComplete => colorScheme.success,
       HttpEventStatus.streamError => colorScheme.error,
     };
   }

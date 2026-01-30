@@ -12,6 +12,7 @@ class HttpEventTile extends StatelessWidget {
   const HttpEventTile({
     required this.group,
     this.dense = false,
+    this.isSelected = false,
     this.onTap,
     super.key,
   });
@@ -19,6 +20,9 @@ class HttpEventTile extends StatelessWidget {
   /// The grouped events for a single HTTP request.
   final HttpEventGroup group;
   final bool dense;
+
+  /// Whether this tile is currently selected in a list.
+  final bool isSelected;
 
   /// Callback when the tile is tapped.
   final VoidCallback? onTap;
@@ -53,16 +57,20 @@ class HttpEventTile extends StatelessWidget {
 
   Widget _buildRequestLine(ThemeData theme) {
     final colorScheme = theme.colorScheme;
+    final selectedColor = colorScheme.onPrimaryContainer;
 
     final methodStyle =
         (dense ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
             ?.copyWith(
       fontWeight: FontWeight.bold,
-      color: group.isStream ? colorScheme.secondary : colorScheme.primary,
+      color: isSelected ? selectedColor : colorScheme.primary,
     );
 
     final pathStyle =
-        dense ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium;
+        (dense ? theme.textTheme.bodySmall : theme.textTheme.bodyMedium)
+            ?.copyWith(
+      color: isSelected ? selectedColor : null,
+    );
 
     return Row(
       children: [
@@ -84,7 +92,9 @@ class HttpEventTile extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     final metaStyle = theme.textTheme.bodySmall?.copyWith(
-      color: colorScheme.onSurfaceVariant,
+      color: isSelected
+          ? colorScheme.onPrimaryContainer
+          : colorScheme.onSurfaceVariant,
       fontSize: dense ? 11 : null,
     );
 
@@ -96,7 +106,9 @@ class HttpEventTile extends StatelessWidget {
           Text('→', style: metaStyle),
           const SizedBox(width: 4),
         ],
-        Expanded(child: HttpStatusDisplay(group: group)),
+        Expanded(
+          child: HttpStatusDisplay(group: group, isSelected: isSelected),
+        ),
       ],
     );
   }

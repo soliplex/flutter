@@ -203,7 +203,7 @@ class _SelectableEventTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         color: isSelected ? colorScheme.primaryContainer : null,
-        child: HttpEventTile(group: group),
+        child: HttpEventTile(group: group, isSelected: isSelected),
       ),
     );
   }
