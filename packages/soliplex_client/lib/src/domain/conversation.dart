@@ -3,9 +3,6 @@ import 'package:meta/meta.dart';
 
 import 'package:soliplex_client/src/domain/chat_message.dart';
 import 'package:soliplex_client/src/domain/message_state.dart';
-import 'package:soliplex_client/src/schema/agui_features/ask_history.dart'
-    as ask_history;
-import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
 
 /// Status of a conversation.
 ///
@@ -194,61 +191,6 @@ class Conversation {
   /// Returns a new conversation with the given message state added.
   Conversation withMessageState(String userMessageId, MessageState state) {
     return copyWith(messageStates: {...messageStates, userMessageId: state});
-  }
-
-  /// Returns citations associated with a specific message ID.
-  ///
-  /// Uses index-based mapping: assistant message at index i gets citations
-  /// from history entry at the same index. Checks both AG-UI state formats:
-  /// - `haiku.rag.chat`: Citations from `qaHistory[i].citations`
-  /// - `ask_history`: Citations from `questions[i].citations`
-  List<Citation> citationsForMessage(String messageId) {
-    // Find the index of this message among assistant messages
-    final assistantMessages =
-        messages.where((m) => m.user == ChatUser.assistant).toList();
-    if (assistantMessages.isEmpty) return [];
-
-    final messageIndex = assistantMessages.indexWhere((m) => m.id == messageId);
-    if (messageIndex == -1) return [];
-
-    // Try haiku.rag.chat path (using qaHistory for per-message citations)
-    // TODO(jaemin): Replace hardcoded key with generated constant (#521)
-    final ragChat = aguiState['haiku.rag.chat'] as Map<String, dynamic>?;
-    if (ragChat != null) {
-      final haikuRagChat = HaikuRagChat.fromJson(ragChat);
-      final qaHistory = haikuRagChat.qaHistory ?? [];
-      if (messageIndex < qaHistory.length) {
-        return qaHistory[messageIndex].citations ?? [];
-      }
-    }
-
-    // Try ask_history path
-    // TODO(jaemin): Replace hardcoded key with generated constant (#521)
-    final askHistoryData = aguiState['ask_history'] as Map<String, dynamic>?;
-    if (askHistoryData != null) {
-      final history = ask_history.AskHistory.fromJson(askHistoryData);
-      final questions = history.questions ?? [];
-      if (messageIndex < questions.length) {
-        final askCitations = questions[messageIndex].citations ?? [];
-        // Convert ask_history.Citation to haiku_rag_chat.Citation
-        return askCitations
-            .map(
-              (c) => Citation(
-                chunkId: c.chunkId,
-                content: c.content,
-                documentId: c.documentId,
-                documentTitle: c.documentTitle,
-                documentUri: c.documentUri,
-                headings: c.headings,
-                index: c.index,
-                pageNumbers: c.pageNumbers,
-              ),
-            )
-            .toList();
-      }
-    }
-
-    return [];
   }
 
   /// Creates a copy with the given fields replaced.
