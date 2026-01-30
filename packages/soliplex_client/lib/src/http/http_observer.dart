@@ -70,6 +70,10 @@ abstract class HttpObserver {
 ///
 /// Contains a unique [requestId] for correlating events from the same request
 /// and a [timestamp] indicating when the event occurred.
+///
+/// **Invariant**: The [requestId] is unique per event type within a single
+/// HTTP call. Two events with the same [requestId] are considered equal
+/// (used for correlation). This is by design for grouping related events.
 @immutable
 abstract class HttpEvent {
   /// Creates an HTTP event.
@@ -78,6 +82,8 @@ abstract class HttpEvent {
   /// Unique identifier for this request.
   ///
   /// Used to correlate request/response/error events from the same HTTP call.
+  /// Events from the same request share this ID, enabling grouping of
+  /// request → response/error sequences.
   final String requestId;
 
   /// When this event occurred.
@@ -104,6 +110,7 @@ class HttpRequestEvent extends HttpEvent {
     required this.method,
     required this.uri,
     this.headers = const {},
+    this.body,
   });
 
   /// The HTTP method (GET, POST, PUT, DELETE, etc.).
@@ -114,6 +121,13 @@ class HttpRequestEvent extends HttpEvent {
 
   /// Request headers (may be empty).
   final Map<String, String> headers;
+
+  /// The request body, if captured.
+  ///
+  /// For JSON requests, this is the parsed/redacted JSON structure.
+  /// For other content types, may be a string or null.
+  /// GET requests typically have no body.
+  final dynamic body;
 
   @override
   String toString() => 'HttpRequestEvent($requestId, $method $uri)';
@@ -130,6 +144,8 @@ class HttpResponseEvent extends HttpEvent {
     required this.duration,
     required this.bodySize,
     this.reasonPhrase,
+    this.body,
+    this.headers,
   });
 
   /// The HTTP status code (e.g., 200, 404, 500).
@@ -143,6 +159,19 @@ class HttpResponseEvent extends HttpEvent {
 
   /// The reason phrase from the server (e.g., "OK", "Not Found").
   final String? reasonPhrase;
+
+  /// The response body, if captured.
+  ///
+  /// For JSON responses, this is the parsed/redacted JSON structure.
+  /// For text responses, this is the string content.
+  /// For binary responses (when capture is disabled), this may be a
+  /// placeholder string like "[Binary data - capture disabled]".
+  final dynamic body;
+
+  /// Response headers, if captured.
+  ///
+  /// Sensitive headers are redacted before storage.
+  final Map<String, String>? headers;
 
   /// Whether this response indicates success (2xx status code).
   bool get isSuccess => statusCode >= 200 && statusCode < 300;
@@ -213,6 +242,7 @@ class HttpStreamEndEvent extends HttpEvent {
     required this.bytesReceived,
     required this.duration,
     this.error,
+    this.body,
   });
 
   /// Total bytes received during streaming.
@@ -225,6 +255,13 @@ class HttpStreamEndEvent extends HttpEvent {
   ///
   /// Null for successful completions or user cancellations.
   final SoliplexException? error;
+
+  /// The accumulated stream content (e.g., SSE events).
+  ///
+  /// Contains the buffered stream data, potentially truncated if it exceeded
+  /// the maximum buffer size (500KB). When truncated, the string starts with
+  /// "[EARLIER CONTENT DROPPED]".
+  final String? body;
 
   /// Whether the stream completed successfully (no error).
   bool get isSuccess => error == null;
