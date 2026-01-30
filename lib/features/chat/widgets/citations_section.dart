@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:soliplex_client/soliplex_client.dart' hide State;
+import 'package:soliplex_client/soliplex_client.dart'
+    show SourceReference, SourceReferenceFormatting;
 import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -17,22 +18,22 @@ import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page
 /// provider, scoped by thread. State survives widget rebuilds and is cleaned up
 /// when leaving the thread.
 class CitationsSection extends ConsumerWidget {
-  /// Creates a citations section with the given citations.
+  /// Creates a citations section with the given source references.
   const CitationsSection({
     required this.messageId,
-    required this.citations,
+    required this.sourceReferences,
     super.key,
   });
 
   /// The message ID used to persist expand state.
   final String messageId;
 
-  /// The citations to display.
-  final List<Citation> citations;
+  /// The source references to display.
+  final List<SourceReference> sourceReferences;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (citations.isEmpty) return const SizedBox.shrink();
+    if (sourceReferences.isEmpty) return const SizedBox.shrink();
 
     // Get current thread ID from selection state
     final selection = ref.watch(threadSelectionProvider);
@@ -50,7 +51,7 @@ class CitationsSection extends ConsumerWidget {
     );
 
     final theme = Theme.of(context);
-    final count = citations.length;
+    final count = sourceReferences.length;
 
     return Container(
       margin: const EdgeInsets.only(top: SoliplexSpacing.s2),
@@ -71,10 +72,10 @@ class CitationsSection extends ConsumerWidget {
             expanded: expanded,
           ),
           if (expanded)
-            ...citations.asMap().entries.map((entry) {
-              return _CitationRow(
+            ...sourceReferences.asMap().entries.map((entry) {
+              return _SourceReferenceRow(
                 index: entry.key + 1,
-                citation: entry.value,
+                sourceReference: entry.value,
                 threadId: threadId,
                 messageId: messageId,
                 citationIndex: entry.key,
@@ -130,17 +131,17 @@ class CitationsSection extends ConsumerWidget {
   }
 }
 
-class _CitationRow extends ConsumerWidget {
-  const _CitationRow({
+class _SourceReferenceRow extends ConsumerWidget {
+  const _SourceReferenceRow({
     required this.index,
-    required this.citation,
+    required this.sourceReference,
     required this.threadId,
     required this.messageId,
     required this.citationIndex,
   });
 
   final int index;
-  final Citation citation;
+  final SourceReference sourceReference;
   final String threadId;
   final String messageId;
   final int citationIndex;
@@ -187,13 +188,14 @@ class _CitationRow extends ConsumerWidget {
                 const SizedBox(width: SoliplexSpacing.s2),
                 Expanded(
                   child: Text(
-                    citation.displayTitle,
+                    sourceReference.displayTitle,
                     style: theme.textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                if (citation.isPdf) _PdfViewButton(citation: citation),
+                if (sourceReference.isPdf)
+                  _PdfViewButton(sourceReference: sourceReference),
                 Icon(
                   isExpanded ? Icons.expand_less : Icons.expand_more,
                   size: 20,
@@ -214,8 +216,7 @@ class _CitationRow extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Headings breadcrumb
-                  if (citation.headings != null &&
-                      citation.headings!.isNotEmpty) ...[
+                  if (sourceReference.headings.isNotEmpty) ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -227,7 +228,7 @@ class _CitationRow extends ConsumerWidget {
                         const SizedBox(width: SoliplexSpacing.s1),
                         Expanded(
                           child: Text(
-                            citation.headings!.join(' > '),
+                            sourceReference.headings.join(' > '),
                             style: theme.textTheme.labelSmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
@@ -239,7 +240,7 @@ class _CitationRow extends ConsumerWidget {
                     const SizedBox(height: SoliplexSpacing.s2),
                   ],
                   // Content preview in styled container
-                  if (citation.content.isNotEmpty) ...[
+                  if (sourceReference.content.isNotEmpty) ...[
                     Container(
                       padding: const EdgeInsets.all(SoliplexSpacing.s3),
                       decoration: BoxDecoration(
@@ -251,7 +252,7 @@ class _CitationRow extends ConsumerWidget {
                       constraints: const BoxConstraints(maxHeight: 150),
                       child: SingleChildScrollView(
                         child: Text(
-                          citation.content,
+                          sourceReference.content,
                           style: theme.textTheme.bodySmall,
                         ),
                       ),
@@ -263,7 +264,7 @@ class _CitationRow extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Icon(
-                        citation.isPdf
+                        sourceReference.isPdf
                             ? Icons.picture_as_pdf_outlined
                             : Icons.insert_drive_file_outlined,
                         size: 14,
@@ -275,16 +276,17 @@ class _CitationRow extends ConsumerWidget {
                           TextSpan(
                             children: [
                               TextSpan(
-                                text: citation.documentUri,
+                                text: sourceReference.documentUri,
                                 style: theme.textTheme.labelSmall?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                   fontFamily: 'monospace',
                                   fontSize: 11,
                                 ),
                               ),
-                              if (citation.formattedPageNumbers != null) ...[
+                              if (sourceReference.formattedPageNumbers
+                                  case final pageNums?) ...[
                                 TextSpan(
-                                  text: '  •  ${citation.formattedPageNumbers}',
+                                  text: '  •  $pageNums',
                                   style: theme.textTheme.labelSmall?.copyWith(
                                     color: theme.colorScheme.primary,
                                     fontWeight: FontWeight.w500,
@@ -308,9 +310,9 @@ class _CitationRow extends ConsumerWidget {
 }
 
 class _PdfViewButton extends ConsumerWidget {
-  const _PdfViewButton({required this.citation});
+  const _PdfViewButton({required this.sourceReference});
 
-  final Citation citation;
+  final SourceReference sourceReference;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -332,8 +334,8 @@ class _PdfViewButton extends ConsumerWidget {
       onPressed: () => ChunkVisualizationPage.show(
         context: context,
         roomId: roomId,
-        chunkId: citation.chunkId,
-        documentTitle: citation.displayTitle,
+        chunkId: sourceReference.chunkId,
+        documentTitle: sourceReference.displayTitle,
       ),
       tooltip: 'View page',
       visualDensity: VisualDensity.compact,
