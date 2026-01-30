@@ -17,6 +17,36 @@ flutter run -d chrome --web-port 59001
 flutter test
 ```
 
+## Pre-commit Hooks
+
+Install uv (if not already installed):
+
+```bash
+# macOS/Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Windows
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Install pre-commit using uv:
+
+```bash
+uv tool install pre-commit
+```
+
+Set up hooks for this repository:
+
+```bash
+pre-commit install
+```
+
+Run pre-commit on all files:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Related
 
 - [Soliplex Backend](https://github.com/soliplex/soliplex)
