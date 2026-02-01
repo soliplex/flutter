@@ -237,7 +237,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                 IconButton(
                   tooltip: 'Select document',
                   onPressed: canSend ? _showDocumentPicker : null,
-                  icon: const Icon(Icons.attach_file),
+                  icon: const Icon(Icons.filter_alt),
                 ),
               const SizedBox(width: 8),
               // Text field
