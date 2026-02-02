@@ -734,6 +734,142 @@ void main() {
       final result = HttpRedactor.redactString('raw body content', _nonAuthUri);
       expect(result, equals('raw body content'));
     });
+
+    group('form-encoded body redaction', () {
+      test('redacts password in form-encoded body', () {
+        final result = HttpRedactor.redactString(
+          'username=john&password=secret123',
+          _nonAuthUri,
+        );
+        expect(result, contains('username=john'));
+        expect(result, isNot(contains('secret123')));
+        expect(result, contains('password=[REDACTED]'));
+      });
+
+      test('redacts token in form-encoded body', () {
+        final result = HttpRedactor.redactString(
+          'grant_type=refresh&token=abc123',
+          _nonAuthUri,
+        );
+        expect(result, contains('grant_type=refresh'));
+        expect(result, isNot(contains('abc123')));
+      });
+
+      test('redacts multiple sensitive fields in form-encoded body', () {
+        final result = HttpRedactor.redactString(
+          'username=john&password=secret&api_key=key123&page=1',
+          _nonAuthUri,
+        );
+        expect(result, contains('username=john'));
+        expect(result, contains('page=1'));
+        expect(result, isNot(contains('secret')));
+        expect(result, isNot(contains('key123')));
+      });
+
+      test('handles URL-encoded values in form body', () {
+        final result = HttpRedactor.redactString(
+          'email=john%40example.com&password=pass%26word',
+          _nonAuthUri,
+        );
+        expect(result, contains('email=john%40example.com'));
+        expect(result, isNot(contains('pass%26word')));
+      });
+    });
+  });
+
+  group('HttpRedactor additional auth endpoints', () {
+    test('redacts body for /verify endpoint', () {
+      final uri = Uri.parse('https://example.com/verify/email');
+      final body = {'code': '123456'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /activate endpoint', () {
+      final uri = Uri.parse('https://example.com/activate');
+      final body = {'token': 'abc'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /api-keys endpoint', () {
+      final uri = Uri.parse('https://example.com/api-keys');
+      final body = {'name': 'my-key'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /tokens endpoint', () {
+      final uri = Uri.parse('https://example.com/tokens');
+      final body = {'type': 'access'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /credentials endpoint', () {
+      final uri = Uri.parse('https://example.com/credentials');
+      final body = {'user': 'test'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /authorization endpoint', () {
+      final uri = Uri.parse('https://example.com/authorization');
+      final body = {'scope': 'read'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /revoke endpoint', () {
+      final uri = Uri.parse('https://example.com/revoke');
+      final body = {'token': 'abc'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /introspect endpoint', () {
+      final uri = Uri.parse('https://example.com/introspect');
+      final body = {'token': 'jwt'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('redacts body for /userinfo endpoint', () {
+      final uri = Uri.parse('https://example.com/userinfo');
+      final body = {'sub': '123'};
+      final result = HttpRedactor.redactJsonBody(body, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+  });
+
+  group('HttpRedactor.redactSseContent', () {
+    test('redacts sensitive fields in SSE JSON data events', () {
+      const sseContent = '''
+event: message
+data: {"text": "hello", "token": "secret123"}
+
+event: done
+data: {"status": "complete"}
+
+''';
+      final result = HttpRedactor.redactSseContent(sseContent, _nonAuthUri);
+      expect(result, contains('"text":"hello"'));
+      expect(result, isNot(contains('secret123')));
+      expect(result, contains('"status":"complete"'));
+    });
+
+    test('redacts entire SSE content for auth endpoints', () {
+      const sseContent = 'event: auth\ndata: {"token": "secret"}\n\n';
+      final uri = Uri.parse('https://example.com/login/stream');
+      final result = HttpRedactor.redactSseContent(sseContent, uri);
+      expect(result, equals('[REDACTED - Auth Endpoint]'));
+    });
+
+    test('handles malformed SSE content gracefully', () {
+      const sseContent = 'not valid sse content';
+      final result = HttpRedactor.redactSseContent(sseContent, _nonAuthUri);
+      expect(result, equals(sseContent));
+    });
   });
 }
 

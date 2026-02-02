@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 /// Centralized redaction logic for HTTP traffic logging.
 ///
 /// Provides static methods to redact sensitive information from headers,
@@ -82,7 +84,9 @@ class HttpRedactor {
   static const _authEndpointPatterns = [
     '/oauth',
     '/token',
+    '/tokens',
     '/auth',
+    '/authorization',
     '/login',
     '/signin',
     '/authenticate',
@@ -96,7 +100,35 @@ class HttpRedactor {
     '/2fa',
     '/mfa',
     '/otp',
+    '/verify',
+    '/activate',
+    '/api-keys',
+    '/credentials',
+    '/revoke',
+    '/introspect',
+    '/userinfo',
   ];
+
+  /// Sensitive form field names for form-encoded body redaction.
+  static const _sensitiveFormFields = {
+    'password',
+    'secret',
+    'token',
+    'access_token',
+    'refresh_token',
+    'id_token',
+    'api_key',
+    'client_secret',
+    'code',
+    'code_verifier',
+    'credential',
+    'authorization',
+    'bearer',
+    'session_token',
+    'private_key',
+    'signing_key',
+    'encryption_key',
+  };
 
   /// Redacts sensitive header values.
   ///
@@ -161,14 +193,94 @@ class HttpRedactor {
     return _redactValue(body);
   }
 
-  /// Redacts a raw string body for auth endpoints only.
+  /// Redacts a raw string body.
   ///
-  /// Non-auth endpoints return the string unchanged.
+  /// For auth endpoints, the entire body is redacted.
+  /// For other endpoints, form-encoded sensitive fields are redacted.
   static String redactString(String body, Uri uri) {
     if (_isAuthEndpoint(uri)) {
       return _redactedAuthEndpoint;
     }
+
+    // Check if body looks like form-encoded data
+    if (_looksLikeFormEncoded(body)) {
+      return _redactFormEncodedBody(body);
+    }
+
     return body;
+  }
+
+  /// Redacts sensitive fields from SSE stream content.
+  ///
+  /// For auth endpoints, the entire content is redacted.
+  /// For other endpoints, JSON data in SSE events is parsed and redacted.
+  static String redactSseContent(String content, Uri uri) {
+    if (_isAuthEndpoint(uri)) {
+      return _redactedAuthEndpoint;
+    }
+
+    // Parse SSE events and redact JSON data payloads
+    final buffer = StringBuffer();
+    final lines = content.split('\n');
+
+    for (final line in lines) {
+      if (line.startsWith('data:')) {
+        final data = line.substring(5).trim();
+        if (data.isNotEmpty) {
+          try {
+            final parsed = jsonDecode(data);
+            final redacted = _redactValue(parsed);
+            buffer.writeln('data: ${jsonEncode(redacted)}');
+            continue;
+          } catch (_) {
+            // Not JSON, pass through
+          }
+        }
+      }
+      buffer.writeln(line);
+    }
+
+    // Remove trailing newline added by writeln
+    var result = buffer.toString();
+    if (result.endsWith('\n') && !content.endsWith('\n')) {
+      result = result.substring(0, result.length - 1);
+    }
+
+    return result;
+  }
+
+  /// Checks if a string looks like form-urlencoded data.
+  static bool _looksLikeFormEncoded(String body) {
+    // Form-encoded data has key=value pairs separated by &
+    if (!body.contains('=')) return false;
+    // Must have at least one sensitive field pattern
+    final lowerBody = body.toLowerCase();
+    return _sensitiveFormFields.any(
+      (field) => lowerBody.contains('$field='),
+    );
+  }
+
+  /// Redacts sensitive fields from form-urlencoded body.
+  static String _redactFormEncodedBody(String body) {
+    final parts = body.split('&');
+    final redactedParts = <String>[];
+
+    for (final part in parts) {
+      final eqIndex = part.indexOf('=');
+      if (eqIndex == -1) {
+        redactedParts.add(part);
+        continue;
+      }
+
+      final key = part.substring(0, eqIndex);
+      if (_sensitiveFormFields.contains(key.toLowerCase())) {
+        redactedParts.add('$key=$_redacted');
+      } else {
+        redactedParts.add(part);
+      }
+    }
+
+    return redactedParts.join('&');
   }
 
   /// Checks if the URI path indicates an auth endpoint.

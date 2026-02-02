@@ -1161,6 +1161,247 @@ void main() {
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
         expect(requestEvent.body, isNull);
       });
+
+      test('redacts sensitive data in non-JSON/non-text response body',
+          () async {
+        // e.g., application/octet-stream or unknown content type
+        const body = 'token=secret123&data=value';
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List.fromList(body.codeUnits),
+            headers: const {'content-type': 'application/octet-stream'},
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+        // Should redact sensitive form fields even in unknown content types
+        expect(responseEvent.body, contains('data=value'));
+        expect(responseEvent.body, isNot(contains('secret123')));
+      });
+    });
+
+    group('SSE stream request data', () {
+      test('captures redacted headers in stream start event', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/api/runs'),
+          headers: {
+            'Authorization': 'Bearer secret-token',
+            'Accept': 'text/event-stream',
+          },
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(startEvent.headers['Authorization'], equals('[REDACTED]'));
+        expect(startEvent.headers['Accept'], equals('text/event-stream'));
+      });
+
+      test('captures redacted body in stream start event', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/api/runs'),
+          body: {'thread_id': 't1', 'password': 'secret123'},
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(startEvent.body, isNotNull);
+        final body = startEvent.body as Map<String, dynamic>;
+        expect(body['thread_id'], equals('t1'));
+        expect(body['password'], equals('[REDACTED]'));
+      });
+
+      test('handles List<int> body in stream request', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        const jsonBody = '{"thread_id": "t1", "token": "secret"}';
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/api/runs'),
+          body: jsonBody.codeUnits,
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(startEvent.body, isNotNull);
+        final body = startEvent.body as Map<String, dynamic>;
+        expect(body['thread_id'], equals('t1'));
+        expect(body['token'], equals('[REDACTED]'));
+      });
+    });
+
+    group('SSE stream response body redaction', () {
+      test('redacts sensitive fields in SSE stream body', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/events'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event =
+            'event: message\ndata: {"text": "hello", "token": "secret123"}\n\n';
+        controller.add(event.codeUnits);
+        await controller.close();
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, contains('hello'));
+        expect(endEvent.body, isNot(contains('secret123')));
+      });
+
+      test('fully redacts SSE body for auth endpoints', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/oauth/token'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event = 'data: {"access_token": "secret-jwt"}\n\n';
+        controller.add(event.codeUnits);
+        await controller.close();
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, equals('[REDACTED - Auth Endpoint]'));
+      });
+
+      test('redacts SSE body on stream error', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/events'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen(
+          (_) {},
+          onError: (_) => completer.complete(),
+          onDone: () {
+            if (!completer.isCompleted) completer.complete();
+          },
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event = 'data: {"message": "test", "password": "secret"}\n\n';
+        controller
+          ..add(event.codeUnits)
+          ..addError(const NetworkException(message: 'Connection lost'));
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, contains('test'));
+        expect(endEvent.body, isNot(contains('secret')));
+
+        await controller.close();
+      });
     });
 
     group('SSE stream buffering', () {

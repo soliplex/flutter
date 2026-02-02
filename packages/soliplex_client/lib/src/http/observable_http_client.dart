@@ -163,8 +163,10 @@ class ObservableHttpClient implements SoliplexHttpClient {
     // SSE buffer with rolling truncation
     final streamBuffer = _StreamBuffer(_maxStreamBufferSize);
 
-    // Redact URI for observer events
+    // Redact sensitive data before emitting to observers
     final redactedUri = HttpRedactor.redactUri(uri);
+    final redactedHeaders = HttpRedactor.redactHeaders(headers ?? const {});
+    final redactedBody = _redactRequestBody(body, uri);
 
     // Notify stream start
     _notifyObservers((observer) {
@@ -174,6 +176,8 @@ class ObservableHttpClient implements SoliplexHttpClient {
           timestamp: startTime,
           method: method,
           uri: redactedUri,
+          headers: redactedHeaders,
+          body: redactedBody,
         ),
       );
     });
@@ -215,7 +219,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
                 bytesReceived: bytesReceived,
                 duration: duration,
                 error: soliplexError,
-                body: streamBuffer.content,
+                body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
               ),
             );
           });
@@ -233,7 +237,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
                 timestamp: endTime,
                 bytesReceived: bytesReceived,
                 duration: duration,
-                body: streamBuffer.content,
+                body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
               ),
             );
           });
@@ -253,8 +257,15 @@ class ObservableHttpClient implements SoliplexHttpClient {
   dynamic _redactRequestBody(Object? body, Uri uri) {
     if (body == null) return null;
 
-    // If body is already a map/list (JSON-like), redact it directly
-    if (body is Map || body is List) {
+    // If body is raw bytes, decode to string first
+    if (body is List<int>) {
+      final decoded = utf8.decode(body, allowMalformed: true);
+      return _redactRequestBody(decoded, uri);
+    }
+
+    // If body is already a map (JSON-like), redact it directly
+    // Note: List<int> is handled above, so this is only for decoded JSON lists
+    if (body is Map || (body is List && body is! List<int>)) {
       return HttpRedactor.redactJsonBody(body, uri);
     }
 
@@ -293,8 +304,8 @@ class ObservableHttpClient implements SoliplexHttpClient {
       return HttpRedactor.redactString(response.body, uri);
     }
 
-    // For other content types, just return the string body
-    return response.body;
+    // For other content types, apply string redaction as fallback
+    return HttpRedactor.redactString(response.body, uri);
   }
 
   /// Safely notifies all observers, catching and ignoring any exceptions.
