@@ -18,9 +18,8 @@ slices refactor toward the full Run Registry pattern.
 | 6 | Thread-aware UI subscription | ~80 | Smooth UI transitions between runs |
 | 7 | Lifecycle events broadcast | ~80 | Background awareness infrastructure |
 | 8 | Background cache updates | ~60 | Messages persist for backgrounded runs |
-| 9 | Unread run indicators | ~120 | Visual feedback for completed runs |
-| 10 | Cross-room composite key | ~50 | Runs keyed by (roomId, threadId) |
-| 11 | Remove room-switch cancellation | ~40 | Full navigation independence |
+| 9 | Cross-room composite key | ~50 | Runs keyed by (roomId, threadId) |
+| 10 | Remove room-switch cancellation | ~40 | Full navigation independence |
 
 ## Dependency Structure
 
@@ -40,18 +39,17 @@ slices refactor toward the full Run Registry pattern.
     ▼         ▼
 [5] Multi    [7] Lifecycle
     │              │
-    ▼         ┌────┴────┐
-[6] UI sub   ▼         ▼
-    │       [8] Cache  [9] Unread
-    │                   indicators
-    ▼
-[10] Cross-room key
+    ▼              ▼
+[6] UI sub   [8] Cache updates
     │
     ▼
-[11] Room-switch
+[9] Cross-room key
+    │
+    ▼
+[10] Room-switch
 ```
 
-**Parallel from slice 4:** Slices 5-6 (multi-run path) and 7-9 (events path) can
+**Parallel from slice 4:** Slices 5-6 (multi-run path) and 7-8 (events path) can
 proceed in parallel after slice 4 merges.
 
 ## Implementation Order
@@ -63,10 +61,9 @@ proceed in parallel after slice 4 merges.
 5. **Slice 5** - Multi-thread concurrent runs (parallel with 7)
 6. **Slice 7** - Lifecycle events (parallel with 5)
 7. **Slice 6** - Thread-aware UI subscription
-8. **Slice 8** - Background cache updates (parallel with 9)
-9. **Slice 9** - Unread run indicators (parallel with 8)
-10. **Slice 10** - Cross-room composite key
-11. **Slice 11** - Remove room-switch cancellation
+8. **Slice 8** - Background cache updates
+9. **Slice 9** - Cross-room composite key
+10. **Slice 10** - Remove room-switch cancellation
 
 ---
 
@@ -197,22 +194,23 @@ enabling multiple concurrent runs.
 
 1. Create `lib/core/services/run_registry.dart`
 2. Define `RunRegistry` class with Map<String, RunHandle>
-3. Implement `registerRun()`, `getRunState()`, `hasActiveRun()`, `cancelRun()`
-4. Add unit tests
+3. Implement `getRunState()`, `hasActiveRun()`, `cancelRun()`
+4. Implement `maxConcurrentRuns` limit check
+5. Add unit tests
 
 ### Files Created
 
 - `lib/core/services/run_registry.dart`
 - `test/core/services/run_registry_test.dart`
 
-### RunRegistry API
+### RunRegistry API (partial - startRun in slice 4)
 
 ```dart
 class RunRegistry {
-  final Map<String, RunHandle> _runs = {};
+  RunRegistry({this.maxConcurrentRuns = 5});
 
-  /// Register a run handle in the registry.
-  void registerRun(RunHandle handle);
+  final int maxConcurrentRuns;
+  final Map<String, RunHandle> _runs = {};
 
   /// Get current state for a thread's run, or null if none.
   ActiveRunState? getRunState(String roomId, String threadId);
@@ -235,11 +233,8 @@ class RunRegistry {
 
 ### Tests
 
-- Unit: registerRun adds handle to registry
 - Unit: getRunState returns null for unknown thread
-- Unit: getRunState returns state for registered thread
 - Unit: hasActiveRun returns false for unknown thread
-- Unit: hasActiveRun returns true for registered thread
 - Unit: cancelRun disposes handle and removes from map
 - Unit: cancelAll disposes all handles
 - Unit: activeRunCount reflects map size
@@ -247,7 +242,6 @@ class RunRegistry {
 ### Acceptance Criteria
 
 - [ ] RunRegistry class created
-- [ ] registerRun adds handles to the map
 - [ ] Basic CRUD operations work
 - [ ] All tests pass
 
@@ -265,9 +259,10 @@ class. Foundation for all future slices.
 ### Tasks
 
 1. Create `lib/core/providers/run_registry_provider.dart`
-2. Modify `ActiveRunNotifier.startRun()` to create RunHandle and register it
-3. Wire up event processing to update RunHandle state
-4. Update tests to verify registration works
+2. Add `startRun()` method to `RunRegistry`
+3. Modify `ActiveRunNotifier.startRun()` to delegate to registry
+4. Wire up event processing to update RunHandle state
+5. Update tests to verify delegation works
 
 ### Files Created
 
@@ -275,20 +270,31 @@ class. Foundation for all future slices.
 
 ### Files Modified
 
-- `lib/core/providers/active_run_notifier.dart` (use registry)
-- Tests
+- `lib/core/services/run_registry.dart` (add startRun)
+- `lib/core/providers/active_run_notifier.dart` (delegate to registry)
+- Tests for both
 
 ### Implementation Notes
 
-The notifier's `startRun()` creates the RunHandle (it already has access to
-AgUiClient, SoliplexApi, ThreadMessageCache via ref) and registers it with the
-registry. The registry is a simple container; run creation logic stays in the
-notifier.
+The registry's `startRun()` needs access to:
+
+- `AgUiClient` for streaming
+- `SoliplexApi` for creating runs
+- `ThreadMessageCache` for reading cached messages
+
+Options:
+
+1. Pass these as parameters to `startRun()`
+2. Inject via constructor
+3. Pass a callback/factory for stream setup
+
+Recommend option 1 for simplicity - the notifier already has access to these
+via ref.
 
 ### Acceptance Criteria
 
-- [ ] `startRun()` creates RunHandle and registers with registry
-- [ ] `ActiveRunNotifier` uses registry for tracking
+- [ ] `startRun()` creates RunHandle and adds to registry
+- [ ] `ActiveRunNotifier` delegates to registry
 - [ ] All existing behavior preserved
 - [ ] All tests pass
 
@@ -306,24 +312,28 @@ Each thread has its own streaming response.
 ### Tasks
 
 1. Remove single-run restriction in `ActiveRunNotifier`
-2. Add test: "can start runs in different threads"
-3. Add test: "both runs stream independently"
+2. Modify registry to allow multiple concurrent runs (up to limit)
+3. Add test: "can start runs in different threads"
+4. Add test: "max concurrent runs enforced"
 
 ### Files Modified
 
 - `lib/core/providers/active_run_notifier.dart`
+- `lib/core/services/run_registry.dart`
 - Tests
 
 ### Tests
 
 - Integration: Start run in thread A, then start run in thread B
 - Integration: Both runs stream independently
-- Integration: Cancelling one run doesn't affect the other
+- Unit: Registry enforces maxConcurrentRuns
+- Unit: Attempt to exceed limit throws/returns error
 
 ### Acceptance Criteria
 
 - [ ] Multiple threads can have active runs simultaneously
 - [ ] Each run streams independently
+- [ ] Max concurrent runs limit is enforced
 - [ ] All tests pass
 
 ---
@@ -390,7 +400,7 @@ void _subscribeToThread(String roomId, String threadId) {
 **Target:** ~80 lines
 
 **Customer value:** UI can be notified when a backgrounded run finishes.
-Foundation for unread indicators (slice 9).
+Foundation for badges/toasts/alerts (design TBD).
 
 ### Tasks
 
@@ -497,89 +507,9 @@ background runs.
 
 ---
 
-## Slice 9: Unread Run Indicators
+## Slice 9: Cross-Room Composite Key
 
-**Branch:** `feat/network-multiplexer/09-unread-indicators`
-
-**Target:** ~120 lines
-
-**Customer value:** User sees visual feedback when background runs complete.
-Blue dot on threads, count badge on rooms.
-
-### Tasks
-
-1. Create `UnreadRunsNotifier` to track threads with unread completed runs
-2. Listen to lifecycle events and mark threads as unread on `RunCompleted`
-3. Add blue dot with glow to thread list items for unread threads
-4. Add count badge (white on blue) to room cards for unread thread count
-5. Clear unread status when user views the thread
-
-### Files Created
-
-- `lib/core/providers/unread_runs_provider.dart`
-- `test/core/providers/unread_runs_provider_test.dart`
-
-### Files Modified
-
-- `lib/features/history/widgets/thread_list_item.dart` (add blue dot)
-- `lib/features/rooms/widgets/room_card.dart` (add count badge)
-- Tests
-
-### UnreadRunsNotifier API
-
-```dart
-class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
-  // Map<roomId, Set<threadId>> of threads with unread completed runs
-
-  /// Mark a thread as having an unread completed run.
-  void markUnread(String roomId, String threadId);
-
-  /// Mark a thread as read (user viewed it).
-  void markRead(String roomId, String threadId);
-
-  /// Check if a thread has unread completed runs.
-  bool hasUnread(String roomId, String threadId);
-
-  /// Get count of unread threads in a room.
-  int unreadCountForRoom(String roomId);
-}
-```
-
-### UI Components
-
-**Thread dot (history sidebar):**
-
-- Blue dot with subtle glow effect
-- Positioned to the right of thread title
-- Disappears when thread is selected
-
-**Room badge (room listing):**
-
-- Count of threads with unread runs
-- White text on blue background (same blue as thread dot)
-- Only shown when count > 0
-
-### Tests
-
-- Unit: markUnread adds thread to set
-- Unit: markRead removes thread from set
-- Unit: hasUnread returns correct value
-- Unit: unreadCountForRoom returns correct count
-- Widget: Thread list item shows blue dot when unread
-- Widget: Room card shows count badge when unread threads exist
-
-### Acceptance Criteria
-
-- [ ] Blue dot with glow shown on threads with unread completed runs
-- [ ] Count badge shown on rooms with unread threads
-- [ ] Unread status cleared when user views thread
-- [ ] All tests pass
-
----
-
-## Slice 10: Cross-Room Composite Key
-
-**Branch:** `feat/network-multiplexer/10-composite-key`
+**Branch:** `feat/network-multiplexer/09-composite-key`
 
 **Target:** ~50 lines
 
@@ -611,9 +541,9 @@ collisions if backend generates same IDs per room.
 
 ---
 
-## Slice 11: Remove Room-Switch Cancellation
+## Slice 10: Remove Room-Switch Cancellation
 
-**Branch:** `feat/network-multiplexer/11-room-switch`
+**Branch:** `feat/network-multiplexer/10-room-switch`
 
 **Target:** ~40 lines
 
@@ -657,9 +587,8 @@ original room and response is still there.
 | 6 | `feat/network-multiplexer/06-ui-subscription` |
 | 7 | `feat/network-multiplexer/07-lifecycle` |
 | 8 | `feat/network-multiplexer/08-cache` |
-| 9 | `feat/network-multiplexer/09-unread-indicators` |
-| 10 | `feat/network-multiplexer/10-composite-key` |
-| 11 | `feat/network-multiplexer/11-room-switch` |
+| 9 | `feat/network-multiplexer/09-composite-key` |
+| 10 | `feat/network-multiplexer/10-room-switch` |
 
 ## Critical Files
 
