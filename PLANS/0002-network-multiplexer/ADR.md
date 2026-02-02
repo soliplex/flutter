@@ -39,8 +39,9 @@ This design assumes one run at a time, scoped to the current thread.
 Create a `RunRegistry` service class that:
 
 1. Tracks multiple active runs by `(roomId, threadId)` key
-2. Manages run lifecycle (register, cancel, complete)
+2. Manages run lifecycle (start, cancel, complete)
 3. Broadcasts lifecycle events via a stream
+4. Enforces resource limits (max concurrent runs)
 
 The `ActiveRunNotifier` is modified to:
 
@@ -150,11 +151,19 @@ class RunHandle {
 class RunRegistry {
   final Map<String, RunHandle> _runs = {};
   final _lifecycleController = StreamController<RunLifecycleEvent>.broadcast();
+  final int maxConcurrentRuns;
+
+  RunRegistry({this.maxConcurrentRuns = 5});
 
   Stream<RunLifecycleEvent> get lifecycleEvents => _lifecycleController.stream;
 
-  /// Register a run handle in the registry.
-  void registerRun(RunHandle handle) { ... }
+  /// Start a new run, returns the RunHandle.
+  Future<RunHandle> startRun({
+    required String roomId,
+    required String threadId,
+    required String userMessage,
+    // ... other params
+  }) async { ... }
 
   /// Get current state for a thread's run, or null if none.
   ActiveRunState? getRunState(String roomId, String threadId) { ... }
@@ -242,11 +251,13 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 ### Negative
 
 - More state to manage (multiple runs vs. one)
-- Increased memory usage with concurrent runs
+- Increased memory usage with concurrent runs (bounded by limit)
 - More complex debugging when multiple runs are active
 
 ### Risks
 
+- **Memory pressure:** Multiple active runs consume memory. Mitigated by
+  configurable `maxConcurrentRuns` limit.
 - **Race conditions:** Concurrent runs + thread switching creates potential for
   race conditions. Mitigated by careful state management and tests.
 - **Cache staleness:** If user modifies messages in a thread while a background
