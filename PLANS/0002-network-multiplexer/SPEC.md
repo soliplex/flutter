@@ -39,6 +39,7 @@ regardless of whether it was still streaming.
 5. The system broadcasts lifecycle events (start, complete, error) for
    background awareness.
 6. Runs are keyed by (roomId, threadId) to support cross-room persistence.
+7. Resource limits prevent unbounded growth (max concurrent runs).
 
 ### Non-Functional Requirements
 
@@ -84,6 +85,13 @@ regardless of whether it was still streaming.
 3. The run in R1/T1 continues streaming.
 4. Dave returns to R1/T1 and sees the streamed response.
 
+### Use Case 5: Resource Limits
+
+1. Eve has runs active in 5 threads (configurable max).
+2. Eve tries to start a 6th run.
+3. The system either: (a) blocks the new run with a message, or (b) cancels the
+   oldest run to make room (TBD based on UX preference).
+
 ## Design
 
 ### Architecture
@@ -116,6 +124,7 @@ regardless of whether it was still streaming.
 │  │  - Map<(roomId, threadId), RunHandle>                    │   │
 │  │  - Manages run lifecycle                                 │   │
 │  │  - Broadcasts Stream<RunLifecycleEvent>                  │   │
+│  │  - Enforces resource limits                              │   │
 │  └──────────────────────────────────────────────────────────┘   │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐   │
@@ -139,10 +148,11 @@ regardless of whether it was still streaming.
 **RunRegistry:** Pure Dart class managing multiple runs:
 
 - `Map<RunKey, RunHandle>` where `RunKey = (roomId, threadId)`
-- `registerRun()` adds a RunHandle to the registry
+- `startRun()` creates a new RunHandle and starts streaming
 - `cancelRun()` cancels a specific run
 - `getRunState()` returns the current state for a run
 - `Stream<RunLifecycleEvent>` broadcasts start/complete/error events
+- Enforces max concurrent runs
 
 **ActiveRunNotifier (modified):**
 
@@ -179,17 +189,18 @@ deferred for separate UX discussion.
 - [ ] Background run completion updates message cache.
 - [ ] Lifecycle events are broadcast for background awareness.
 - [ ] Runs persist across room navigation.
+- [ ] Resource limits prevent unbounded concurrent runs.
 - [ ] All existing tests pass or are updated appropriately.
 
-## UI Notification Design
+## Open Questions
 
-Per @runyaga's feedback ([comment](https://github.com/soliplex/flutter/issues/71#issuecomment-3841467295)):
+1. **Alert UI design:** When a background run completes, how should we alert the
+   user? Options: toast notification, badge on thread in history, colored dot,
+   or some combination. This needs UX discussion with @runyaga.
 
-1. **Thread badge:** Blue dot with glow on threads with unread completed runs
-   in the history sidebar.
-2. **Room badge:** White number on blue background (same blue as thread dot)
-   showing the count of threads with unread completed runs.
+2. **Resource limit behavior:** When max concurrent runs is reached, should we
+   (a) block new runs with a message, or (b) cancel the oldest run? Leaning
+   toward (a) for explicitness.
 
-This gives users visibility at both the room and thread level without intrusive
-notifications. The blue color provides consistent visual language across both
-indicators.
+3. **Max concurrent runs value:** What's a reasonable default? Suggestion: 3-5
+   concurrent runs.
