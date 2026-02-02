@@ -194,23 +194,22 @@ enabling multiple concurrent runs.
 
 1. Create `lib/core/services/run_registry.dart`
 2. Define `RunRegistry` class with Map<String, RunHandle>
-3. Implement `getRunState()`, `hasActiveRun()`, `cancelRun()`
-4. Implement `maxConcurrentRuns` limit check
-5. Add unit tests
+3. Implement `registerRun()`, `getRunState()`, `hasActiveRun()`, `cancelRun()`
+4. Add unit tests
 
 ### Files Created
 
 - `lib/core/services/run_registry.dart`
 - `test/core/services/run_registry_test.dart`
 
-### RunRegistry API (partial - startRun in slice 4)
+### RunRegistry API
 
 ```dart
 class RunRegistry {
-  RunRegistry({this.maxConcurrentRuns = 5});
-
-  final int maxConcurrentRuns;
   final Map<String, RunHandle> _runs = {};
+
+  /// Register a run handle in the registry.
+  void registerRun(RunHandle handle);
 
   /// Get current state for a thread's run, or null if none.
   ActiveRunState? getRunState(String roomId, String threadId);
@@ -233,8 +232,11 @@ class RunRegistry {
 
 ### Tests
 
+- Unit: registerRun adds handle to registry
 - Unit: getRunState returns null for unknown thread
+- Unit: getRunState returns state for registered thread
 - Unit: hasActiveRun returns false for unknown thread
+- Unit: hasActiveRun returns true for registered thread
 - Unit: cancelRun disposes handle and removes from map
 - Unit: cancelAll disposes all handles
 - Unit: activeRunCount reflects map size
@@ -242,6 +244,7 @@ class RunRegistry {
 ### Acceptance Criteria
 
 - [ ] RunRegistry class created
+- [ ] registerRun adds handles to the map
 - [ ] Basic CRUD operations work
 - [ ] All tests pass
 
@@ -259,10 +262,9 @@ class. Foundation for all future slices.
 ### Tasks
 
 1. Create `lib/core/providers/run_registry_provider.dart`
-2. Add `startRun()` method to `RunRegistry`
-3. Modify `ActiveRunNotifier.startRun()` to delegate to registry
-4. Wire up event processing to update RunHandle state
-5. Update tests to verify delegation works
+2. Modify `ActiveRunNotifier.startRun()` to create RunHandle and register it
+3. Wire up event processing to update RunHandle state
+4. Update tests to verify registration works
 
 ### Files Created
 
@@ -270,31 +272,20 @@ class. Foundation for all future slices.
 
 ### Files Modified
 
-- `lib/core/services/run_registry.dart` (add startRun)
-- `lib/core/providers/active_run_notifier.dart` (delegate to registry)
-- Tests for both
+- `lib/core/providers/active_run_notifier.dart` (use registry)
+- Tests
 
 ### Implementation Notes
 
-The registry's `startRun()` needs access to:
-
-- `AgUiClient` for streaming
-- `SoliplexApi` for creating runs
-- `ThreadMessageCache` for reading cached messages
-
-Options:
-
-1. Pass these as parameters to `startRun()`
-2. Inject via constructor
-3. Pass a callback/factory for stream setup
-
-Recommend option 1 for simplicity - the notifier already has access to these
-via ref.
+The notifier's `startRun()` creates the RunHandle (it already has access to
+AgUiClient, SoliplexApi, ThreadMessageCache via ref) and registers it with the
+registry. The registry is a simple container; run creation logic stays in the
+notifier.
 
 ### Acceptance Criteria
 
-- [ ] `startRun()` creates RunHandle and adds to registry
-- [ ] `ActiveRunNotifier` delegates to registry
+- [ ] `startRun()` creates RunHandle and registers with registry
+- [ ] `ActiveRunNotifier` uses registry for tracking
 - [ ] All existing behavior preserved
 - [ ] All tests pass
 
@@ -312,28 +303,24 @@ Each thread has its own streaming response.
 ### Tasks
 
 1. Remove single-run restriction in `ActiveRunNotifier`
-2. Modify registry to allow multiple concurrent runs (up to limit)
-3. Add test: "can start runs in different threads"
-4. Add test: "max concurrent runs enforced"
+2. Add test: "can start runs in different threads"
+3. Add test: "both runs stream independently"
 
 ### Files Modified
 
 - `lib/core/providers/active_run_notifier.dart`
-- `lib/core/services/run_registry.dart`
 - Tests
 
 ### Tests
 
 - Integration: Start run in thread A, then start run in thread B
 - Integration: Both runs stream independently
-- Unit: Registry enforces maxConcurrentRuns
-- Unit: Attempt to exceed limit throws/returns error
+- Integration: Cancelling one run doesn't affect the other
 
 ### Acceptance Criteria
 
 - [ ] Multiple threads can have active runs simultaneously
 - [ ] Each run streams independently
-- [ ] Max concurrent runs limit is enforced
 - [ ] All tests pass
 
 ---
