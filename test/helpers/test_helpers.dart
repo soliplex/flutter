@@ -462,12 +462,16 @@ class TestData {
     DateTime? timestamp,
     String method = 'GET',
     Uri? uri,
+    Map<String, String> headers = const {},
+    dynamic body,
   }) {
     return HttpStreamStartEvent(
       requestId: requestId,
       timestamp: _defaultTimestamp(timestamp),
       method: method,
       uri: uri ?? Uri.parse('http://localhost/api/v1/runs/run-1/stream'),
+      headers: headers,
+      body: body,
     );
   }
 

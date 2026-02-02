@@ -220,6 +220,8 @@ class HttpStreamStartEvent extends HttpEvent {
     required super.timestamp,
     required this.method,
     required this.uri,
+    this.headers = const {},
+    this.body,
   });
 
   /// The HTTP method (typically GET or POST).
@@ -227,6 +229,15 @@ class HttpStreamStartEvent extends HttpEvent {
 
   /// The request URI.
   final Uri uri;
+
+  /// Request headers (may be empty).
+  final Map<String, String> headers;
+
+  /// The request body, if captured.
+  ///
+  /// For JSON requests, this is the parsed/redacted JSON structure.
+  /// For other content types, may be a string or null.
+  final dynamic body;
 
   @override
   String toString() => 'HttpStreamStartEvent($requestId, $method $uri)';

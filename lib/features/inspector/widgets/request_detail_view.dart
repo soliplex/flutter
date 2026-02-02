@@ -134,31 +134,32 @@ class _RequestTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final request = group.request;
-    if (request == null) {
-      return const _EmptyTabContent(message: 'No request data available');
+    // Use unified accessors that work for both regular requests and SSE
+    final headers = group.requestHeaders;
+    final body = group.requestBody;
+
+    if (headers.isEmpty && body == null) {
+      return const _EmptyTabContent(message: 'No request headers or body');
     }
 
     return ListView(
       padding: const EdgeInsets.all(SoliplexSpacing.s4),
       children: [
-        if (request.headers.isNotEmpty) ...[
+        if (headers.isNotEmpty) ...[
           _SectionHeader(
             title: 'Headers',
-            onCopy: () => _copyHeaders(context, request.headers),
+            onCopy: () => _copyHeaders(context, headers),
           ),
-          _HeadersTable(headers: request.headers),
+          _HeadersTable(headers: headers),
           const SizedBox(height: SoliplexSpacing.s4),
         ],
-        if (request.body != null) ...[
+        if (body != null) ...[
           _SectionHeader(
             title: 'Body',
-            onCopy: () => _copyBody(context, request.body),
+            onCopy: () => _copyBody(context, body),
           ),
-          _BodyDisplay(body: request.body),
+          _BodyDisplay(body: body),
         ],
-        if (request.headers.isEmpty && request.body == null)
-          const _EmptyTabContent(message: 'No request headers or body'),
       ],
     );
   }

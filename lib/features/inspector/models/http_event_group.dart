@@ -89,6 +89,26 @@ class HttpEventGroup {
     return path;
   }
 
+  /// Returns request headers from the first available event.
+  ///
+  /// Works for both regular requests and SSE streams.
+  /// Returns empty map if no headers available.
+  Map<String, String> get requestHeaders {
+    if (request case HttpRequestEvent(:final headers)) return headers;
+    if (streamStart case HttpStreamStartEvent(:final headers)) return headers;
+    return const {};
+  }
+
+  /// Returns request body from the first available event.
+  ///
+  /// Works for both regular requests and SSE streams.
+  /// Returns null if no body available.
+  dynamic get requestBody {
+    if (request case HttpRequestEvent(:final body)) return body;
+    if (streamStart case HttpStreamStartEvent(:final body)) return body;
+    return null;
+  }
+
   /// Returns the timestamp from the first available event.
   ///
   /// Throws [StateError] if no event contains timestamp information.
@@ -200,34 +220,36 @@ class HttpEventGroup {
   /// The command includes method, headers, body (if present), and URL.
   /// Values are properly escaped for shell execution.
   ///
-  /// Returns null if the request event is not available.
+  /// Works for both regular requests and SSE streams.
+  /// Returns null if no request data is available.
   String? toCurl() {
-    final req = request;
-    if (req == null) return null;
+    // Need at least method and URI to generate curl
+    if (!hasEvents) return null;
+    if (request == null && streamStart == null) return null;
 
     final parts = <String>['curl'];
 
     // Method (skip for GET since it's the default)
-    if (req.method != 'GET') {
-      parts.add('-X ${req.method}');
+    if (method != 'GET') {
+      parts.add('-X $method');
     }
 
-    // Headers
-    for (final entry in req.headers.entries) {
+    // Headers (using unified accessor)
+    for (final entry in requestHeaders.entries) {
       final escapedValue = _shellEscape(entry.value);
       parts.add("-H '${entry.key}: $escapedValue'");
     }
 
-    // Body
-    if (req.body != null) {
-      final bodyString =
-          req.body is String ? req.body as String : jsonEncode(req.body);
+    // Body (using unified accessor)
+    final body = requestBody;
+    if (body != null) {
+      final bodyString = body is String ? body : jsonEncode(body);
       final escapedBody = _shellEscape(bodyString);
       parts.add("-d '$escapedBody'");
     }
 
     // URL (must be last)
-    parts.add("'${req.uri}'");
+    parts.add("'$uri'");
 
     return parts.join(' \\\n  ');
   }
