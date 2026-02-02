@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,11 +19,68 @@ class BackendVersionsScreen extends ConsumerStatefulWidget {
 class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  Timer? _debounce;
+
+  // Cached data
+  Map<String, String> _latestPackages = {};
+  Map<String, String> _filteredPackages = {};
+  List<String> _sortedKeys = [];
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _searchController.dispose();
     super.dispose();
+  }
+
+  // Update filtered packages based on current search query.
+  void _updateFilter(Map<String, String> packages) {
+    final query = _searchQuery.trim().toLowerCase();
+
+    final entries = query.isEmpty
+        ? packages.entries
+        : packages.entries.where(
+            (e) => e.key.toLowerCase().contains(query),
+          );
+
+    final newFiltered = Map<String, String>.fromEntries(entries);
+    final newSortedKeys = newFiltered.keys.toList()..sort();
+
+    // Only set state if something actually changed.
+    if (!mapEquals(_filteredPackages, newFiltered) ||
+        !listEquals(_sortedKeys, newSortedKeys)) {
+      setState(() {
+        _filteredPackages = newFiltered;
+        _sortedKeys = newSortedKeys;
+      });
+    }
+  }
+
+  // Helpers to update cached packages when provider yields new data.
+  void _maybeUpdatePackages(Map<String, String> packages) {
+    // If the package map reference or contents changed, update caches.
+    if (!mapEquals(_latestPackages, packages)) {
+      _latestPackages = Map<String, String>.from(packages);
+      _updateFilter(_latestPackages);
+    }
+  }
+
+  // Debounced onChanged handler
+  void _onSearchChanged(String value) {
+    // cancel previous debounce
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 200), () {
+      // update query and recompute filter once debounce fires
+      if (mounted) {
+        setState(() => _searchQuery = value);
+        _updateFilter(_latestPackages);
+      }
+    });
   }
 
   @override
@@ -30,7 +90,13 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Backend Versions')),
       body: versionInfo.when(
-        data: (info) => _buildContent(info.packageVersions),
+        data: (info) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _maybeUpdatePackages(info.packageVersions);
+          });
+
+          return _buildContent();
+        },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) {
           debugPrint('Failed to load backend versions: $error');
@@ -43,9 +109,9 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
     );
   }
 
-  Widget _buildContent(Map<String, String> packageVersions) {
-    final filteredPackages = _filterPackages(packageVersions);
-    final sortedKeys = filteredPackages.keys.toList()..sort();
+  Widget _buildContent() {
+    final totalPackages = _latestPackages.length;
+    final visibleCount = _sortedKeys.length;
 
     return Column(
       children: [
@@ -58,7 +124,7 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
               prefixIcon: Icon(Icons.search),
               border: OutlineInputBorder(),
             ),
-            onChanged: (value) => setState(() => _searchQuery = value),
+            onChanged: _onSearchChanged,
           ),
         ),
         Padding(
@@ -67,54 +133,52 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
             alignment: Alignment.centerLeft,
             child: Text(
               _searchQuery.isEmpty
-                  ? '${packageVersions.length} packages'
-                  : '${sortedKeys.length} of '
-                      '${packageVersions.length} packages',
+                  ? '$totalPackages packages'
+                  : '$visibleCount of $totalPackages packages',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: sortedKeys.isEmpty
+          child: _sortedKeys.isEmpty
               ? const Center(child: Text('No packages match your search'))
               : ListView.builder(
-                  itemCount: sortedKeys.length,
+                  itemCount: _sortedKeys.length,
                   itemBuilder: (context, index) {
-                    final packageName = sortedKeys[index];
-                    final version = filteredPackages[packageName]!;
-                    return ListTile(
-                      title: SelectableText(packageName),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        spacing: SoliplexSpacing.s2,
-                        children: [
-                          SelectableText(version),
-                          IconButton(
-                            icon: const Icon(Icons.copy),
-                            onPressed: () => Clipboard.setData(
-                              ClipboardData(text: '$packageName $version'),
+                    final packageName = _sortedKeys[index];
+                    final version = _filteredPackages[packageName] ?? '';
+
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      child: ListTile(
+                        dense: true,
+                        title: SelectableText(
+                          packageName,
+                          maxLines: 1,
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          spacing: SoliplexSpacing.s2,
+                          children: [
+                            SelectableText(
+                              version,
+                              maxLines: 1,
                             ),
-                          ),
-                        ],
+                            IconButton(
+                              icon: const Icon(Icons.copy),
+                              onPressed: () => Clipboard.setData(
+                                ClipboardData(text: '$packageName $version'),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     );
                   },
                 ),
         ),
       ],
-    );
-  }
-
-  Map<String, String> _filterPackages(Map<String, String> packages) {
-    if (_searchQuery.isEmpty) return packages;
-
-    final query = _searchQuery.toLowerCase();
-    return Map.fromEntries(
-      packages.entries.where(
-        (entry) => entry.key.toLowerCase().contains(query),
-      ),
     );
   }
 }
