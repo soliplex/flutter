@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -150,6 +153,13 @@ class HistoryPanel extends ConsumerWidget {
   /// Sets the selection to [NewThreadIntent], signaling that the next
   /// message should create a new thread.
   void _handleNewConversation(WidgetRef ref) {
+    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+
+    // Close the drawer if open
+    if (isMobile) Navigator.of(ref.context).maybePop();
+
+    // Signal intent to create a new thread
     ref.read(threadSelectionProvider.notifier).set(const NewThreadIntent());
   }
 }
