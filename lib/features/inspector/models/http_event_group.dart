@@ -249,7 +249,7 @@ class HttpEventGroup {
     }
 
     // URL (must be last)
-    parts.add("'$uri'");
+    parts.add("'${_shellEscape(uri.toString())}'");
 
     return parts.join(' \\\n  ');
   }

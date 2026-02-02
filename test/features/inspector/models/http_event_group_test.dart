@@ -929,6 +929,18 @@ void main() {
         final curl = group.toCurl()!;
         expect(curl, contains("-d 'raw string body'"));
       });
+
+      test('escapes single quotes in URL', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: TestData.createRequestEvent(
+            uri: Uri.parse("http://example.com/api?q=it's"),
+          ),
+        );
+        final curl = group.toCurl()!;
+        // URL should be escaped: it's -> it'\''s
+        expect(curl, contains(r"it'\''s"));
+      });
     });
 
     group('copyWith', () {
