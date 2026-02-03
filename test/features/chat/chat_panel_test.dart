@@ -290,6 +290,7 @@ void main() {
               activeRunNotifierOverride(const IdleState()),
               // Override to avoid API call
               allMessagesProvider.overrideWith((ref) async => []),
+              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
             ],
           ),
         );
@@ -564,6 +565,7 @@ void main() {
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
               allMessagesProvider.overrideWith((ref) async => []),
+              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
             ],
           ),
         );
@@ -593,6 +595,7 @@ void main() {
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
               allMessagesProvider.overrideWith((ref) async => messages),
+              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
             ],
           ),
         );
@@ -624,6 +627,7 @@ void main() {
                 const RunningState(conversation: conversation),
               ),
               allMessagesProvider.overrideWith((ref) async => []),
+              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
             ],
           ),
         );
