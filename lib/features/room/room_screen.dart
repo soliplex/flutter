@@ -115,27 +115,33 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final currentRoom = ref.watch(currentRoomProvider);
     final quizzes = currentRoom?.quizzes ?? const <String, String>{};
 
-    final features = ref.watch(featuresProvider);
+    final shellConfig = ref.watch(shellConfigProvider);
+    final features = shellConfig.features;
+    final showBackButton = shellConfig.routes.showRoomsRoute;
 
     return AppShell(
       config: ShellConfig(
-        leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
+        leading: isDesktop
+            ? [_buildSidebarToggle()]
+            : [
+                // TODO: Fix DrawerToggle appearance
+                const DrawerToggle(),
+              ],
         title: _buildRoomDropdown(),
         actions: [
           if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
           if (features.enableSettings) _buildSettingsButton(),
         ],
-        drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
+        drawer: isDesktop
+            ? null
+            : HistoryPanel(
+                roomId: widget.roomId,
+                showBackButton: showBackButton,
+              ),
       ),
-      body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
-    );
-  }
-
-  Widget _buildBackButton() {
-    return IconButton(
-      icon: Icon(Icons.adaptive.arrow_back),
-      tooltip: 'Back to rooms',
-      onPressed: () => context.go('/rooms'),
+      body: isDesktop
+          ? _buildDesktopLayout(context, showBackButton: showBackButton)
+          : const ChatPanel(),
     );
   }
 
@@ -280,7 +286,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     }
   }
 
-  Widget _buildDesktopLayout(BuildContext context) {
+  Widget _buildDesktopLayout(
+    BuildContext context, {
+    required bool showBackButton,
+  }) {
     return Row(
       children: [
         if (!_sidebarCollapsed)
@@ -294,7 +303,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                   ),
                 ),
               ),
-              child: HistoryPanel(roomId: widget.roomId),
+              child: HistoryPanel(
+                roomId: widget.roomId,
+                showBackButton: showBackButton,
+              ),
             ),
           ),
         const Expanded(child: ChatPanel()),

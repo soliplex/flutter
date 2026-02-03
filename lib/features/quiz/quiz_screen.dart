@@ -49,12 +49,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
     return AppShell(
       config: ShellConfig(
-        leading: IconButton(
-          icon: Icon(Icons.adaptive.arrow_back),
-          tooltip: 'Back to room',
-          onPressed: _handleBack,
+        leading: [
+          IconButton(
+            icon: Icon(Icons.adaptive.arrow_back),
+            tooltip: 'Back to room',
+            onPressed: _handleBack,
+          ),
+        ],
+        title: quizAsync.whenOrNull(
+          data: (quiz) => Text(quiz.title),
         ),
-        title: quizAsync.whenOrNull(data: (quiz) => Text(quiz.title)),
         actions: [
           if (features.enableSettings)
             Semantics(

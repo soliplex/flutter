@@ -43,10 +43,11 @@ class _SettingsButton extends StatelessWidget {
 AppShell _staticShell({
   required Widget title,
   required Widget body,
+  List<Widget> leading = const [],
   List<Widget> actions = const [],
 }) {
   return AppShell(
-    config: ShellConfig(title: title, actions: actions),
+    config: ShellConfig(leading: leading, title: title, actions: actions),
     body: body,
   );
 }
@@ -55,10 +56,16 @@ AppShell _staticShell({
 NoTransitionPage<void> _staticPage({
   required Widget title,
   required Widget body,
+  List<Widget> leading = const [],
   List<Widget> actions = const [],
 }) {
   return NoTransitionPage(
-    child: _staticShell(title: title, body: body, actions: actions),
+    child: _staticShell(
+      leading: leading,
+      title: title,
+      body: body,
+      actions: actions,
+    ),
   );
 }
 
@@ -313,9 +320,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         GoRoute(
           path: '/settings',
           name: 'settings',
-          pageBuilder: (context, state) => _staticPage(
-            title: const Text('Settings'),
-            body: const SettingsScreen(),
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: Builder(
+              builder: (context) => _staticShell(
+                leading: [
+                  IconButton(
+                    icon: Icon(Icons.adaptive.arrow_back),
+                    tooltip: 'Back',
+                    onPressed: () => context.pop(),
+                  ),
+                ],
+                title: const Text('Settings'),
+                body: const SettingsScreen(),
+              ),
+            ),
           ),
           routes: [
             GoRoute(

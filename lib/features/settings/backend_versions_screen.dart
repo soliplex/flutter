@@ -4,8 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
+import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Screen displaying all backend package versions with search functionality.
 class BackendVersionsScreen extends ConsumerStatefulWidget {
@@ -87,8 +90,17 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
   Widget build(BuildContext context) {
     final versionInfo = ref.watch(backendVersionInfoProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Backend Versions')),
+    return AppShell(
+      config: ShellConfig(
+        leading: [
+          IconButton(
+            icon: Icon(Icons.adaptive.arrow_back),
+            onPressed: () => context.pop(),
+            tooltip: 'Back',
+          ),
+        ],
+        title: const Text('Backend Versions'),
+      ),
       body: versionInfo.when(
         data: (info) {
           WidgetsBinding.instance.addPostFrameCallback((_) {

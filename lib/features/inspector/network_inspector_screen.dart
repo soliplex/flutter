@@ -41,6 +41,13 @@ class _NetworkInspectorScreenState
 
     return AppShell(
       config: ShellConfig(
+        leading: [
+          IconButton(
+            icon: Icon(Icons.adaptive.arrow_back),
+            onPressed: () => context.pop(),
+            tooltip: 'Back',
+          ),
+        ],
         title: Text('Requests (${sortedGroups.length})'),
         actions: [
           IconButton(
@@ -219,12 +226,14 @@ class _RequestDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppShell(
       config: ShellConfig(
+        leading: [
+          IconButton(
+            icon: Icon(Icons.adaptive.arrow_back),
+            onPressed: () => context.pop(),
+            tooltip: 'Back',
+          ),
+        ],
         title: Text(group.pathWithQuery),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
-          tooltip: 'Back',
-        ),
       ),
       body: RequestDetailView(group: group),
     );

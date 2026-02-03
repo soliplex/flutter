@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 class ShellConfig {
   const ShellConfig({
     this.title,
-    this.leading,
+    this.leading = const [],
     this.actions = const [],
     this.drawer,
   });
@@ -16,14 +16,18 @@ class ShellConfig {
   /// The primary widget displayed in the AppBar.
   final Widget? title;
 
-  /// Widget to display before the [title].
-  final Widget? leading;
+  /// Widgets to display in the AppBar's leading area, in order.
+  ///
+  /// Common patterns:
+  /// - Mobile: `[backButton, DrawerToggle()]` - back navigation + hamburger menu
+  /// - Desktop: `[sidebarToggle]` - inline sidebar collapse/expand
+  ///
+  /// The order in this list determines the visual order left-to-right.
+  final List<Widget> leading;
 
-  /// Widgets to display after the [title].
-  /// The HTTP inspector button is automatically appended.
+  /// Widgets to display in the AppBar's actions area.
   final List<Widget> actions;
 
   /// Optional drawer for mobile navigation (e.g., thread list).
-  /// Shown as leading drawer, separate from the HTTP inspector endDrawer.
   final Widget? drawer;
 }

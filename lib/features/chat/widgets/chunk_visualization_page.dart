@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/chunk_visualization_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
+import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Full-screen page for viewing PDF chunk page images with zoom support.
 ///
@@ -55,18 +57,21 @@ class ChunkVisualizationPage extends ConsumerWidget {
 
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-          tooltip: 'Back',
-        ),
+    return AppShell(
+      config: ShellConfig(
+        leading: [
+          IconButton(
+            icon: Icon(Icons.adaptive.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+            tooltip: 'Back',
+          ),
+        ],
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.picture_as_pdf, size: 20),
             const SizedBox(width: SoliplexSpacing.s2),
-            Expanded(
+            Flexible(
               child: Text(
                 documentTitle,
                 maxLines: 1,
