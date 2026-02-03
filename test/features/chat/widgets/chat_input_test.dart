@@ -1770,6 +1770,179 @@ void main() {
       });
     });
 
+    group('Document Picker Refresh', () {
+      testWidgets('refresh button is visible in title bar when data loaded', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - refresh button should be visible in title bar
+        expect(find.byIcon(Icons.refresh), findsOneWidget);
+      });
+
+      testWidgets('refresh button is disabled during loading', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // Keep loading indefinitely
+        final completer = Completer<List<RagDocument>>();
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) => completer.future);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pump();
+
+        // Assert - refresh button should be disabled during loading
+        final refreshButton = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.refresh),
+        );
+        expect(refreshButton.onPressed, isNull);
+      });
+
+      testWidgets('tapping refresh invalidates provider', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        var fetchCount = 0;
+
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          fetchCount++;
+          return [
+            TestData.createDocument(
+              id: 'doc-$fetchCount',
+              title: 'Document $fetchCount.pdf',
+            ),
+          ];
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Initial fetch should have occurred
+        expect(fetchCount, equals(1));
+
+        // Tap refresh
+        await tester.tap(find.byIcon(Icons.refresh));
+        await tester.pumpAndSettle();
+
+        // Assert - provider should have been invalidated, triggering new fetch
+        expect(fetchCount, equals(2));
+      });
+
+      testWidgets('shows updated data after refresh completes', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        var fetchCount = 0;
+
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          fetchCount++;
+          return [
+            TestData.createDocument(
+              id: 'doc-$fetchCount',
+              title: 'Document $fetchCount.pdf',
+            ),
+          ];
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Initially shows Document 1
+        expect(find.text('Document 1.pdf'), findsOneWidget);
+
+        // Tap refresh
+        await tester.tap(find.byIcon(Icons.refresh));
+        await tester.pumpAndSettle();
+
+        // Assert - should now show Document 2
+        expect(find.text('Document 2.pdf'), findsOneWidget);
+        expect(find.text('Document 1.pdf'), findsNothing);
+      });
+    });
+
     group('Document Picker Error Handling', () {
       testWidgets('shows error message when loading fails', (tester) async {
         // Arrange
@@ -1841,9 +2014,9 @@ void main() {
         await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pumpAndSettle();
 
-        // Assert - retry button should be visible
+        // Assert - retry button should be visible (plus refresh in title bar)
         expect(find.text('Retry'), findsOneWidget);
-        expect(find.byIcon(Icons.refresh), findsOneWidget);
+        expect(find.byIcon(Icons.refresh), findsNWidgets(2));
       });
 
       testWidgets('shows server error message for API errors', (tester) async {

@@ -374,12 +374,26 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
         .toList();
   }
 
+  void _handleRefresh() {
+    ref.invalidate(documentsProvider(widget.roomId));
+  }
+
   @override
   Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentsProvider(widget.roomId));
+    final isLoading = documentsAsync.isLoading;
 
     return AlertDialog(
-      title: const Text('Select documents'),
+      title: Row(
+        children: [
+          const Expanded(child: Text('Select documents')),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh documents',
+            onPressed: isLoading ? null : _handleRefresh,
+          ),
+        ],
+      ),
       content: SizedBox(
         width: 300,
         height: 400,
