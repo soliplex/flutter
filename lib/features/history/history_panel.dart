@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,10 +42,20 @@ import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 /// ```
 class HistoryPanel extends ConsumerWidget {
   /// Creates a history panel for the specified room.
-  const HistoryPanel({required this.roomId, super.key});
+  const HistoryPanel({
+    required this.roomId,
+    this.showBackButton = false,
+    super.key,
+  });
 
   /// The room whose threads to display.
   final String roomId;
+
+  /// Whether to show a "Back to Rooms" button at the top.
+  ///
+  /// This is typically true when the panel is shown in a drawer on small
+  /// screens, providing navigation back to the rooms list.
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,8 +72,9 @@ class HistoryPanel extends ConsumerWidget {
             child: Column(
               spacing: SoliplexSpacing.s2,
               children: [
+                if (showBackButton) _buildBackButton(context),
                 NewConversationButton(
-                  onPressed: () => _handleNewConversation(ref),
+                  onPressed: () => _handleNewConversation(context, ref),
                 ),
                 const Expanded(
                   child: EmptyState(
@@ -91,8 +101,9 @@ class HistoryPanel extends ConsumerWidget {
           child: Column(
             spacing: SoliplexSpacing.s2,
             children: [
+              if (showBackButton) _buildBackButton(context),
               NewConversationButton(
-                onPressed: () => _handleNewConversation(ref),
+                onPressed: () => _handleNewConversation(context, ref),
               ),
               const Divider(height: 1),
               Expanded(
@@ -133,6 +144,17 @@ class HistoryPanel extends ConsumerWidget {
     );
   }
 
+  Widget _buildBackButton(BuildContext context) {
+    return ListTile(
+      leading: Icon(Icons.adaptive.arrow_back),
+      title: const Text('Back to Rooms'),
+      onTap: () {
+        Navigator.of(context).pop(); // Close drawer first
+        context.go('/rooms');
+      },
+    );
+  }
+
   /// Handles selection of a thread.
   void _handleThreadSelection(
     BuildContext context,
@@ -152,12 +174,12 @@ class HistoryPanel extends ConsumerWidget {
   ///
   /// Sets the selection to [NewThreadIntent], signaling that the next
   /// message should create a new thread.
-  void _handleNewConversation(WidgetRef ref) {
-    final isMobile = defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS;
+  void _handleNewConversation(BuildContext context, WidgetRef ref) {
+    final isSmallScreen =
+        MediaQuery.of(context).size.width < SoliplexBreakpoints.desktop;
 
-    // Close the drawer if open
-    if (isMobile) Navigator.of(ref.context).maybePop();
+    // Close the drawer if open on small screens
+    if (isSmallScreen) Navigator.of(context).maybePop();
 
     // Signal intent to create a new thread
     ref.read(threadSelectionProvider.notifier).set(const NewThreadIntent());

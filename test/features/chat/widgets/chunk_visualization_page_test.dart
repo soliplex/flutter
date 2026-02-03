@@ -196,8 +196,8 @@ void main() {
 
       expect(find.byType(ChunkVisualizationPage), findsOneWidget);
 
-      // Tap back button
-      await tester.tap(find.byIcon(Icons.arrow_back));
+      // Tap back button (Icons.adaptive.arrow_back resolves to arrow_back on Android)
+      await tester.tap(find.byIcon(Icons.adaptive.arrow_back));
       await tester.pumpAndSettle();
 
       expect(find.byType(ChunkVisualizationPage), findsNothing);

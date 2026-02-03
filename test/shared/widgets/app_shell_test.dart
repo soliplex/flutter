@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:soliplex_frontend/core/models/features.dart';
-import 'package:soliplex_frontend/core/models/logo_config.dart';
-import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
@@ -50,7 +47,7 @@ void main() {
       expect(find.text('My Title'), findsOneWidget);
     });
 
-    testWidgets('renders leading from config', (tester) async {
+    testWidgets('renders single leading widget', (tester) async {
       const leadingKey = Key('leading');
       await tester.pumpWidget(
         ProviderScope(
@@ -60,11 +57,13 @@ void main() {
           child: MaterialApp(
             home: AppShell(
               config: ShellConfig(
-                leading: IconButton(
-                  key: leadingKey,
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {},
-                ),
+                leading: [
+                  IconButton(
+                    key: leadingKey,
+                    icon: Icon(Icons.adaptive.arrow_back),
+                    onPressed: () {},
+                  ),
+                ],
               ),
               body: const SizedBox.shrink(),
             ),
@@ -73,6 +72,46 @@ void main() {
       );
 
       expect(find.byKey(leadingKey), findsOneWidget);
+    });
+
+    testWidgets('renders multiple leading widgets in order', (tester) async {
+      const backKey = Key('back');
+      const menuKey = Key('menu');
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
+          ],
+          child: MaterialApp(
+            home: AppShell(
+              config: ShellConfig(
+                leading: [
+                  IconButton(
+                    key: backKey,
+                    icon: Icon(Icons.adaptive.arrow_back),
+                    onPressed: () {},
+                  ),
+                  IconButton(
+                    key: menuKey,
+                    icon: const Icon(Icons.menu),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              body: const SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+
+      // Both widgets should be present
+      expect(find.byKey(backKey), findsOneWidget);
+      expect(find.byKey(menuKey), findsOneWidget);
+
+      // Back button should be to the left of menu button
+      final backOffset = tester.getCenter(find.byKey(backKey));
+      final menuOffset = tester.getCenter(find.byKey(menuKey));
+      expect(backOffset.dx, lessThan(menuOffset.dx));
     });
 
     testWidgets('renders actions from config', (tester) async {
@@ -102,9 +141,7 @@ void main() {
       expect(find.byKey(actionKey), findsOneWidget);
     });
 
-    testWidgets('shows AppBar with inspector button for empty config', (
-      tester,
-    ) async {
+    testWidgets('shows AppBar for empty config', (tester) async {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
@@ -120,127 +157,6 @@ void main() {
       );
 
       expect(find.byType(AppBar), findsOneWidget);
-      expect(find.byIcon(Icons.bug_report), findsOneWidget);
-    });
-
-    group('HTTP inspector', () {
-      testWidgets('shows inspector button in app bar', (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: const MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: Center(child: Text('Content')),
-              ),
-            ),
-          ),
-        );
-
-        expect(find.byIcon(Icons.bug_report), findsOneWidget);
-      });
-
-      testWidgets('inspector button has tooltip', (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: const MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: Center(child: Text('Content')),
-              ),
-            ),
-          ),
-        );
-
-        final tooltipFinder = find.byWidgetPredicate(
-          (widget) =>
-              widget is Tooltip &&
-              widget.message == 'Open HTTP traffic inspector',
-        );
-        expect(tooltipFinder, findsOneWidget);
-      });
-
-      testWidgets('inspector button appears after config actions', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: MaterialApp(
-              home: AppShell(
-                config: ShellConfig(
-                  actions: [
-                    IconButton(
-                      key: const Key('action'),
-                      icon: const Icon(Icons.settings),
-                      onPressed: () {},
-                    ),
-                  ],
-                ),
-                body: const SizedBox.shrink(),
-              ),
-            ),
-          ),
-        );
-
-        final actionOffset = tester.getCenter(find.byKey(const Key('action')));
-        final inspectorOffset = tester.getCenter(find.byIcon(Icons.bug_report));
-        expect(inspectorOffset.dx, greaterThan(actionOffset.dx));
-      });
-
-      testWidgets('inspector button opens endDrawer', (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: const MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: Center(child: Text('Content')),
-              ),
-            ),
-          ),
-        );
-
-        await tester.tap(find.byIcon(Icons.bug_report));
-        await tester.pumpAndSettle();
-
-        expect(find.text('Requests (0)'), findsOneWidget);
-      });
-
-      testWidgets('endDrawer has Semantics label', (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: const MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: Center(child: Text('Content')),
-              ),
-            ),
-          ),
-        );
-
-        await tester.tap(find.byIcon(Icons.bug_report));
-        await tester.pumpAndSettle();
-
-        final semanticsFinder = find.byWidgetPredicate(
-          (widget) =>
-              widget is Semantics &&
-              widget.properties.label == 'HTTP traffic inspector panel',
-        );
-        expect(semanticsFinder, findsOneWidget);
-      });
     });
 
     group('start drawer', () {
@@ -308,134 +224,22 @@ void main() {
         expect(scaffold.drawer, isNull);
       });
     });
-
-    group('feature flags', () {
-      testWidgets(
-        'hides inspector button when enableHttpInspector is false',
-        (tester) async {
-          await tester.pumpWidget(
-            ProviderScope(
-              overrides: [
-                shellConfigProvider.overrideWithValue(
-                  const SoliplexConfig(
-                    logo: LogoConfig.soliplex,
-                    features: Features(enableHttpInspector: false),
-                  ),
-                ),
-              ],
-              child: const MaterialApp(
-                home: AppShell(
-                  config: ShellConfig(),
-                  body: Center(child: Text('Content')),
-                ),
-              ),
-            ),
-          );
-
-          expect(find.byIcon(Icons.bug_report), findsNothing);
-        },
-      );
-
-      testWidgets(
-        'hides endDrawer when enableHttpInspector is false',
-        (tester) async {
-          await tester.pumpWidget(
-            ProviderScope(
-              overrides: [
-                shellConfigProvider.overrideWithValue(
-                  const SoliplexConfig(
-                    logo: LogoConfig.soliplex,
-                    features: Features(enableHttpInspector: false),
-                  ),
-                ),
-              ],
-              child: const MaterialApp(
-                home: AppShell(
-                  config: ShellConfig(),
-                  body: Center(child: Text('Content')),
-                ),
-              ),
-            ),
-          );
-
-          final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-          expect(scaffold.endDrawer, isNull);
-        },
-      );
-    });
-
-    group('custom end drawer', () {
-      testWidgets('shows custom end drawer instead of inspector', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: const MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: Center(child: Text('Content')),
-                customEndDrawer: Text('Custom Drawer Content'),
-              ),
-            ),
-          ),
-        );
-
-        // Inspector button should be hidden
-        expect(find.byIcon(Icons.bug_report), findsNothing);
-
-        // Open drawer via scaffold
-        tester.state<ScaffoldState>(find.byType(Scaffold)).openEndDrawer();
-        await tester.pumpAndSettle();
-
-        expect(find.text('Custom Drawer Content'), findsOneWidget);
-      });
-
-      testWidgets('custom end drawer has Semantics label', (tester) async {
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              shellConfigProvider.overrideWithValue(testSoliplexConfig),
-            ],
-            child: const MaterialApp(
-              home: AppShell(
-                config: ShellConfig(),
-                body: Center(child: Text('Content')),
-                customEndDrawer: Text('Custom'),
-              ),
-            ),
-          ),
-        );
-
-        tester.state<ScaffoldState>(find.byType(Scaffold)).openEndDrawer();
-        await tester.pumpAndSettle();
-
-        final semanticsFinder = find.byWidgetPredicate(
-          (widget) =>
-              widget is Semantics && widget.properties.label == 'Custom panel',
-        );
-        expect(semanticsFinder, findsOneWidget);
-      });
-    });
   });
 
   group('ShellConfig', () {
     test('has sensible defaults', () {
       const config = ShellConfig();
       expect(config.title, isNull);
-      expect(config.leading, isNull);
+      expect(config.leading, isEmpty);
       expect(config.actions, isEmpty);
       expect(config.drawer, isNull);
     });
 
     test('stores all provided values', () {
       const title = Text('Title');
-      final leading = IconButton(
-        icon: const Icon(Icons.menu),
-        onPressed: () {},
-      );
+      final leading = [
+        IconButton(icon: const Icon(Icons.menu), onPressed: () {}),
+      ];
       final actions = [
         IconButton(icon: const Icon(Icons.search), onPressed: () {}),
       ];
@@ -452,6 +256,62 @@ void main() {
       expect(config.leading, same(leading));
       expect(config.actions, same(actions));
       expect(config.drawer, same(drawer));
+    });
+  });
+
+  group('DrawerToggle', () {
+    testWidgets('opens drawer when tapped', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
+          ],
+          child: const MaterialApp(
+            home: AppShell(
+              config: ShellConfig(
+                leading: [DrawerToggle()],
+                drawer: Drawer(child: Text('Drawer Content')),
+              ),
+              body: SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+
+      // Drawer should be closed initially
+      expect(find.text('Drawer Content'), findsNothing);
+
+      // Tap the drawer toggle
+      await tester.tap(find.byIcon(Icons.menu));
+      await tester.pumpAndSettle();
+
+      // Drawer should be open
+      expect(find.text('Drawer Content'), findsOneWidget);
+    });
+
+    testWidgets('has correct tooltip', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
+          ],
+          child: const MaterialApp(
+            home: AppShell(
+              config: ShellConfig(
+                leading: [DrawerToggle()],
+                drawer: Drawer(child: Text('Nav')),
+              ),
+              body: SizedBox.shrink(),
+            ),
+          ),
+        ),
+      );
+
+      final tooltipFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is Tooltip && widget.message == 'Open navigation',
+      );
+      expect(tooltipFinder, findsOneWidget);
     });
   });
 }
