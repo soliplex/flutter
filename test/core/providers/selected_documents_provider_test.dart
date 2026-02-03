@@ -46,7 +46,6 @@ void main() {
     test('getForThread returns empty set for unknown thread', () {
       final notifier =
           container.read(selectedDocumentsNotifierProvider.notifier);
-
       final result = notifier.getForThread('room-1', 'unknown-thread');
       expect(result, isEmpty);
     });

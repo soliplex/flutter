@@ -498,34 +498,39 @@ void main() {
     });
 
     group('request - exception mapping', () {
-      test('throws AuthException for 401 response with server message',
-          () async {
-        when(
-          () => mockClient.request(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async => jsonResponse(401, body: {'message': 'Unauthorized'}),
-        );
+      test(
+        'throws AuthException for 401 response with server message',
+        () async {
+          when(
+            () => mockClient.request(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenAnswer(
+            (_) async => jsonResponse(401, body: {'message': 'Unauthorized'}),
+          );
 
-        await expectLater(
-          transport.request<void>('GET', Uri.parse('https://api.example.com')),
-          throwsA(
-            isA<AuthException>()
-                .having((e) => e.statusCode, 'statusCode', 401)
-                .having((e) => e.message, 'message', 'Unauthorized')
-                .having(
-                  (e) => e.serverMessage,
-                  'serverMessage',
-                  'Unauthorized',
-                ),
-          ),
-        );
-      });
+          await expectLater(
+            transport.request<void>(
+              'GET',
+              Uri.parse('https://api.example.com'),
+            ),
+            throwsA(
+              isA<AuthException>()
+                  .having((e) => e.statusCode, 'statusCode', 401)
+                  .having((e) => e.message, 'message', 'Unauthorized')
+                  .having(
+                    (e) => e.serverMessage,
+                    'serverMessage',
+                    'Unauthorized',
+                  ),
+            ),
+          );
+        },
+      );
 
       test('throws AuthException for 401 without server message', () async {
         when(
@@ -575,67 +580,74 @@ void main() {
         );
       });
 
-      test('throws NotFoundException for 404 response with server message',
-          () async {
-        when(
-          () => mockClient.request(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async =>
-              jsonResponse(404, body: {'detail': 'Resource not found'}),
-        );
+      test(
+        'throws NotFoundException for 404 response with server message',
+        () async {
+          when(
+            () => mockClient.request(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenAnswer(
+            (_) async =>
+                jsonResponse(404, body: {'detail': 'Resource not found'}),
+          );
 
-        await expectLater(
-          transport.request<void>(
-            'GET',
-            Uri.parse('https://api.example.com/items/999'),
-          ),
-          throwsA(
-            isA<NotFoundException>()
-                .having((e) => e.resource, 'resource', '/items/999')
-                .having((e) => e.message, 'message', 'Resource not found')
-                .having(
-                  (e) => e.serverMessage,
-                  'serverMessage',
-                  'Resource not found',
-                ),
-          ),
-        );
-      });
+          await expectLater(
+            transport.request<void>(
+              'GET',
+              Uri.parse('https://api.example.com/items/999'),
+            ),
+            throwsA(
+              isA<NotFoundException>()
+                  .having((e) => e.resource, 'resource', '/items/999')
+                  .having((e) => e.message, 'message', 'Resource not found')
+                  .having(
+                    (e) => e.serverMessage,
+                    'serverMessage',
+                    'Resource not found',
+                  ),
+            ),
+          );
+        },
+      );
 
-      test('throws ApiException for 400 Bad Request with server message',
-          () async {
-        when(
-          () => mockClient.request(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async => jsonResponse(400, body: {'message': 'Invalid input'}),
-        );
+      test(
+        'throws ApiException for 400 Bad Request with server message',
+        () async {
+          when(
+            () => mockClient.request(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenAnswer(
+            (_) async => jsonResponse(400, body: {'message': 'Invalid input'}),
+          );
 
-        await expectLater(
-          transport.request<void>('POST', Uri.parse('https://api.example.com')),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.statusCode, 'statusCode', 400)
-                .having((e) => e.message, 'message', 'Invalid input')
-                .having(
-                  (e) => e.serverMessage,
-                  'serverMessage',
-                  'Invalid input',
-                ),
-          ),
-        );
-      });
+          await expectLater(
+            transport.request<void>(
+              'POST',
+              Uri.parse('https://api.example.com'),
+            ),
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.statusCode, 'statusCode', 400)
+                  .having((e) => e.message, 'message', 'Invalid input')
+                  .having(
+                    (e) => e.serverMessage,
+                    'serverMessage',
+                    'Invalid input',
+                  ),
+            ),
+          );
+        },
+      );
 
       test('throws ApiException for 500 Internal Server Error', () async {
         when(

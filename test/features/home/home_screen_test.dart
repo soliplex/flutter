@@ -320,43 +320,46 @@ void main() {
         );
       });
 
-      testWidgets('shows server error for ApiException without server message',
-          (tester) async {
-        final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(
-          const ApiException(statusCode: 500, message: 'HTTP 500'),
-        );
+      testWidgets(
+        'shows server error for ApiException without server message',
+        (tester) async {
+          final mockTransport = MockHttpTransport();
+          when(
+            () => mockTransport.request<Map<String, dynamic>>(
+              any(),
+              any(),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+            ),
+          ).thenThrow(const ApiException(statusCode: 500, message: 'HTTP 500'));
 
-        await tester.pumpWidget(
-          createTestApp(
-            home: const HomeScreen(),
-            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
-          ),
-        );
+          await tester.pumpWidget(
+            createTestApp(
+              home: const HomeScreen(),
+              overrides: [
+                httpTransportProvider.overrideWithValue(mockTransport),
+              ],
+            ),
+          );
 
-        final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
-        await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+          final urlField = find.byType(TextFormField);
+          await tester.enterText(urlField, 'http://localhost:8000');
+          await tester.tap(find.text('Connect'));
+          await tester.pumpAndSettle();
 
-        expect(
-          find.text('Server error. Please try again later. (500)'),
-          findsOneWidget,
-        );
-      });
+          expect(
+            find.text('Server error. Please try again later. (500)'),
+            findsOneWidget,
+          );
+        },
+      );
 
-      testWidgets('shows server error for ApiException with server message',
-          (tester) async {
+      testWidgets('shows server error for ApiException with server message', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(

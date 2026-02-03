@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/models/agui_features/filter_documents.dart';
+import 'package:soliplex_frontend/core/models/agui_features/filter_documents_ext.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
@@ -233,11 +235,9 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     // Build initial state with filter_documents if documents are selected
     Map<String, dynamic>? initialState;
     if (selectedDocuments.isNotEmpty) {
-      initialState = {
-        'filter_documents': {
-          'document_ids': selectedDocuments.map((d) => d.id).toList(),
-        },
-      };
+      initialState = FilterDocuments(
+        documentIds: selectedDocuments.map((d) => d.id).toList(),
+      ).toStateEntry();
     }
 
     // Start the run

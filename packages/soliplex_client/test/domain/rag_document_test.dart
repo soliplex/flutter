@@ -4,10 +4,7 @@ import 'package:test/test.dart';
 void main() {
   group('RagDocument', () {
     test('creates with required fields', () {
-      const doc = RagDocument(
-        id: 'doc-123',
-        title: 'Manual.pdf',
-      );
+      const doc = RagDocument(id: 'doc-123', title: 'Manual.pdf');
 
       expect(doc.id, equals('doc-123'));
       expect(doc.title, equals('Manual.pdf'));

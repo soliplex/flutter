@@ -257,9 +257,9 @@ class ChatMessageWidget extends StatelessWidget {
   Future<void> _copyToClipboard(BuildContext context, String text) async {
     void showSnackBar(String message) {
       if (!context.mounted) return;
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      ScaffoldMessenger.maybeOf(
+        context,
+      )?.showSnackBar(SnackBar(content: Text(message)));
     }
 
     try {
@@ -414,11 +414,7 @@ class _ThinkingSectionState extends State<ThinkingSection> {
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.tooltip,
-    required this.icon,
-    this.onTap,
-  });
+  const _ActionButton({required this.tooltip, required this.icon, this.onTap});
 
   final String tooltip;
   final IconData icon;

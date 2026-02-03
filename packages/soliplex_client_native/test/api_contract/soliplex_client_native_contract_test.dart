@@ -82,10 +82,7 @@ void main() {
 
         // Create API client
         final urlBuilder = UrlBuilder('https://api.myapp.com/v1');
-        final api = SoliplexApi(
-          transport: transport,
-          urlBuilder: urlBuilder,
-        );
+        final api = SoliplexApi(transport: transport, urlBuilder: urlBuilder);
 
         expect(api, isA<SoliplexApi>());
         api.close();

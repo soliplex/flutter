@@ -265,10 +265,7 @@ void main() {
 
     group('ragDocumentToJson', () {
       test('serializes correctly', () {
-        const doc = RagDocument(
-          id: 'doc-uuid-123',
-          title: 'User Manual.pdf',
-        );
+        const doc = RagDocument(id: 'doc-uuid-123', title: 'User Manual.pdf');
 
         final json = ragDocumentToJson(doc);
 
@@ -930,9 +927,7 @@ void main() {
       });
 
       test('handles missing expected_output for incorrect answer', () {
-        final json = <String, dynamic>{
-          'correct': 'false',
-        };
+        final json = <String, dynamic>{'correct': 'false'};
 
         final result = quizAnswerResultFromJson(json);
 

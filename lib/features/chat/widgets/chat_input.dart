@@ -5,6 +5,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
 /// Formats a document path/title to show filename with up to 2 parent folders.
 ///
@@ -420,7 +421,12 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('Error: $error')),
+          error: (error, _) => ErrorDisplay(
+            error: error,
+            onRetry: () {
+              ref.read(documentsProvider(widget.roomId).notifier).retry();
+            },
+          ),
         ),
       ),
       actions: [

@@ -236,36 +236,33 @@ void main() {
   });
 
   group('authFlowProvider', () {
-    test(
-      'throws StateError when oauthRedirectScheme is null on native',
-      () {
-        // Skip on web - the validation only applies to native platforms
-        if (kIsWeb) {
-          markTestSkipped('Test only applies to native platforms');
-          return;
-        }
+    test('throws StateError when oauthRedirectScheme is null on native', () {
+      // Skip on web - the validation only applies to native platforms
+      if (kIsWeb) {
+        markTestSkipped('Test only applies to native platforms');
+        return;
+      }
 
-        final container = ProviderContainer(
-          overrides: [
-            // oauthRedirectScheme is null (not provided)
-            shellConfigProvider.overrideWithValue(
-              const SoliplexConfig(logo: LogoConfig.soliplex),
-            ),
-          ],
-        );
-        addTearDown(container.dispose);
-
-        expect(
-          () => container.read(authFlowProvider),
-          throwsA(
-            predicate<Object>(
-              (e) => e.toString().contains('oauthRedirectScheme'),
-              'exception message contains "oauthRedirectScheme"',
-            ),
+      final container = ProviderContainer(
+        overrides: [
+          // oauthRedirectScheme is null (not provided)
+          shellConfigProvider.overrideWithValue(
+            const SoliplexConfig(logo: LogoConfig.soliplex),
           ),
-        );
-      },
-    );
+        ],
+      );
+      addTearDown(container.dispose);
+
+      expect(
+        () => container.read(authFlowProvider),
+        throwsA(
+          predicate<Object>(
+            (e) => e.toString().contains('oauthRedirectScheme'),
+            'exception message contains "oauthRedirectScheme"',
+          ),
+        ),
+      );
+    });
 
     test(
       'creates auth flow when oauthRedirectScheme is provided on native',

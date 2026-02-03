@@ -54,9 +54,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           tooltip: 'Back to room',
           onPressed: _handleBack,
         ),
-        title: quizAsync.whenOrNull(
-          data: (quiz) => Text(quiz.title),
-        ),
+        title: quizAsync.whenOrNull(data: (quiz) => Text(quiz.title)),
         actions: [
           if (features.enableSettings)
             Semantics(
@@ -548,10 +546,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Unexpected error: $e'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: _submitAnswer,
-            ),
+            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
           ),
         );
       }

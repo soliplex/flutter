@@ -1542,11 +1542,7 @@ void main() {
             'run_id': 'run-1',
             'run_input': {
               'messages': [
-                {
-                  'id': 'user-msg-1',
-                  'role': 'user',
-                  'content': 'User message',
-                },
+                {'id': 'user-msg-1', 'role': 'user', 'content': 'User message'},
                 {
                   'id': 'assistant-old',
                   'role': 'assistant',
@@ -2589,10 +2585,7 @@ void main() {
           const ApiException(message: 'Server error', statusCode: 500),
         );
 
-        expect(
-          () => api.getBackendVersionInfo(),
-          throwsA(isA<ApiException>()),
-        );
+        expect(() => api.getBackendVersionInfo(), throwsA(isA<ApiException>()));
       });
 
       test('uses correct URL', () async {
@@ -2616,10 +2609,7 @@ void main() {
 
         await api.getBackendVersionInfo();
 
-        expect(
-          capturedUri?.path,
-          equals('/api/v1/installation/versions'),
-        );
+        expect(capturedUri?.path, equals('/api/v1/installation/versions'));
       });
 
       test('supports cancellation', () async {

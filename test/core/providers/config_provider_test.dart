@@ -192,9 +192,7 @@ void main() {
     });
 
     test('returns null for empty saved URL', () async {
-      SharedPreferences.setMockInitialValues({
-        'backend_base_url': '',
-      });
+      SharedPreferences.setMockInitialValues({'backend_base_url': ''});
 
       final savedUrl = await loadSavedBaseUrl();
 

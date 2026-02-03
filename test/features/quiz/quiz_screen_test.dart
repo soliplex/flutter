@@ -205,10 +205,12 @@ void main() {
         ],
       );
       const result = CorrectAnswer();
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'correct'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'correct'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -240,10 +242,12 @@ void main() {
         ],
       );
       const result = IncorrectAnswer(expectedAnswer: 'correct answer');
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'wrong'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'wrong'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -273,10 +277,12 @@ void main() {
         ],
       );
       const result = CorrectAnswer();
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -356,10 +362,12 @@ void main() {
         ],
       );
       const result = CorrectAnswer();
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'))
-          .thenAnswer((_) async => result);
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'answer'),
+      ).thenAnswer((_) async => result);
 
       await tester.pumpWidget(
         buildQuizScreen(api: mockApi, roomId: 'room-1', quizId: 'quiz-1'),
@@ -455,14 +463,15 @@ void main() {
           QuizQuestion(id: 'q2', text: 'Question 2?', type: FreeForm()),
         ],
       );
-      when(() => mockApi.getQuiz('room-1', 'quiz-1'))
-          .thenAnswer((_) async => quiz);
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'a1'))
-          .thenAnswer(
-        (_) async => const CorrectAnswer(),
-      );
-      when(() => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q2', 'a2'))
-          .thenAnswer(
+      when(
+        () => mockApi.getQuiz('room-1', 'quiz-1'),
+      ).thenAnswer((_) async => quiz);
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q1', 'a1'),
+      ).thenAnswer((_) async => const CorrectAnswer());
+      when(
+        () => mockApi.submitQuizAnswer('room-1', 'quiz-1', 'q2', 'a2'),
+      ).thenAnswer(
         (_) async => const IncorrectAnswer(expectedAnswer: 'correct'),
       );
 

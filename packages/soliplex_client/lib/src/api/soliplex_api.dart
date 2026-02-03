@@ -454,9 +454,12 @@ class SoliplexApi {
 
     // 3. Fetch all run events in parallel (cache handles duplicates)
     final eventFutures = completedRunIds.map((runId) {
-      return _fetchRunEvents(roomId, threadId, runId, cancelToken: cancelToken)
-          .then((events) => (runId: runId, events: events))
-          .catchError(
+      return _fetchRunEvents(
+        roomId,
+        threadId,
+        runId,
+        cancelToken: cancelToken,
+      ).then((events) => (runId: runId, events: events)).catchError(
         (Object e) {
           // Log transient failure but continue with other runs
           _onWarning?.call('Failed to fetch events for run $runId: $e');
@@ -545,11 +548,7 @@ class SoliplexApi {
 
       // Create synthetic TEXT_MESSAGE events (START, CONTENT, END)
       syntheticEvents
-        ..add({
-          'type': 'TEXT_MESSAGE_START',
-          'messageId': id,
-          'role': role,
-        })
+        ..add({'type': 'TEXT_MESSAGE_START', 'messageId': id, 'role': role})
         ..add({
           'type': 'TEXT_MESSAGE_CONTENT',
           'messageId': id,

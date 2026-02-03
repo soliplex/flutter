@@ -42,11 +42,8 @@ class SettingsScreen extends ConsumerWidget {
           subtitle: SelectableText(config.baseUrl),
           trailing: IconButton(
             icon: const Icon(Icons.copy),
-            onPressed: () => Clipboard.setData(
-              ClipboardData(
-                text: config.baseUrl,
-              ),
-            ),
+            onPressed: () =>
+                Clipboard.setData(ClipboardData(text: config.baseUrl)),
           ),
         ),
         ListTile(
@@ -133,9 +130,7 @@ class _AuthSection extends ConsumerWidget {
               ),
               title: Text(
                 'Sign Out',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.danger,
-                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.danger),
               ),
               onTap: () => _confirmSignOut(context, ref),
             ),
@@ -169,9 +164,7 @@ class _AuthSection extends ConsumerWidget {
               ),
               title: Text(
                 'Disconnect',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.danger,
-                ),
+                style: TextStyle(color: Theme.of(context).colorScheme.danger),
               ),
               onTap: () => _disconnect(context, ref),
             ),

@@ -11,10 +11,7 @@ void main() {
       expect(theme.brightness, Brightness.light);
       expect(theme.colorScheme.primary, lightSoliplexColors.primary);
       expect(theme.colorScheme.onPrimary, lightSoliplexColors.onPrimary);
-      expect(
-        theme.scaffoldBackgroundColor,
-        lightSoliplexColors.background,
-      );
+      expect(theme.scaffoldBackgroundColor, lightSoliplexColors.background);
     });
 
     test('uses custom colors when provided', () {
@@ -54,8 +51,9 @@ void main() {
       final theme = soliplexLightTheme();
 
       expect(
-        theme.extensions.values
-            .any((e) => e.runtimeType.toString().contains('SoliplexTheme')),
+        theme.extensions.values.any(
+          (e) => e.runtimeType.toString().contains('SoliplexTheme'),
+        ),
         isTrue,
       );
     });
@@ -68,10 +66,7 @@ void main() {
       expect(theme.brightness, Brightness.dark);
       expect(theme.colorScheme.primary, darkSoliplexColors.primary);
       expect(theme.colorScheme.onPrimary, darkSoliplexColors.onPrimary);
-      expect(
-        theme.scaffoldBackgroundColor,
-        darkSoliplexColors.background,
-      );
+      expect(theme.scaffoldBackgroundColor, darkSoliplexColors.background);
     });
 
     test('uses custom colors when provided', () {
@@ -111,8 +106,9 @@ void main() {
       final theme = soliplexDarkTheme();
 
       expect(
-        theme.extensions.values
-            .any((e) => e.runtimeType.toString().contains('SoliplexTheme')),
+        theme.extensions.values.any(
+          (e) => e.runtimeType.toString().contains('SoliplexTheme'),
+        ),
         isTrue,
       );
     });

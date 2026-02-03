@@ -94,9 +94,7 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
                           IconButton(
                             icon: const Icon(Icons.copy),
                             onPressed: () => Clipboard.setData(
-                              ClipboardData(
-                                text: '$packageName $version',
-                              ),
+                              ClipboardData(text: '$packageName $version'),
                             ),
                           ),
                         ],

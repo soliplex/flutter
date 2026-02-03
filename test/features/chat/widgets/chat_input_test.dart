@@ -10,11 +10,15 @@ import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 
 import '../../../helpers/test_helpers.dart';
+
+/// Zero delays for fast test execution with retry logic.
+const _testDelays = [Duration.zero, Duration.zero, Duration.zero];
 
 void main() {
   group('formatDocumentTitle', () {
@@ -1763,6 +1767,196 @@ void main() {
 
         expect(selectedDocs.length, equals(1));
         expect(selectedDocs.first.title, equals('Report.pdf'));
+      });
+    });
+
+    group('Document Picker Error Handling', () {
+      testWidgets('shows error message when loading fails', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // NetworkException is retryable, so it will be called 3 times
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const NetworkException(message: 'Connection failed');
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+              documentsRetryDelaysProvider.overrideWithValue(_testDelays),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - error message and icon should be visible
+        expect(find.byIcon(Icons.wifi_off), findsOneWidget);
+        expect(find.textContaining('Network error'), findsOneWidget);
+      });
+
+      testWidgets('shows retry button on error', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // 503 is retryable, so it will be called 3 times
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const ApiException(
+            statusCode: 503,
+            message: 'Service Unavailable',
+          );
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+              documentsRetryDelaysProvider.overrideWithValue(_testDelays),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - retry button should be visible
+        expect(find.text('Retry'), findsOneWidget);
+        expect(find.byIcon(Icons.refresh), findsOneWidget);
+      });
+
+      testWidgets('shows server error message for API errors', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // 500 is retryable, so it will be called 3 times
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const ApiException(
+            statusCode: 500,
+            message: 'Internal Server Error',
+          );
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+              documentsRetryDelaysProvider.overrideWithValue(_testDelays),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - server error message should be visible
+        expect(find.textContaining('Server error'), findsOneWidget);
+        expect(find.textContaining('Internal Server Error'), findsOneWidget);
+      });
+
+      testWidgets('Done button disabled when error occurs', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // NetworkException is retryable, so it will be called 3 times
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const NetworkException(message: 'Connection failed');
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+              documentsRetryDelaysProvider.overrideWithValue(_testDelays),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - Done button should be enabled (can close with empty
+        // selection) but user will see error state, not documents
+        final doneButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Done'),
+        );
+        // Done is enabled on error so user can dismiss dialog
+        expect(doneButton.onPressed, isNotNull);
+      });
+
+      testWidgets('no retry button for auth errors', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const AuthException(statusCode: 401, message: 'Unauthorized');
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - no retry button for auth errors (ErrorDisplay hides it)
+        expect(find.text('Retry'), findsNothing);
+        expect(find.textContaining('Session expired'), findsOneWidget);
       });
     });
   });

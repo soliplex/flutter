@@ -21,8 +21,9 @@ class IsGridViewNotifier extends Notifier<bool> {
   void toggle() => state = !state;
 }
 
-final isGridViewProvider =
-    NotifierProvider<IsGridViewNotifier, bool>(IsGridViewNotifier.new);
+final isGridViewProvider = NotifierProvider<IsGridViewNotifier, bool>(
+  IsGridViewNotifier.new,
+);
 
 class RoomSearchQueryNotifier extends Notifier<String> {
   @override
@@ -77,9 +78,7 @@ class RoomsScreen extends ConsumerWidget {
         return Align(
           alignment: AlignmentDirectional.topCenter,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxContentWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
             child: Column(
               spacing: SoliplexSpacing.s4,
               children: [

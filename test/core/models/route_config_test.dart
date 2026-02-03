@@ -84,10 +84,7 @@ void main() {
 
     group('initialRoute validation', () {
       test('allows / when showHomeRoute is true', () {
-        expect(
-          () => const RouteConfig(),
-          returnsNormally,
-        );
+        expect(() => const RouteConfig(), returnsNormally);
       });
 
       test('allows /rooms when showRoomsRoute is true', () {
@@ -105,17 +102,11 @@ void main() {
       });
 
       test('allows only home route', () {
-        expect(
-          () => const RouteConfig(showRoomsRoute: false),
-          returnsNormally,
-        );
+        expect(() => const RouteConfig(showRoomsRoute: false), returnsNormally);
       });
 
       test('allows only rooms route', () {
-        expect(
-          () => const RouteConfig(showHomeRoute: false),
-          returnsNormally,
-        );
+        expect(() => const RouteConfig(showHomeRoute: false), returnsNormally);
       });
 
       test('allows room-specific routes', () {

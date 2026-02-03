@@ -626,57 +626,54 @@ void main() {
         },
       );
 
-      test(
-        'wraps all stream errors as NetworkException',
-        () async {
-          final controller = StreamController<List<int>>();
-          final streamedResponse = http.StreamedResponse(
-            controller.stream,
-            200,
-            reasonPhrase: 'OK',
-          );
+      test('wraps all stream errors as NetworkException', () async {
+        final controller = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          controller.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
 
-          when(
-            () => mockClient.send(any()),
-          ).thenAnswer((_) async => streamedResponse);
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => streamedResponse);
 
-          final stream = client.requestStream(
-            'GET',
-            Uri.parse('https://example.com/stream'),
-          );
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/stream'),
+        );
 
-          final errors = <Object>[];
-          final completer = Completer<void>();
+        final errors = <Object>[];
+        final completer = Completer<void>();
 
-          stream.listen(
-            (_) {},
-            onError: (Object e) {
-              errors.add(e);
-              completer.complete();
-            },
-            onDone: () {
-              if (!completer.isCompleted) completer.complete();
-            },
-          );
+        stream.listen(
+          (_) {},
+          onError: (Object e) {
+            errors.add(e);
+            completer.complete();
+          },
+          onDone: () {
+            if (!completer.isCompleted) completer.complete();
+          },
+        );
 
-          await Future<void>.delayed(const Duration(milliseconds: 10));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-          // Simulate an error during streaming
-          controller.addError(Exception('Some other error'));
+        // Simulate an error during streaming
+        controller.addError(Exception('Some other error'));
 
-          await completer.future;
+        await completer.future;
 
-          expect(errors, hasLength(1));
-          // All stream errors are wrapped as NetworkException
-          expect(errors.first, isA<NetworkException>());
-          expect(
-            (errors.first as NetworkException).message,
-            contains('Some other error'),
-          );
+        expect(errors, hasLength(1));
+        // All stream errors are wrapped as NetworkException
+        expect(errors.first, isA<NetworkException>());
+        expect(
+          (errors.first as NetworkException).message,
+          contains('Some other error'),
+        );
 
-          await controller.close();
-        },
-      );
+        await controller.close();
+      });
 
       test('handles stream with body parameter', () async {
         final controller = StreamController<List<int>>();

@@ -134,9 +134,7 @@ class _MessageListState extends ConsumerState<MessageList> {
       if (previous == null ||
           (previous is! RunningState && next is RunningState) ||
           (previous is RunningState && next is! RunningState)) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _scrollToBottom(),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
       }
     });
   }

@@ -260,9 +260,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             return _staticPage(
               title: Text(shellConfig.appName),
               body: const HomeScreen(),
-              actions: [
-                if (features.enableSettings) const _SettingsButton(),
-              ],
+              actions: [if (features.enableSettings) const _SettingsButton()],
             );
           },
         ),
@@ -273,9 +271,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (context, state) => _staticPage(
             title: const Text('Rooms'),
             body: const RoomsScreen(),
-            actions: [
-              if (features.enableSettings) const _SettingsButton(),
-            ],
+            actions: [if (features.enableSettings) const _SettingsButton()],
           ),
         ),
       if (routeConfig.showRoomsRoute)
@@ -325,9 +321,8 @@ final routerProvider = Provider<GoRouter>((ref) {
             GoRoute(
               path: 'backend-versions',
               name: 'backend-versions',
-              pageBuilder: (context, state) => const NoTransitionPage(
-                child: BackendVersionsScreen(),
-              ),
+              pageBuilder: (context, state) =>
+                  const NoTransitionPage(child: BackendVersionsScreen()),
             ),
             GoRoute(
               path: 'network',
