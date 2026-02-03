@@ -23,6 +23,7 @@ import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -272,6 +273,23 @@ class MockThreadSelectionNotifier extends Notifier<ThreadSelection>
 Override threadSelectionProviderOverride(ThreadSelection selection) {
   return threadSelectionProvider.overrideWith(
     () => MockThreadSelectionNotifier(initialSelection: selection),
+  );
+}
+
+/// Mock notifier that returns immediate data for documents.
+class MockDocumentsNotifier extends DocumentsNotifier {
+  MockDocumentsNotifier(super.roomId, this._documents);
+
+  final List<RagDocument> _documents;
+
+  @override
+  AsyncValue<List<RagDocument>> build() => AsyncValue.data(_documents);
+}
+
+/// Creates an override for documentsProvider with immediate data.
+Override documentsProviderOverride(String roomId, [List<RagDocument>? docs]) {
+  return documentsProvider(roomId).overrideWith(
+    () => MockDocumentsNotifier(roomId, docs ?? const []),
   );
 }
 

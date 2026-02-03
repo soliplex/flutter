@@ -3,18 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
-// ignore: implementation_imports, depend_on_referenced_packages
-import 'package:riverpod/src/framework.dart' show Override;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
-    show Conversation, Failed, RagDocument, Running, ThreadInfo;
+    show Conversation, Failed, Running, ThreadInfo;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -87,28 +85,6 @@ class _TrackingSoliplexApi extends Mock implements MockSoliplexApi {
   final domain.ThreadInfo threadToCreate;
 }
 
-/// Mock DocumentsNotifier that immediately returns the provided documents.
-class _MockDocumentsNotifier extends DocumentsNotifier {
-  _MockDocumentsNotifier(super.roomId, this._documents);
-
-  final List<domain.RagDocument> _documents;
-
-  @override
-  AsyncValue<List<domain.RagDocument>> build() {
-    return AsyncValue.data(_documents);
-  }
-}
-
-/// Creates a provider override for documents with immediate data.
-Override documentsProviderOverride(
-  String roomId,
-  List<domain.RagDocument> documents,
-) {
-  return documentsProvider(roomId).overrideWith(() {
-    return _MockDocumentsNotifier(roomId, documents);
-  });
-}
-
 /// Creates a test app with GoRouter for testing navigation.
 Widget _createAppWithRouter({
   required Widget home,
@@ -136,7 +112,12 @@ Widget _createAppWithRouter({
   );
 
   return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast()),
+    container: ProviderContainer(
+      overrides: [
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
+        ...overrides.cast(),
+      ],
+    ),
     child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
@@ -314,7 +295,7 @@ void main() {
               activeRunNotifierOverride(const IdleState()),
               // Override to avoid API call
               allMessagesProvider.overrideWith((ref) async => []),
-              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
+              documentsProviderOverride(mockRoom.id, []),
             ],
           ),
         );
@@ -425,6 +406,7 @@ void main() {
               }),
               allMessagesProvider.overrideWith((ref) async => []),
               threadsProvider('test-room').overrideWith((ref) async => []),
+              documentsProviderOverride('test-room'),
             ],
           ),
         );
@@ -489,6 +471,7 @@ void main() {
               }),
               allMessagesProvider.overrideWith((ref) async => []),
               threadsProvider('test-room').overrideWith((ref) async => []),
+              documentsProviderOverride('test-room'),
             ],
           ),
         );
@@ -548,6 +531,7 @@ void main() {
               threadsProvider(
                 'test-room',
               ).overrideWith((ref) async => [existingThread]),
+              documentsProviderOverride('test-room'),
             ],
           ),
         );
@@ -589,7 +573,7 @@ void main() {
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
               allMessagesProvider.overrideWith((ref) async => []),
-              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
+              documentsProviderOverride(mockRoom.id, []),
             ],
           ),
         );
@@ -615,7 +599,7 @@ void main() {
               currentThreadProvider.overrideWith((ref) => mockThread),
               activeRunNotifierOverride(const IdleState()),
               allMessagesProvider.overrideWith((ref) async => messages),
-              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
+              documentsProviderOverride(mockRoom.id, []),
             ],
           ),
         );
@@ -645,7 +629,7 @@ void main() {
                 const RunningState(conversation: conversation),
               ),
               allMessagesProvider.overrideWith((ref) async => []),
-              documentsProvider(mockRoom.id).overrideWith((ref) async => []),
+              documentsProviderOverride(mockRoom.id, []),
             ],
           ),
         );
@@ -683,6 +667,7 @@ void main() {
                 );
               }),
               allMessagesProvider.overrideWith((ref) async => []),
+              documentsProviderOverride(mockRoom.id),
             ],
           ),
         );

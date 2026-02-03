@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -37,7 +36,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -66,7 +65,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -95,7 +94,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -131,7 +130,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -263,7 +262,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'empty-room')],
             ),
-            documentsProvider('empty-room').overrideWith((ref) async => []),
+            documentsProviderOverride('empty-room'),
           ],
           onContainerCreated: (c) => container = c,
         ),
@@ -432,7 +431,7 @@ void main() {
                 TestData.createRoom(id: 'support', name: 'Support'),
               ],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -461,7 +460,7 @@ void main() {
                 TestData.createRoom(id: 'alpha', name: 'Alpha Room'),
               ],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -517,8 +516,8 @@ void main() {
                   TestData.createRoom(id: 'support', name: 'Support'),
                 ],
               ),
-              documentsProvider('general').overrideWith((ref) async => []),
-              documentsProvider('support').overrideWith((ref) async => []),
+              documentsProviderOverride('general'),
+              documentsProviderOverride('support'),
             ],
           ),
           child: MaterialApp.router(theme: testThemeData, routerConfig: router),
@@ -555,7 +554,7 @@ void main() {
                 TestData.createRoom(id: 'support', name: 'Support'),
               ],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -588,7 +587,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -615,7 +614,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
@@ -658,7 +657,7 @@ void main() {
               roomsProvider.overrideWith(
                 (ref) async => [TestData.createRoom(id: 'general')],
               ),
-              documentsProvider('general').overrideWith((ref) async => []),
+              documentsProviderOverride('general'),
             ],
           ),
           child: MaterialApp.router(theme: testThemeData, routerConfig: router),
@@ -689,7 +688,7 @@ void main() {
             roomsProvider.overrideWith(
               (ref) async => [TestData.createRoom(id: 'general')],
             ),
-            documentsProvider('general').overrideWith((ref) async => []),
+            documentsProviderOverride('general'),
           ],
         ),
       );
