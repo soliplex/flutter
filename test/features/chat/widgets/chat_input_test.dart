@@ -790,7 +790,7 @@ void main() {
 
         // Assert - button should be disabled
         final attachButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.attach_file),
+          find.widgetWithIcon(IconButton, Icons.filter_alt),
         );
         expect(attachButton.onPressed, isNull);
       });
@@ -828,7 +828,7 @@ void main() {
 
         // Assert - button should be enabled
         final attachButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.attach_file),
+          find.widgetWithIcon(IconButton, Icons.filter_alt),
         );
         expect(attachButton.onPressed, isNotNull);
       });
@@ -863,7 +863,7 @@ void main() {
 
         // Assert - tooltip should explain why disabled
         final attachButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.attach_file),
+          find.widgetWithIcon(IconButton, Icons.filter_alt),
         );
         expect(attachButton.tooltip, 'No documents in this room');
       });
