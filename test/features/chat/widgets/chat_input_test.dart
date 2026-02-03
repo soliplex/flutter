@@ -556,7 +556,7 @@ void main() {
 
         // Assert
         expect(
-          find.widgetWithIcon(IconButton, Icons.filter_alt),
+          find.byKey(const Key('document_picker_button')),
           findsOneWidget,
         );
       });
@@ -582,7 +582,7 @@ void main() {
 
         // Assert
         expect(
-          find.widgetWithIcon(IconButton, Icons.filter_alt),
+          find.byKey(const Key('document_picker_button')),
           findsNothing,
         );
       });
@@ -699,8 +699,9 @@ void main() {
           ),
         );
 
-        // Tap the attach button
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then tap the attach button
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - dialog should be open with checkboxes
@@ -746,8 +747,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Tap on the first document checkbox
@@ -794,7 +796,7 @@ void main() {
 
         // Assert - button should be disabled
         final attachButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.filter_alt),
+          find.byKey(const Key('document_picker_button')),
         );
         expect(attachButton.onPressed, isNull);
       });
@@ -832,7 +834,7 @@ void main() {
 
         // Assert - button should be enabled
         final attachButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.filter_alt),
+          find.byKey(const Key('document_picker_button')),
         );
         expect(attachButton.onPressed, isNotNull);
       });
@@ -867,14 +869,12 @@ void main() {
 
         // Assert - tooltip should explain why disabled
         final attachButton = tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.filter_alt),
+          find.byKey(const Key('document_picker_button')),
         );
         expect(attachButton.tooltip, 'No documents in this room');
       });
 
-      testWidgets('shows empty state when no documents in room', (
-        tester,
-      ) async {
+      testWidgets('disables button when no documents in room', (tester) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -899,12 +899,15 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load
         await tester.pumpAndSettle();
 
-        // Assert
-        expect(find.text('No documents in this room.'), findsOneWidget);
+        // Assert - button should be disabled with correct tooltip
+        final button = tester.widget<IconButton>(
+          find.byKey(const Key('document_picker_button')),
+        );
+        expect(button.onPressed, isNull);
+        expect(button.tooltip, 'No documents in this room');
       });
 
       testWidgets('can select multiple documents', (tester) async {
@@ -942,8 +945,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Select first and third documents
@@ -992,8 +996,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Checkbox should start unchecked
@@ -1093,8 +1098,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - first doc should be pre-selected
@@ -1262,7 +1268,9 @@ void main() {
     });
 
     group('Document Picker Loading', () {
-      testWidgets('shows spinner while documents are loading', (tester) async {
+      testWidgets('shows spinner on button while documents are loading', (
+        tester,
+      ) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
@@ -1288,14 +1296,62 @@ void main() {
             ],
           ),
         );
-
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
         await tester.pump();
 
-        // Assert - spinner should be visible
-        expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        expect(find.byType(CheckboxListTile), findsNothing);
+        // Assert - button should show spinner during loading
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('document_picker_button')),
+            matching: find.byType(CircularProgressIndicator),
+          ),
+          findsOneWidget,
+        );
+
+        // Button should be disabled during loading with correct tooltip
+        final button = tester.widget<IconButton>(
+          find.byKey(const Key('document_picker_button')),
+        );
+        expect(button.onPressed, isNull);
+        expect(button.tooltip, 'Loading documents...');
+      });
+
+      testWidgets('shows filter icon after loading completes', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - button should show filter icon (not spinner) after loading
+        final button = tester.widget<IconButton>(
+          find.byKey(const Key('document_picker_button')),
+        );
+        expect(button.icon, isA<Icon>());
+        expect((button.icon as Icon).icon, Icons.filter_alt);
+        expect(button.onPressed, isNotNull);
+        expect(button.tooltip, 'Select document');
       });
 
       testWidgets('list appears after loading completes', (tester) async {
@@ -1326,8 +1382,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - list should be visible, spinner should be gone
@@ -1335,17 +1392,25 @@ void main() {
         expect(find.byType(CheckboxListTile), findsOneWidget);
       });
 
-      testWidgets('Done button is disabled while loading', (tester) async {
+      testWidgets('Done button is disabled while refresh loading', (
+        tester,
+      ) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
         final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
 
-        // Use a Completer to keep the future pending
-        final completer = Completer<List<RagDocument>>();
-        when(
-          () => mockApi.getDocuments(mockRoom.id),
-        ).thenAnswer((_) => completer.future);
+        // First call returns data immediately, second call (refresh) pending
+        var callCount = 0;
+        final refreshCompleter = Completer<List<RagDocument>>();
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) {
+          callCount++;
+          if (callCount == 1) return Future.value(documents);
+          return refreshCompleter.future;
+        });
 
         // Act
         await tester.pumpWidget(
@@ -1362,11 +1427,16 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
+        await tester.pumpAndSettle();
+
+        // Tap refresh to trigger loading
+        await tester.tap(find.byIcon(Icons.refresh));
         await tester.pump();
 
-        // Assert - Done button should be disabled
+        // Assert - Done button should be disabled during refresh
         final doneButton = tester.widget<TextButton>(
           find.widgetWithText(TextButton, 'Done'),
         );
@@ -1403,8 +1473,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - Done button should be enabled
@@ -1444,8 +1515,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert
@@ -1483,8 +1555,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // All documents should be visible
@@ -1536,8 +1609,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Search with different case
@@ -1585,8 +1659,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Search for something that doesn't exist
@@ -1630,8 +1705,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - search field in dialog should have autofocus enabled
@@ -1672,8 +1748,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Find the search field inside the dialog
@@ -1732,8 +1809,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Find the search field inside the dialog
@@ -1801,25 +1879,34 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - refresh button should be visible in title bar
         expect(find.byIcon(Icons.refresh), findsOneWidget);
       });
 
-      testWidgets('refresh button is disabled during loading', (tester) async {
+      testWidgets('refresh button is disabled during refresh loading', (
+        tester,
+      ) async {
         // Arrange
         final mockRoom = TestData.createRoom();
         final mockThread = TestData.createThread();
         final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
 
-        // Keep loading indefinitely
-        final completer = Completer<List<RagDocument>>();
-        when(
-          () => mockApi.getDocuments(mockRoom.id),
-        ).thenAnswer((_) => completer.future);
+        // First call returns data, second call (refresh) keeps loading
+        var callCount = 0;
+        final refreshCompleter = Completer<List<RagDocument>>();
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) {
+          callCount++;
+          if (callCount == 1) return Future.value(documents);
+          return refreshCompleter.future;
+        });
 
         // Act
         await tester.pumpWidget(
@@ -1836,8 +1923,13 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
+        await tester.pumpAndSettle();
+
+        // Tap refresh to trigger loading
+        await tester.tap(find.byIcon(Icons.refresh));
         await tester.pump();
 
         // Assert - refresh button should be disabled during loading
@@ -1879,8 +1971,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Initial fetch should have occurred
@@ -1926,8 +2019,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Initially shows Document 1
@@ -1971,8 +2065,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - error message and icon should be visible
@@ -2010,8 +2105,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - retry button should be visible (plus refresh in title bar)
@@ -2049,8 +2145,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - server error message should be visible
@@ -2085,8 +2182,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - Done button should be enabled (can close with empty
@@ -2123,8 +2221,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - no retry button for auth errors (ErrorDisplay hides it)
@@ -2167,8 +2266,9 @@ void main() {
           ),
         );
 
-        // Open picker
-        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        // Wait for documents to load, then open picker
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('document_picker_button')));
         await tester.pumpAndSettle();
 
         // Assert - each file type should have its corresponding icon
