@@ -165,23 +165,26 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
                       margin: const EdgeInsets.symmetric(vertical: 4),
                       child: ListTile(
                         dense: true,
-                        title: SelectableText(
+                        title: Text(
                           packageName,
                           maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           spacing: SoliplexSpacing.s2,
                           children: [
-                            SelectableText(
+                            Text(
                               version,
                               maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             IconButton(
                               icon: const Icon(Icons.copy),
                               onPressed: () => Clipboard.setData(
                                 ClipboardData(text: '$packageName $version'),
                               ),
+                              tooltip: 'Copy package & version',
                             ),
                           ],
                         ),
