@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -1093,6 +1095,160 @@ void main() {
 
         // Assert
         expect(find.byType(ActionChip), findsNothing);
+      });
+    });
+
+    group('Document Picker Loading', () {
+      testWidgets('shows spinner while documents are loading', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // Use a Completer to keep the future pending
+        final completer = Completer<List<RagDocument>>();
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) => completer.future);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pump();
+
+        // Assert - spinner should be visible
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(CheckboxListTile), findsNothing);
+      });
+
+      testWidgets('list appears after loading completes', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - list should be visible, spinner should be gone
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.byType(CheckboxListTile), findsOneWidget);
+      });
+
+      testWidgets('Done button is disabled while loading', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        // Use a Completer to keep the future pending
+        final completer = Completer<List<RagDocument>>();
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) => completer.future);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pump();
+
+        // Assert - Done button should be disabled
+        final doneButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Done'),
+        );
+        expect(doneButton.onPressed, isNull);
+      });
+
+      testWidgets('Done button is enabled after loading completes', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - Done button should be enabled
+        final doneButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Done'),
+        );
+        expect(doneButton.onPressed, isNotNull);
       });
     });
 
