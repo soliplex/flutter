@@ -622,7 +622,7 @@ void main() {
 
         // Assert
         expect(find.text('Manual.pdf'), findsOneWidget);
-        expect(find.byIcon(Icons.description), findsOneWidget);
+        expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
       });
 
       testWidgets('removes document when close button tapped', (tester) async {
@@ -1055,7 +1055,7 @@ void main() {
         // Assert
         expect(find.text('Doc1.pdf'), findsOneWidget);
         expect(find.text('Doc2.pdf'), findsOneWidget);
-        expect(find.byIcon(Icons.description), findsNWidgets(2));
+        expect(find.byIcon(Icons.picture_as_pdf), findsNWidgets(2));
         expect(find.byIcon(Icons.close), findsNWidgets(2));
       });
 
@@ -1957,6 +1957,115 @@ void main() {
         // Assert - no retry button for auth errors (ErrorDisplay hides it)
         expect(find.text('Retry'), findsNothing);
         expect(find.textContaining('Session expired'), findsOneWidget);
+      });
+    });
+
+    group('File Type Icons', () {
+      testWidgets('picker shows correct icons for different file types', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Report.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Manual.docx'),
+          TestData.createDocument(id: 'doc-3', title: 'Data.xlsx'),
+          TestData.createDocument(id: 'doc-4', title: 'Unknown.xyz'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Assert - each file type should have its corresponding icon
+        expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
+        expect(find.byIcon(Icons.description), findsOneWidget);
+        expect(find.byIcon(Icons.table_chart), findsOneWidget);
+        expect(find.byIcon(Icons.insert_drive_file), findsOneWidget);
+      });
+
+      testWidgets('selected document chip shows correct file type icon', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final doc1 = TestData.createDocument(id: 'doc-1', title: 'Report.pdf');
+        final doc2 = TestData.createDocument(id: 'doc-2', title: 'Notes.txt');
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocuments: {doc1, doc2},
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert - chips should show correct icons
+        expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
+        expect(find.byIcon(Icons.article), findsOneWidget);
+      });
+
+      testWidgets('handles documents with full file:// paths', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final doc = TestData.createDocument(
+          id: 'doc-1',
+          title: 'file:///path/to/document.pdf',
+        );
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(
+                onSend: (_) {},
+                roomId: mockRoom.id,
+                selectedDocuments: {doc},
+              ),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+
+        // Assert - should show PDF icon even with file:// prefix
+        expect(find.byIcon(Icons.picture_as_pdf), findsOneWidget);
       });
     });
   });
