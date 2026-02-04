@@ -7,16 +7,19 @@ void main() {
     test('defaultConfig has sensible defaults', () {
       expect(LogConfig.defaultConfig.minimumLevel, LogLevel.info);
       expect(LogConfig.defaultConfig.consoleLoggingEnabled, isTrue);
+      expect(LogConfig.defaultConfig.stdoutLoggingEnabled, isTrue);
     });
 
     test('creates with specified values', () {
       const config = LogConfig(
         minimumLevel: LogLevel.debug,
         consoleLoggingEnabled: false,
+        stdoutLoggingEnabled: false,
       );
 
       expect(config.minimumLevel, LogLevel.debug);
       expect(config.consoleLoggingEnabled, isFalse);
+      expect(config.stdoutLoggingEnabled, isFalse);
     });
 
     group('copyWith', () {
@@ -27,6 +30,7 @@ void main() {
 
         expect(copied.minimumLevel, LogLevel.warning);
         expect(copied.consoleLoggingEnabled, isTrue);
+        expect(copied.stdoutLoggingEnabled, isTrue);
       });
 
       test('copies consoleLoggingEnabled only', () {
@@ -36,30 +40,45 @@ void main() {
 
         expect(copied.minimumLevel, LogLevel.info);
         expect(copied.consoleLoggingEnabled, isFalse);
+        expect(copied.stdoutLoggingEnabled, isTrue);
       });
 
-      test('copies both values', () {
+      test('copies stdoutLoggingEnabled only', () {
+        const original = LogConfig.defaultConfig;
+
+        final copied = original.copyWith(stdoutLoggingEnabled: false);
+
+        expect(copied.minimumLevel, LogLevel.info);
+        expect(copied.consoleLoggingEnabled, isTrue);
+        expect(copied.stdoutLoggingEnabled, isFalse);
+      });
+
+      test('copies all values', () {
         const original = LogConfig.defaultConfig;
 
         final copied = original.copyWith(
           minimumLevel: LogLevel.error,
           consoleLoggingEnabled: false,
+          stdoutLoggingEnabled: false,
         );
 
         expect(copied.minimumLevel, LogLevel.error);
         expect(copied.consoleLoggingEnabled, isFalse);
+        expect(copied.stdoutLoggingEnabled, isFalse);
       });
 
       test('preserves values when no arguments given', () {
         const original = LogConfig(
           minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: false,
+          stdoutLoggingEnabled: false,
         );
 
         final copied = original.copyWith();
 
         expect(copied.minimumLevel, LogLevel.debug);
         expect(copied.consoleLoggingEnabled, isFalse);
+        expect(copied.stdoutLoggingEnabled, isFalse);
       });
     });
 
@@ -77,6 +96,7 @@ void main() {
         const config2 = LogConfig(
           minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: true,
+          stdoutLoggingEnabled: true,
         );
 
         expect(config1, isNot(equals(config2)));
@@ -87,6 +107,18 @@ void main() {
         const config2 = LogConfig(
           minimumLevel: LogLevel.info,
           consoleLoggingEnabled: false,
+          stdoutLoggingEnabled: true,
+        );
+
+        expect(config1, isNot(equals(config2)));
+      });
+
+      test('different stdoutLoggingEnabled are not equal', () {
+        const config1 = LogConfig.defaultConfig;
+        const config2 = LogConfig(
+          minimumLevel: LogLevel.info,
+          consoleLoggingEnabled: true,
+          stdoutLoggingEnabled: false,
         );
 
         expect(config1, isNot(equals(config2)));
@@ -97,12 +129,14 @@ void main() {
       const config = LogConfig(
         minimumLevel: LogLevel.warning,
         consoleLoggingEnabled: false,
+        stdoutLoggingEnabled: true,
       );
 
       expect(
         config.toString(),
         'LogConfig(minimumLevel: LogLevel.warning, '
-        'consoleLoggingEnabled: false)',
+        'consoleLoggingEnabled: false, '
+        'stdoutLoggingEnabled: true)',
       );
     });
   });

@@ -1,3 +1,4 @@
+import 'dart:developer' as developer;
 import 'dart:js_interop';
 
 import 'package:soliplex_logging/src/log_level.dart';
@@ -28,11 +29,15 @@ extension type JSConsole(JSObject _) implements JSObject {
   external void error(JSAny? message, [JSAny? arg1, JSAny? arg2]);
 }
 
-/// Writes a log record to the browser console.
+/// Writes a log record to both browser console and dart:developer.
 ///
 /// Called by `ConsoleSink.write` via conditional import on web platform.
 ///
-/// Maps log levels to appropriate console methods:
+/// Dual output ensures logs are visible in:
+/// - Browser F12 Console (for web developers)
+/// - Dart DevTools (when connected for debugging)
+///
+/// Maps log levels to appropriate browser console methods:
 /// - trace/debug -> console.debug (often hidden by default)
 /// - info -> console.info (distinct icon)
 /// - warning -> console.warn (yellow styling)
@@ -40,15 +45,15 @@ extension type JSConsole(JSObject _) implements JSObject {
 ///
 /// Stack traces are appended to the message for guaranteed visibility.
 void writeToConsole(LogRecord record) {
-  // Build message with stack trace appended for visibility.
-  // Browser consoles often collapse additional arguments, so embedding
-  // the stack trace in the message ensures it's always shown.
-  var msgString = formatLogMessage(record);
+  final msgString = formatLogMessage(record);
+
+  // 1. Write to browser JavaScript console.
+  var browserMsg = msgString;
   if (record.stackTrace != null) {
-    msgString += '\n${record.stackTrace}';
+    browserMsg += '\n${record.stackTrace}';
   }
 
-  final message = msgString.toJS;
+  final message = browserMsg.toJS;
   final errorArg = _convertError(record.error);
 
   switch (record.level) {
@@ -63,6 +68,31 @@ void writeToConsole(LogRecord record) {
     case LogLevel.fatal:
       _console.error(message, errorArg);
   }
+
+  // 2. Also write to dart:developer for DevTools visibility.
+  developer.log(
+    msgString,
+    name: record.loggerName,
+    level: _mapLevel(record.level),
+    time: record.timestamp,
+    error: record.error,
+    stackTrace: record.stackTrace,
+  );
+}
+
+/// Maps LogLevel to dart:developer log levels.
+///
+/// dart:developer uses numeric levels where higher values indicate
+/// more severe log messages (0-2000 range).
+int _mapLevel(LogLevel level) {
+  return switch (level) {
+    LogLevel.trace => 300,
+    LogLevel.debug => 500,
+    LogLevel.info => 800,
+    LogLevel.warning => 900,
+    LogLevel.error => 1000,
+    LogLevel.fatal => 1200,
+  };
 }
 
 /// Converts a Dart error to a JS object for browser inspection.
