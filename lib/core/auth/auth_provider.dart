@@ -6,6 +6,7 @@ import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
+import 'package:soliplex_frontend/core/auth/oauth_capture_guard.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
@@ -38,19 +39,14 @@ final authFlowProvider = Provider<AuthFlow>((ref) {
 
 /// Provider for callback params captured at startup.
 ///
-/// Override this in [ProviderScope.overrides] with the value from
-/// [CallbackParamsCapture.captureNow] called in main().
+/// Reads from the global [oAuthCaptureGuard], which must be populated by
+/// calling `oAuthCaptureGuard.capture()` in `runSoliplexApp()` before the
+/// app runs.
 ///
-/// Example:
-/// ```dart
-/// final params = CallbackParamsCapture.captureNow();
-/// runApp(ProviderScope(
-///   overrides: [capturedCallbackParamsProvider.overrideWithValue(params)],
-///   child: App(),
-/// ));
-/// ```
+/// Accessing this provider before the guard is populated will throw a
+/// descriptive [StateError], enforcing the correct initialization order.
 final capturedCallbackParamsProvider = Provider<CallbackParams>(
-  (ref) => const NoCallbackParams(),
+  (ref) => oAuthCaptureGuard.params,
 );
 
 /// Provider for OAuth callback URL operations (extract, clear).
