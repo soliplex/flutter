@@ -60,11 +60,13 @@ void writeToStdout(LogRecord record, {required bool useColors}) {
         buffer.writeln('  Error: ${record.error}');
       }
     }
-    if (record.stackTrace != null) {
+    // Only show stack trace if it's non-null and non-empty.
+    final stackStr = record.stackTrace?.toString();
+    if (stackStr != null && stackStr.isNotEmpty) {
       if (useColors) {
-        buffer.writeln('$_gray  Stack: ${record.stackTrace}$_reset');
+        buffer.writeln('$_gray  Stack: $stackStr$_reset');
       } else {
-        buffer.writeln('  Stack: ${record.stackTrace}');
+        buffer.writeln('  Stack: $stackStr');
       }
     }
 
