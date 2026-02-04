@@ -308,8 +308,7 @@ void main() {
       );
 
       final tooltipFinder = find.byWidgetPredicate(
-        (widget) =>
-            widget is Tooltip && widget.message == 'Open navigation',
+        (widget) => widget is Tooltip && widget.message == 'Open navigation',
       );
       expect(tooltipFinder, findsOneWidget);
     });
