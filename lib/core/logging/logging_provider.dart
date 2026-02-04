@@ -75,10 +75,16 @@ class LogConfigNotifier extends AsyncNotifier<LogConfig> {
 final logConfigProvider =
     AsyncNotifierProvider<LogConfigNotifier, LogConfig>(LogConfigNotifier.new);
 
+/// The single console sink instance for the app lifecycle.
+///
+/// Created once and persisted. Enable/disable via config rather than
+/// add/remove to avoid race conditions during provider rebuilds.
+final _consoleSink = ConsoleSink();
+
 /// Provider that manages the console sink lifecycle.
 ///
 /// This is the single source of truth for console sink management.
-/// It watches the log config and adds/removes the sink accordingly.
+/// It watches the log config and enables/disables the sink accordingly.
 final consoleSinkProvider = Provider<ConsoleSink?>((ref) {
   // Keep this provider alive even when not watched.
   ref.keepAlive();
@@ -94,37 +100,41 @@ final consoleSinkProvider = Provider<ConsoleSink?>((ref) {
   // Apply minimum level to LogManager.
   LogManager.instance.minimumLevel = config.minimumLevel;
 
-  if (!config.consoleLoggingEnabled) {
-    return null;
-  }
+  // Ensure sink is registered (idempotent - LogManager checks for duplicates).
+  LogManager.instance.addSink(_consoleSink);
 
-  final sink = ConsoleSink();
-  LogManager.instance.addSink(sink);
+  // Enable/disable based on config.
+  _consoleSink.enabled = config.consoleLoggingEnabled;
 
-  ref.onDispose(() {
-    LogManager.instance.removeSink(sink);
-  });
-
-  return sink;
+  return config.consoleLoggingEnabled ? _consoleSink : null;
 });
 
-/// Provider that manages the stdout sink lifecycle (desktop only).
+/// The single stdout sink instance for the app lifecycle (desktop only).
 ///
-/// On desktop platforms (macOS, Windows, Linux), writes logs to stdout
-/// for terminal visibility. On mobile and web, this provider returns null.
-final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
-  // Web never uses StdoutSink.
-  if (kIsWeb) return null;
+/// Created once and persisted. Enable/disable via config rather than
+/// add/remove to avoid race conditions during provider rebuilds.
+/// Null on non-desktop platforms.
+final StdoutSink? _stdoutSink = _createStdoutSinkIfDesktop();
 
-  // Only enable on desktop platforms.
+StdoutSink? _createStdoutSinkIfDesktop() {
+  if (kIsWeb) return null;
   final isDesktop = switch (defaultTargetPlatform) {
     TargetPlatform.macOS => true,
     TargetPlatform.windows => true,
     TargetPlatform.linux => true,
     _ => false,
   };
+  return isDesktop ? StdoutSink() : null;
+}
 
-  if (!isDesktop) return null;
+/// Provider that manages the stdout sink lifecycle (desktop only).
+///
+/// On desktop platforms (macOS, Windows, Linux), writes logs to stdout
+/// for terminal visibility. On mobile and web, this provider returns null.
+final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
+  // Non-desktop platforms don't have stdout sink.
+  final sink = _stdoutSink;
+  if (sink == null) return null;
 
   // Keep this provider alive even when not watched.
   ref.keepAlive();
@@ -137,14 +147,11 @@ final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
     error: (_, __) => LogConfig.defaultConfig,
   );
 
-  if (!config.stdoutLoggingEnabled) return null;
-
-  final sink = StdoutSink();
+  // Ensure sink is registered (idempotent - LogManager checks for duplicates).
   LogManager.instance.addSink(sink);
 
-  ref.onDispose(() {
-    LogManager.instance.removeSink(sink);
-  });
+  // Enable/disable based on config.
+  sink.enabled = config.stdoutLoggingEnabled;
 
-  return sink;
+  return config.stdoutLoggingEnabled ? sink : null;
 });

@@ -133,18 +133,29 @@ void main() {
       expect(sink, isNull);
     });
 
-    test('removes sink on dispose', () async {
+    test('disables sink when config changes to disabled', () async {
       final container = ProviderContainer();
+      addTearDown(container.dispose);
 
       // Read and wait for config.
       await container.read(logConfigProvider.future);
       final sink = container.read(consoleSinkProvider);
-      expect(LogManager.instance.sinks, contains(sink));
+      expect(sink, isNotNull);
+      expect(sink!.enabled, isTrue);
 
-      container.dispose();
+      // Disable console logging.
+      final notifier = container.read(logConfigProvider.notifier);
+      await notifier.setConsoleLoggingEnabled(enabled: false);
 
-      // After dispose, sink should be removed.
-      expect(LogManager.instance.sinks, isEmpty);
+      // Re-read provider to trigger update.
+      final disabledSink = container.read(consoleSinkProvider);
+
+      // Provider returns null but sink is still registered (just disabled).
+      expect(disabledSink, isNull);
+      expect(LogManager.instance.sinks, isNotEmpty);
+
+      // The singleton sink should now be disabled.
+      expect(sink.enabled, isFalse);
     });
   });
 }
