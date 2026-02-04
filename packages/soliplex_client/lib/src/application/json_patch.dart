@@ -71,7 +71,12 @@ Map<String, dynamic> _setAtPath(
   for (var i = 0; i < segments.length - 1; i++) {
     final segment = segments[i];
     if (current is Map<String, dynamic>) {
-      current[segment] ??= <String, dynamic>{};
+      if (current[segment] == null) {
+        final nextSegment = segments[i + 1];
+        final nextIsArrayIndex =
+            int.tryParse(nextSegment) != null || nextSegment == '-';
+        current[segment] = nextIsArrayIndex ? <dynamic>[] : <String, dynamic>{};
+      }
       current = current[segment];
     } else if (current is List) {
       final index = int.tryParse(segment);

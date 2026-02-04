@@ -258,6 +258,39 @@ void main() {
       });
     });
 
+    group('intermediate container creation', () {
+      test('creates List when path segment is followed by numeric index', () {
+        final state = <String, dynamic>{};
+        final operations = [
+          {
+            'op': 'add',
+            'path': '/haiku.rag.chat/qa_history/0',
+            'value': {'question': 'Q1'},
+          },
+        ];
+
+        final result = applyJsonPatch(state, operations);
+
+        final haikuRagChat = result['haiku.rag.chat'] as Map<String, dynamic>;
+        final qaHistory = haikuRagChat['qa_history'] as List<dynamic>;
+        expect(qaHistory, hasLength(1));
+        expect((qaHistory[0] as Map<String, dynamic>)['question'], 'Q1');
+      });
+
+      test('creates List when intermediate path uses "-" append syntax', () {
+        final state = <String, dynamic>{};
+        final operations = [
+          {'op': 'add', 'path': '/data/items/-', 'value': 'first'},
+        ];
+
+        final result = applyJsonPatch(state, operations);
+
+        final data = result['data'] as Map<String, dynamic>;
+        final items = data['items'] as List<dynamic>;
+        expect(items, ['first']);
+      });
+    });
+
     group('edge cases', () {
       test('handles empty path', () {
         final state = <String, dynamic>{'key': 'value'};
