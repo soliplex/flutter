@@ -34,6 +34,7 @@ dependencies:
 
 dev_dependencies:
   # Icon generation
+  dart_pre_commit: ^6.1.0
   flutter_launcher_icons: ^0.14.4
 
   # Splash screen generation
@@ -75,3 +76,15 @@ flutter_native_splash:
     color: "#424242"
 
   web: true
+
+# Pre-commit hook configuration (dart run tool/setup_hooks.dart to install)
+dart_pre_commit:
+  # Enable format and analyze only
+  format: true
+  analyze:
+    error-level: info # fail on errors, warnings, and lints
+  # Disable other tasks
+  flutter-compat: false
+  outdated: false
+  pull-up-dependencies: false
+  osv-scanner: false
