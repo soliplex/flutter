@@ -11,3 +11,15 @@ repos:
     rev: v8.21.2
     hooks:
       - id: gitleaks
+  - repo: local
+    hooks:
+      - id: dart-format
+        name: dart format
+        entry: dart format --set-exit-if-changed
+        language: system
+        types: [dart]
+      - id: dart-analyze
+        name: dart analyze
+        entry: dart analyze --fatal-infos
+        language: system
+        pass_filenames: false

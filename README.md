@@ -19,6 +19,13 @@ flutter test
 
 ## Pre-commit Hooks
 
+Pre-commit hooks enforce code quality on every commit:
+
+- **dart format** - Ensures consistent code formatting
+- **dart analyze** - Catches errors, warnings, and lint issues
+- **gitleaks** - Prevents committing secrets
+- **no-commit-to-branch** - Blocks direct commits to main/master
+
 Install uv (if not already installed):
 
 ```bash
