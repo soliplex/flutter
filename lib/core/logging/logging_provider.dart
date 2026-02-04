@@ -148,9 +148,10 @@ final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
 final logConfigControllerProvider = Provider<void>((ref) {
   ref.keepAlive();
 
-  // Get sink instances (these are stable - won't rebuild).
-  final consoleSink = ref.read(consoleSinkProvider);
-  final stdoutSink = ref.read(stdoutSinkProvider);
+  // Use ref.watch to ensure controller rebuilds if sink instances change
+  // (e.g., during hot reload or if sinks are ever recreated).
+  final consoleSink = ref.watch(consoleSinkProvider);
+  final stdoutSink = ref.watch(stdoutSinkProvider);
 
   // Listen to config changes and apply them.
   ref.listen(
