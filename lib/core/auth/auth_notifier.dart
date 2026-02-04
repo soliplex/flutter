@@ -43,7 +43,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     // Defense-in-depth: catch any unhandled errors and transition to
     // Unauthenticated to avoid being stuck in AuthLoading.
     _restoreSession().catchError((Object e) {
-      Loggers.auth.info('Unhandled restore error: ${e.runtimeType}');
+      Loggers.auth.error('Unhandled restore error', error: e);
       state = const Unauthenticated();
     });
     return const AuthLoading();
@@ -56,7 +56,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     } on Exception catch (e) {
       // Storage unavailable (keychain locked, permissions, corruption)
       // Policy: treat as unauthenticated rather than stuck in loading
-      Loggers.auth.info('Failed to restore session: ${e.runtimeType}');
+      Loggers.auth.warning('Failed to restore session', error: e);
       state = const Unauthenticated();
       return;
     }
@@ -77,7 +77,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       try {
         await _storage.clearTokens();
       } on Exception catch (e) {
-        Loggers.auth.info('Failed to clear expired tokens: ${e.runtimeType}');
+        Loggers.auth.warning('Failed to clear expired tokens', error: e);
       }
       state = const Unauthenticated();
       return;
@@ -117,13 +117,13 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         clientId: tokens.clientId,
       );
     } on Exception catch (e) {
-      Loggers.auth.info('Refresh during restore threw: ${e.runtimeType}');
+      Loggers.auth.warning('Refresh during restore threw', error: e);
       return false;
     }
 
     if (result is! TokenRefreshSuccess) {
       final failure = result as TokenRefreshFailure;
-      Loggers.auth.info('Refresh during restore failed: ${failure.reason}');
+      Loggers.auth.warning('Refresh during restore failed: ${failure.reason}');
       return false;
     }
 
@@ -167,7 +167,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     try {
       await _storage.saveTokens(newState);
     } on Exception catch (e) {
-      Loggers.auth.info('Failed to persist refreshed tokens: ${e.runtimeType}');
+      Loggers.auth.warning('Failed to persist refreshed tokens', error: e);
     }
 
     state = newState;

@@ -71,7 +71,7 @@ class WebAuthFlow implements AuthFlow {
     // Backend handles PKCE, token exchange, and redirects back with tokens
     final loginUrl = '$backendUrl/api/login/${issuer.id}?return_to=$returnTo';
 
-    Loggers.auth.debug('Web auth: Redirecting to $loginUrl');
+    Loggers.auth.info('Web auth: Redirecting to $loginUrl');
     _navigator.navigateTo(loginUrl);
 
     // Browser navigates away; throw to make the type system honest.
@@ -101,7 +101,7 @@ class WebAuthFlow implements AuthFlow {
       },
     );
 
-    Loggers.auth.debug('Web auth: Redirecting to IdP logout: $logoutUri');
+    Loggers.auth.info('Web auth: Redirecting to IdP logout: $logoutUri');
     _navigator.navigateTo(logoutUri.toString());
   }
 }

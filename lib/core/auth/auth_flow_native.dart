@@ -68,7 +68,7 @@ class NativeAuthFlow implements AuthFlow {
       );
     } on Exception catch (e) {
       // Log type only - exception details may contain sensitive data
-      Loggers.auth.error('Authentication failed: ${e.runtimeType}');
+      Loggers.auth.error('Authentication failed', error: e);
       throw const AuthException('Authentication failed. Please try again.');
     }
   }
