@@ -46,7 +46,7 @@ jobs:
       # DCM Analysis - Stage 2: Non-Blocking
       # =========================================================================
       # Reports DCM findings but NEVER fails the build.
-      # Requires DCM_LICENSE_KEY secret to be configured.
+      # Requires DCM_CI_KEY secret to be configured.
       #
       # To advance to Stage 5 (blocking), remove continue-on-error
       # =========================================================================
@@ -57,7 +57,7 @@ jobs:
           echo 'deb [signed-by=/usr/share/keyrings/dcm.gpg arch=amd64] https://dcm.dev/debian stable main' | sudo tee /etc/apt/sources.list.d/dart_stable.list
           sudo apt-get update
           sudo apt-get install dcm
-          dcm activate --license-key="${{ secrets.DCM_LICENSE_KEY }}"
+          dcm activate --license-key="${{ secrets.DCM_CI_KEY }}"
 
       - name: Run DCM Analysis (non-blocking)
         continue-on-error: true
