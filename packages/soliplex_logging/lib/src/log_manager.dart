@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:soliplex_logging/src/log_level.dart';
 import 'package:soliplex_logging/src/log_record.dart';
 import 'package:soliplex_logging/src/log_sink.dart';
@@ -30,9 +32,16 @@ class LogManager {
   List<LogSink> get sinks => List.unmodifiable(_sinks);
 
   /// Emits a log record to all sinks.
+  ///
+  /// Sink failures are caught and printed to stderr to prevent a faulty sink
+  /// from crashing the application or blocking other sinks.
   void emit(LogRecord record) {
     for (final sink in _sinks) {
-      sink.write(record);
+      try {
+        sink.write(record);
+      } on Object catch (e) {
+        developer.log('Sink failed to write: $e', name: 'LogManager');
+      }
     }
   }
 

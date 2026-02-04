@@ -4,6 +4,7 @@ import 'package:soliplex_frontend/app.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -54,7 +55,7 @@ Future<void> runSoliplexApp({
   try {
     savedBaseUrl = await loadSavedBaseUrl();
   } catch (e) {
-    debugPrint('Failed to load saved base URL: $e');
+    Loggers.config.warning('Failed to load saved base URL: $e');
   }
 
   runApp(

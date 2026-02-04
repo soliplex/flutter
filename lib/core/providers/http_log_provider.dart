@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meta/meta.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 
 /// Notifier that stores HTTP events and implements [HttpObserver].
 ///
@@ -53,13 +54,25 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
   }
 
   @override
-  void onRequest(HttpRequestEvent event) => _addEvent(event);
+  void onRequest(HttpRequestEvent event) {
+    Loggers.http.debug('${event.method} ${event.uri}');
+    _addEvent(event);
+  }
 
   @override
-  void onResponse(HttpResponseEvent event) => _addEvent(event);
+  void onResponse(HttpResponseEvent event) {
+    Loggers.http.debug('${event.statusCode} response');
+    _addEvent(event);
+  }
 
   @override
-  void onError(HttpErrorEvent event) => _addEvent(event);
+  void onError(HttpErrorEvent event) {
+    Loggers.http.error(
+      '${event.method} ${event.uri}',
+      error: event.exception,
+    );
+    _addEvent(event);
+  }
 
   @override
   void onStreamStart(HttpStreamStartEvent event) => _addEvent(event);

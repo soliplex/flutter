@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
@@ -53,8 +54,11 @@ class SettingsScreen extends ConsumerWidget {
             data: (info) => SelectableText(info.soliplexVersion),
             loading: () => const Text('Loading...'),
             error: (error, stack) {
-              debugPrint('Failed to load backend version: $error');
-              debugPrint('$stack');
+              Loggers.config.error(
+                'Failed to load backend version',
+                error: error,
+                stackTrace: stack,
+              );
               return const Text('Unavailable');
             },
           ),

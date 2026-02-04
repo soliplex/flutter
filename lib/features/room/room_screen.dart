@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -233,8 +234,11 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         ),
       ),
       error: (error, stackTrace) {
-        debugPrint('Failed to load rooms: $error');
-        debugPrint(stackTrace.toString());
+        Loggers.room.error(
+          'Failed to load rooms',
+          error: error,
+          stackTrace: stackTrace,
+        );
         return Semantics(
           label: 'Error loading rooms',
           child: const Tooltip(

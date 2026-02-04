@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,28 +6,12 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Cancelled, Completed, Conversation, Failed, Idle, Running;
 import 'package:soliplex_frontend/core/domain/interfaces/run_lifecycle.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/infrastructure_providers.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
-
-void _log(String message, {Object? error, StackTrace? stackTrace}) {
-  developer.log(
-    message,
-    name: 'ActiveRunNotifier',
-    error: error,
-    stackTrace: stackTrace,
-  );
-  // Also print to console for easier debugging
-  debugPrint('[ActiveRunNotifier] $message');
-  if (error != null) {
-    debugPrint('[ActiveRunNotifier] Error: $error');
-  }
-  if (stackTrace != null) {
-    debugPrint('[ActiveRunNotifier] StackTrace: $stackTrace');
-  }
-}
 
 /// Internal state representing the notifier's resource management.
 ///
@@ -245,11 +228,15 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       subscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
-          _log('Stream error during run', error: error, stackTrace: stackTrace);
+          Loggers.activeRun.error(
+            'Stream error during run',
+            error: error,
+            stackTrace: stackTrace,
+          );
           final currentState = state;
           if (currentState is RunningState) {
             final errorMsg = error.toString();
-            _log('Run failed with error: $errorMsg');
+            Loggers.activeRun.error('Run failed with error: $errorMsg');
             final completed = CompletedState(
               conversation: currentState.conversation.withStatus(
                 domain.Failed(error: errorMsg),
@@ -288,9 +275,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         userMessageId: userMessageObj.id,
         previousAguiState: cachedAguiState,
       );
-    } on CancellationError catch (e, stackTrace) {
+    } on CancellationError catch (e) {
       // User cancelled - clean up resources
-      _log('Run cancelled: ${e.message}', error: e, stackTrace: stackTrace);
+      Loggers.activeRun.info('Run cancelled: ${e.message}');
       await subscription?.cancel();
       final completed = CompletedState(
         conversation: state.conversation.withStatus(
@@ -306,7 +293,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       _internalState = const IdleInternalState();
     } catch (e, stackTrace) {
       // Clean up subscription on any error
-      _log('Run failed with exception', error: e, stackTrace: stackTrace);
+      Loggers.activeRun.error(
+        'Run failed with exception',
+        error: e,
+        stackTrace: stackTrace,
+      );
       await subscription?.cancel();
       final errorMsg = e.toString();
       final completed = CompletedState(
@@ -366,7 +357,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       try {
         await previousState.dispose();
       } on Exception catch (e, st) {
-        debugPrint('Disposal error during reset: $e\n$st');
+        Loggers.activeRun.error(
+          'Disposal error during reset',
+          error: e,
+          stackTrace: st,
+        );
       }
     }
   }
@@ -378,7 +373,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
     // Log error events for debugging
     if (event is RunErrorEvent) {
-      _log('Received RUN_ERROR event: ${event.message}');
+      Loggers.activeRun.error('Received RUN_ERROR event: ${event.message}');
     }
 
     // Use application layer processor
@@ -410,7 +405,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           result: const Success(),
         ),
       domain.Failed(:final error) => () {
-          _log('Run completed with failure: $error');
+          Loggers.activeRun.error('Run completed with failure: $error');
           return CompletedState(
             conversation: conversation,
             streaming: result.streaming,

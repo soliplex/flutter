@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
@@ -122,8 +123,8 @@ class _ChatInputState extends ConsumerState<ChatInput> {
     try {
       await ref.read(activeRunNotifierProvider.notifier).cancelRun();
     } catch (e, stackTrace) {
-      debugPrint('Failed to cancel run: $e');
-      debugPrint(stackTrace.toString());
+      Loggers.chat
+          .error('Failed to cancel run', error: e, stackTrace: stackTrace);
       if (mounted) {
         ScaffoldMessenger.of(
           context,

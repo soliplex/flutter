@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 
@@ -265,7 +266,7 @@ void selectAndPersistThread({
       threadId: threadId,
       invalidate: invalidateLastViewed(ref),
     ).catchError((Object e) {
-      debugPrint('Failed to persist last viewed thread: $e');
+      Loggers.room.warning('Failed to persist last viewed thread: $e');
     }),
   );
 }

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/chunk_visualization_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 
@@ -90,7 +91,8 @@ class ChunkVisualizationPage extends ConsumerWidget {
     Object error,
     ThemeData theme,
   ) {
-    debugPrint('ChunkVisualization error for chunk $chunkId: $error');
+    Loggers.chat
+        .error('ChunkVisualization error for chunk $chunkId', error: error);
 
     final message = switch (error) {
       NotFoundException() => 'Page images not available for this citation.',
@@ -191,7 +193,8 @@ class _PageImage extends StatelessWidget {
     try {
       return base64Decode(imageBase64);
     } on FormatException catch (e) {
-      debugPrint('Failed to decode base64 for page $pageNumber: $e');
+      Loggers.chat
+          .error('Failed to decode base64 for page $pageNumber', error: e);
       return null;
     }
   }
@@ -217,8 +220,10 @@ class _PageImage extends StatelessWidget {
                   imageBytes,
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stack) {
-                    debugPrint(
-                      'Image decode error for page $pageNumber: $error',
+                    Loggers.chat.error(
+                      'Image decode error for page $pageNumber',
+                      error: error,
+                      stackTrace: stack,
                     );
                     return _buildBrokenImage(theme);
                   },

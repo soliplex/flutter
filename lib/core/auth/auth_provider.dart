@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart'
-    show ChangeNotifier, Listenable, debugPrint, kIsWeb;
+    show ChangeNotifier, Listenable, kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -29,7 +30,7 @@ final authFlowProvider = Provider<AuthFlow>((ref) {
     );
   }
 
-  debugPrint('authFlowProvider: baseUrl=${config.baseUrl}');
+  Loggers.auth.debug('authFlowProvider: baseUrl=${config.baseUrl}');
   return createAuthFlow(
     backendBaseUrl: config.baseUrl,
     redirectScheme: shellConfig.oauthRedirectScheme,
@@ -67,7 +68,10 @@ final authStorageProvider = Provider<AuthStorage>((ref) => createAuthStorage());
 /// when refreshing tokens.
 final tokenRefreshServiceProvider = Provider<TokenRefreshService>((ref) {
   final httpClient = ref.watch(baseHttpClientProvider);
-  return TokenRefreshService(httpClient: httpClient, onDiagnostic: debugPrint);
+  return TokenRefreshService(
+    httpClient: httpClient,
+    onDiagnostic: Loggers.auth.debug,
+  );
 });
 
 /// Provider for auth state and actions.

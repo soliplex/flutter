@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 
@@ -33,8 +34,11 @@ class _BackendVersionsScreenState extends ConsumerState<BackendVersionsScreen> {
         data: (info) => _buildContent(info.packageVersions),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) {
-          debugPrint('Failed to load backend versions: $error');
-          debugPrint('$stack');
+          Loggers.config.error(
+            'Failed to load backend versions',
+            error: error,
+            stackTrace: stack,
+          );
           return const Center(
             child: Text('Failed to load version information'),
           );
