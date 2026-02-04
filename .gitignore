@@ -170,3 +170,7 @@ scratchpad/*
 **/Local.xcconfig
 # Claude Code local config
 .claude/
+
+# Local environment/secrets (never commit)
+.env
+.env.local
