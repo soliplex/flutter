@@ -2,17 +2,55 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Root application widget.
-class SoliplexApp extends ConsumerWidget {
+///
+/// Handles app-level concerns including lifecycle-aware wakelock management.
+class SoliplexApp extends ConsumerStatefulWidget {
   const SoliplexApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SoliplexApp> createState() => _SoliplexAppState();
+}
+
+class _SoliplexAppState extends ConsumerState<SoliplexApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _enableWakelock();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _enableWakelock();
+    }
+  }
+
+  Future<void> _enableWakelock() async {
+    try {
+      await WakelockPlus.enable();
+    } catch (e) {
+      Loggers.config.warning('Failed to enable wake lock: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     // Initialize logging system (creates sinks and applies config).
     ref.watch(logConfigControllerProvider);
 
