@@ -13,9 +13,7 @@ void main() {
     LogManager.instance.reset();
   });
 
-  tearDown(() {
-    LogManager.instance.reset();
-  });
+  tearDown(LogManager.instance.reset);
 
   group('LogConfigNotifier', () {
     test('loads default config when no preferences exist', () async {

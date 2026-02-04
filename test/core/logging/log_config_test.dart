@@ -21,10 +21,7 @@ void main() {
 
     group('copyWith', () {
       test('copies minimumLevel only', () {
-        const original = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
+        const original = LogConfig.defaultConfig;
 
         final copied = original.copyWith(minimumLevel: LogLevel.warning);
 
@@ -33,10 +30,7 @@ void main() {
       });
 
       test('copies consoleLoggingEnabled only', () {
-        const original = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
+        const original = LogConfig.defaultConfig;
 
         final copied = original.copyWith(consoleLoggingEnabled: false);
 
@@ -45,10 +39,7 @@ void main() {
       });
 
       test('copies both values', () {
-        const original = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
+        const original = LogConfig.defaultConfig;
 
         final copied = original.copyWith(
           minimumLevel: LogLevel.error,
@@ -74,24 +65,15 @@ void main() {
 
     group('equality', () {
       test('equal configs are equal', () {
-        const config1 = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
-        const config2 = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
+        const config1 = LogConfig.defaultConfig;
+        const config2 = LogConfig.defaultConfig;
 
         expect(config1, equals(config2));
         expect(config1.hashCode, equals(config2.hashCode));
       });
 
       test('different minimumLevel are not equal', () {
-        const config1 = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
+        const config1 = LogConfig.defaultConfig;
         const config2 = LogConfig(
           minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: true,
@@ -101,10 +83,7 @@ void main() {
       });
 
       test('different consoleLoggingEnabled are not equal', () {
-        const config1 = LogConfig(
-          minimumLevel: LogLevel.info,
-          consoleLoggingEnabled: true,
-        );
+        const config1 = LogConfig.defaultConfig;
         const config2 = LogConfig(
           minimumLevel: LogLevel.info,
           consoleLoggingEnabled: false,
