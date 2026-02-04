@@ -23,11 +23,13 @@ void main() {
     test('params throws StateError if accessed before capture', () {
       expect(
         () => guard.params,
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('OAuth params must be captured before'),
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('OAuth params must be captured before'),
+          ),
+        ),
       );
     });
 
@@ -48,26 +50,30 @@ void main() {
 
       expect(
         () => guard.capture(const NoCallbackParams()),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          contains('already been captured'),
-        )),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('already been captured'),
+          ),
+        ),
       );
     });
 
     test('assertCaptured throws descriptive error if not captured', () {
       expect(
         () => guard.assertCaptured(),
-        throwsA(isA<StateError>().having(
-          (e) => e.message,
-          'message',
-          allOf(
-            contains('OAuth callback params were not captured'),
-            contains('CallbackParamsCapture.captureNow()'),
-            contains('before GoRouter'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('OAuth callback params were not captured'),
+              contains('CallbackParamsCapture.captureNow()'),
+              contains('before GoRouter'),
+            ),
           ),
-        )),
+        ),
       );
     });
 
