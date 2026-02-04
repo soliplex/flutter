@@ -215,7 +215,11 @@ final agUiClientProvider = Provider<AgUiClient>((ref) {
   final protectedClient = _NonClosingHttpClient(httpClient);
 
   final client = AgUiClient(
-    config: AgUiClientConfig(baseUrl: '${config.baseUrl}/api/v1'),
+    config: AgUiClientConfig(
+      baseUrl: '${config.baseUrl}/api/v1',
+      requestTimeout: const Duration(seconds: 600),
+      connectionTimeout: const Duration(seconds: 600),
+    ),
     httpClient: protectedClient,
   );
 
