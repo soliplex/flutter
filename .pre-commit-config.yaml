@@ -11,3 +11,16 @@ repos:
     rev: v8.21.2
     hooks:
       - id: gitleaks
+  - repo: local
+    hooks:
+      - id: dart-format
+        name: dart format
+        entry: dart format --set-exit-if-changed
+        language: system
+        types: [dart]
+        exclude: ^packages/soliplex_client/lib/src/schema/
+      - id: flutter-analyze
+        name: flutter analyze
+        entry: flutter analyze --fatal-infos
+        language: system
+        pass_filenames: false
