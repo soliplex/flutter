@@ -8,7 +8,7 @@
 # Documentation: https://dcm.dev/docs/configuration
 # =============================================================================
 
-dart_code_metrics:
+dcm:
   # ---------------------------------------------------------------------------
   # Metrics Thresholds
   # ---------------------------------------------------------------------------
@@ -19,33 +19,38 @@ dart_code_metrics:
     # Cyclomatic complexity measures decision points (if/else/switch/loops)
     # High complexity = hard to test and maintain
     # Relaxed: 20 (will tighten to 15 in Stage 5)
-    cyclomatic-complexity: 20
+    cyclomatic-complexity:
+      threshold: 20
 
     # Lines of executable code per function (excludes comments/blanks)
     # Long functions are hard to understand
     # Relaxed: 100 (will tighten to 50 in Stage 5)
-    lines-of-code: 100
+    lines-of-code:
+      threshold: 100
 
     # Maximum parameters per function/method
     # Many parameters suggest the function does too much
     # Relaxed: 7 (will tighten to 5 in Stage 5)
-    number-of-parameters: 7
+    number-of-parameters:
+      threshold: 7
 
     # Maximum nesting depth (if inside if inside loop, etc.)
     # Deep nesting is hard to follow
     # Relaxed: 5 (will tighten to 4 in Stage 5)
-    maximum-nesting-level: 5
+    maximum-nesting-level:
+      threshold: 5
 
   # ---------------------------------------------------------------------------
   # Exclusions
   # ---------------------------------------------------------------------------
   # Skip generated and third-party code
 
-  metrics-exclude:
-    - "**/*.g.dart"
-    - "**/*.freezed.dart"
-    - "build/**"
-    - "packages/soliplex_client/lib/src/schema/**"
+  exclude:
+    metrics:
+      - "**/*.g.dart"
+      - "**/*.freezed.dart"
+      - "build/**"
+      - "packages/soliplex_client/lib/src/schema/**"
 
   # ---------------------------------------------------------------------------
   # Rules
