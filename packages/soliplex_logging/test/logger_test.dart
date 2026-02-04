@@ -15,6 +15,8 @@ class TestSink implements LogSink {
 
   @override
   Future<void> close() async {}
+
+  void clear() => records.clear();
 }
 
 void main() {
