@@ -1,0 +1,56 @@
+# =============================================================================
+# DCM Configuration - Stage 1: Metrics Only
+# =============================================================================
+# This file configures Dart Code Metrics (DCM) for static analysis.
+# Stage 1 collects metrics without enforcing any rules.
+#
+# See docs/planning/START_DCM.md for the full rollout plan.
+# Documentation: https://dcm.dev/docs/configuration
+# =============================================================================
+
+dart_code_metrics:
+  # ---------------------------------------------------------------------------
+  # Metrics Thresholds
+  # ---------------------------------------------------------------------------
+  # These thresholds generate WARNINGS when exceeded.
+  # Stage 1 uses relaxed values to establish a baseline.
+
+  metrics:
+    # Cyclomatic complexity measures decision points (if/else/switch/loops)
+    # High complexity = hard to test and maintain
+    # Relaxed: 20 (will tighten to 15 in Stage 5)
+    cyclomatic-complexity: 20
+
+    # Lines of executable code per function (excludes comments/blanks)
+    # Long functions are hard to understand
+    # Relaxed: 100 (will tighten to 50 in Stage 5)
+    lines-of-code: 100
+
+    # Maximum parameters per function/method
+    # Many parameters suggest the function does too much
+    # Relaxed: 7 (will tighten to 5 in Stage 5)
+    number-of-parameters: 7
+
+    # Maximum nesting depth (if inside if inside loop, etc.)
+    # Deep nesting is hard to follow
+    # Relaxed: 5 (will tighten to 4 in Stage 5)
+    maximum-nesting-level: 5
+
+  # ---------------------------------------------------------------------------
+  # Exclusions
+  # ---------------------------------------------------------------------------
+  # Skip generated and third-party code
+
+  metrics-exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+    - "packages/soliplex_client/lib/src/schema/**"
+
+  # ---------------------------------------------------------------------------
+  # Rules
+  # ---------------------------------------------------------------------------
+  # Stage 1: No rules enabled - metrics collection only
+  # Rules will be added progressively in Stages 3-5.
+
+  rules: []
