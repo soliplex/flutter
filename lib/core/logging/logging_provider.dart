@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
@@ -8,6 +9,9 @@ const _kLogLevelKey = 'log_level';
 
 /// SharedPreferences key for console logging enabled.
 const _kConsoleLoggingKey = 'console_logging';
+
+/// SharedPreferences key for stdout logging enabled.
+const _kStdoutLoggingKey = 'stdout_logging';
 
 /// Notifier for managing log configuration.
 class LogConfigNotifier extends AsyncNotifier<LogConfig> {
@@ -20,6 +24,7 @@ class LogConfigNotifier extends AsyncNotifier<LogConfig> {
   LogConfig _loadConfig(SharedPreferences prefs) {
     final levelIndex = prefs.getInt(_kLogLevelKey);
     final consoleEnabled = prefs.getBool(_kConsoleLoggingKey);
+    final stdoutEnabled = prefs.getBool(_kStdoutLoggingKey);
 
     return LogConfig(
       minimumLevel: levelIndex != null && levelIndex < LogLevel.values.length
@@ -27,6 +32,8 @@ class LogConfigNotifier extends AsyncNotifier<LogConfig> {
           : LogConfig.defaultConfig.minimumLevel,
       consoleLoggingEnabled:
           consoleEnabled ?? LogConfig.defaultConfig.consoleLoggingEnabled,
+      stdoutLoggingEnabled:
+          stdoutEnabled ?? LogConfig.defaultConfig.stdoutLoggingEnabled,
     );
   }
 
@@ -51,36 +58,40 @@ class LogConfigNotifier extends AsyncNotifier<LogConfig> {
           LogConfig.defaultConfig.copyWith(consoleLoggingEnabled: enabled),
     );
   }
+
+  /// Updates whether stdout logging is enabled (desktop only).
+  Future<void> setStdoutLoggingEnabled({required bool enabled}) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kStdoutLoggingKey, enabled);
+
+    state = AsyncData(
+      state.value?.copyWith(stdoutLoggingEnabled: enabled) ??
+          LogConfig.defaultConfig.copyWith(stdoutLoggingEnabled: enabled),
+    );
+  }
 }
 
 /// Provider for log configuration.
 final logConfigProvider =
     AsyncNotifierProvider<LogConfigNotifier, LogConfig>(LogConfigNotifier.new);
 
-/// Provider that manages the console sink lifecycle.
+// ============================================================================
+// Sink Instance Providers
+// ============================================================================
+// These providers own the sink lifecycle. They create the sink once, register
+// it with LogManager, and clean up on dispose. They do NOT watch config -
+// configuration is applied by the controller.
+
+/// Holds the ConsoleSink instance.
 ///
-/// This is the single source of truth for console sink management.
-/// It watches the log config and adds/removes the sink accordingly.
-final consoleSinkProvider = Provider<ConsoleSink?>((ref) {
-  // Keep this provider alive even when not watched.
+/// Created once per provider container. Registered with LogManager on creation,
+/// unregistered on dispose. The sink starts disabled and is enabled by the
+/// controller when config loads.
+final consoleSinkProvider = Provider<ConsoleSink>((ref) {
   ref.keepAlive();
 
-  final configAsync = ref.watch(logConfigProvider);
-
-  final config = configAsync.when(
-    data: (config) => config,
-    loading: () => LogConfig.defaultConfig,
-    error: (_, __) => LogConfig.defaultConfig,
-  );
-
-  // Apply minimum level to LogManager.
-  LogManager.instance.minimumLevel = config.minimumLevel;
-
-  if (!config.consoleLoggingEnabled) {
-    return null;
-  }
-
-  final sink = ConsoleSink();
+  // Start disabled - controller will enable based on config.
+  final sink = ConsoleSink(enabled: false);
   LogManager.instance.addSink(sink);
 
   ref.onDispose(() {
@@ -88,4 +99,73 @@ final consoleSinkProvider = Provider<ConsoleSink?>((ref) {
   });
 
   return sink;
+});
+
+/// Holds the StdoutSink instance (desktop platforms only).
+///
+/// Returns null on non-desktop platforms. On desktop, creates the sink once,
+/// registers with LogManager, and cleans up on dispose. Starts disabled.
+final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
+  if (kIsWeb) return null;
+
+  final isDesktop = switch (defaultTargetPlatform) {
+    TargetPlatform.macOS => true,
+    TargetPlatform.windows => true,
+    TargetPlatform.linux => true,
+    _ => false,
+  };
+
+  if (!isDesktop) return null;
+
+  ref.keepAlive();
+
+  // Start disabled - controller will enable based on config.
+  final sink = StdoutSink(enabled: false);
+  LogManager.instance.addSink(sink);
+
+  ref.onDispose(() {
+    LogManager.instance.removeSink(sink);
+  });
+
+  return sink;
+});
+
+// ============================================================================
+// Log Config Controller
+// ============================================================================
+// This provider manages the side effects of applying config to the logging
+// system. It listens to config changes and updates sink states accordingly.
+// Uses ref.listen (not ref.watch) to avoid rebuilding on config changes.
+
+/// Controller that applies log configuration to the logging system.
+///
+/// This provider:
+/// - Sets the global minimum log level on LogManager
+/// - Enables/disables sinks based on config
+/// - Uses ref.listen to react to config changes without rebuilding sinks
+///
+/// Watch this provider in your app root to initialize logging.
+final logConfigControllerProvider = Provider<void>((ref) {
+  ref.keepAlive();
+
+  // Use ref.watch to ensure controller rebuilds if sink instances change
+  // (e.g., during hot reload or if sinks are ever recreated).
+  final consoleSink = ref.watch(consoleSinkProvider);
+  final stdoutSink = ref.watch(stdoutSinkProvider);
+
+  // Listen to config changes and apply them.
+  ref.listen(
+    logConfigProvider,
+    (previous, next) {
+      next.whenData((config) {
+        // Apply minimum level to LogManager (centralized ownership).
+        LogManager.instance.minimumLevel = config.minimumLevel;
+
+        // Enable/disable sinks based on config.
+        consoleSink.enabled = config.consoleLoggingEnabled;
+        stdoutSink?.enabled = config.stdoutLoggingEnabled;
+      });
+    },
+    fireImmediately: true,
+  );
 });
