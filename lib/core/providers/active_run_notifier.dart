@@ -236,7 +236,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           final currentState = state;
           if (currentState is RunningState) {
             final errorMsg = error.toString();
-            Loggers.activeRun.error('Run failed with error: $errorMsg');
+            Loggers.activeRun.error(
+              'Run failed',
+              error: error,
+              stackTrace: stackTrace,
+            );
             final completed = CompletedState(
               conversation: currentState.conversation.withStatus(
                 domain.Failed(error: errorMsg),
