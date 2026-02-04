@@ -7,7 +7,8 @@ void main() {
     test('defaultConfig has sensible defaults', () {
       expect(LogConfig.defaultConfig.minimumLevel, LogLevel.info);
       expect(LogConfig.defaultConfig.consoleLoggingEnabled, isTrue);
-      expect(LogConfig.defaultConfig.stdoutLoggingEnabled, isTrue);
+      // Stdout disabled by default to avoid duplication with DevTools.
+      expect(LogConfig.defaultConfig.stdoutLoggingEnabled, isFalse);
     });
 
     test('creates with specified values', () {
@@ -30,7 +31,7 @@ void main() {
 
         expect(copied.minimumLevel, LogLevel.warning);
         expect(copied.consoleLoggingEnabled, isTrue);
-        expect(copied.stdoutLoggingEnabled, isTrue);
+        expect(copied.stdoutLoggingEnabled, isFalse);
       });
 
       test('copies consoleLoggingEnabled only', () {
@@ -40,17 +41,17 @@ void main() {
 
         expect(copied.minimumLevel, LogLevel.info);
         expect(copied.consoleLoggingEnabled, isFalse);
-        expect(copied.stdoutLoggingEnabled, isTrue);
+        expect(copied.stdoutLoggingEnabled, isFalse);
       });
 
       test('copies stdoutLoggingEnabled only', () {
         const original = LogConfig.defaultConfig;
 
-        final copied = original.copyWith(stdoutLoggingEnabled: false);
+        final copied = original.copyWith(stdoutLoggingEnabled: true);
 
         expect(copied.minimumLevel, LogLevel.info);
         expect(copied.consoleLoggingEnabled, isTrue);
-        expect(copied.stdoutLoggingEnabled, isFalse);
+        expect(copied.stdoutLoggingEnabled, isTrue);
       });
 
       test('copies all values', () {
@@ -96,7 +97,7 @@ void main() {
         const config2 = LogConfig(
           minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: true,
-          stdoutLoggingEnabled: true,
+          stdoutLoggingEnabled: false,
         );
 
         expect(config1, isNot(equals(config2)));
@@ -107,7 +108,7 @@ void main() {
         const config2 = LogConfig(
           minimumLevel: LogLevel.info,
           consoleLoggingEnabled: false,
-          stdoutLoggingEnabled: true,
+          stdoutLoggingEnabled: false,
         );
 
         expect(config1, isNot(equals(config2)));
@@ -118,7 +119,7 @@ void main() {
         const config2 = LogConfig(
           minimumLevel: LogLevel.info,
           consoleLoggingEnabled: true,
-          stdoutLoggingEnabled: false,
+          stdoutLoggingEnabled: true,
         );
 
         expect(config1, isNot(equals(config2)));
