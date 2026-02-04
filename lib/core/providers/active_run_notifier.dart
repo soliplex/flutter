@@ -228,19 +228,18 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       subscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
+          // Use provided stackTrace, or capture current if empty.
+          final effectiveStack = stackTrace.toString().isNotEmpty
+              ? stackTrace
+              : StackTrace.current;
           Loggers.activeRun.error(
             'Stream error during run',
             error: error,
-            stackTrace: stackTrace,
+            stackTrace: effectiveStack,
           );
           final currentState = state;
           if (currentState is RunningState) {
             final errorMsg = error.toString();
-            Loggers.activeRun.error(
-              'Run failed',
-              error: error,
-              stackTrace: stackTrace,
-            );
             final completed = CompletedState(
               conversation: currentState.conversation.withStatus(
                 domain.Failed(error: errorMsg),
