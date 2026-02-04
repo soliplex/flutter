@@ -52,5 +52,6 @@ jobs:
       - name: Upload metrics to DCM Dashboard
         run: |
           dcm run lib --all --upload \
-            --project="${{ secrets.DCM_PROJECT_KEY }}" \
-            --email="${{ secrets.DCM_EMAIL }}"
+            --ci-key="${{ secrets.DCM_CI_KEY }}" \
+            --email="${{ secrets.DCM_EMAIL }}" \
+            --project="${{ secrets.DCM_PROJECT_KEY }}"
