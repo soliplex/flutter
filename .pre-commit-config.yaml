@@ -18,8 +18,9 @@ repos:
         entry: dart format --set-exit-if-changed
         language: system
         types: [dart]
-      - id: dart-analyze
-        name: dart analyze
-        entry: dart analyze --fatal-infos
+        exclude: ^packages/soliplex_client/lib/src/schema/
+      - id: flutter-analyze
+        name: flutter analyze
+        entry: flutter analyze --fatal-infos
         language: system
         pass_filenames: false
