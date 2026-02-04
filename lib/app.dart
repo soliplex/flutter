@@ -13,8 +13,10 @@ class SoliplexApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Initialize console logging (must be watched to activate the provider).
-    ref.watch(consoleSinkProvider);
+    // Initialize logging sinks (must be watched to activate the providers).
+    ref
+      ..watch(consoleSinkProvider)
+      ..watch(stdoutSinkProvider);
 
     final authState = ref.watch(authProvider);
     final shellConfig = ref.watch(shellConfigProvider);
