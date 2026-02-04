@@ -1,31 +1,53 @@
-import 'dart:developer' as developer;
-
-import 'package:soliplex_logging/src/log_level.dart';
+import 'package:meta/meta.dart';
 import 'package:soliplex_logging/src/log_record.dart';
 import 'package:soliplex_logging/src/log_sink.dart';
 
-/// Log sink that outputs to the console via dart:developer.
+// Native is the default, web overrides when js_interop is available.
+import 'package:soliplex_logging/src/sinks/console_sink_native.dart'
+    if (dart.library.js_interop) 'package:soliplex_logging/src/sinks/console_sink_web.dart'
+    as platform;
+
+/// Function type for console write operations.
+///
+/// Used for testing to capture log output without writing to the actual
+/// console.
+typedef ConsoleWriter = void Function(LogRecord record);
+
+/// Log sink that outputs to the console.
+///
+/// On native platforms (iOS, macOS, Android, Windows, Linux), uses
+/// `dart:developer` to write to the IDE debug console.
+///
+/// On web, uses browser's `console` API with appropriate methods
+/// (debug, info, warn, error) based on log level.
 class ConsoleSink implements LogSink {
   /// Creates a console sink.
-  ConsoleSink({this.enabled = true});
+  ///
+  /// Set [enabled] to false to temporarily disable output.
+  ///
+  /// The [testWriter] parameter is for testing only - it allows capturing
+  /// log output without writing to the actual console. When provided,
+  /// records are passed to this function instead of the platform console.
+  ConsoleSink({
+    this.enabled = true,
+    @visibleForTesting ConsoleWriter? testWriter,
+  }) : _testWriter = testWriter;
 
   /// Whether this sink is enabled.
   bool enabled;
+
+  final ConsoleWriter? _testWriter;
 
   @override
   void write(LogRecord record) {
     if (!enabled) return;
 
-    final output = _format(record);
-
-    developer.log(
-      output,
-      name: record.loggerName,
-      level: _mapLevel(record.level),
-      time: record.timestamp,
-      error: record.error,
-      stackTrace: record.stackTrace,
-    );
+    // Use test writer if provided, otherwise delegate to platform.
+    if (_testWriter != null) {
+      _testWriter(record);
+    } else {
+      platform.writeToConsole(record);
+    }
   }
 
   @override
@@ -36,33 +58,5 @@ class ConsoleSink implements LogSink {
   @override
   Future<void> close() async {
     enabled = false;
-  }
-
-  String _format(LogRecord record) {
-    final buffer = StringBuffer()
-      ..write('[${record.level.label}] ${record.message}');
-
-    if (record.spanId != null || record.traceId != null) {
-      buffer.write(' (');
-      if (record.traceId != null) buffer.write('trace=${record.traceId}');
-      if (record.spanId != null && record.traceId != null) buffer.write(', ');
-      if (record.spanId != null) buffer.write('span=${record.spanId}');
-      buffer.write(')');
-    }
-
-    return buffer.toString();
-  }
-
-  int _mapLevel(LogLevel level) {
-    // dart:developer log levels: 0-2000
-    // Map our levels to reasonable values
-    return switch (level) {
-      LogLevel.trace => 300,
-      LogLevel.debug => 500,
-      LogLevel.info => 800,
-      LogLevel.warning => 900,
-      LogLevel.error => 1000,
-      LogLevel.fatal => 1200,
-    };
   }
 }
