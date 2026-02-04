@@ -91,16 +91,53 @@ void main() {
   });
 
   group('consoleSinkProvider', () {
-    test('uses default config while loading', () {
+    test('creates sink and registers with LogManager', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Read the sink provider immediately (before async config loads).
       final sink = container.read(consoleSinkProvider);
 
-      // Should still return a sink because default is enabled.
-      expect(sink, isNotNull);
+      expect(sink, isA<ConsoleSink>());
       expect(LogManager.instance.sinks, contains(sink));
+    });
+
+    test('sink starts disabled', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final sink = container.read(consoleSinkProvider);
+
+      // Sink starts disabled until controller enables it.
+      expect(sink.enabled, isFalse);
+    });
+
+    test('removes sink on dispose', () {
+      final container = ProviderContainer();
+
+      final sink = container.read(consoleSinkProvider);
+      expect(LogManager.instance.sinks, contains(sink));
+
+      container.dispose();
+
+      // After dispose, sink should be removed.
+      expect(LogManager.instance.sinks, isEmpty);
+    });
+  });
+
+  group('logConfigControllerProvider', () {
+    test('enables sinks when config loads with defaults', () async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      // Read controller to start listening.
+      container.read(logConfigControllerProvider);
+
+      // Wait for config to load.
+      await container.read(logConfigProvider.future);
+
+      // Sink should now be enabled (default config enables console logging).
+      final sink = container.read(consoleSinkProvider);
+      expect(sink.enabled, isTrue);
     });
 
     test('applies minimum level to LogManager', () async {
@@ -111,14 +148,16 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Read and wait for config.
+      // Read controller to start listening.
+      container.read(logConfigControllerProvider);
+
+      // Wait for config to load.
       await container.read(logConfigProvider.future);
-      container.read(consoleSinkProvider);
 
       expect(LogManager.instance.minimumLevel, LogLevel.warning);
     });
 
-    test('returns null when console logging disabled', () async {
+    test('disables sink when config has console logging disabled', () async {
       SharedPreferences.setMockInitialValues({
         'console_logging': false,
       });
@@ -126,36 +165,39 @@ void main() {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
+      // Read controller to start listening.
+      container.read(logConfigControllerProvider);
+
       // Wait for config to load.
       await container.read(logConfigProvider.future);
-      final sink = container.read(consoleSinkProvider);
 
-      expect(sink, isNull);
+      final sink = container.read(consoleSinkProvider);
+      expect(sink.enabled, isFalse);
     });
 
-    test('disables sink when config changes to disabled', () async {
+    test('updates sink enabled state when config changes', () async {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      // Read and wait for config.
+      // Read controller to start listening.
+      container.read(logConfigControllerProvider);
+
+      // Wait for config to load.
       await container.read(logConfigProvider.future);
+
       final sink = container.read(consoleSinkProvider);
-      expect(sink, isNotNull);
-      expect(sink!.enabled, isTrue);
+      expect(sink.enabled, isTrue);
 
       // Disable console logging.
       final notifier = container.read(logConfigProvider.notifier);
       await notifier.setConsoleLoggingEnabled(enabled: false);
 
-      // Re-read provider to trigger update.
-      final disabledSink = container.read(consoleSinkProvider);
-
-      // Provider returns null but sink is still registered (just disabled).
-      expect(disabledSink, isNull);
-      expect(LogManager.instance.sinks, isNotEmpty);
-
-      // The singleton sink should now be disabled.
+      // Sink should now be disabled.
       expect(sink.enabled, isFalse);
+
+      // Re-enable.
+      await notifier.setConsoleLoggingEnabled(enabled: true);
+      expect(sink.enabled, isTrue);
     });
   });
 }

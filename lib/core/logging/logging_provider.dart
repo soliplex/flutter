@@ -75,83 +75,96 @@ class LogConfigNotifier extends AsyncNotifier<LogConfig> {
 final logConfigProvider =
     AsyncNotifierProvider<LogConfigNotifier, LogConfig>(LogConfigNotifier.new);
 
-/// The single console sink instance for the app lifecycle.
-///
-/// Created once and persisted. Enable/disable via config rather than
-/// add/remove to avoid race conditions during provider rebuilds.
-final _consoleSink = ConsoleSink();
+// ============================================================================
+// Sink Instance Providers
+// ============================================================================
+// These providers own the sink lifecycle. They create the sink once, register
+// it with LogManager, and clean up on dispose. They do NOT watch config -
+// configuration is applied by the controller.
 
-/// Provider that manages the console sink lifecycle.
+/// Holds the ConsoleSink instance.
 ///
-/// This is the single source of truth for console sink management.
-/// It watches the log config and enables/disables the sink accordingly.
-final consoleSinkProvider = Provider<ConsoleSink?>((ref) {
-  // Keep this provider alive even when not watched.
+/// Created once per provider container. Registered with LogManager on creation,
+/// unregistered on dispose. The sink starts disabled and is enabled by the
+/// controller when config loads.
+final consoleSinkProvider = Provider<ConsoleSink>((ref) {
   ref.keepAlive();
 
-  final configAsync = ref.watch(logConfigProvider);
+  // Start disabled - controller will enable based on config.
+  final sink = ConsoleSink(enabled: false);
+  LogManager.instance.addSink(sink);
 
-  final config = configAsync.when(
-    data: (config) => config,
-    loading: () => LogConfig.defaultConfig,
-    error: (_, __) => LogConfig.defaultConfig,
-  );
+  ref.onDispose(() {
+    LogManager.instance.removeSink(sink);
+  });
 
-  // Apply minimum level to LogManager.
-  LogManager.instance.minimumLevel = config.minimumLevel;
-
-  // Ensure sink is registered (idempotent - LogManager checks for duplicates).
-  LogManager.instance.addSink(_consoleSink);
-
-  // Enable/disable based on config.
-  _consoleSink.enabled = config.consoleLoggingEnabled;
-
-  return config.consoleLoggingEnabled ? _consoleSink : null;
+  return sink;
 });
 
-/// The single stdout sink instance for the app lifecycle (desktop only).
+/// Holds the StdoutSink instance (desktop platforms only).
 ///
-/// Created once and persisted. Enable/disable via config rather than
-/// add/remove to avoid race conditions during provider rebuilds.
-/// Null on non-desktop platforms.
-final StdoutSink? _stdoutSink = _createStdoutSinkIfDesktop();
-
-StdoutSink? _createStdoutSinkIfDesktop() {
+/// Returns null on non-desktop platforms. On desktop, creates the sink once,
+/// registers with LogManager, and cleans up on dispose. Starts disabled.
+final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
   if (kIsWeb) return null;
+
   final isDesktop = switch (defaultTargetPlatform) {
     TargetPlatform.macOS => true,
     TargetPlatform.windows => true,
     TargetPlatform.linux => true,
     _ => false,
   };
-  return isDesktop ? StdoutSink() : null;
-}
 
-/// Provider that manages the stdout sink lifecycle (desktop only).
-///
-/// On desktop platforms (macOS, Windows, Linux), writes logs to stdout
-/// for terminal visibility. On mobile and web, this provider returns null.
-final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
-  // Non-desktop platforms don't have stdout sink.
-  final sink = _stdoutSink;
-  if (sink == null) return null;
+  if (!isDesktop) return null;
 
-  // Keep this provider alive even when not watched.
   ref.keepAlive();
 
-  final configAsync = ref.watch(logConfigProvider);
-
-  final config = configAsync.when(
-    data: (config) => config,
-    loading: () => LogConfig.defaultConfig,
-    error: (_, __) => LogConfig.defaultConfig,
-  );
-
-  // Ensure sink is registered (idempotent - LogManager checks for duplicates).
+  // Start disabled - controller will enable based on config.
+  final sink = StdoutSink(enabled: false);
   LogManager.instance.addSink(sink);
 
-  // Enable/disable based on config.
-  sink.enabled = config.stdoutLoggingEnabled;
+  ref.onDispose(() {
+    LogManager.instance.removeSink(sink);
+  });
 
-  return config.stdoutLoggingEnabled ? sink : null;
+  return sink;
+});
+
+// ============================================================================
+// Log Config Controller
+// ============================================================================
+// This provider manages the side effects of applying config to the logging
+// system. It listens to config changes and updates sink states accordingly.
+// Uses ref.listen (not ref.watch) to avoid rebuilding on config changes.
+
+/// Controller that applies log configuration to the logging system.
+///
+/// This provider:
+/// - Sets the global minimum log level on LogManager
+/// - Enables/disables sinks based on config
+/// - Uses ref.listen to react to config changes without rebuilding sinks
+///
+/// Watch this provider in your app root to initialize logging.
+final logConfigControllerProvider = Provider<void>((ref) {
+  ref.keepAlive();
+
+  // Get sink instances (these are stable - won't rebuild).
+  final consoleSink = ref.read(consoleSinkProvider);
+  final stdoutSink = ref.read(stdoutSinkProvider);
+
+  // Listen to config changes and apply them.
+  ref.listen(
+    logConfigProvider,
+    (previous, next) {
+      next.whenData((config) {
+        // Apply minimum level to LogManager (centralized ownership).
+        LogManager.instance.minimumLevel = config.minimumLevel;
+
+        // Enable/disable sinks based on config.
+        consoleSink.enabled = config.consoleLoggingEnabled;
+        stdoutSink?.enabled = config.stdoutLoggingEnabled;
+      });
+    },
+    fireImmediately: true,
+  );
 });
