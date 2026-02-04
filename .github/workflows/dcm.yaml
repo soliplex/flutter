@@ -4,7 +4,7 @@
 # Separate workflow for DCM static analysis.
 # Reports findings but does NOT block PRs during rollout.
 #
-# Requires secrets: DCM_CI_KEY, DCM_EMAIL
+# Requires secrets: DCM_CI_KEY, DCM_EMAIL, DCM_PROJECT_KEY
 # =============================================================================
 
 name: DCM Metrics
@@ -48,3 +48,12 @@ jobs:
           dcm analyze lib \
             --ci-key="${{ secrets.DCM_CI_KEY }}" \
             --email="${{ secrets.DCM_EMAIL }}"
+
+      - name: Upload metrics to DCM Dashboard
+        run: |
+          dcm run lib \
+            --ci-key="${{ secrets.DCM_CI_KEY }}" \
+            --email="${{ secrets.DCM_EMAIL }}" \
+            --project="${{ secrets.DCM_PROJECT_KEY }}" \
+            --metrics \
+            --upload
