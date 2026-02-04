@@ -18,14 +18,14 @@ Pass these ABSOLUTE paths to Gemini `read_files`:
 
 ## Tasks
 
-- [ ] Claude: Collect the 11 absolute file paths above
-- [ ] Gemini (`gemini-3-pro-preview`): `read_files` with THIS MILESTONE .md + the 11 source files
+- [x] Claude: Collect the 11 absolute file paths above
+- [x] Gemini (`gemini-3-pro-preview`): `read_files` with THIS MILESTONE .md + the 11 source files
   - Prompt: See PLAN.md "Standard Gemini Prompt"
-- [ ] Claude: Draft `components/08-chat-ui.md` from Gemini's analysis
-- [ ] Claude: Move any BACKLOG items to `BACKLOG.md`
-- [ ] Codex (`gpt-5.2`, 10min timeout): Review draft for completeness
+- [x] Claude: Draft `components/08-chat-ui.md` from Gemini's analysis
+- [x] Claude: Move any BACKLOG items to `BACKLOG.md`
+- [x] Codex (`gpt-5.2`, 10min timeout): Review draft for completeness
   - Fallback: Gemini review if timeout
-- [ ] Claude: Mark M9 complete in TASK_LIST.md
+- [x] Claude: Mark M9 complete in TASK_LIST.md
 
 ## Output
 
