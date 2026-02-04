@@ -46,22 +46,24 @@ jobs:
       # DCM Analysis - Stage 2: Non-Blocking
       # =========================================================================
       # Reports DCM findings but NEVER fails the build.
-      # Requires DCM_CI_KEY secret to be configured.
+      # Requires DCM_CI_KEY and DCM_EMAIL secrets to be configured.
       #
       # To advance to Stage 5 (blocking), remove continue-on-error
       # =========================================================================
-      - name: Install and activate DCM
+      - name: Install DCM
         run: |
           sudo apt-get update
           wget -qO- https://dcm.dev/pgp-key.public | sudo gpg --dearmor -o /usr/share/keyrings/dcm.gpg
           echo 'deb [signed-by=/usr/share/keyrings/dcm.gpg arch=amd64] https://dcm.dev/debian stable main' | sudo tee /etc/apt/sources.list.d/dart_stable.list
           sudo apt-get update
           sudo apt-get install dcm
-          dcm activate --license-key="${{ secrets.DCM_CI_KEY }}"
 
       - name: Run DCM Analysis (non-blocking)
         continue-on-error: true
-        run: dcm analyze lib
+        run: |
+          dcm analyze lib \
+            --ci-key="${{ secrets.DCM_CI_KEY }}" \
+            --email="${{ secrets.DCM_EMAIL }}"
 
       - name: Run tests with coverage
         run: flutter test --coverage
