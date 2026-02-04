@@ -46,7 +46,6 @@ class LogConfig {
   int get hashCode => Object.hash(minimumLevel, consoleLoggingEnabled);
 
   @override
-  String toString() =>
-      'LogConfig(minimumLevel: $minimumLevel, '
+  String toString() => 'LogConfig(minimumLevel: $minimumLevel, '
       'consoleLoggingEnabled: $consoleLoggingEnabled)';
 }
