@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 
 /// Creates the native platform implementation of [AuthFlow].
 ///
@@ -68,7 +68,7 @@ class NativeAuthFlow implements AuthFlow {
       );
     } on Exception catch (e) {
       // Log type only - exception details may contain sensitive data
-      debugPrint('Authentication failed: ${e.runtimeType}');
+      Loggers.auth.error('Authentication failed: ${e.runtimeType}');
       throw const AuthException('Authentication failed. Please try again.');
     }
   }
@@ -90,7 +90,7 @@ class NativeAuthFlow implements AuthFlow {
       );
     } on Exception catch (e) {
       // Log type only - exception details may contain sensitive data
-      debugPrint('IdP session termination failed: ${e.runtimeType}');
+      Loggers.auth.error('IdP session termination failed: ${e.runtimeType}');
     }
   }
 }

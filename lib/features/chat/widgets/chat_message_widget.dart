@@ -7,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:soliplex_client/soliplex_client.dart'
     show ChatMessage, ChatUser, ErrorMessage, SourceReference, TextMessage;
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
 import 'package:soliplex_frontend/features/chat/widgets/code_block_builder.dart';
@@ -266,7 +267,8 @@ class ChatMessageWidget extends StatelessWidget {
       await Clipboard.setData(ClipboardData(text: text));
       showSnackBar('Copied to clipboard');
     } on PlatformException catch (e, stackTrace) {
-      debugPrint('Clipboard copy failed: $e\n$stackTrace');
+      Loggers.ui
+          .error('Clipboard copy failed', error: e, stackTrace: stackTrace);
       showSnackBar('Could not copy to clipboard');
     }
   }

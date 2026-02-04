@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 
 /// Creates the native platform implementation of [AuthStorage].
 AuthStorage createAuthStorage() => NativeAuthStorage();
@@ -36,7 +36,7 @@ Future<void> clearOnReinstall() async {
       // Keychain may not be available (e.g., unsigned macOS builds).
       // This is acceptable since macOS doesn't persist Keychain across
       // uninstall like iOS does.
-      debugPrint('AuthStorage: clearOnReinstall skipped');
+      Loggers.auth.debug('AuthStorage: clearOnReinstall skipped');
     }
     await prefs.setBool(key, true);
   }

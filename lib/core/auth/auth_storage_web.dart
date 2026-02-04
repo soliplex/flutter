@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:web/web.dart' as web;
 
 /// Creates the web platform implementation of [AuthStorage].
@@ -134,7 +134,8 @@ class WebAuthStorage implements AuthStorage {
       try {
         await clearPreAuthState();
       } on Exception catch (e) {
-        debugPrint('WebAuthStorage: Failed to clear expired pre-auth: $e');
+        Loggers.auth
+            .warning('WebAuthStorage: Failed to clear expired pre-auth: $e');
       }
       return null;
     }

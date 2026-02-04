@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart'; // For kDebugMode, @visibleForTesting
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -60,11 +60,6 @@ NoTransitionPage<void> _staticPage({
   return NoTransitionPage(
     child: _staticShell(title: title, body: body, actions: actions),
   );
-}
-
-/// Logs router messages only in debug mode.
-void _log(String message) {
-  if (kDebugMode) debugPrint('Router: $message');
 }
 
 /// Checks if a route is visible given current config.
@@ -183,7 +178,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   // Check if this is an OAuth callback (tokens in URL from backend BFF)
   final capturedParams = ref.read(capturedCallbackParamsProvider);
   final isOAuthCallback = capturedParams is WebCallbackParams;
-  _log('isOAuthCallback = $isOAuthCallback');
+  Loggers.router.debug('isOAuthCallback = $isOAuthCallback');
 
   // Use configured initial route or default to /
   final configuredInitial = routeConfig.initialRoute;
@@ -202,14 +197,14 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       // Normalize path to prevent trailing slash mismatches
       final currentPath = _normalizePath(state.uri.path);
-      _log('redirect called for $currentPath');
+      Loggers.router.debug('redirect called for $currentPath');
       // CRITICAL: Use ref.read() for fresh auth state, not a captured variable.
       // This ensures the redirect always sees current auth status.
       final authState = ref.read(authProvider);
       final hasAccess =
           authState is Authenticated || authState is NoAuthRequired;
       final isPublicRoute = _publicRoutes.contains(currentPath);
-      _log('hasAccess=$hasAccess, isPublic=$isPublicRoute');
+      Loggers.router.debug('hasAccess=$hasAccess, isPublic=$isPublicRoute');
 
       // Redirect based on auth state reason (Unauthenticated) or default to
       // /login (AuthLoading). Public routes are exempt.
@@ -220,7 +215,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             authState.reason == UnauthenticatedReason.explicitSignOut;
         final target =
             isExplicitSignOut && routeConfig.showHomeRoute ? '/' : '/login';
-        _log('redirecting to $target');
+        Loggers.router.debug('redirecting to $target');
         return target;
       }
 
@@ -228,12 +223,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (hasAccess && isPublicRoute) {
         final target = getDefaultAuthenticatedRoute(features, routeConfig);
         if (target != currentPath) {
-          _log('redirecting to $target');
+          Loggers.router.debug('redirecting to $target');
           return target;
         }
       }
 
-      _log('no redirect');
+      Loggers.router.debug('no redirect');
       return null;
     },
     routes: [

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/agui_features/filter_documents.dart';
 import 'package:soliplex_frontend/core/models/agui_features/filter_documents_ext.dart';
@@ -267,8 +268,11 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     try {
       return Ok(await action());
     } on NetworkException catch (e, stackTrace) {
-      debugPrint('Failed to $operation: Network error - ${e.message}');
-      debugPrint(stackTrace.toString());
+      Loggers.chat.error(
+        'Failed to $operation: Network error',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
@@ -276,8 +280,11 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       }
       return Err('Network error: ${e.message}');
     } on AuthException catch (e, stackTrace) {
-      debugPrint('Failed to $operation: Auth error - ${e.message}');
-      debugPrint(stackTrace.toString());
+      Loggers.chat.error(
+        'Failed to $operation: Auth error',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Authentication error: ${e.message}')),
@@ -285,8 +292,11 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       }
       return Err('Authentication error: ${e.message}');
     } catch (e, stackTrace) {
-      debugPrint('Failed to $operation: $e');
-      debugPrint(stackTrace.toString());
+      Loggers.chat.error(
+        'Failed to $operation',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,

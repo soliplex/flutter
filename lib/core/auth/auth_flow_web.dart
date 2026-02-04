@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:web/web.dart' as web;
 
 /// Abstraction for URL navigation to enable testing.
@@ -70,7 +71,7 @@ class WebAuthFlow implements AuthFlow {
     // Backend handles PKCE, token exchange, and redirects back with tokens
     final loginUrl = '$backendUrl/api/login/${issuer.id}?return_to=$returnTo';
 
-    debugPrint('Web auth: Redirecting to $loginUrl');
+    Loggers.auth.debug('Web auth: Redirecting to $loginUrl');
     _navigator.navigateTo(loginUrl);
 
     // Browser navigates away; throw to make the type system honest.
@@ -86,7 +87,8 @@ class WebAuthFlow implements AuthFlow {
     required String clientId,
   }) async {
     if (endSessionEndpoint == null) {
-      debugPrint('Web auth: No end_session_endpoint, local logout only');
+      Loggers.auth
+          .debug('Web auth: No end_session_endpoint, local logout only');
       return;
     }
 
@@ -99,7 +101,7 @@ class WebAuthFlow implements AuthFlow {
       },
     );
 
-    debugPrint('Web auth: Redirecting to IdP logout: $logoutUri');
+    Loggers.auth.debug('Web auth: Redirecting to IdP logout: $logoutUri');
     _navigator.navigateTo(logoutUri.toString());
   }
 }

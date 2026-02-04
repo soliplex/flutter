@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client_native/soliplex_client_native.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 
@@ -52,7 +52,11 @@ final baseHttpClientProvider = Provider<SoliplexHttpClient>((ref) {
     try {
       observable.close();
     } catch (e, stack) {
-      debugPrint('Error disposing observable client: $e\n$stack');
+      Loggers.http.error(
+        'Error disposing observable client',
+        error: e,
+        stackTrace: stack,
+      );
     }
   });
   return observable;
@@ -165,7 +169,7 @@ final apiProvider = Provider<SoliplexApi>((ref) {
   return SoliplexApi(
     transport: transport,
     urlBuilder: urlBuilder,
-    onWarning: debugPrint,
+    onWarning: Loggers.http.warning,
   );
 });
 

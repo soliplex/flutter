@@ -1,18 +1,20 @@
 import 'dart:js_interop';
 
-import 'package:flutter/foundation.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:web/web.dart' as web;
 
 /// Capture callback params from current URL.
 ///
 /// Used by [CallbackParamsCapture.captureNow] in main() before ProviderScope.
 CallbackParams captureCallbackParamsNow() {
-  debugPrint('Web auth: Capturing URL params at startup');
-  debugPrint('Web auth: window.location.href = ${web.window.location.href}');
-  debugPrint('Web auth: window.location.hash = ${web.window.location.hash}');
+  Loggers.auth.debug('Web auth: Capturing URL params at startup');
+  Loggers.auth
+      .debug('Web auth: window.location.href = ${web.window.location.href}');
+  Loggers.auth
+      .debug('Web auth: window.location.hash = ${web.window.location.hash}');
   final params = _extractParamsFromUrl();
-  debugPrint('Web auth: Captured params: $params');
+  Loggers.auth.debug('Web auth: Captured params: $params');
   return params;
 }
 

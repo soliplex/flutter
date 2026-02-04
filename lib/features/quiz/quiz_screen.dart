@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/quiz_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
@@ -509,8 +510,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     try {
       await ref.read(quizSessionProvider(_sessionKey).notifier).submitAnswer();
     } on NetworkException catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: Network error - ${e.message}');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: Network error - ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -520,8 +524,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         );
       }
     } on AuthException catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: Auth error - ${e.message}');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: Auth error - ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -530,8 +537,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         );
       }
     } on SoliplexException catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: $e');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -540,8 +550,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         );
       }
     } catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: $e');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

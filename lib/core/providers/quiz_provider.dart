@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Provider for fetching a quiz by room and quiz ID.
@@ -527,8 +528,11 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
 
       return result;
     } catch (e, stackTrace) {
-      debugPrint('Quiz submitAnswer failed: ${e.runtimeType} - $e');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submitAnswer failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       // Re-read state after async gap
       final afterState = state;
