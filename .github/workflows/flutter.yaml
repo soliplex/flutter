@@ -46,39 +46,24 @@ jobs:
       # DCM Analysis - Stage 2: Non-Blocking
       # =========================================================================
       # Reports DCM findings but NEVER fails the build.
-      # See docs/planning/START_DCM.md for the full rollout plan.
+      # Requires DCM_CI_KEY and DCM_EMAIL secrets to be configured.
       #
-      # To advance to Stage 5 (blocking), remove continue-on-error and
-      # change the dcm command to use --fatal-warnings
+      # To advance to Stage 5 (blocking), remove continue-on-error
       # =========================================================================
-      - name: DCM Analysis (non-blocking)
+      - name: Install DCM
+        run: |
+          sudo apt-get update
+          wget -qO- https://dcm.dev/pgp-key.public | sudo gpg --dearmor -o /usr/share/keyrings/dcm.gpg
+          echo 'deb [signed-by=/usr/share/keyrings/dcm.gpg arch=amd64] https://dcm.dev/debian stable main' | sudo tee /etc/apt/sources.list.d/dart_stable.list
+          sudo apt-get update
+          sudo apt-get install dcm
+
+      - name: Run DCM Analysis (non-blocking)
         continue-on-error: true
         run: |
-          echo "::group::Installing DCM"
-          if dart pub global activate dcm_cli 2>/dev/null; then
-            echo "DCM installed successfully"
-          else
-            echo "::warning::DCM installation failed - skipping analysis"
-            echo "::endgroup::"
-            exit 0
-          fi
-          echo "::endgroup::"
-
-          echo "::group::Running DCM Analysis"
-          dcm check lib --reporter=console || DCM_EXIT=$?
-
-          if [ "${DCM_EXIT:-0}" -ne 0 ]; then
-            echo ""
-            echo "::warning::DCM found issues (see above). This is non-blocking during rollout."
-            echo "::warning::Fix these issues before Stage 5 enforcement begins."
-          else
-            echo ""
-            echo "DCM analysis passed with no issues!"
-          fi
-          echo "::endgroup::"
-
-          # Always exit 0 in Stage 2 (non-blocking)
-          exit 0
+          dcm analyze lib \
+            --ci-key="${{ secrets.DCM_CI_KEY }}" \
+            --email="${{ secrets.DCM_EMAIL }}"
 
       - name: Run tests with coverage
         run: flutter test --coverage
