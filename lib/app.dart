@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
@@ -12,6 +13,9 @@ class SoliplexApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Initialize console logging (must be watched to activate the provider).
+    ref.watch(consoleSinkProvider);
+
     final authState = ref.watch(authProvider);
     final shellConfig = ref.watch(shellConfigProvider);
     final themeConfig = shellConfig.theme;
