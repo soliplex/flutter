@@ -13,13 +13,12 @@ class LogConfig {
 
   /// Default configuration used before preferences are loaded.
   ///
-  /// Stdout logging is disabled by default because Flutter's debug mode
-  /// captures stdout and shows it in DevTools, causing duplication with
-  /// dart:developer logs. Enable manually for terminal-only workflows.
+  /// Both console (dart:developer) and stdout logging are enabled by default
+  /// on desktop. This provides dual output: DevTools + terminal visibility.
   static const defaultConfig = LogConfig(
     minimumLevel: LogLevel.info,
     consoleLoggingEnabled: true,
-    stdoutLoggingEnabled: false,
+    stdoutLoggingEnabled: true,
   );
 
   /// Minimum log level to emit.
