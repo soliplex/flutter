@@ -18,8 +18,9 @@ slices refactor toward the full Run Registry pattern.
 | 6 | Thread-aware UI subscription | ~80 | Smooth UI transitions between runs |
 | 7 | Lifecycle events broadcast | ~80 | Background awareness infrastructure |
 | 8 | Background cache updates | ~60 | Messages persist for backgrounded runs |
-| 9 | Cross-room composite key | ~50 | Runs keyed by (roomId, threadId) |
-| 10 | Remove room-switch cancellation | ~40 | Full navigation independence |
+| 9 | Unread run indicators | ~120 | Visual feedback for completed runs |
+| 10 | Cross-room composite key | ~50 | Runs keyed by (roomId, threadId) |
+| 11 | Remove room-switch cancellation | ~40 | Full navigation independence |
 
 ## Dependency Structure
 
@@ -39,17 +40,18 @@ slices refactor toward the full Run Registry pattern.
     ▼         ▼
 [5] Multi    [7] Lifecycle
     │              │
-    ▼              ▼
-[6] UI sub   [8] Cache updates
+    ▼         ┌────┴────┐
+[6] UI sub   ▼         ▼
+    │       [8] Cache  [9] Unread
+    │                   indicators
+    ▼
+[10] Cross-room key
     │
     ▼
-[9] Cross-room key
-    │
-    ▼
-[10] Room-switch
+[11] Room-switch
 ```
 
-**Parallel from slice 4:** Slices 5-6 (multi-run path) and 7-8 (events path) can
+**Parallel from slice 4:** Slices 5-6 (multi-run path) and 7-9 (events path) can
 proceed in parallel after slice 4 merges.
 
 ## Implementation Order
@@ -61,9 +63,10 @@ proceed in parallel after slice 4 merges.
 5. **Slice 5** - Multi-thread concurrent runs (parallel with 7)
 6. **Slice 7** - Lifecycle events (parallel with 5)
 7. **Slice 6** - Thread-aware UI subscription
-8. **Slice 8** - Background cache updates
-9. **Slice 9** - Cross-room composite key
-10. **Slice 10** - Remove room-switch cancellation
+8. **Slice 8** - Background cache updates (parallel with 9)
+9. **Slice 9** - Unread run indicators (parallel with 8)
+10. **Slice 10** - Cross-room composite key
+11. **Slice 11** - Remove room-switch cancellation
 
 ---
 
@@ -387,7 +390,7 @@ void _subscribeToThread(String roomId, String threadId) {
 **Target:** ~80 lines
 
 **Customer value:** UI can be notified when a backgrounded run finishes.
-Foundation for badges/toasts/alerts (design TBD).
+Foundation for unread indicators (slice 9).
 
 ### Tasks
 
@@ -494,9 +497,89 @@ background runs.
 
 ---
 
-## Slice 9: Cross-Room Composite Key
+## Slice 9: Unread Run Indicators
 
-**Branch:** `feat/network-multiplexer/09-composite-key`
+**Branch:** `feat/network-multiplexer/09-unread-indicators`
+
+**Target:** ~120 lines
+
+**Customer value:** User sees visual feedback when background runs complete.
+Blue dot on threads, count badge on rooms.
+
+### Tasks
+
+1. Create `UnreadRunsNotifier` to track threads with unread completed runs
+2. Listen to lifecycle events and mark threads as unread on `RunCompleted`
+3. Add blue dot with glow to thread list items for unread threads
+4. Add count badge (white on blue) to room cards for unread thread count
+5. Clear unread status when user views the thread
+
+### Files Created
+
+- `lib/core/providers/unread_runs_provider.dart`
+- `test/core/providers/unread_runs_provider_test.dart`
+
+### Files Modified
+
+- `lib/features/history/widgets/thread_list_item.dart` (add blue dot)
+- `lib/features/rooms/widgets/room_card.dart` (add count badge)
+- Tests
+
+### UnreadRunsNotifier API
+
+```dart
+class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
+  // Map<roomId, Set<threadId>> of threads with unread completed runs
+
+  /// Mark a thread as having an unread completed run.
+  void markUnread(String roomId, String threadId);
+
+  /// Mark a thread as read (user viewed it).
+  void markRead(String roomId, String threadId);
+
+  /// Check if a thread has unread completed runs.
+  bool hasUnread(String roomId, String threadId);
+
+  /// Get count of unread threads in a room.
+  int unreadCountForRoom(String roomId);
+}
+```
+
+### UI Components
+
+**Thread dot (history sidebar):**
+
+- Blue dot with subtle glow effect
+- Positioned to the right of thread title
+- Disappears when thread is selected
+
+**Room badge (room listing):**
+
+- Count of threads with unread runs
+- White text on blue background (same blue as thread dot)
+- Only shown when count > 0
+
+### Tests
+
+- Unit: markUnread adds thread to set
+- Unit: markRead removes thread from set
+- Unit: hasUnread returns correct value
+- Unit: unreadCountForRoom returns correct count
+- Widget: Thread list item shows blue dot when unread
+- Widget: Room card shows count badge when unread threads exist
+
+### Acceptance Criteria
+
+- [ ] Blue dot with glow shown on threads with unread completed runs
+- [ ] Count badge shown on rooms with unread threads
+- [ ] Unread status cleared when user views thread
+- [ ] All tests pass
+
+---
+
+## Slice 10: Cross-Room Composite Key
+
+**Branch:** `feat/network-multiplexer/10-composite-key`
 
 **Target:** ~50 lines
 
@@ -528,9 +611,9 @@ collisions if backend generates same IDs per room.
 
 ---
 
-## Slice 10: Remove Room-Switch Cancellation
+## Slice 11: Remove Room-Switch Cancellation
 
-**Branch:** `feat/network-multiplexer/10-room-switch`
+**Branch:** `feat/network-multiplexer/11-room-switch`
 
 **Target:** ~40 lines
 
@@ -574,8 +657,9 @@ original room and response is still there.
 | 6 | `feat/network-multiplexer/06-ui-subscription` |
 | 7 | `feat/network-multiplexer/07-lifecycle` |
 | 8 | `feat/network-multiplexer/08-cache` |
-| 9 | `feat/network-multiplexer/09-composite-key` |
-| 10 | `feat/network-multiplexer/10-room-switch` |
+| 9 | `feat/network-multiplexer/09-unread-indicators` |
+| 10 | `feat/network-multiplexer/10-composite-key` |
+| 11 | `feat/network-multiplexer/11-room-switch` |
 
 ## Critical Files
 
