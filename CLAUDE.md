@@ -113,11 +113,28 @@ to verify all tests pass (e.g., before commit), prompt:
 - Unit tests for models and providers
 - Widget tests for UI components
 
+## Pre-commit Hooks
+
+Code quality is enforced automatically via `.pre-commit-config.yaml`. Do NOT run manual
+pre-commit checks—the hooks handle formatting and analysis on commit.
+
+**Hooks configured:**
+
+- `dart format` - Enforces consistent formatting (excludes generated schema files)
+- `flutter analyze` - Catches errors, warnings, and lint issues
+- `gitleaks` - Prevents committing secrets
+- `no-commit-to-branch` - Blocks direct commits to main/master
+
+**Setup** (one-time): `pre-commit install`
+
+**Manual run** (optional): `pre-commit run --all-files`
+
 ## Configuration
 
 - `pubspec.yaml` - Dependencies
 - `analysis_options.yaml` - Dart analyzer (very_good_analysis)
 - `.markdownlint.json` - Markdown linting rules
+- `.pre-commit-config.yaml` - Pre-commit hook configuration
 
 ## Critical Rules
 
