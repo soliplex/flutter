@@ -1,0 +1,66 @@
+import 'dart:async';
+
+import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/models/active_run_state.dart';
+
+/// Encapsulates all resources for a single AG-UI run.
+///
+/// RunHandle bundles together the cancellation token, stream subscription,
+/// and current state for a run. It provides a unified interface for:
+/// - Tracking run state
+/// - Cancelling the run
+/// - Cleaning up resources on completion
+///
+/// The [key] property provides a composite identifier for use in registries:
+/// ```dart
+/// final handle = RunHandle(...);
+/// registry[handle.key] = handle; // Key: "room-1:thread-1"
+/// ```
+class RunHandle {
+  /// Creates a run handle with the given resources.
+  RunHandle({
+    required this.roomId,
+    required this.threadId,
+    required this.cancelToken,
+    required this.subscription,
+    ActiveRunState? initialState,
+  }) : _state = initialState ?? const IdleState();
+
+  /// The room this run belongs to.
+  final String roomId;
+
+  /// The thread this run belongs to.
+  final String threadId;
+
+  /// Token for cancelling the run.
+  final CancelToken cancelToken;
+
+  /// Subscription to the AG-UI event stream.
+  final StreamSubscription<BaseEvent> subscription;
+
+  /// Current state of the run.
+  ActiveRunState _state;
+
+  /// Gets the current state of the run.
+  ActiveRunState get state => _state;
+
+  /// Updates the run state.
+  set state(ActiveRunState newState) => _state = newState;
+
+  /// Composite key for registry lookups: "roomId:threadId".
+  String get key => '$roomId:$threadId';
+
+  /// Whether the run is currently active (not idle or completed).
+  bool get isActive => _state.isRunning;
+
+  /// Disposes of all resources held by this handle.
+  ///
+  /// Cancels the token and subscription. Safe to call multiple times.
+  Future<void> dispose() async {
+    cancelToken.cancel();
+    await subscription.cancel();
+  }
+
+  @override
+  String toString() => 'RunHandle(key: $key, state: $_state)';
+}
