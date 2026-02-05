@@ -16,7 +16,8 @@ void main() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    test('build returns platform default when no config URL', () {
+    test('build returns config URL via platformDefaultBackendUrl on native',
+        () {
       final container = ProviderContainer(
         overrides: [
           shellConfigProvider.overrideWithValue(testSoliplexConfig),
@@ -26,8 +27,8 @@ void main() {
 
       final config = container.read(configProvider);
 
-      // SoliplexConfig.defaultBackendUrl is null, so uses platform default.
-      // Tests run on native, so expect localhost.
+      // Tests run on native, so platformDefaultBackendUrl returns the
+      // config URL (which defaults to 'http://localhost:8000').
       expect(config.baseUrl, 'http://localhost:8000');
     });
 
@@ -221,9 +222,12 @@ void main() {
   });
 
   group('platformDefaultBackendUrl', () {
-    test('returns localhost on native platform', () {
-      // Tests run on native (not web), so should return localhost
-      expect(platformDefaultBackendUrl(), 'http://localhost:8000');
+    test('returns configUrl on native platform', () {
+      // Tests run on native (not web), so should return the passed configUrl
+      expect(
+        platformDefaultBackendUrl('https://custom.example.com'),
+        'https://custom.example.com',
+      );
     });
   });
 
@@ -250,7 +254,7 @@ void main() {
       expect(container.read(configProvider).baseUrl, 'https://saved.com');
     });
 
-    test('explicit config URL has second priority', () {
+    test('config URL passed to platformDefaultBackendUrl on native', () {
       final container = ProviderContainer(
         overrides: [
           shellConfigProvider.overrideWithValue(
@@ -264,22 +268,23 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      // Config URL used when no saved URL
+      // On native, platformDefaultBackendUrl returns the config URL
       expect(container.read(configProvider).baseUrl, 'https://config.com');
     });
 
-    test('platform default is lowest priority', () {
+    test('default config URL used when none provided', () {
       final container = ProviderContainer(
         overrides: [
           shellConfigProvider.overrideWithValue(
-            const SoliplexConfig(logo: LogoConfig.soliplex), // No explicit URL
+            const SoliplexConfig(logo: LogoConfig.soliplex),
           ),
           // No preloadedBaseUrl
         ],
       );
       addTearDown(container.dispose);
 
-      // Platform default used when no saved URL and no config URL
+      // SoliplexConfig defaults to 'http://localhost:8000', passed through
+      // platformDefaultBackendUrl which returns it on native
       expect(container.read(configProvider).baseUrl, 'http://localhost:8000');
     });
   });

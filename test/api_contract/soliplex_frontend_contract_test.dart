@@ -313,9 +313,9 @@ void main() {
         const config = SoliplexConfig(logo: LogoConfig.soliplex);
 
         expect(config.appName, equals('Soliplex'));
-        // null means "use platform default" (localhost on native, origin on
-        // web). Resolved at runtime by ConfigNotifier.
-        expect(config.defaultBackendUrl, isNull);
+        // Defaults to localhost:8000. Used on native and web localhost.
+        // On web production, origin is used instead (ignoring this value).
+        expect(config.defaultBackendUrl, 'http://localhost:8000');
         // null requires explicit override for native platforms
         expect(config.oauthRedirectScheme, isNull);
         expect(config.features.enableHttpInspector, isTrue);
