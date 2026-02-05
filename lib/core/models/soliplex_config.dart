@@ -34,7 +34,7 @@ class SoliplexConfig {
   const SoliplexConfig({
     required this.logo,
     this.appName = 'Soliplex',
-    this.defaultBackendUrl,
+    this.defaultBackendUrl = 'http://localhost:8000',
     this.oauthRedirectScheme,
     this.features = const Features(),
     this.theme = const ThemeConfig(),
@@ -48,13 +48,13 @@ class SoliplexConfig {
 
   /// The default backend URL for API requests.
   ///
-  /// When null, uses platform-specific defaults:
-  /// - Native: `http://localhost:8000`
-  /// - Web + localhost: `http://localhost:8000`
-  /// - Web + production: same origin as client
+  /// Defaults to `http://localhost:8000`. On native and web localhost,
+  /// this value is used directly. On web production, the client's origin
+  /// is used instead (ignoring this value).
   ///
-  /// Can be overridden by the user in settings if settings are enabled.
-  final String? defaultBackendUrl;
+  /// Overridden when the user connects to a different backend from the
+  /// home screen (persisted to SharedPreferences for subsequent launches).
+  final String defaultBackendUrl;
 
   /// OAuth redirect URI scheme for native platforms (iOS/Android).
   ///

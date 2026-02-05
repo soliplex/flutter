@@ -9,15 +9,15 @@ const _baseUrlKey = 'backend_base_url';
 
 /// Returns the default backend URL based on platform.
 ///
-/// Native: localhost:8000
-/// Web + localhost/127.0.0.1: localhost:8000 (local dev server)
-/// Web + production: same origin as client
-String platformDefaultBackendUrl() {
-  if (!kIsWeb) return 'http://localhost:8000';
+/// Native: returns [configUrl]
+/// Web + localhost/127.0.0.1: returns [configUrl]
+/// Web + production: returns same origin as client (ignores [configUrl])
+String platformDefaultBackendUrl(String configUrl) {
+  if (!kIsWeb) return configUrl;
 
   final host = Uri.base.host;
   if (host == 'localhost' || host == '127.0.0.1') {
-    return 'http://localhost:8000';
+    return configUrl;
   }
   return Uri.base.origin;
 }
@@ -49,14 +49,13 @@ Future<String?> loadSavedBaseUrl() async {
 /// Persists baseUrl to SharedPreferences for cross-session persistence.
 /// URL resolution priority:
 /// 1. User's saved URL from SharedPreferences
-/// 2. Explicit `SoliplexConfig.defaultBackendUrl` (if provided)
-/// 3. Platform default via [platformDefaultBackendUrl]
+/// 2. Platform default via [platformDefaultBackendUrl] (uses config URL on
+///    native/localhost, origin on web production)
 class ConfigNotifier extends Notifier<AppConfig> {
   @override
   AppConfig build() {
     // Priority: 1) User's saved URL from SharedPreferences
-    //           2) Explicit config URL from shellConfigProvider
-    //           3) Platform default
+    //           2) Platform default (config URL on native, origin on web prod)
     //
     // Use ref.watch() per Riverpod best practices. While these values are
     // typically static, watch enables proper rebuilding in tests.
@@ -66,11 +65,7 @@ class ConfigNotifier extends Notifier<AppConfig> {
     }
 
     final configUrl = ref.watch(shellConfigProvider).defaultBackendUrl;
-    if (configUrl != null) {
-      return AppConfig(baseUrl: configUrl);
-    }
-
-    return AppConfig(baseUrl: platformDefaultBackendUrl());
+    return AppConfig(baseUrl: platformDefaultBackendUrl(configUrl));
   }
 
   /// Update the backend URL and persist to storage.

@@ -12,7 +12,7 @@ void main() {
 
       expect(config.logo, equals(LogoConfig.soliplex));
       expect(config.appName, equals('Soliplex'));
-      expect(config.defaultBackendUrl, isNull);
+      expect(config.defaultBackendUrl, 'http://localhost:8000');
       expect(config.features, equals(const Features()));
       expect(config.theme, equals(const ThemeConfig()));
       expect(config.routes, equals(const RouteConfig()));
@@ -47,7 +47,7 @@ void main() {
       expect(modified.appName, equals('NewName'));
       expect(modified.logo, equals(newLogo));
       expect(modified.features.enableQuizzes, isFalse);
-      expect(modified.defaultBackendUrl, isNull);
+      expect(modified.defaultBackendUrl, 'http://localhost:8000');
       expect(modified.theme, equals(const ThemeConfig()));
     });
 

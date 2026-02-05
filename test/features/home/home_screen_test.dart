@@ -98,13 +98,10 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        // Use localhost:8000 as default to match test URLs so connecting
-        // is not treated as a backend change (which triggers signOut).
+        // Default localhost:8000 matches test URLs so connecting is not
+        // treated as a backend change (which triggers signOut).
         shellConfigProvider.overrideWithValue(
-          const SoliplexConfig(
-            logo: LogoConfig.soliplex,
-            defaultBackendUrl: 'http://localhost:8000',
-          ),
+          const SoliplexConfig(logo: LogoConfig.soliplex),
         ),
         ...overrides.cast(),
       ],
