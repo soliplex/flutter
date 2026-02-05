@@ -181,8 +181,15 @@ deferred for separate UX discussion.
 - [ ] Runs persist across room navigation.
 - [ ] All existing tests pass or are updated appropriately.
 
-## Open Questions
+## UI Notification Design
 
-1. **Alert UI design:** When a background run completes, how should we alert the
-   user? Options: toast notification, badge on thread in history, colored dot,
-   or some combination. This needs UX discussion with @runyaga.
+Per @runyaga's feedback ([comment](https://github.com/soliplex/flutter/issues/71#issuecomment-3841467295)):
+
+1. **Thread badge:** Blue dot with glow on threads with unread completed runs
+   in the history sidebar.
+2. **Room badge:** White number on blue background (same blue as thread dot)
+   showing the count of threads with unread completed runs.
+
+This gives users visibility at both the room and thread level without intrusive
+notifications. The blue color provides consistent visual language across both
+indicators.
