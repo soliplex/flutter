@@ -96,10 +96,14 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                   Expanded(
                     child: switch (runState) {
                       CompletedState(
-                        result: FailedResult(:final errorMessage),
+                        result: FailedResult(
+                          :final errorMessage,
+                          :final stackTrace,
+                        ),
                       ) =>
                         ErrorDisplay(
                           error: errorMessage,
+                          stackTrace: stackTrace ?? StackTrace.empty,
                           onRetry: () => _handleRetry(ref),
                         ),
                       _ => const MessageList(),

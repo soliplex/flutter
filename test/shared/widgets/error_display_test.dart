@@ -13,6 +13,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: NetworkException(message: 'Connection failed'),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -27,6 +28,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: AuthException(message: 'Unauthorized', statusCode: 401),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -45,6 +47,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: AuthException(message: 'Forbidden', statusCode: 403),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -64,6 +67,7 @@ void main() {
               message: 'does not exist',
               resource: 'Thread',
             ),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -77,6 +81,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: NotFoundException(message: 'Resource not found'),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -89,6 +94,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: ApiException(statusCode: 500, message: 'Database error'),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -102,7 +108,12 @@ void main() {
 
     testWidgets('displays generic error message', (tester) async {
       await tester.pumpWidget(
-        createTestApp(home: ErrorDisplay(error: Exception('Unknown error'))),
+        createTestApp(
+          home: ErrorDisplay(
+            error: Exception('Unknown error'),
+            stackTrace: StackTrace.empty,
+          ),
+        ),
       );
 
       expect(find.text('An unexpected error occurred.'), findsOneWidget);
@@ -115,6 +126,7 @@ void main() {
         createTestApp(
           home: ErrorDisplay(
             error: const NetworkException(message: 'Failed'),
+            stackTrace: StackTrace.empty,
             onRetry: () => retryPressed = true,
           ),
         ),
@@ -133,7 +145,10 @@ void main() {
     ) async {
       await tester.pumpWidget(
         createTestApp(
-          home: const ErrorDisplay(error: NetworkException(message: 'Failed')),
+          home: const ErrorDisplay(
+            error: NetworkException(message: 'Failed'),
+            stackTrace: StackTrace.empty,
+          ),
         ),
       );
 
@@ -146,6 +161,7 @@ void main() {
           createTestApp(
             home: const ErrorDisplay(
               error: NetworkException(message: 'Connection failed'),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -163,6 +179,7 @@ void main() {
                 message: 'Server error',
                 body: '{"error": "internal"}',
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -182,6 +199,7 @@ void main() {
           createTestApp(
             home: const ErrorDisplay(
               error: NetworkException(message: 'Failed'),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -210,6 +228,7 @@ void main() {
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Connection failed'),
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -231,6 +250,7 @@ void main() {
                   message: 'Internal Server Error',
                 ),
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -249,6 +269,7 @@ void main() {
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Failed'),
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -272,6 +293,7 @@ void main() {
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Failed'),
               ),
+              stackTrace: StackTrace.empty,
               onRetry: () => retryPressed = true,
             ),
           ),
@@ -295,6 +317,7 @@ void main() {
                 threadId: 'thread-123',
                 cause: const AuthException(message: 'Unauthorized'),
               ),
+              stackTrace: StackTrace.empty,
               onRetry: () {},
             ),
           ),

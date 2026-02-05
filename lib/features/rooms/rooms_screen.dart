@@ -146,6 +146,7 @@ class RoomsScreen extends ConsumerWidget {
                         const LoadingIndicator(message: 'Loading rooms...'),
                     error: (error, stack) => ErrorDisplay(
                       error: error,
+                      stackTrace: stack,
                       onRetry: () => ref.invalidate(roomsProvider),
                     ),
                   ),

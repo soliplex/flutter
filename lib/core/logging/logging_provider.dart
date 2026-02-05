@@ -14,11 +14,17 @@ const _kConsoleLoggingKey = 'console_logging';
 const _kStdoutLoggingKey = 'stdout_logging';
 
 /// Notifier for managing log configuration.
-class LogConfigNotifier extends AsyncNotifier<LogConfig> {
+///
+/// Requires [SharedPreferences] to be pre-loaded via [preloadedPrefsProvider]
+/// override in [ProviderScope]. This ensures synchronous config loading and
+/// eliminates the race condition where early logs are dropped.
+class LogConfigNotifier extends Notifier<LogConfig> {
+  late final SharedPreferences _prefs;
+
   @override
-  Future<LogConfig> build() async {
-    final prefs = await SharedPreferences.getInstance();
-    return _loadConfig(prefs);
+  LogConfig build() {
+    _prefs = ref.read(preloadedPrefsProvider);
+    return _loadConfig(_prefs);
   }
 
   LogConfig _loadConfig(SharedPreferences prefs) {
@@ -39,41 +45,37 @@ class LogConfigNotifier extends AsyncNotifier<LogConfig> {
 
   /// Updates the minimum log level.
   Future<void> setMinimumLevel(LogLevel level) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_kLogLevelKey, level.index);
-
-    state = AsyncData(
-      state.value?.copyWith(minimumLevel: level) ??
-          LogConfig.defaultConfig.copyWith(minimumLevel: level),
-    );
+    await _prefs.setInt(_kLogLevelKey, level.index);
+    state = state.copyWith(minimumLevel: level);
   }
 
   /// Updates whether console logging is enabled.
   Future<void> setConsoleLoggingEnabled({required bool enabled}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kConsoleLoggingKey, enabled);
-
-    state = AsyncData(
-      state.value?.copyWith(consoleLoggingEnabled: enabled) ??
-          LogConfig.defaultConfig.copyWith(consoleLoggingEnabled: enabled),
-    );
+    await _prefs.setBool(_kConsoleLoggingKey, enabled);
+    state = state.copyWith(consoleLoggingEnabled: enabled);
   }
 
   /// Updates whether stdout logging is enabled (desktop only).
   Future<void> setStdoutLoggingEnabled({required bool enabled}) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_kStdoutLoggingKey, enabled);
-
-    state = AsyncData(
-      state.value?.copyWith(stdoutLoggingEnabled: enabled) ??
-          LogConfig.defaultConfig.copyWith(stdoutLoggingEnabled: enabled),
-    );
+    await _prefs.setBool(_kStdoutLoggingKey, enabled);
+    state = state.copyWith(stdoutLoggingEnabled: enabled);
   }
 }
 
+/// Provider for pre-loaded [SharedPreferences] instance.
+///
+/// Must be overridden in [ProviderScope] before app starts. Throws if accessed
+/// without override to fail fast rather than silently dropping early logs.
+final preloadedPrefsProvider = Provider<SharedPreferences>((ref) {
+  throw StateError(
+    'preloadedPrefsProvider must be overridden with a SharedPreferences '
+    'instance. Call SharedPreferences.getInstance() in main() before runApp().',
+  );
+});
+
 /// Provider for log configuration.
 final logConfigProvider =
-    AsyncNotifierProvider<LogConfigNotifier, LogConfig>(LogConfigNotifier.new);
+    NotifierProvider<LogConfigNotifier, LogConfig>(LogConfigNotifier.new);
 
 // ============================================================================
 // Sink Instance Providers
@@ -105,17 +107,16 @@ final consoleSinkProvider = Provider<ConsoleSink>((ref) {
 ///
 /// Returns null on non-desktop platforms. On desktop, creates the sink once,
 /// registers with LogManager, and cleans up on dispose. Starts disabled.
+/// Desktop platforms that support stdout logging.
+const _desktopPlatforms = {
+  TargetPlatform.macOS,
+  TargetPlatform.windows,
+  TargetPlatform.linux,
+};
+
 final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
   if (kIsWeb) return null;
-
-  final isDesktop = switch (defaultTargetPlatform) {
-    TargetPlatform.macOS => true,
-    TargetPlatform.windows => true,
-    TargetPlatform.linux => true,
-    _ => false,
-  };
-
-  if (!isDesktop) return null;
+  if (!_desktopPlatforms.contains(defaultTargetPlatform)) return null;
 
   ref.keepAlive();
 
@@ -153,19 +154,20 @@ final logConfigControllerProvider = Provider<void>((ref) {
   final consoleSink = ref.watch(consoleSinkProvider);
   final stdoutSink = ref.watch(stdoutSinkProvider);
 
-  // Listen to config changes and apply them.
+  // Apply config immediately and listen for changes.
+  void applyConfig(LogConfig config) {
+    // Apply minimum level to LogManager (centralized ownership).
+    LogManager.instance.minimumLevel = config.minimumLevel;
+
+    // Enable/disable sinks based on config.
+    consoleSink.enabled = config.consoleLoggingEnabled;
+    stdoutSink?.enabled = config.stdoutLoggingEnabled;
+  }
+
+  // Listen to config changes.
   ref.listen(
     logConfigProvider,
-    (previous, next) {
-      next.whenData((config) {
-        // Apply minimum level to LogManager (centralized ownership).
-        LogManager.instance.minimumLevel = config.minimumLevel;
-
-        // Enable/disable sinks based on config.
-        consoleSink.enabled = config.consoleLoggingEnabled;
-        stdoutSink?.enabled = config.stdoutLoggingEnabled;
-      });
-    },
+    (previous, next) => applyConfig(next),
     fireImmediately: true,
   );
 });

@@ -94,7 +94,7 @@ void main() {
       test('different minimumLevel are not equal', () {
         const config1 = LogConfig.defaultConfig;
         const config2 = LogConfig(
-          minimumLevel: LogLevel.debug,
+          minimumLevel: LogLevel.warning,
           consoleLoggingEnabled: true,
           stdoutLoggingEnabled: true,
         );

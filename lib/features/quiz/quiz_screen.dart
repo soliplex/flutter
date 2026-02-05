@@ -74,11 +74,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         error: (error, stack) => switch (error) {
           NotFoundException() => ErrorDisplay(
               error: error,
+              stackTrace: stack,
               onRetry: _handleBack,
               retryLabel: 'Back to Room',
             ),
           _ => ErrorDisplay(
               error: error,
+              stackTrace: stack,
               onRetry: () => ref.invalidate(quizProvider(_sessionKey)),
             ),
         },

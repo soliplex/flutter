@@ -216,7 +216,12 @@ class _MessageListState extends ConsumerState<MessageList> {
         if (messagesAsync.isLoading && messagesNow.isEmpty)
           const Center(child: CircularProgressIndicator()),
         if (messagesAsync.hasError && messagesNow.isEmpty)
-          Center(child: ErrorDisplay(error: messagesAsync.error!)),
+          Center(
+            child: ErrorDisplay(
+              error: messagesAsync.error!,
+              stackTrace: messagesAsync.stackTrace ?? StackTrace.empty,
+            ),
+          ),
       ],
     );
   }
