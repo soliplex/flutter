@@ -16,7 +16,7 @@ class LogConfig {
   /// Both console (dart:developer) and stdout logging are enabled by default
   /// on desktop. This provides dual output: DevTools + terminal visibility.
   static const defaultConfig = LogConfig(
-    minimumLevel: LogLevel.info,
+    minimumLevel: LogLevel.debug,
     consoleLoggingEnabled: true,
     stdoutLoggingEnabled: true,
   );

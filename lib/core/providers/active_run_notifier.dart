@@ -223,23 +223,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           final effectiveStack = stackTrace.toString().isNotEmpty
               ? stackTrace
               : StackTrace.current;
-          Loggers.activeRun.error(
-            'Stream error during run',
-            error: error,
-            stackTrace: effectiveStack,
-          );
-          final currentState = state;
-          if (currentState is RunningState) {
-            final errorMsg = error.toString();
-            final completed = CompletedState(
-              conversation: currentState.conversation.withStatus(
-                domain.Failed(error: errorMsg),
-              ),
-              result: FailedResult(errorMessage: errorMsg),
-            );
-            state = completed;
-            _updateCacheOnCompletion(completed);
-          }
+          _handleRunFailure(error, effectiveStack);
         },
         onDone: () {
           // If stream ends without RUN_FINISHED or RUN_ERROR,
@@ -267,9 +251,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         userMessageId: userMessageObj.id,
         previousAguiState: cachedAguiState,
       );
-    } on CancellationError catch (e) {
+    } on CancellationError catch (e, st) {
       // User cancelled - clean up resources
-      Loggers.activeRun.info('Run cancelled: ${e.message}');
+      Loggers.activeRun.info('Run cancelled', error: e, stackTrace: st);
       await subscription?.cancel();
       final completed = CompletedState(
         conversation: state.conversation.withStatus(
@@ -293,7 +277,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         conversation: state.conversation.withStatus(
           domain.Failed(error: errorMsg),
         ),
-        result: FailedResult(errorMessage: errorMsg),
+        result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       state = completed;
       _updateCacheOnCompletion(completed);
@@ -350,25 +334,94 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     }
   }
 
-  /// Processes a single AG-UI event and updates state accordingly.
-  void _processEvent(BaseEvent event) {
-    final currentState = state;
-    if (currentState is! RunningState) return;
-
-    // Log error events for debugging
-    if (event is RunErrorEvent) {
-      Loggers.activeRun.error('Received RUN_ERROR event: ${event.message}');
-    }
-
-    // Use application layer processor
-    final result = processEvent(
-      currentState.conversation,
-      currentState.streaming,
-      event,
+  /// Handles run failures from both stream errors and processing exceptions.
+  ///
+  /// Logs the error, transitions to failed state, and cleans up resources.
+  void _handleRunFailure(Object error, StackTrace stackTrace) {
+    Loggers.activeRun.error(
+      'Run failed',
+      error: error,
+      stackTrace: stackTrace,
     );
 
-    // Map result to frontend state
-    state = _mapResultToState(currentState, result);
+    final currentState = state;
+    if (currentState is RunningState) {
+      final errorMsg = error.toString();
+      final completed = CompletedState(
+        conversation: currentState.conversation.withStatus(
+          domain.Failed(error: errorMsg),
+        ),
+        result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
+      );
+      state = completed;
+      _updateCacheOnCompletion(completed);
+    }
+
+    // Clean up internal state
+    final internalState = _internalState;
+    if (internalState is RunningInternalState) {
+      internalState.dispose();
+      _internalState = const IdleInternalState();
+    }
+  }
+
+  /// Processes a single AG-UI event and updates state accordingly.
+  void _processEvent(BaseEvent event) {
+    try {
+      final currentState = state;
+      if (currentState is! RunningState) return;
+
+      // Log AG-UI events for debugging
+      _logEvent(event);
+
+      // Use application layer processor
+      final result = processEvent(
+        currentState.conversation,
+        currentState.streaming,
+        event,
+      );
+
+      // Map result to frontend state
+      state = _mapResultToState(currentState, result);
+    } catch (e, st) {
+      _handleRunFailure(e, st);
+    }
+  }
+
+  /// Logs AG-UI events at appropriate levels.
+  void _logEvent(BaseEvent event) {
+    switch (event) {
+      case RunStartedEvent():
+        Loggers.activeRun.debug('RUN_STARTED');
+      case RunFinishedEvent():
+        Loggers.activeRun.debug('RUN_FINISHED');
+      case RunErrorEvent(:final message):
+        Loggers.activeRun.error('RUN_ERROR: $message');
+      case ThinkingTextMessageStartEvent():
+        Loggers.activeRun.trace('THINKING_START');
+      case ThinkingTextMessageContentEvent():
+        Loggers.activeRun.trace('THINKING_CONTENT');
+      case ThinkingTextMessageEndEvent():
+        Loggers.activeRun.trace('THINKING_END');
+      case TextMessageStartEvent(:final messageId):
+        Loggers.activeRun.debug('TEXT_START: $messageId');
+      case TextMessageContentEvent(:final messageId):
+        Loggers.activeRun.trace('TEXT_CONTENT: $messageId');
+      case TextMessageEndEvent(:final messageId):
+        Loggers.activeRun.debug('TEXT_END: $messageId');
+      case ToolCallStartEvent(:final toolCallId, :final toolCallName):
+        Loggers.activeRun.debug('TOOL_START: $toolCallName ($toolCallId)');
+      case ToolCallArgsEvent(:final toolCallId):
+        Loggers.activeRun.trace('TOOL_ARGS: $toolCallId');
+      case ToolCallEndEvent(:final toolCallId):
+        Loggers.activeRun.debug('TOOL_END: $toolCallId');
+      case StateSnapshotEvent():
+        Loggers.activeRun.debug('STATE_SNAPSHOT');
+      case StateDeltaEvent():
+        Loggers.activeRun.debug('STATE_DELTA');
+      default:
+        Loggers.activeRun.trace('EVENT: ${event.runtimeType}');
+    }
   }
 
   /// Maps an EventProcessingResult to the appropriate ActiveRunState.

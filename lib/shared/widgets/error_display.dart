@@ -19,12 +19,14 @@ import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 class ErrorDisplay extends StatelessWidget {
   const ErrorDisplay({
     required this.error,
+    required this.stackTrace,
     this.onRetry,
     this.retryLabel = 'Retry',
     super.key,
   });
 
   final Object error;
+  final StackTrace stackTrace;
   final VoidCallback? onRetry;
   final String retryLabel;
 
@@ -126,7 +128,7 @@ class ErrorDisplay extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 8),
-            _TechnicalDetails(error: error),
+            _TechnicalDetails(error: error, stackTrace: stackTrace),
             if (onRetry != null && _canRetry()) ...[
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -144,9 +146,10 @@ class ErrorDisplay extends StatelessWidget {
 
 /// Collapsible technical details section.
 class _TechnicalDetails extends StatefulWidget {
-  const _TechnicalDetails({required this.error});
+  const _TechnicalDetails({required this.error, required this.stackTrace});
 
   final Object error;
+  final StackTrace stackTrace;
 
   @override
   State<_TechnicalDetails> createState() => _TechnicalDetailsState();
@@ -203,16 +206,23 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
   }
 
   String _getStackTrace() {
-    final unwrapped = _unwrapError();
-    if (unwrapped is SoliplexException && unwrapped.stackTrace != null) {
-      final lines = unwrapped.stackTrace.toString().split('\n');
-      final truncated = lines.take(10).join('\n');
-      if (lines.length > 10) {
-        return '$truncated\n... (${lines.length - 10} more lines)';
+    // Use the provided stack trace, fall back to SoliplexException's if empty
+    var stackTrace = widget.stackTrace;
+    if (stackTrace == StackTrace.empty) {
+      final unwrapped = _unwrapError();
+      if (unwrapped is SoliplexException && unwrapped.stackTrace != null) {
+        stackTrace = unwrapped.stackTrace!;
+      } else {
+        return '';
       }
-      return truncated;
     }
-    return '';
+
+    final lines = stackTrace.toString().split('\n');
+    final truncated = lines.take(10).join('\n');
+    if (lines.length > 10) {
+      return '$truncated\n... (${lines.length - 10} more lines)';
+    }
+    return truncated;
   }
 
   String _formatAllDetails() {

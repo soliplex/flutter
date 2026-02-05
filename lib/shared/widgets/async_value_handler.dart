@@ -67,7 +67,7 @@ class AsyncValueHandler<T> extends StatelessWidget {
       data: data,
       loading: () => loading ?? const LoadingIndicator(),
       error: (error, stackTrace) =>
-          ErrorDisplay(error: error, onRetry: onRetry),
+          ErrorDisplay(error: error, stackTrace: stackTrace, onRetry: onRetry),
     );
   }
 }

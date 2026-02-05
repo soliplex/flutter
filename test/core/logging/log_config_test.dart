@@ -5,7 +5,7 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 void main() {
   group('LogConfig', () {
     test('defaultConfig has sensible defaults', () {
-      expect(LogConfig.defaultConfig.minimumLevel, LogLevel.info);
+      expect(LogConfig.defaultConfig.minimumLevel, LogLevel.debug);
       expect(LogConfig.defaultConfig.consoleLoggingEnabled, isTrue);
       expect(LogConfig.defaultConfig.stdoutLoggingEnabled, isTrue);
     });
@@ -38,7 +38,7 @@ void main() {
 
         final copied = original.copyWith(consoleLoggingEnabled: false);
 
-        expect(copied.minimumLevel, LogLevel.info);
+        expect(copied.minimumLevel, LogLevel.debug);
         expect(copied.consoleLoggingEnabled, isFalse);
         expect(copied.stdoutLoggingEnabled, isTrue);
       });
@@ -48,7 +48,7 @@ void main() {
 
         final copied = original.copyWith(stdoutLoggingEnabled: false);
 
-        expect(copied.minimumLevel, LogLevel.info);
+        expect(copied.minimumLevel, LogLevel.debug);
         expect(copied.consoleLoggingEnabled, isTrue);
         expect(copied.stdoutLoggingEnabled, isFalse);
       });
@@ -94,7 +94,7 @@ void main() {
       test('different minimumLevel are not equal', () {
         const config1 = LogConfig.defaultConfig;
         const config2 = LogConfig(
-          minimumLevel: LogLevel.debug,
+          minimumLevel: LogLevel.warning,
           consoleLoggingEnabled: true,
           stdoutLoggingEnabled: true,
         );
@@ -105,7 +105,7 @@ void main() {
       test('different consoleLoggingEnabled are not equal', () {
         const config1 = LogConfig.defaultConfig;
         const config2 = LogConfig(
-          minimumLevel: LogLevel.info,
+          minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: false,
           stdoutLoggingEnabled: true,
         );
@@ -116,7 +116,7 @@ void main() {
       test('different stdoutLoggingEnabled are not equal', () {
         const config1 = LogConfig.defaultConfig;
         const config2 = LogConfig(
-          minimumLevel: LogLevel.info,
+          minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: true,
           stdoutLoggingEnabled: false,
         );

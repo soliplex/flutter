@@ -236,8 +236,12 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       // Save tokens to secure storage (may fail on unsigned macOS builds)
       try {
         await _storage.saveTokens(newState);
-      } on Exception catch (e) {
-        Loggers.auth.info('Failed to persist tokens: ${e.runtimeType}');
+      } on Exception catch (e, st) {
+        Loggers.auth.warning(
+          'Failed to persist tokens',
+          error: e,
+          stackTrace: st,
+        );
         // Continue - auth works, just won't persist across restarts
       }
 

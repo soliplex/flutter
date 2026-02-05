@@ -215,18 +215,23 @@ class Success extends CompletionResult {
 /// The run failed with an error.
 @immutable
 class FailedResult extends CompletionResult {
-  const FailedResult({required this.errorMessage});
+  const FailedResult({required this.errorMessage, this.stackTrace});
 
   /// The error message describing what went wrong.
   final String errorMessage;
 
+  /// The stack trace at the point of failure, if available.
+  final StackTrace? stackTrace;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FailedResult && errorMessage == other.errorMessage;
+      other is FailedResult &&
+          errorMessage == other.errorMessage &&
+          stackTrace == other.stackTrace;
 
   @override
-  int get hashCode => Object.hash(runtimeType, errorMessage);
+  int get hashCode => Object.hash(runtimeType, errorMessage, stackTrace);
 
   @override
   String toString() => 'FailedResult(errorMessage: $errorMessage)';

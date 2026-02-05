@@ -424,8 +424,9 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => ErrorDisplay(
+          error: (error, stackTrace) => ErrorDisplay(
             error: error,
+            stackTrace: stackTrace,
             onRetry: () {
               ref.read(documentsProvider(widget.roomId).notifier).retry();
             },

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/app.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -49,6 +51,10 @@ Future<void> runSoliplexApp({
   // iOS preserves Keychain across uninstall/reinstall.
   await clearAuthStorageOnReinstall();
 
+  // Pre-load SharedPreferences for synchronous log config initialization.
+  // This eliminates the race condition where early logs are dropped.
+  final prefs = await SharedPreferences.getInstance();
+
   // Load saved base URL BEFORE app starts to avoid race conditions.
   // Returns null if user hasn't saved a custom URL yet.
   String? savedBaseUrl;
@@ -64,6 +70,9 @@ Future<void> runSoliplexApp({
         // Inject shell configuration via ProviderScope (no global state)
         shellConfigProvider.overrideWithValue(config),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
+        // Fulfills the contract of preloadedPrefsProvider, enabling
+        // synchronous log config initialization (eliminates race condition).
+        preloadedPrefsProvider.overrideWithValue(prefs),
         // Inject user's saved base URL if available
         if (savedBaseUrl != null)
           preloadedBaseUrlProvider.overrideWithValue(savedBaseUrl),
