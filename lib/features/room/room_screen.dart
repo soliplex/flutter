@@ -64,6 +64,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     if (_initializedForRoomId == widget.roomId) return;
     _initializedForRoomId = widget.roomId;
 
+    Loggers.room.debug('Room screen initialized for ${widget.roomId}');
+
     // Sync global room ID for currentRoomProvider and currentThreadProvider
     ref.read(currentRoomIdProvider.notifier).set(widget.roomId);
 
@@ -78,6 +80,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     // 1. Query param (if valid)
     if (widget.initialThreadId != null &&
         threads.any((t) => t.id == widget.initialThreadId)) {
+      Loggers.room.debug(
+        'Thread selection: query param ${widget.initialThreadId}',
+      );
       _selectThread(widget.initialThreadId!);
       return;
     }
@@ -92,11 +97,15 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         case HasLastViewed(
           :final threadId,
         ) when threads.any((t) => t.id == threadId)) {
+      Loggers.room.debug('Thread selection: last viewed $threadId');
       ref.read(threadSelectionProvider.notifier).set(ThreadSelected(threadId));
       return;
     }
 
     // 3. First thread
+    Loggers.room.debug(
+      'Thread selection: first thread fallback ${threads.first.id}',
+    );
     _selectThread(threads.first.id);
   }
 
@@ -280,6 +289,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     );
 
     if (selectedId != null && mounted) {
+      Loggers.room.info('Room switched to $selectedId');
       context.go('/rooms/$selectedId');
     }
   }

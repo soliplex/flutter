@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 
@@ -45,6 +46,7 @@ final backendHealthProvider = FutureProvider<bool>((ref) async {
     return response.statusCode == 200;
   } catch (e) {
     // Any error (timeout, network, etc.) means backend is unhealthy
+    Loggers.http.debug('Health check failed: ${e.runtimeType}');
     return false;
   }
 });

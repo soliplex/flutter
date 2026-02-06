@@ -499,6 +499,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _startQuiz(Quiz quiz) {
+    Loggers.quiz.info(
+      'Quiz started: ${widget.quizId}'
+      ' (${quiz.questionCount} questions)',
+    );
     ref.read(quizSessionProvider(_sessionKey).notifier).start(quiz);
   }
 
@@ -509,6 +513,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _submitAnswer() async {
+    Loggers.quiz.debug('Answer submitted for quiz ${widget.quizId}');
     try {
       await ref.read(quizSessionProvider(_sessionKey).notifier).submitAnswer();
     } on NetworkException catch (e, stackTrace) {
@@ -569,11 +574,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _nextQuestion() {
+    final session = ref.read(quizSessionProvider(_sessionKey));
+    if (session is QuizInProgress && session.isLastQuestion) {
+      Loggers.quiz.info('Quiz completed: ${widget.quizId}');
+    }
     _answerController.clear();
     ref.read(quizSessionProvider(_sessionKey).notifier).nextQuestion();
   }
 
   void _retakeQuiz() {
+    Loggers.quiz.info('Quiz retaken: ${widget.quizId}');
     _answerController.clear();
     ref.read(quizSessionProvider(_sessionKey).notifier).retake();
   }

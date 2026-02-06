@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Determines if an error should trigger a retry.
@@ -130,12 +131,21 @@ class DocumentsNotifier extends Notifier<AsyncValue<List<RagDocument>>> {
 
         // Don't delay after the last attempt
         if (attempt < maxRetryAttempts - 1) {
+          Loggers.room.trace(
+            'Document fetch retry ${attempt + 1}/$maxRetryAttempts'
+            ' for $_roomId',
+          );
           await Future<void>.delayed(delays[attempt]);
         }
       }
     }
 
     // All retries exhausted - set error state directly
+    Loggers.room.warning(
+      'Document fetch retries exhausted for $_roomId',
+      error: lastError,
+      stackTrace: lastStackTrace,
+    );
     state = AsyncValue.error(lastError!, lastStackTrace!);
   }
 
