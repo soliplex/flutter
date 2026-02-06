@@ -84,6 +84,26 @@ final logConfigProvider =
 // it with LogManager, and clean up on dispose. They do NOT watch config -
 // configuration is applied by the controller.
 
+/// Holds the MemorySink instance (ring buffer for in-app log viewer).
+///
+/// Created once per provider container. Registered with LogManager on creation,
+/// unregistered on dispose. Always enabled - the memory buffer captures all
+/// records regardless of config so they are available for error reporting
+/// and the log viewer UI.
+final memorySinkProvider = Provider<MemorySink>((ref) {
+  ref.keepAlive();
+
+  final sink = MemorySink();
+  LogManager.instance.addSink(sink);
+
+  ref.onDispose(() {
+    LogManager.instance.removeSink(sink);
+    sink.close();
+  });
+
+  return sink;
+});
+
 /// Holds the ConsoleSink instance.
 ///
 /// Created once per provider container. Registered with LogManager on creation,
@@ -147,7 +167,9 @@ final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
 ///
 /// Watch this provider in your app root to initialize logging.
 final logConfigControllerProvider = Provider<void>((ref) {
-  ref.keepAlive();
+  ref
+    ..keepAlive()
+    ..watch(memorySinkProvider); // Always active - no config toggle.
 
   // Use ref.watch to ensure controller rebuilds if sink instances change
   // (e.g., during hot reload or if sinks are ever recreated).

@@ -66,9 +66,9 @@ class NativeAuthFlow implements AuthFlow {
         idToken: result.idToken,
         expiresAt: result.accessTokenExpirationDateTime,
       );
-    } on Exception catch (e) {
+    } on Exception catch (e, s) {
       // Log type only - exception details may contain sensitive data
-      Loggers.auth.error('Authentication failed', error: e);
+      Loggers.auth.error('Authentication failed', error: e, stackTrace: s);
       throw const AuthException('Authentication failed. Please try again.');
     }
   }
@@ -88,9 +88,13 @@ class NativeAuthFlow implements AuthFlow {
           postLogoutRedirectUrl: _redirectUri,
         ),
       );
-    } on Exception catch (e) {
+    } on Exception catch (e, s) {
       // Log type only - exception details may contain sensitive data
-      Loggers.auth.error('IdP session termination failed: ${e.runtimeType}');
+      Loggers.auth.error(
+        'IdP session termination failed: ${e.runtimeType}',
+        error: e,
+        stackTrace: s,
+      );
     }
   }
 }

@@ -79,7 +79,8 @@ class ChunkVisualizationPage extends ConsumerWidget {
       ),
       body: asyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _buildError(context, ref, error, theme),
+        error: (error, stackTrace) =>
+            _buildError(context, ref, error, stackTrace, theme),
         data: (visualization) => _buildContent(context, visualization, theme),
       ),
     );
@@ -89,10 +90,14 @@ class ChunkVisualizationPage extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     Object error,
+    StackTrace? stackTrace,
     ThemeData theme,
   ) {
-    Loggers.chat
-        .error('ChunkVisualization error for chunk $chunkId', error: error);
+    Loggers.chat.error(
+      'ChunkVisualization error for chunk $chunkId',
+      error: error,
+      stackTrace: stackTrace,
+    );
 
     final message = switch (error) {
       NotFoundException() => 'Page images not available for this citation.',
@@ -192,9 +197,12 @@ class _PageImage extends StatelessWidget {
   Uint8List? _decodeImage() {
     try {
       return base64Decode(imageBase64);
-    } on FormatException catch (e) {
-      Loggers.chat
-          .error('Failed to decode base64 for page $pageNumber', error: e);
+    } on FormatException catch (e, s) {
+      Loggers.chat.error(
+        'Failed to decode base64 for page $pageNumber',
+        error: e,
+        stackTrace: s,
+      );
       return null;
     }
   }

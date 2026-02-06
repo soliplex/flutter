@@ -67,6 +67,8 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
 
   @override
   void onError(HttpErrorEvent event) {
+    // Note: HttpErrorEvent does not carry a StackTrace from the call site.
+    // The stack trace is lost at the ObservableHttpClient boundary.
     Loggers.http.error(
       '${event.method} ${event.uri}',
       error: event.exception,
