@@ -180,6 +180,26 @@ void main() {
 
         expect(refs, isEmpty);
       });
+
+      test('extracts citations from STATE_DELTA without citation_registry', () {
+        final previous = createState();
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              createQaEntry(
+                question: 'Q1',
+                answer: 'A1',
+                citations: [createCitation(chunkId: 'c1')],
+              ),
+            ],
+          },
+        };
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'c1');
+      });
     });
 
     group('extractNew with ask_history', () {
@@ -313,6 +333,24 @@ void main() {
 
         final refs = extractor.extractNew(previous, current);
 
+        expect(refs, isEmpty);
+      });
+
+      test('returns citations when citation_registry is absent', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              {
+                'question': 'Q1',
+                'answer': 'A1',
+                'citations': <Map<String, dynamic>>[],
+              },
+            ],
+          },
+        };
+
+        final refs = extractor.extractNew(previous, current);
         expect(refs, isEmpty);
       });
 

@@ -66,15 +66,11 @@ void main() {
         expect(ragChat.citations, hasLength(1));
       });
 
-      test('citation_registry is required for fromJson (generator quirk)', () {
-        // This documents a gotcha: the generated code requires
-        // citation_registry in fromJson even though the Dart field is optional.
-        final jsonWithoutRegistry = <String, dynamic>{'citations': <dynamic>[]};
+      test('citation_registry can be absent in fromJson', () {
+        final json = <String, dynamic>{'qa_history': <dynamic>[]};
 
-        expect(
-          () => HaikuRagChat.fromJson(jsonWithoutRegistry),
-          throwsA(isA<TypeError>()),
-        );
+        final ragChat = HaikuRagChat.fromJson(json);
+        expect(ragChat.citationRegistry, isNull);
       });
     });
   });
