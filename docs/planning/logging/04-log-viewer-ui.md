@@ -1,6 +1,6 @@
 # Milestone 04: Log Viewer UI
 
-**Status:** in-progress
+**Status:** completed
 **Depends on:** 01-essential-logging-api
 
 ## Objective
