@@ -185,5 +185,85 @@ void main() {
         '[INFO] Test: Message with "quotes" and \'apostrophes\' and\nnewlines',
       );
     });
+
+    test('omits timestamp by default', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'no timestamp',
+        timestamp: DateTime(2025, 3, 15, 9, 5, 7, 42),
+        loggerName: 'Test',
+      );
+
+      final result = formatLogMessage(record);
+
+      expect(result, '[INFO] Test: no timestamp');
+    });
+
+    test('prepends timestamp when showTimestamp is true', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'hello',
+        timestamp: DateTime(2025, 3, 15, 9, 5, 7, 42),
+        loggerName: 'Test',
+      );
+
+      final result = formatLogMessage(record, showTimestamp: true);
+
+      expect(result, '09:05:07.042 [INFO] Test: hello');
+    });
+
+    test('timestamp pads single-digit components with zeros', () {
+      final record = LogRecord(
+        level: LogLevel.debug,
+        message: 'msg',
+        timestamp: DateTime(2025, 1, 1, 1, 2, 3, 4),
+        loggerName: 'L',
+      );
+
+      final result = formatLogMessage(record, showTimestamp: true);
+
+      expect(result, '01:02:03.004 [DEBUG] L: msg');
+    });
+
+    test('timestamp with span context', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'traced',
+        timestamp: DateTime(2025, 6, 1, 14, 30, 0, 500),
+        loggerName: 'Test',
+        traceId: 'trace-1',
+        spanId: 'span-2',
+      );
+
+      final result = formatLogMessage(record, showTimestamp: true);
+
+      expect(
+        result,
+        '14:30:00.500 [INFO] Test: traced (trace=trace-1, span=span-2)',
+      );
+    });
+  });
+
+  group('formatTimestamp', () {
+    test('formats midnight correctly', () {
+      expect(
+        formatTimestamp(DateTime(2025)),
+        '00:00:00.000',
+      );
+    });
+
+    test('formats end of day correctly', () {
+      expect(
+        formatTimestamp(DateTime(2025, 1, 1, 23, 59, 59, 999)),
+        '23:59:59.999',
+      );
+    });
+
+    test('pads single-digit values', () {
+      expect(
+        formatTimestamp(DateTime(2025, 1, 1, 1, 2, 3, 4)),
+        '01:02:03.004',
+      );
+    });
   });
 }
