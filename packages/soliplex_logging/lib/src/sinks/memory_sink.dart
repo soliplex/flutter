@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:soliplex_logging/src/log_record.dart';
 import 'package:soliplex_logging/src/log_sink.dart';
@@ -24,8 +25,11 @@ class MemorySink implements LogSink {
   final StreamController<LogRecord> _controller =
       StreamController<LogRecord>.broadcast();
 
-  /// Current records snapshot (oldest first).
-  List<LogRecord> get records => List.unmodifiable(_records);
+  /// Unmodifiable view of current records (oldest first).
+  ///
+  /// Returns a lightweight wrapper — no copy is made. Safe to index
+  /// from `ListView.builder` without O(N) allocation per row.
+  List<LogRecord> get records => UnmodifiableListView(_records);
 
   /// Stream of new records for live listeners.
   Stream<LogRecord> get onRecord => _controller.stream;
