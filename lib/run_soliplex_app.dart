@@ -37,58 +37,59 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 Future<void> runSoliplexApp({
   required SoliplexConfig config,
 }) async {
-  WidgetsFlutterBinding.ensureInitialized();
+  // Wrap the entire bootstrap in runZonedGuarded so that
+  // ensureInitialized() and runApp() share the same zone.
+  await runZonedGuarded(
+    () async {
+      WidgetsFlutterBinding.ensureInitialized();
 
-  // Capture OAuth callback params BEFORE GoRouter initializes.
-  // GoRouter may modify the URL, losing the callback tokens.
-  final callbackParams = CallbackParamsCapture.captureNow();
+      // Capture Flutter framework errors (layout, build, rendering).
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        LogManager.instance.emit(
+          LogRecord(
+            level: LogLevel.fatal,
+            message: 'FlutterError: ${details.exceptionAsString()}',
+            timestamp: DateTime.now(),
+            loggerName: 'Flutter',
+            error: details.exception,
+            stackTrace: details.stack,
+          ),
+        );
+      };
 
-  // Clear URL params immediately after capture (security: remove tokens).
-  // Must happen before GoRouter initializes to avoid URL state conflicts.
-  final callbackService = createCallbackParamsService();
-  if (callbackParams is WebCallbackParams) {
-    callbackService.clearUrlParams();
-  }
+      // Capture OAuth callback params BEFORE GoRouter initializes.
+      // GoRouter may modify the URL, losing the callback tokens.
+      final callbackParams = CallbackParamsCapture.captureNow();
 
-  // Clear stale keychain tokens on first launch after reinstall.
-  // iOS preserves Keychain across uninstall/reinstall.
-  await clearAuthStorageOnReinstall();
+      // Clear URL params immediately after capture (security: remove tokens).
+      // Must happen before GoRouter initializes to avoid URL state conflicts.
+      final callbackService = createCallbackParamsService();
+      if (callbackParams is WebCallbackParams) {
+        callbackService.clearUrlParams();
+      }
 
-  // Pre-load SharedPreferences for synchronous log config initialization.
-  // This eliminates the race condition where early logs are dropped.
-  final prefs = await SharedPreferences.getInstance();
+      // Clear stale keychain tokens on first launch after reinstall.
+      // iOS preserves Keychain across uninstall/reinstall.
+      await clearAuthStorageOnReinstall();
 
-  // Load saved base URL BEFORE app starts to avoid race conditions.
-  // Returns null if user hasn't saved a custom URL yet.
-  String? savedBaseUrl;
-  try {
-    savedBaseUrl = await loadSavedBaseUrl();
-  } catch (e, s) {
-    Loggers.config.warning(
-      'Failed to load saved base URL: $e',
-      error: e,
-      stackTrace: s,
-    );
-  }
+      // Pre-load SharedPreferences for synchronous log config initialization.
+      // This eliminates the race condition where early logs are dropped.
+      final prefs = await SharedPreferences.getInstance();
 
-  // Capture Flutter framework errors (layout, build, rendering).
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    LogManager.instance.emit(
-      LogRecord(
-        level: LogLevel.fatal,
-        message: 'FlutterError: ${details.exceptionAsString()}',
-        timestamp: DateTime.now(),
-        loggerName: 'Flutter',
-        error: details.exception,
-        stackTrace: details.stack,
-      ),
-    );
-  };
+      // Load saved base URL BEFORE app starts to avoid race conditions.
+      // Returns null if user hasn't saved a custom URL yet.
+      String? savedBaseUrl;
+      try {
+        savedBaseUrl = await loadSavedBaseUrl();
+      } catch (e, s) {
+        Loggers.config.warning(
+          'Failed to load saved base URL: $e',
+          error: e,
+          stackTrace: s,
+        );
+      }
 
-  // Capture unhandled async errors that escape the widget tree.
-  runZonedGuarded(
-    () {
       runApp(
         ProviderScope(
           overrides: [
