@@ -153,7 +153,7 @@ void main() {
         expect(result.reasonPhrase, equals('Created'));
       });
 
-      test('records empty headers when none provided', () async {
+      test('includes only x-request-id when no headers provided', () async {
         when(
           () => mockClient.request(
             any(),
@@ -169,7 +169,8 @@ void main() {
         await observableClient.request('GET', Uri.parse('https://example.com'));
 
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
-        expect(requestEvent.headers, isEmpty);
+        expect(requestEvent.headers, hasLength(1));
+        expect(requestEvent.headers, contains('x-request-id'));
       });
     });
 
@@ -816,6 +817,336 @@ void main() {
 
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
         expect(requestEvent.requestId, equals('custom-id-1'));
+
+        customClient.close();
+      });
+    });
+
+    group('x-request-id header injection', () {
+      test('injects x-request-id header on outgoing requests', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final captured = verify(
+          () => mockClient.request(
+            'GET',
+            Uri.parse('https://example.com/api'),
+            headers: captureAny(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        expect(sentHeaders, contains('x-request-id'));
+        expect(sentHeaders['x-request-id'], isNotEmpty);
+      });
+
+      test('header value matches requestId in observer events', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final captured = verify(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: captureAny(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+
+        expect(
+          sentHeaders['x-request-id'],
+          equals(requestEvent.requestId),
+        );
+      });
+
+      test('preserves caller-supplied x-request-id', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+          headers: {'x-request-id': 'caller-trace-id-123'},
+        );
+
+        final captured = verify(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: captureAny(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        expect(
+          sentHeaders['x-request-id'],
+          equals('caller-trace-id-123'),
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(
+          requestEvent.requestId,
+          equals('caller-trace-id-123'),
+        );
+      });
+
+      test('default ID generator produces UUID v4 format', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        // UUID v4 format: 8-4-4-4-12 hex digits
+        expect(
+          requestEvent.requestId,
+          matches(
+            RegExp(
+              '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-'
+              r'[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+            ),
+          ),
+        );
+      });
+
+      test('x-request-id is not redacted in observer events', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(
+          requestEvent.headers['x-request-id'],
+          isNot(equals('[REDACTED]')),
+        );
+        expect(
+          requestEvent.headers['x-request-id'],
+          equals(requestEvent.requestId),
+        );
+      });
+
+      test('injects x-request-id on streaming requests', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/stream'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final captured = verify(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: captureAny(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        expect(sentHeaders, contains('x-request-id'));
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(
+          sentHeaders['x-request-id'],
+          equals(startEvent.requestId),
+        );
+      });
+
+      test(
+        'preserves caller-supplied x-request-id on streaming requests',
+        () async {
+          final controller = StreamController<List<int>>();
+
+          when(
+            () => mockClient.requestStream(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer((_) => controller.stream);
+
+          final stream = observableClient.requestStream(
+            'POST',
+            Uri.parse('https://example.com/stream'),
+            headers: {'x-request-id': 'stream-trace-456'},
+          );
+
+          final completer = Completer<void>();
+          stream.listen((_) {}, onDone: completer.complete);
+
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+          await controller.close();
+          await completer.future;
+
+          final captured = verify(
+            () => mockClient.requestStream(
+              any(),
+              any(),
+              headers: captureAny(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).captured;
+
+          final sentHeaders = captured.first as Map<String, String>;
+          expect(
+            sentHeaders['x-request-id'],
+            equals('stream-trace-456'),
+          );
+
+          final startEvent =
+              recorder.eventsOfType<HttpStreamStartEvent>().first;
+          expect(
+            startEvent.requestId,
+            equals('stream-trace-456'),
+          );
+        },
+      );
+
+      test('custom generateRequestId still works', () async {
+        var callCount = 0;
+        final customClient = ObservableHttpClient(
+          client: mockClient,
+          observers: [recorder],
+          generateRequestId: () => 'custom-${++callCount}',
+        );
+
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await customClient.request(
+          'GET',
+          Uri.parse('https://example.com'),
+        );
+
+        final captured = verify(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: captureAny(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        expect(sentHeaders['x-request-id'], equals('custom-1'));
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(requestEvent.requestId, equals('custom-1'));
 
         customClient.close();
       });
@@ -1503,15 +1834,19 @@ void main() {
           timeout: const Duration(seconds: 10),
         );
 
-        verify(
+        final captured = verify(
           () => mockClient.request(
             'POST',
             Uri.parse('https://example.com/api'),
-            headers: {'X-Custom': 'value'},
+            headers: captureAny(named: 'headers'),
             body: {'key': 'data'},
             timeout: const Duration(seconds: 10),
           ),
-        ).called(1);
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        expect(sentHeaders['X-Custom'], equals('value'));
+        expect(sentHeaders, contains('x-request-id'));
       });
 
       test('forwards all stream parameters to wrapped client', () async {
@@ -1539,14 +1874,18 @@ void main() {
         // Give time for stream to start
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        verify(
+        final captured = verify(
           () => mockClient.requestStream(
             'POST',
             Uri.parse('https://example.com/stream'),
-            headers: const {'Accept': 'text/event-stream'},
+            headers: captureAny(named: 'headers'),
             body: 'test body',
           ),
-        ).called(1);
+        ).captured;
+
+        final sentHeaders = captured.first as Map<String, String>;
+        expect(sentHeaders['Accept'], equals('text/event-stream'));
+        expect(sentHeaders, contains('x-request-id'));
 
         await subscription.cancel();
         await controller.close();

@@ -1,5 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:soliplex_logging/src/log_level.dart';
+import 'package:soliplex_logging/src/sinks/log_format.dart';
 
 /// Immutable log record containing all information about a log event.
 @immutable
@@ -39,6 +40,12 @@ class LogRecord {
 
   /// Trace ID for telemetry correlation.
   final String? traceId;
+
+  /// Whether this record has error or stack trace details.
+  bool get hasDetails => error != null || stackTrace != null;
+
+  /// Formats the timestamp as `HH:mm:ss.mmm`.
+  String get formattedTimestamp => formatTimestamp(timestamp);
 
   @override
   String toString() {

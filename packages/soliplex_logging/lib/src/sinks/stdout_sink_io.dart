@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:soliplex_logging/src/log_level.dart';
 import 'package:soliplex_logging/src/log_record.dart';
+import 'package:soliplex_logging/src/sinks/log_format.dart';
 
 /// ANSI color codes for terminal output.
 const _reset = '\x1B[0m';
@@ -26,9 +27,23 @@ const _gray = '\x1B[90m';
 ///
 /// Wrapped in try-catch to ensure logging never crashes the app (e.g.,
 /// broken pipe when piped to another process).
-void writeToStdout(LogRecord record, {required bool useColors}) {
+void writeToStdout(
+  LogRecord record, {
+  required bool useColors,
+  required bool showTimestamp,
+}) {
   try {
     final buffer = StringBuffer();
+
+    // Prepend timestamp when enabled.
+    if (showTimestamp) {
+      final ts = formatTimestamp(record.timestamp);
+      if (useColors) {
+        buffer.write('$_gray$ts$_reset ');
+      } else {
+        buffer.write('$ts ');
+      }
+    }
 
     // Format the log line directly (not using formatLogMessage to avoid
     // parsing the string back for colorization).

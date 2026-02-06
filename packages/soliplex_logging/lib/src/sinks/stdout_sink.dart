@@ -13,6 +13,7 @@ import 'package:soliplex_logging/src/sinks/stdout_sink_io.dart'
 typedef StdoutWriter = void Function(
   LogRecord record, {
   required bool useColors,
+  required bool showTimestamp,
 });
 
 /// Log sink that outputs to stdout.
@@ -31,12 +32,16 @@ class StdoutSink implements LogSink {
   /// Defaults to false for compatibility with terminals that don't support
   /// ANSI colors.
   ///
+  /// Set [showTimestamp] to true to prepend each log line with the event
+  /// timestamp in `HH:mm:ss.mmm` format.
+  ///
   /// The [testWriter] parameter is for testing only - it allows capturing
   /// log output without writing to actual stdout. When provided,
   /// records are passed to this function instead of stdout.
   StdoutSink({
     this.enabled = true,
     this.useColors = false,
+    this.showTimestamp = false,
     @visibleForTesting StdoutWriter? testWriter,
   }) : _testWriter = testWriter;
 
@@ -46,6 +51,9 @@ class StdoutSink implements LogSink {
   /// Whether to use ANSI color codes in output.
   final bool useColors;
 
+  /// Whether to prepend each log line with a timestamp.
+  final bool showTimestamp;
+
   final StdoutWriter? _testWriter;
 
   @override
@@ -54,9 +62,13 @@ class StdoutSink implements LogSink {
 
     // Use test writer if provided, otherwise delegate to platform.
     if (_testWriter != null) {
-      _testWriter(record, useColors: useColors);
+      _testWriter(record, useColors: useColors, showTimestamp: showTimestamp);
     } else {
-      platform.writeToStdout(record, useColors: useColors);
+      platform.writeToStdout(
+        record,
+        useColors: useColors,
+        showTimestamp: showTimestamp,
+      );
     }
   }
 

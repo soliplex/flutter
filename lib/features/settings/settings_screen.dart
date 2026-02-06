@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/version.dart';
+import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Settings screen for app configuration.
 ///
@@ -87,6 +89,7 @@ class SettingsScreen extends ConsumerWidget {
         ),
         const Divider(),
         const _NetworkRequestsTile(),
+        const _LogViewerTile(),
         const Divider(),
         _AuthSection(authState: authState),
       ],
@@ -108,6 +111,30 @@ class _NetworkRequestsTile extends ConsumerWidget {
       subtitle: Text('$count ${count == 1 ? 'request' : 'requests'} captured'),
       trailing: const Icon(Icons.chevron_right),
       onTap: () => context.push('/settings/network'),
+    );
+  }
+}
+
+class _LogViewerTile extends ConsumerWidget {
+  const _LogViewerTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sink = ref.watch(memorySinkProvider);
+
+    return StreamBuilder<LogRecord>(
+      stream: sink.onRecord,
+      builder: (context, _) {
+        final count = sink.length;
+        return ListTile(
+          leading: const Icon(Icons.article_outlined),
+          title: const Text('View Logs'),
+          subtitle:
+              Text('$count ${count == 1 ? 'entry' : 'entries'} in buffer'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.push('/settings/logs'),
+        );
+      },
     );
   }
 }

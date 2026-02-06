@@ -23,11 +23,21 @@ void main() {
       expect(sink.useColors, isTrue);
     });
 
+    test('showTimestamp defaults to false', () {
+      final sink = StdoutSink();
+      expect(sink.showTimestamp, isFalse);
+    });
+
+    test('can be created with showTimestamp enabled', () {
+      final sink = StdoutSink(showTimestamp: true);
+      expect(sink.showTimestamp, isTrue);
+    });
+
     test('write does nothing when disabled', () {
       final captured = <(LogRecord, bool)>[];
       final sink = StdoutSink(
         enabled: false,
-        testWriter: (record, {required useColors}) =>
+        testWriter: (record, {required useColors, required showTimestamp}) =>
             captured.add((record, useColors)),
       );
       final record = LogRecord(
@@ -59,7 +69,7 @@ void main() {
       test('captures records when provided', () {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         );
 
@@ -83,7 +93,7 @@ void main() {
         final captured = <(LogRecord, bool)>[];
         StdoutSink(
           useColors: true,
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         ).write(
           LogRecord(
@@ -98,10 +108,47 @@ void main() {
         expect(captured.first.$2, isTrue); // useColors enabled
       });
 
+      test('passes showTimestamp flag to testWriter', () {
+        final captured = <(LogRecord, bool, bool)>[];
+        StdoutSink(
+          showTimestamp: true,
+          testWriter: (record, {required useColors, required showTimestamp}) =>
+              captured.add((record, useColors, showTimestamp)),
+        ).write(
+          LogRecord(
+            level: LogLevel.info,
+            message: 'timestamped',
+            timestamp: DateTime.now(),
+            loggerName: 'Test',
+          ),
+        );
+
+        expect(captured, hasLength(1));
+        expect(captured.first.$3, isTrue); // showTimestamp enabled
+      });
+
+      test('showTimestamp defaults to false in testWriter', () {
+        final captured = <(LogRecord, bool, bool)>[];
+        StdoutSink(
+          testWriter: (record, {required useColors, required showTimestamp}) =>
+              captured.add((record, useColors, showTimestamp)),
+        ).write(
+          LogRecord(
+            level: LogLevel.info,
+            message: 'no timestamp',
+            timestamp: DateTime.now(),
+            loggerName: 'Test',
+          ),
+        );
+
+        expect(captured, hasLength(1));
+        expect(captured.first.$3, isFalse); // showTimestamp off by default
+      });
+
       test('captures multiple records', () {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         );
         final now = DateTime.now();
@@ -141,7 +188,7 @@ void main() {
       test('captures records with span context', () {
         final captured = <(LogRecord, bool)>[];
         StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         ).write(
           LogRecord(
@@ -163,7 +210,7 @@ void main() {
         final captured = <(LogRecord, bool)>[];
         StdoutSink(
           enabled: false,
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         ).write(
           LogRecord(
@@ -180,7 +227,7 @@ void main() {
       test('stops capturing after close', () async {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         )..write(
             LogRecord(
@@ -211,7 +258,7 @@ void main() {
       test('captures Exception with message', () {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         );
         final exception = Exception('Something went wrong');
@@ -237,7 +284,7 @@ void main() {
       test('captures Error with stackTrace', () {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         );
         final error = StateError('Invalid state');
@@ -263,7 +310,7 @@ void main() {
       test('captures error with null stackTrace', () {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         );
         final error = Exception('No stack trace');
@@ -286,7 +333,7 @@ void main() {
       test('captures stackTrace without error', () {
         final captured = <(LogRecord, bool)>[];
         final sink = StdoutSink(
-          testWriter: (record, {required useColors}) =>
+          testWriter: (record, {required useColors, required showTimestamp}) =>
               captured.add((record, useColors)),
         );
         final stackTrace = StackTrace.current;
