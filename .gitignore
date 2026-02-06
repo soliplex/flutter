@@ -169,4 +169,5 @@ scratchpad/*
 # Developer-specific Xcode configuration (contains DEVELOPMENT_TEAM)
 **/Local.xcconfig
 # Claude Code local config
-.claude/
+.claude/*
+!.claude/skills/

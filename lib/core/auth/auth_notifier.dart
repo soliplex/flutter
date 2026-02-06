@@ -167,7 +167,11 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     try {
       await _storage.saveTokens(newState);
     } on Exception catch (e) {
-      Loggers.auth.warning('Failed to persist refreshed tokens', error: e);
+      Loggers.auth.warning(
+        'Keychain unavailable (debug builds skip code signing) — '
+        'refreshed tokens will not persist across restarts',
+        error: e,
+      );
     }
 
     state = newState;
@@ -233,16 +237,19 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         idToken: idToken,
       );
 
-      // Save tokens to secure storage (may fail on unsigned macOS builds)
+      // Keychain requires code signing entitlements. In debug mode without a
+      // valid Apple developer signing key, writes fail with -34018. This is
+      // expected — auth works for the current session, tokens just won't
+      // persist across app restarts.
       try {
         await _storage.saveTokens(newState);
       } on Exception catch (e, st) {
         Loggers.auth.warning(
-          'Failed to persist tokens',
+          'Keychain unavailable (debug builds skip code signing) — '
+          'auth works, tokens will not persist across restarts',
           error: e,
           stackTrace: st,
         );
-        // Continue - auth works, just won't persist across restarts
       }
 
       state = newState;
