@@ -316,6 +316,33 @@ void main() {
         expect(refs, isEmpty);
       });
 
+      test('enriches error when haiku.rag.chat fromJson fails', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              {
+                'question': 'Q1',
+                'answer': 'A1',
+                'citations': <Map<String, dynamic>>[],
+              },
+            ],
+            // citation_registry intentionally absent — triggers fromJson crash
+          },
+        };
+
+        expect(
+          () => extractor.extractNew(previous, current),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('HaikuRagChat.fromJson failed'),
+            ),
+          ),
+        );
+      });
+
       test('prefers haiku.rag.chat over ask_history when both present', () {
         final previous = <String, dynamic>{};
         final current = <String, dynamic>{
