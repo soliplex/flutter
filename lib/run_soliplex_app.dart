@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +12,7 @@ import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Entry point for running a Soliplex-based application.
 ///
@@ -60,24 +63,60 @@ Future<void> runSoliplexApp({
   String? savedBaseUrl;
   try {
     savedBaseUrl = await loadSavedBaseUrl();
-  } catch (e) {
-    Loggers.config.warning('Failed to load saved base URL: $e');
+  } catch (e, s) {
+    Loggers.config.warning(
+      'Failed to load saved base URL: $e',
+      error: e,
+      stackTrace: s,
+    );
   }
 
-  runApp(
-    ProviderScope(
-      overrides: [
-        // Inject shell configuration via ProviderScope (no global state)
-        shellConfigProvider.overrideWithValue(config),
-        capturedCallbackParamsProvider.overrideWithValue(callbackParams),
-        // Fulfills the contract of preloadedPrefsProvider, enabling
-        // synchronous log config initialization (eliminates race condition).
-        preloadedPrefsProvider.overrideWithValue(prefs),
-        // Inject user's saved base URL if available
-        if (savedBaseUrl != null)
-          preloadedBaseUrlProvider.overrideWithValue(savedBaseUrl),
-      ],
-      child: const SoliplexApp(),
-    ),
+  // Capture Flutter framework errors (layout, build, rendering).
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    LogManager.instance.emit(
+      LogRecord(
+        level: LogLevel.fatal,
+        message: 'FlutterError: ${details.exceptionAsString()}',
+        timestamp: DateTime.now(),
+        loggerName: 'Flutter',
+        error: details.exception,
+        stackTrace: details.stack,
+      ),
+    );
+  };
+
+  // Capture unhandled async errors that escape the widget tree.
+  runZonedGuarded(
+    () {
+      runApp(
+        ProviderScope(
+          overrides: [
+            // Inject shell configuration via ProviderScope (no global state)
+            shellConfigProvider.overrideWithValue(config),
+            capturedCallbackParamsProvider.overrideWithValue(callbackParams),
+            // Fulfills the contract of preloadedPrefsProvider, enabling
+            // synchronous log config initialization (no race condition).
+            preloadedPrefsProvider.overrideWithValue(prefs),
+            // Inject user's saved base URL if available
+            if (savedBaseUrl != null)
+              preloadedBaseUrlProvider.overrideWithValue(savedBaseUrl),
+          ],
+          child: const SoliplexApp(),
+        ),
+      );
+    },
+    (error, stack) {
+      LogManager.instance.emit(
+        LogRecord(
+          level: LogLevel.fatal,
+          message: 'Unhandled error: $error',
+          timestamp: DateTime.now(),
+          loggerName: 'Zone',
+          error: error,
+          stackTrace: stack,
+        ),
+      );
+    },
   );
 }
