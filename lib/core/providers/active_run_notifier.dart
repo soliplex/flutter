@@ -9,7 +9,6 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
-import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 /// Internal state representing the notifier's resource management.
 ///

@@ -188,6 +188,9 @@ void main() {
           eventReceived = true;
         });
 
+        addTearDown(testSubscription.cancel);
+        addTearDown(broadcastController.close);
+
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
@@ -204,8 +207,6 @@ void main() {
         await Future<void>.delayed(Duration.zero);
 
         expect(eventReceived, isFalse);
-
-        await broadcastController.close();
       });
 
       test('can be called multiple times safely', () async {
