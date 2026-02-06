@@ -5,8 +5,9 @@ import 'package:soliplex_client_native/src/platform/create_platform_client_stub.
 /// Creates an HTTP client optimized for the current platform.
 ///
 /// Returns:
+/// - `CronetHttpClient` on Android (uses Cronet via Google Play Services)
 /// - `CupertinoHttpClient` on iOS and macOS (uses NSURLSession)
-/// - `DartHttpClient` on all other platforms (Android, Windows, Linux, Web)
+/// - `DartHttpClient` on all other platforms (Windows, Linux, Web)
 ///
 /// The [defaultTimeout] parameter sets the default request timeout.
 ///
