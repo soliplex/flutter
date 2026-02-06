@@ -205,8 +205,7 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
     return details;
   }
 
-  String _getStackTrace() {
-    // Use the provided stack trace, fall back to SoliplexException's if empty
+  String _resolveStackTrace() {
     var stackTrace = widget.stackTrace;
     if (stackTrace == StackTrace.empty) {
       final unwrapped = _unwrapError();
@@ -216,13 +215,19 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
         return '';
       }
     }
+    return stackTrace.toString();
+  }
 
-    final lines = stackTrace.toString().split('\n');
-    final truncated = lines.take(10).join('\n');
+  String _getDisplayStackTrace() {
+    final full = _resolveStackTrace();
+    if (full.isEmpty) return '';
+    final lines = full.split('\n');
     if (lines.length > 10) {
-      return '$truncated\n... (${lines.length - 10} more lines)';
+      final truncated = lines.take(10).join('\n');
+      final remaining = lines.length - 10;
+      return '$truncated\n... ($remaining more lines)';
     }
-    return truncated;
+    return full;
   }
 
   String _formatAllDetails() {
@@ -230,7 +235,7 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
     for (final entry in _buildDetails().entries) {
       buffer.writeln('${entry.key}: ${entry.value}');
     }
-    final stackTrace = _getStackTrace();
+    final stackTrace = _resolveStackTrace();
     if (stackTrace.isNotEmpty) {
       buffer
         ..writeln()
@@ -274,7 +279,7 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
         if (_expanded)
           _DetailsPanel(
             details: _buildDetails(),
-            stackTrace: _getStackTrace(),
+            stackTrace: _getDisplayStackTrace(),
             formattedDetails: _formatAllDetails(),
           ),
       ],
