@@ -17,9 +17,7 @@ class LogRecordTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasDetails = record.error != null || record.stackTrace != null;
-
-    if (hasDetails) {
+    if (record.hasDetails) {
       return _ExpandableTile(record: record);
     }
 
@@ -77,11 +75,6 @@ class _TileContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ts = record.timestamp;
-    final timeStr = '${ts.hour.toString().padLeft(2, '0')}:'
-        '${ts.minute.toString().padLeft(2, '0')}:'
-        '${ts.second.toString().padLeft(2, '0')}.'
-        '${ts.millisecond.toString().padLeft(3, '0')}';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,7 +85,7 @@ class _TileContent extends StatelessWidget {
           children: [
             LogLevelBadge(level: record.level),
             Text(
-              timeStr,
+              record.formattedTimestamp,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontFamily: 'monospace',
                 color: theme.colorScheme.onSurfaceVariant,
