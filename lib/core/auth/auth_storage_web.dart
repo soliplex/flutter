@@ -133,9 +133,12 @@ class WebAuthStorage implements AuthStorage {
     if (state.isExpired) {
       try {
         await clearPreAuthState();
-      } on Exception catch (e) {
-        Loggers.auth
-            .warning('WebAuthStorage: Failed to clear expired pre-auth: $e');
+      } on Exception catch (e, s) {
+        Loggers.auth.warning(
+          'WebAuthStorage: Failed to clear expired pre-auth: $e',
+          error: e,
+          stackTrace: s,
+        );
       }
       return null;
     }

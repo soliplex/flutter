@@ -120,6 +120,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
 
   /// Handles cancelling the active run.
   Future<void> _handleCancel() async {
+    Loggers.chat.debug('Cancel run initiated');
     try {
       await ref.read(activeRunNotifierProvider.notifier).cancelRun();
     } catch (e, stackTrace) {

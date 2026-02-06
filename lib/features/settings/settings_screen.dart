@@ -178,6 +178,7 @@ class _AuthSection extends ConsumerWidget {
   }
 
   void _disconnect(BuildContext context, WidgetRef ref) {
+    Loggers.config.info('Disconnect initiated (no-auth mode)');
     ref.read(authProvider.notifier).exitNoAuthMode();
   }
 
@@ -201,6 +202,7 @@ class _AuthSection extends ConsumerWidget {
     );
 
     if ((confirmed ?? false) && context.mounted) {
+      Loggers.config.info('Sign out initiated');
       await ref.read(authProvider.notifier).signOut();
     }
   }

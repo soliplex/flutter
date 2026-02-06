@@ -188,6 +188,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           : getDefaultAuthenticatedRoute(features, routeConfig);
   // Route to callback screen if we have OAuth tokens to process
   final initialPath = isOAuthCallback ? '/auth/callback' : validatedInitial;
+  Loggers.router.debug('Initial location: $initialPath');
 
   return GoRouter(
     initialLocation: initialPath, // Preserve query params for OAuth/deep links
@@ -213,6 +214,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         // Falls back to /login when home route is disabled (whitelabel config).
         final isExplicitSignOut = authState is Unauthenticated &&
             authState.reason == UnauthenticatedReason.explicitSignOut;
+        if (isExplicitSignOut) {
+          Loggers.router.info('Explicit sign-out detected');
+        }
         final target =
             isExplicitSignOut && routeConfig.showHomeRoute ? '/' : '/login';
         Loggers.router.debug('redirecting to $target');

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
@@ -94,6 +95,7 @@ class RoomsScreen extends ConsumerWidget {
                 Expanded(
                   child: roomsAsync.when(
                     data: (rooms) {
+                      Loggers.room.debug('Rooms loaded: ${rooms.length}');
                       if (rooms.isEmpty) {
                         return const EmptyState(
                           message: 'No rooms available',
@@ -102,6 +104,9 @@ class RoomsScreen extends ConsumerWidget {
                       }
 
                       void navigateToRoom(Room room) {
+                        Loggers.room.info(
+                          'Room selected: ${room.id} (${room.name})',
+                        );
                         ref.read(currentRoomIdProvider.notifier).set(room.id);
                         context.push('/rooms/${room.id}');
                       }

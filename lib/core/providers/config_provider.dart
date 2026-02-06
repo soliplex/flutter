@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 
@@ -61,24 +62,33 @@ class ConfigNotifier extends Notifier<AppConfig> {
     // typically static, watch enables proper rebuilding in tests.
     final preloadedUrl = ref.watch(preloadedBaseUrlProvider);
     if (preloadedUrl != null) {
+      Loggers.config.debug('URL resolved from saved preferences');
       return AppConfig(baseUrl: preloadedUrl);
     }
 
     final configUrl = ref.watch(shellConfigProvider).defaultBackendUrl;
-    return AppConfig(baseUrl: platformDefaultBackendUrl(configUrl));
+    final resolved = platformDefaultBackendUrl(configUrl);
+    Loggers.config.debug(
+      'URL resolved from ${kIsWeb ? "platform origin" : "shell config"}',
+    );
+    return AppConfig(baseUrl: resolved);
   }
 
   /// Update the backend URL and persist to storage.
   Future<void> setBaseUrl(String url) async {
     final trimmed = url.trim();
     if (trimmed.isEmpty || trimmed == state.baseUrl) {
+      Loggers.config.trace('Base URL unchanged, skipped');
       return;
     }
 
+    final oldUrl = state.baseUrl;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_baseUrlKey, trimmed);
+    Loggers.config.debug('Base URL persisted to SharedPreferences');
 
     state = state.copyWith(baseUrl: trimmed);
+    Loggers.config.info('Base URL changed: $oldUrl -> $trimmed');
   }
 
   /// Directly sets the config state without persisting.

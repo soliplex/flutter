@@ -128,6 +128,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     }
 
     _isStarting = true;
+    Loggers.activeRun.debug(
+      'startRun called: room=$roomId, thread=$threadId',
+    );
     StreamSubscription<BaseEvent>? subscription;
     String? runId;
 
@@ -243,6 +246,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         cancelOnError: false,
       );
 
+      Loggers.activeRun.debug(
+        'Stream subscription established for run $runId',
+      );
+
       // Store running state with correlation data
       _internalState = RunningInternalState(
         runId: runId,
@@ -291,6 +298,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ///
   /// Preserves all completed messages but clears streaming state.
   Future<void> cancelRun() async {
+    Loggers.activeRun.debug('cancelRun called');
     final currentState = state;
     final previousInternalState = _internalState;
 
@@ -317,6 +325,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// disposal of any active resources. Disposal errors are caught and logged
   /// to ensure fire-and-forget callers (like Riverpod listeners) are safe.
   Future<void> reset() async {
+    Loggers.activeRun.debug('reset called');
     final previousState = _internalState;
     _internalState = const IdleInternalState();
     state = const IdleState();

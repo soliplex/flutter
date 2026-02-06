@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,6 +12,7 @@ import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Entry point for running a Soliplex-based application.
 ///
@@ -36,6 +39,37 @@ Future<void> runSoliplexApp({
 }) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Capture Flutter framework errors (layout, build, rendering).
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    LogManager.instance.emit(
+      LogRecord(
+        level: LogLevel.fatal,
+        message: 'FlutterError: ${details.exceptionAsString()}',
+        timestamp: DateTime.now(),
+        loggerName: 'Flutter',
+        error: details.exception,
+        stackTrace: details.stack,
+      ),
+    );
+  };
+
+  // Capture unhandled async errors via PlatformDispatcher (modern Flutter).
+  // Avoids zone mismatch issues and preserves debugger stack traces.
+  PlatformDispatcher.instance.onError = (error, stack) {
+    LogManager.instance.emit(
+      LogRecord(
+        level: LogLevel.fatal,
+        message: 'Unhandled error: $error',
+        timestamp: DateTime.now(),
+        loggerName: 'Platform',
+        error: error,
+        stackTrace: stack,
+      ),
+    );
+    return true; // Handled — prevent default error reporting.
+  };
+
   // Capture OAuth callback params BEFORE GoRouter initializes.
   // GoRouter may modify the URL, losing the callback tokens.
   final callbackParams = CallbackParamsCapture.captureNow();
@@ -60,8 +94,12 @@ Future<void> runSoliplexApp({
   String? savedBaseUrl;
   try {
     savedBaseUrl = await loadSavedBaseUrl();
-  } catch (e) {
-    Loggers.config.warning('Failed to load saved base URL: $e');
+  } catch (e, s) {
+    Loggers.config.warning(
+      'Failed to load saved base URL: $e',
+      error: e,
+      stackTrace: s,
+    );
   }
 
   runApp(
@@ -71,7 +109,7 @@ Future<void> runSoliplexApp({
         shellConfigProvider.overrideWithValue(config),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
         // Fulfills the contract of preloadedPrefsProvider, enabling
-        // synchronous log config initialization (eliminates race condition).
+        // synchronous log config initialization (no race condition).
         preloadedPrefsProvider.overrideWithValue(prefs),
         // Inject user's saved base URL if available
         if (savedBaseUrl != null)

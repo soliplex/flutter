@@ -43,6 +43,7 @@ final threadsProvider = FutureProvider.family<List<ThreadInfo>, String>((
     return a.id.compareTo(b.id);
   });
 
+  Loggers.room.debug('Threads fetched for $roomId: ${threads.length}');
   return threads;
 });
 

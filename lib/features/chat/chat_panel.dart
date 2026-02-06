@@ -191,6 +191,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     final ThreadInfo effectiveThread;
     final isNewThread = thread == null || selection is NewThreadIntent;
     if (isNewThread) {
+      Loggers.chat.debug('Thread creation initiated for room ${room.id}');
       final result = await _withErrorHandling(
         context,
         () => ref.read(apiProvider).createThread(room.id),
@@ -199,6 +200,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       switch (result) {
         case Ok(:final value):
           effectiveThread = value;
+          Loggers.chat.info('Thread created: ${effectiveThread.id}');
         case Err():
           return;
       }
@@ -210,6 +212,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
 
       // Transfer pending document selection to the new thread
       if (_pendingDocuments.isNotEmpty) {
+        Loggers.chat.debug(
+          'Pending documents transferred to thread'
+          ' ${effectiveThread.id}: ${_pendingDocuments.length} docs',
+        );
         ref
             .read(selectedDocumentsNotifierProvider.notifier)
             .setForThread(room.id, effectiveThread.id, _pendingDocuments);
@@ -247,6 +253,15 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
 
     // Start the run
     if (!context.mounted) return;
+    Loggers.chat.debug(
+      'Message send initiated for thread ${effectiveThread.id}',
+    );
+    if (initialState != null) {
+      Loggers.chat.debug(
+        'Run started with document filter:'
+        ' ${selectedDocuments.length} docs selected',
+      );
+    }
     await _withErrorHandling(
       context,
       () => ref.read(activeRunNotifierProvider.notifier).startRun(

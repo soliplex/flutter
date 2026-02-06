@@ -43,11 +43,13 @@ class _NonClosingHttpClient extends http.BaseClient {
 /// - Any other calls that should be observable but not authenticated
 final baseHttpClientProvider = Provider<SoliplexHttpClient>((ref) {
   final baseClient = createPlatformClient();
+  Loggers.http.debug('Platform HTTP client created');
   final observer = ref.watch(httpLogProvider.notifier);
   final observable = ObservableHttpClient(
     client: baseClient,
     observers: [observer],
   );
+  Loggers.http.debug('Observable client created with 1 observer');
   ref.onDispose(() {
     try {
       observable.close();
@@ -90,6 +92,7 @@ final authenticatedClientProvider = Provider<SoliplexHttpClient>((ref) {
   );
 
   // Outer client: handles proactive refresh + 401 retry
+  Loggers.http.debug('Authenticated client created');
   return RefreshingHttpClient(inner: authClient, refresher: authNotifier);
 });
 
@@ -123,6 +126,7 @@ final httpTransportProvider = Provider<HttpTransport>((ref) {
 /// API endpoint URLs.
 final urlBuilderProvider = Provider<UrlBuilder>((ref) {
   final config = ref.watch(configProvider);
+  Loggers.http.debug('URL builder created: ${config.baseUrl}/api/v1');
   return UrlBuilder('${config.baseUrl}/api/v1');
 });
 
@@ -166,6 +170,7 @@ final apiProvider = Provider<SoliplexApi>((ref) {
   // would close the shared transport. The transport is managed by
   // httpTransportProvider, and the underlying client is managed by
   // baseHttpClientProvider.
+  Loggers.http.debug('API client created');
   return SoliplexApi(
     transport: transport,
     urlBuilder: urlBuilder,
@@ -214,6 +219,7 @@ final agUiClientProvider = Provider<AgUiClient>((ref) {
   // but won't close the underlying shared HTTP client.
   final protectedClient = _NonClosingHttpClient(httpClient);
 
+  Loggers.http.debug('AG-UI client created (timeout: 600s)');
   final client = AgUiClient(
     config: AgUiClientConfig(
       baseUrl: '${config.baseUrl}/api/v1',
