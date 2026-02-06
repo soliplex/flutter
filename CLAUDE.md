@@ -64,11 +64,6 @@ docs/                        # Documentation (see index.md)
 - Chat → Thread scope (messages, streaming, input)
 - HttpInspector → Request/response traffic monitoring
 
-## Skills
-
-See [docs/skills/SKILLS.md](docs/skills/SKILLS.md) for codified patterns
-and conventions.
-
 ## Development Rules
 
 - KISS, YAGNI, SOLID - simple solutions over clever ones

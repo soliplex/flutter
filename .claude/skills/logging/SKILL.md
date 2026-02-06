@@ -1,3 +1,9 @@
+---
+name: logging
+description: Logging conventions for this codebase. Use when writing log statements, adding catch blocks, creating providers, investigating errors, or reading MemorySink contents.
+user-invocable: false
+---
+
 # Logging Guide
 
 ## Log Levels
