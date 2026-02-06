@@ -40,9 +40,10 @@ class HaikuRagChat {
   });
 
   factory HaikuRagChat.fromJson(Map<String, dynamic> json) => HaikuRagChat(
-        citationRegistry: Map.from(
-          json["citation_registry"]!,
-        ).map((k, v) => MapEntry<String, int>(k, v)),
+        citationRegistry: json["citation_registry"] == null
+            ? null
+            : Map.from(json["citation_registry"]!)
+                .map((k, v) => MapEntry<String, int>(k, v)),
         citations: json["citations"] == null
             ? []
             : List<Citation>.from(
@@ -64,9 +65,10 @@ class HaikuRagChat {
       );
 
   Map<String, dynamic> toJson() => {
-        "citation_registry": Map.from(
-          citationRegistry!,
-        ).map((k, v) => MapEntry<String, dynamic>(k, v)),
+        "citation_registry": citationRegistry == null
+            ? null
+            : Map.from(citationRegistry!)
+                .map((k, v) => MapEntry<String, dynamic>(k, v)),
         "citations": citations == null
             ? []
             : List<dynamic>.from(citations!.map((x) => x.toJson())),

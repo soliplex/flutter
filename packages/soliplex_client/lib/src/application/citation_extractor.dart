@@ -1,7 +1,33 @@
+import 'dart:developer' as developer;
+
 import 'package:soliplex_client/src/domain/source_reference.dart';
 import 'package:soliplex_client/src/schema/agui_features/ask_history.dart'
     as ask_history;
 import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
+
+Never _throwFromJsonDiagnostic(
+  String className,
+  Map<String, dynamic> json,
+  Object error,
+  StackTrace stackTrace,
+) {
+  final nullKeys =
+      json.entries.where((e) => e.value == null).map((e) => e.key).toList();
+  final presentKeys = json.keys.toList();
+
+  final message = '$className.fromJson failed ($error). '
+      'Null keys: $nullKeys. Present keys: $presentKeys.';
+
+  developer.log(
+    message,
+    name: 'soliplex_client.citation_extractor',
+    level: 900,
+    error: error,
+    stackTrace: stackTrace,
+  );
+
+  Error.throwWithStackTrace(FormatException(message), stackTrace);
+}
 
 /// Extracts new [SourceReference]s by comparing AG-UI state snapshots.
 ///
@@ -44,13 +70,17 @@ class CitationExtractor {
 
     if (currentLength <= previousLength) return [];
 
-    final haikuRagChat = HaikuRagChat.fromJson(currentData);
-    final qaHistory = haikuRagChat.qaHistory ?? [];
+    try {
+      final haikuRagChat = HaikuRagChat.fromJson(currentData);
+      final qaHistory = haikuRagChat.qaHistory ?? [];
 
-    return qaHistory
-        .sublist(previousLength)
-        .expand(_extractFromQaResponse)
-        .toList();
+      return qaHistory
+          .sublist(previousLength)
+          .expand(_extractFromQaResponse)
+          .toList();
+    } catch (e, stackTrace) {
+      _throwFromJsonDiagnostic('HaikuRagChat', currentData, e, stackTrace);
+    }
   }
 
   int _getQaHistoryLength(Map<String, dynamic>? data) {
@@ -91,13 +121,17 @@ class CitationExtractor {
 
     if (currentLength <= previousLength) return [];
 
-    final history = ask_history.AskHistory.fromJson(currentData);
-    final questions = history.questions ?? [];
+    try {
+      final history = ask_history.AskHistory.fromJson(currentData);
+      final questions = history.questions ?? [];
 
-    return questions
-        .sublist(previousLength)
-        .expand(_extractFromQuestionResponse)
-        .toList();
+      return questions
+          .sublist(previousLength)
+          .expand(_extractFromQuestionResponse)
+          .toList();
+    } catch (e, stackTrace) {
+      _throwFromJsonDiagnostic('AskHistory', currentData, e, stackTrace);
+    }
   }
 
   int _getQuestionsLength(Map<String, dynamic>? data) {
