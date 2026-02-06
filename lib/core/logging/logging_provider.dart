@@ -98,6 +98,7 @@ final memorySinkProvider = Provider<MemorySink>((ref) {
 
   ref.onDispose(() {
     LogManager.instance.removeSink(sink);
+    sink.close();
   });
 
   return sink;

@@ -34,7 +34,10 @@ void main() {
         ..write(_record('third'));
 
       expect(sink.length, 3);
-      expect(sink.records.map((r) => r.message), ['first', 'second', 'third']);
+      expect(
+        sink.records.map((r) => r.message),
+        ['first', 'second', 'third'],
+      );
     });
 
     test('evicts oldest record when at capacity', () {
@@ -61,12 +64,35 @@ void main() {
       expect(sink.records.last.message, 'msg-5');
     });
 
+    test('maintains order after multiple wrap-arounds', () {
+      // Fill buffer twice over to verify circular indexing.
+      for (var i = 0; i < 12; i++) {
+        sink.write(_record('msg-$i'));
+      }
+
+      expect(sink.length, 5);
+      expect(
+        sink.records.map((r) => r.message),
+        ['msg-7', 'msg-8', 'msg-9', 'msg-10', 'msg-11'],
+      );
+    });
+
     test('records returns unmodifiable list', () {
       sink.write(_record('test'));
       expect(
         () => sink.records.add(_record('hack')),
         throwsUnsupportedError,
       );
+    });
+
+    test('records supports indexed access', () {
+      for (var i = 0; i < 7; i++) {
+        sink.write(_record('msg-$i'));
+      }
+
+      // After eviction, records[0] is the oldest retained.
+      expect(sink.records[0].message, 'msg-2');
+      expect(sink.records[4].message, 'msg-6');
     });
 
     test('clear removes all records', () {
@@ -88,6 +114,34 @@ void main() {
 
       expect(sink.length, 1);
       expect(sink.records.first.message, 'after');
+    });
+
+    test('clear after wrap-around resets correctly', () {
+      for (var i = 0; i < 8; i++) {
+        sink.write(_record('msg-$i'));
+      }
+      sink
+        ..clear()
+        // Buffer should accept new records starting fresh.
+        ..write(_record('fresh-0'))
+        ..write(_record('fresh-1'));
+
+      expect(sink.length, 2);
+      expect(
+        sink.records.map((r) => r.message),
+        ['fresh-0', 'fresh-1'],
+      );
+    });
+
+    test('onClear emits when clear is called', () async {
+      var cleared = false;
+      final sub = sink.onClear.listen((_) => cleared = true);
+
+      sink.clear();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cleared, isTrue);
+      await sub.cancel();
     });
 
     test('stream emits on write', () async {
@@ -116,9 +170,10 @@ void main() {
       await sub.cancel();
     });
 
-    test('close closes the stream', () async {
+    test('close closes both streams', () async {
       await sink.close();
       expect(sink.onRecord.isBroadcast, isTrue);
+      expect(sink.onClear.isBroadcast, isTrue);
     });
 
     test('write does not throw after close', () async {
@@ -144,6 +199,13 @@ void main() {
 
       expect(tinySink.length, 1);
       expect(tinySink.records.first.message, 'second');
+    });
+
+    test('rejects maxRecords of zero', () {
+      expect(
+        () => MemorySink(maxRecords: 0),
+        throwsA(isA<AssertionError>()),
+      );
     });
   });
 }
