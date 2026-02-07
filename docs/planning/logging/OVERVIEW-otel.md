@@ -37,7 +37,7 @@ happened. Native crashes (SIGSEGV) and session replay are out of scope.
 │                       └────────────┬────────────┘    │
 │                                    │                 │
 │                              POST /api/v1/logs       │
-│                              (simple JSON array)     │
+│                              {"logs":[], "resource":{}}│
 │                              (session JWT auth)      │
 └────────────────────────────────┼─────────────────────┘
                                  │
@@ -90,7 +90,8 @@ happened. Native crashes (SIGSEGV) and session replay are out of scope.
 - **Disk-backed queue** — logs persist to JSONL file before HTTP send.
   Survives crashes and OS kills. Store-and-forward on next launch.
 - **Log sanitizer** — PII/classified data redaction is P0 (DoD
-  requirement). Runs before any sink receives the record.
+  requirement). Runs in `LogManager` pipeline before any sink receives
+  the record — Console, Memory, and Backend sinks all get sanitized data.
 - **Same endpoint all platforms** — no web proxy needed. All platforms
   POST to `/api/v1/logs` with session JWT. No CORS issue.
 - **Dart crash hooks** — `FlutterError.onError` and
@@ -98,6 +99,9 @@ happened. Native crashes (SIGSEGV) and session replay are out of scope.
   Fatal records trigger immediate flush.
 - **Session correlation** — UUID session ID + user ID injected into
   every payload. Required for log reconstruction on backend.
+- **Install ID** — per-install UUID stored locally, included in every
+  payload. Stable "device Y" key for cross-session queries without
+  hardware identifiers.
 
 ## What This Replaces
 

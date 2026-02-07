@@ -79,8 +79,11 @@ correlation, log sanitizer, and disk-backed queue.
 #### Architecture
 
 ```text
+LogManager (sanitization layer)
+├── LogSanitizer (PII redaction — ALL sinks get sanitized data)
+│   └── Runs before record is dispatched to any sink
+│
 BackendLogSink (LogSink)
-├── LogSanitizer (PII redaction — runs first)
 ├── DiskQueue (JSONL write-ahead log)
 │   ├── write() → append to file
 │   ├── drain() → read + delete confirmed lines
@@ -89,16 +92,18 @@ BackendLogSink (LogSink)
 │   ├── Timer-based flush (30s)
 │   ├── Severity-triggered flush (immediate on ERROR/FATAL)
 │   ├── Lifecycle flush (app pause/hidden)
-│   ├── Basic retry (backoff on 5xx/429, disable on 401)
-│   └── Poison pill protection (max 3 retries per batch, then discard)
+│   ├── Basic retry (backoff on 5xx/429, re-enable on new JWT)
+│   ├── Poison pill protection (max 3 retries per batch, then discard)
+│   └── Byte-based batch cap (< 1 MB payload)
 └── SessionContext (injected into every payload)
+    ├── installId (UUID, generated once per install, persisted)
     ├── sessionId (UUID, generated on app start)
     └── userId (from auth state)
 ```
 
 #### Changes
 
-**`packages/soliplex_logging/lib/src/sinks/log_sanitizer.dart` (new):**
+**`packages/soliplex_logging/lib/src/log_sanitizer.dart` (new):**
 
 - `LogSanitizer` class with configurable rules
 - **Key redaction:** blocklist of sensitive keys (`password`, `token`,
@@ -107,8 +112,14 @@ BackendLogSink (LogSink)
 - **Pattern scrubbing:** regex patterns for emails, SSNs, bearer tokens,
   IP addresses in message strings
 - **Stack trace trimming:** strip absolute file paths to relative
-- Runs on `LogRecord` before it reaches any sink
 - Configurable: additional keys/patterns can be added at construction
+
+**`packages/soliplex_logging/lib/src/log_manager.dart`:**
+
+- Add optional `LogSanitizer? sanitizer` to `LogManager` constructor
+- In `emit()`, run `sanitizer.sanitize(record)` before dispatching to
+  sinks. This ensures ALL sinks (Console, Memory, Backend) receive
+  sanitized data. DoD P0: no unsanitized PII reaches any output.
 
 **`packages/soliplex_logging/lib/src/sinks/disk_queue.dart` (new):**
 
@@ -130,17 +141,18 @@ BackendLogSink (LogSink)
 - Constructor takes:
   - `endpoint` (URL string, e.g. `/api/v1/logs`)
   - `http.Client` (injected by app layer)
+  - `installId` (String — per-install UUID, persisted locally)
   - `sessionId` (String)
   - `userId` (String?, nullable for pre-auth)
   - `resourceAttributes` (Map — service.name, version, os, device)
-  - `LogSanitizer` (injected)
   - `DiskQueue` (injected)
+  - Optional `maxBatchBytes` (default 900 KB — stays under 1 MB limit)
   - Optional `batchSize` (default 100), `flushInterval` (default 30s)
   - Optional `networkChecker` (`bool Function()?`)
 
 **`write(LogRecord)`:**
 
-1. Run record through `LogSanitizer`
+1. Record is already sanitized by `LogManager` pipeline
 2. Serialize to JSON map:
 
    ```json
@@ -154,25 +166,29 @@ BackendLogSink (LogSink)
      "stackTrace": null,
      "spanId": null,
      "traceId": null,
-     "sessionId": "uuid-here",
+     "installId": "install-uuid",
+     "sessionId": "session-uuid",
      "userId": "user-abc"
    }
    ```
 
 3. **Record size guard:** if serialized JSON exceeds 64 KB, truncate
-   `message` and `attributes` (prevent mega-logs from filling queue)
+   `message`, `attributes`, `stackTrace`, and `error` (in that order)
 4. Append to `DiskQueue`
 5. If ERROR/FATAL → trigger immediate flush
 
 **`flush()`:**
 
 1. If `networkChecker` provided and returns false → skip, keep buffered
-2. Drain up to `batchSize` records from `DiskQueue`
-3. POST JSON array to endpoint with `Authorization: Bearer <jwt>`
+2. Drain records from `DiskQueue` up to `batchSize` OR `maxBatchBytes`
+   (whichever limit hits first — prevents 413 from backend)
+3. POST JSON object to endpoint with `Authorization: Bearer <jwt>`
 4. On 200 → confirm records in queue, reset retry counter
 5. On 429/5xx → exponential backoff (1s, 2s, 4s, max 60s), records
    stay in queue for next attempt, increment retry counter
-6. On 401/403 → stop retrying, surface via `onError` callback
+6. On 401/403 → disable export, surface via `onError` callback.
+   **Recovery:** if a new JWT is observed (e.g. re-login), re-enable
+   export automatically and retry
 7. **Poison pill:** if same batch fails 3 consecutive times → discard
    batch, log diagnostic to `onError`, move to next batch
 
@@ -216,22 +232,29 @@ FlutterError.onError = (details) {
 **`packages/soliplex_logging/lib/soliplex_logging.dart`:**
 
 - Export `backend_log_sink.dart`, `disk_queue.dart`, `log_sanitizer.dart`
+  (`LogSanitizer` is in `lib/src/` not `lib/src/sinks/` since it's
+  used by `LogManager`, not just `BackendLogSink`)
 
 #### Layering Note
 
-`BackendLogSink` and `DiskQueue` are **pure Dart**. All platform
-concerns are injected by the app layer: `http.Client`, `directoryPath`
-(from `path_provider`), `sessionId`, `userId`, `networkChecker`, and
+`BackendLogSink`, `DiskQueue`, and `LogSanitizer` are **pure Dart**.
+`LogSanitizer` is wired into `LogManager` (not `BackendLogSink`) so all
+sinks receive sanitized data. All platform concerns are injected by the
+app layer: `http.Client`, `directoryPath` (from `path_provider`),
+`installId`, `sessionId`, `userId`, `networkChecker`, and
 `resourceAttributes`.
 
 #### Unit Tests
 
-- `test/sinks/log_sanitizer_test.dart`:
+- `test/log_sanitizer_test.dart`:
   - Key redaction (password, token, auth → `[REDACTED]`)
   - Pattern scrubbing (emails, SSNs, bearer tokens in messages)
   - Stack trace path trimming
   - Custom additional keys/patterns
   - Does not modify safe records
+- `test/log_manager_sanitizer_test.dart`:
+  - LogManager with sanitizer sanitizes before all sinks
+  - LogManager without sanitizer passes records unmodified
 - `test/sinks/disk_queue_test.dart`:
   - Append + drain round-trip
   - Confirm removes records
@@ -241,8 +264,8 @@ concerns are injected by the app layer: `http.Client`, `directoryPath`
 - `test/sinks/backend_log_sink_test.dart`:
   - Timer-based flush (advance fake timer)
   - Severity-triggered flush (ERROR → immediate)
-  - Records serialized with sessionId/userId
-  - Sanitizer runs before serialization
+  - Records serialized with installId/sessionId/userId
+  - Byte-based batch cap (stops draining when payload nears limit)
   - NetworkChecker false → skip flush
   - HTTP 200 → records confirmed
   - HTTP 429/5xx → records stay in queue, backoff
@@ -266,17 +289,20 @@ concerns are injected by the app layer: `http.Client`, `directoryPath`
 #### Acceptance Criteria
 
 - [ ] `LogSanitizer` redacts sensitive keys and patterns
+- [ ] `LogSanitizer` wired into `LogManager` — all sinks get sanitized data
 - [ ] `DiskQueue` persists records to JSONL file
 - [ ] Records survive app crash (new instance reads pending)
 - [ ] `BackendLogSink` serializes `LogRecord` to simple JSON
-- [ ] SessionId and userId injected into every payload
+- [ ] installId, sessionId, and userId injected into every payload
 - [ ] Timer-based and severity-triggered flush
+- [ ] Batch capped by bytes (< 1 MB) and record count
 - [ ] HTTP 200 confirms records, 429/5xx retries with backoff
-- [ ] HTTP 401 disables export, fires `onError`
+- [ ] HTTP 401 disables export, re-enables on new JWT
 - [ ] NetworkChecker skips flush when offline
 - [ ] `close()` drains remaining queue
 - [ ] Poison pill: batch discarded after 3 consecutive failures
-- [ ] Record size guard: records > 64 KB truncated before queue
+- [ ] Record size guard: records > 64 KB truncated (message, attributes,
+  stackTrace, error — in priority order)
 - [ ] Dart crash hooks capture uncaught exceptions as fatal logs
 - [ ] Integration: crash recovery round-trip
 - [ ] Integration: sanitizer scrubs PII from payload
@@ -298,19 +324,25 @@ the same endpoint.
 **`lib/core/logging/log_config.dart`:**
 
 - Add `backendLoggingEnabled` (bool, default false)
-- Add `backendEndpoint` (String, default `/api/v1/logs`)
+- Add `backendEndpoint` (String, default `/api/v1/logs`).
+  **Locked in production builds** — editable only in debug/dev to
+  prevent misconfiguration or exfiltration risk (DoD)
 
 **`lib/core/logging/logging_provider.dart`:**
 
+- Add `installIdProvider` — per-install UUID, persisted to local storage
+  on first launch. Stable "device Y" key for cross-session queries.
 - Add `backendLogSinkProvider` — creates `BackendLogSink` with:
   - Endpoint from config
   - `http.Client` from platform client provider
+  - `installId` from `installIdProvider`
   - `sessionId` from new `sessionIdProvider` (UUID, generated once)
   - `userId` from auth state provider
   - `resourceAttributes` from `package_info_plus` + `device_info_plus`
   - `networkChecker` from `connectivity_plus`
-  - `LogSanitizer` with default DoD-appropriate rules
   - `DiskQueue` with path from `path_provider`
+- Wire `LogSanitizer` with default DoD-appropriate rules into
+  `LogManager` (not `BackendLogSink`) so all sinks get sanitized data
 - Register with `LogManager`, `ref.onDispose → close`
 - Sink disabled when `backendLoggingEnabled` is false
 
@@ -342,7 +374,8 @@ the same endpoint.
 **`lib/features/settings/telemetry_screen.dart` (new):**
 
 - Enable/disable toggle
-- Endpoint field (pre-filled, editable)
+- Endpoint field (pre-filled, **read-only in production builds**,
+  editable in debug/dev only — DoD exfil prevention)
 - Connection status indicator
 - No token field needed (backend holds Logfire token)
 
@@ -352,19 +385,19 @@ the same endpoint.
 
 #### Dependencies (App Layer Only)
 
-- `connectivity_plus` — `NetworkStatusChecker` callback
+- `connectivity_plus` — `NetworkStatusChecker` callback + change listener
 - `package_info_plus` — `service.version` resource attribute
 - `device_info_plus` — `device.model`, `os.version` resource attributes
 - `path_provider` — `DiskQueue` file location
-- `uuid` — session ID generation
-- `flutter_secure_storage` — already in pubspec (not needed for token
-  in Option B, but available for future use)
+- `uuid` — installId + sessionId generation
+- `shared_preferences` — persist `installId` across installs
 
 #### Unit Tests
 
 - `test/core/logging/logging_provider_test.dart`:
   - BackendLogSink created when enabled
   - Sink not created when disabled
+  - InstallId persisted across app launches (same install)
   - SessionId persists across provider rebuilds (same session)
   - UserId updates when auth state changes
   - Disposed on ref dispose
@@ -374,7 +407,8 @@ the same endpoint.
 - `test/features/settings/telemetry_screen_test.dart`:
   - Toggle enables/disables export
   - Connection status reflects sink state
-  - Endpoint field editable
+  - Endpoint field read-only in production mode
+  - Endpoint field editable in debug mode
 
 #### Integration Tests
 
@@ -387,6 +421,7 @@ the same endpoint.
 #### Acceptance Criteria
 
 - [ ] `backendLogSinkProvider` creates sink with all injected deps
+- [ ] `installId` persisted per-install, included in every payload
 - [ ] SessionId generated on startup, injected into every payload
 - [ ] UserId from auth state, nullable for pre-auth logs
 - [ ] Config toggle enables/disables at runtime
@@ -394,8 +429,9 @@ the same endpoint.
 - [ ] Connectivity listener logs `network_changed` events
 - [ ] Lifecycle flush on all platforms
 - [ ] Dart crash hooks wired before `runApp`
-- [ ] Telemetry screen with toggle, endpoint, status
+- [ ] Telemetry screen with toggle, endpoint (locked in prod), status
 - [ ] `connectivity_plus` integration (flush check + change listener)
+- [ ] `LogSanitizer` wired into `LogManager` (all sinks sanitized)
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
@@ -414,13 +450,18 @@ forwards to Logfire via the Python OTel SDK.
 
 - Validate session JWT from `Authorization: Bearer <jwt>` header
 - Accept JSON body: `{"logs": [...], "resource": {...}}`
+- **Server-received timestamp:** stamp each record with
+  `server_received_at` from server clock. Persists both client
+  `timestamp` and server `server_received_at` as OTel attributes.
+  Handles clock skew on DoD devices with manual/incorrect time.
 - Map each log to OTel `LogRecord` using Python `opentelemetry-sdk`:
   - `level` → `SeverityNumber`
-  - `timestamp` → `observedTimestamp`
+  - `timestamp` → `observedTimestamp` (client time)
+  - `server_received_at` → OTel attribute (server time)
   - `logger` → `InstrumentationScope`
   - `attributes` → OTel attributes (typed correctly by Python SDK)
   - `error`/`stackTrace` → exception semantic conventions
-  - `sessionId`/`userId` → resource or record attributes
+  - `installId`/`sessionId`/`userId` → resource or record attributes
 - Forward to Logfire via `OTLPLogExporter` (Python SDK handles batching,
   retry, compression, OTLP compliance)
 - Rate limit: per-user/per-session caps
@@ -445,7 +486,9 @@ forwards to Logfire via the Python OTel SDK.
 #### Acceptance Criteria
 
 - [ ] Endpoint accepts Flutter log JSON
+- [ ] Server-received timestamp stamped on each record
 - [ ] Maps to OTel LogRecords via Python SDK
+- [ ] `installId`/`sessionId`/`userId` persisted as attributes
 - [ ] Forwards to Logfire (verified in staging)
 - [ ] Auth, rate limiting, size limits enforced
 - [ ] Tests pass
@@ -611,8 +654,10 @@ reconstructs what happened.
 | Offline persistence | Covered | DiskQueue (JSONL write-ahead) |
 | PII/classified redaction | Covered | LogSanitizer (P0 for DoD) |
 | Session correlation | Covered | UUID sessionId + userId |
+| Install ID (device Y) | Covered | Per-install UUID for cross-session queries |
 | Session start marker | Covered | Device/app fingerprint on startup |
 | Connectivity history | Covered | `network_changed` events logged |
+| Server-received timestamp | Covered | Backend stamps server time (clock skew) |
 | Poison pill protection | Covered | Bad batches discarded after 3 retries |
 | Record size guard | Covered | Oversized records truncated at 64 KB |
 | In-app log viewer | Covered | MemorySink + existing UI |

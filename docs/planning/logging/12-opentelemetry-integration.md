@@ -339,16 +339,14 @@ backend holds it server-side.
 Flutter Web does not fire `AppLifecycleState.paused`. Use browser events:
 
 - **`visibilitychange`** → `document.hidden == true`: flush the batch
-  queue (tab hidden or switching away)
-- **`beforeunload`** → last-chance flush before navigation/close.
-  Use synchronous `XMLHttpRequest` or `navigator.sendBeacon()` (note:
-  `sendBeacon` cannot set custom headers, so the proxy must accept
-  unauthenticated requests from `sendBeacon` with a short-lived nonce,
-  or accept that final-flush logs may be lost on web)
-
-**Practical approach:** Rely on `visibilitychange` for the primary flush
-trigger. Accept that `beforeunload` is best-effort — the 30s batch
-interval means at most 30s of logs are at risk on abrupt tab close.
+  queue (tab hidden or switching away). This is the primary web flush.
+- **`beforeunload`** → **dropped**. `sendBeacon()` cannot set
+  `Authorization` headers, which conflicts with the JWT auth requirement.
+  Synchronous XHR is deprecated and unreliable in modern browsers.
+  Accept that logs buffered since the last `visibilitychange` flush
+  (at most 30s) are at risk on abrupt tab close. This is acceptable
+  for a pragmatic field-support logging system — web is not the primary
+  deployment target.
 
 ### Web Timer Throttling
 
@@ -372,7 +370,9 @@ still needs:
 
 ### PII & Redaction (P0 — DoD Requirement)
 
-`LogSanitizer` (12.2) runs client-side before any data leaves the device:
+`LogSanitizer` (12.2) is wired into `LogManager` so ALL sinks (Console,
+Memory, Backend) receive sanitized data. No unsanitized PII reaches any
+output:
 
 - **Key blocklist:** `password`, `token`, `auth`, `secret`, `ssn`,
   `credential` → values replaced with `[REDACTED]`
@@ -393,7 +393,8 @@ still needs:
 `BackendLogSink` (12.2) classifies HTTP responses:
 
 - **200** — confirm records, remove from queue
-- **401/403** — disable export, fire `onError` callback
+- **401/403** — disable export, fire `onError` callback. **Recovery:**
+  re-enable automatically when a new JWT is observed (e.g. re-login)
 - **429/5xx** — exponential backoff (1s, 2s, 4s, max 60s), keep in queue
 - **Poison pill:** if same batch fails 3 consecutive times, discard it
   and move to next batch (prevents one malformed record from blocking
@@ -405,8 +406,10 @@ still needs:
 
 Individual log records are capped at 64 KB serialized JSON. If a developer
 accidentally logs a large API response or binary blob, the record is
-truncated before entering `DiskQueue`. This prevents mega-logs from
-filling the queue and burning battery on repeated writes.
+truncated before entering `DiskQueue`. Truncation order: `message`,
+`attributes`, `stackTrace`, `error` (preserve error identity, trim
+verbosity first). This prevents mega-logs from filling the queue and
+burning battery on repeated writes.
 
 ### Token Security (Simplified)
 
@@ -430,26 +433,31 @@ needed for token storage.
 Production-ready when:
 
 - [ ] `LogRecord` has `attributes` field, all `Logger` methods accept it
+- [ ] `LogSanitizer` wired into `LogManager` — all sinks get sanitized data
 - [ ] `LogSanitizer` redacts sensitive keys and PII patterns (DoD P0)
 - [ ] `DiskQueue` persists records to JSONL, survives crashes
 - [ ] `DiskQueue` rotates at 10 MB cap
 - [ ] `BackendLogSink` serializes `LogRecord` to simple JSON
-- [ ] SessionId and userId injected into every payload
+- [ ] installId, sessionId, and userId injected into every payload
 - [ ] Timer-based flush (30s) and severity-triggered flush (ERROR/FATAL)
+- [ ] Batch capped by bytes (< 1 MB) and record count
 - [ ] HTTP 200 confirms records, 429/5xx retries with backoff
-- [ ] HTTP 401/403 disables export, fires `onError`
+- [ ] HTTP 401/403 disables export, re-enables on new JWT
 - [ ] Sink never re-enters logging pipeline on failure
 - [ ] NetworkChecker skips flush when offline
 - [ ] `flush()` called on app lifecycle pause/hidden/visibilitychange
 - [ ] `close()` drains remaining queue
 - [ ] Poison pill: batch discarded after 3 consecutive failures
-- [ ] Record size guard: records > 64 KB truncated
+- [ ] Record size guard: records > 64 KB truncated (message, attributes,
+  stackTrace, error — in priority order)
 - [ ] Session start marker emitted on startup with device/app attributes
 - [ ] Connectivity changes logged as `network_changed` events
 - [ ] Dart crash hooks capture uncaught exceptions as fatal logs
 - [ ] Logfire write token never reaches the Flutter client
+- [ ] Python endpoint stamps server-received timestamp on each record
 - [ ] Python endpoint maps to OTel LogRecords, forwards to Logfire
 - [ ] Backend enforces auth, rate limits, and size limits
+- [ ] Telemetry endpoint locked in production builds
 - [ ] No PII in exported payloads (sanitizer tests pass)
 
 ## Dartastic Review Findings (Feb 2026)
@@ -526,12 +534,14 @@ boundary of `soliplex_logging`. Options:
 ```text
 soliplex_logging (Pure Dart)        soliplex_frontend (Flutter)
 ├── http                            ├── connectivity_plus
-├── BackendLogSink                  ├── package_info_plus
-│   accepts http.Client             ├── device_info_plus
-│   accepts networkChecker          ├── path_provider (→ DiskQueue path)
-│   accepts resourceAttributes Map  ├── uuid (→ sessionId)
-├── DiskQueue                       └── Riverpod providers compose
-│   accepts directory path String       pure Dart + Flutter plugins
+├── LogManager                      ├── package_info_plus
+│   accepts LogSanitizer (optional) ├── device_info_plus
+├── BackendLogSink                  ├── path_provider (→ DiskQueue path)
+│   accepts http.Client             ├── uuid (→ installId, sessionId)
+│   accepts networkChecker          ├── shared_preferences (→ installId)
+│   accepts resourceAttributes Map  └── Riverpod providers compose
+├── DiskQueue                           pure Dart + Flutter plugins
+│   accepts directory path String
 ├── LogSanitizer
 └── LogRecord + attributes
 ```
