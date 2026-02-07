@@ -206,7 +206,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final hasAccess =
           authState is Authenticated || authState is NoAuthRequired;
       final isPublicRoute = _publicRoutes.contains(currentPath);
-      Loggers.router.debug('hasAccess=$hasAccess, isPublic=$isPublicRoute');
+      Loggers.router.trace('hasAccess=$hasAccess, isPublic=$isPublicRoute');
 
       // Redirect based on auth state reason (Unauthenticated) or default to
       // /login (AuthLoading). Public routes are exempt.
@@ -233,7 +233,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
       }
 
-      Loggers.router.debug('no redirect');
+      Loggers.router.trace('no redirect');
       return null;
     },
     routes: [
