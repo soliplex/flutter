@@ -203,9 +203,12 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 
 - [ ] Add `Map<String, Object> attributes` field to `LogRecord`
 - [ ] `OtelExporter` interface with `export()` and `shutdown()`
-- [ ] `LogfireExporter` — direct OTLP/HTTP to Logfire (raw write token)
-- [ ] `ProxyExporter` — routes through backend proxy (session JWT)
-- [ ] `OtelSink` implements `LogSink`, takes any `OtelExporter`
+- [ ] `LogfireExporter` — direct OTLP/HTTP to Logfire (raw write token).
+  Accepts injected `http.Client` (app provides native client)
+- [ ] `ProxyExporter` — routes through backend proxy (session JWT).
+  Accepts injected `http.Client`
+- [ ] `OtelSink` implements `LogSink`, takes any `OtelExporter`.
+  Accepts optional `NetworkStatusChecker` callback for connectivity
 - [ ] `OtelMapper` with safe serialization (coerce non-primitives to
   `.toString()`)
 - [ ] Batch processor with **mobile-tuned** settings:
@@ -221,8 +224,9 @@ Map `loggerName` to `scope.name` (already planned). Should also send
   - 413 → `retryable` (split batch in half and retry)
   - 429 → `retryable` (respect `Retry-After`)
   - 5xx → `retryable` (backoff, max 5 min per batch)
-- [ ] **Connectivity check** before export attempts (avoid spinning retry
-  loops on mobile — use `connectivity_plus`)
+- [ ] **Connectivity check** via injected `NetworkStatusChecker` callback
+  (app layer provides using `connectivity_plus`; `soliplex_logging` stays
+  pure Dart)
 - [ ] Graceful shutdown: flush remaining records in `close()`
 - [ ] Export from `soliplex_logging.dart` barrel
 
@@ -239,9 +243,11 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 - [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint` (NOT token —
   token lives in `flutter_secure_storage` via separate async provider)
 - [ ] `logConfigControllerProvider` updated to manage OtelSink
-- [ ] **Resource provider** — collects device/app metadata at startup:
-  `service.name`, `service.version`, `os.name`, `os.version`,
-  `device.model`, `deployment.environment`
+- [ ] **Resource provider** (app layer) — builds `Map<String, Object>`
+  resource attributes at startup using `package_info_plus` and
+  `device_info_plus`: `service.name`, `service.version`, `os.name`,
+  `os.version`, `device.model`, `deployment.environment`. Passed to
+  `OtelSink` constructor (pure Dart accepts a `Map`)
 - [ ] **Native lifecycle flush** — `flush()` on `AppLifecycleState.paused`
   via `AppLifecycleListener`
 - [ ] **Web lifecycle flush** — `visibilitychange` listener triggers
@@ -533,10 +539,34 @@ coordinated.
 
 - `http` package (already in dependency tree via `soliplex_client`)
 
-### Production
+### Production — soliplex_logging (Pure Dart)
 
-- `http` package for OTLP/HTTP
-- `connectivity_plus` for network awareness
-- `package_info_plus` for service.version resource attribute
+- `http` package for OTLP/HTTP (pure Dart, added to
+  `packages/soliplex_logging/pubspec.yaml`)
+- No Flutter plugins — all platform concerns injected via constructor
+
+### Production — soliplex_frontend (Flutter App Layer)
+
+- `connectivity_plus` for network awareness (injected to `OtelSink` via
+  `NetworkStatusChecker` callback)
+- `flutter_secure_storage` for token storage (already in pubspec.yaml)
+- `package_info_plus` for `service.version` resource attribute
+- `device_info_plus` for `device.model` resource attribute
 - Possibly `dartastic_opentelemetry` if their log export matures
 - Possibly `protobuf` if upgrading from JSON to binary encoding
+
+### Layering Principle
+
+```text
+soliplex_logging (Pure Dart)        soliplex_frontend (Flutter)
+├── http                            ├── connectivity_plus
+├── OtelSink                        ├── flutter_secure_storage
+│   accepts NetworkStatusChecker    ├── package_info_plus
+│   accepts resourceAttributes Map  ├── device_info_plus
+├── OtelExporter interface          └── Riverpod providers compose
+├── LogfireExporter                     pure Dart + Flutter plugins
+│   accepts http.Client
+├── ProxyExporter
+│   accepts http.Client
+└── OtelMapper
+```

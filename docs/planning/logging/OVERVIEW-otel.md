@@ -67,6 +67,11 @@ all ingested correctly.
 - **PII/sampling deferred** — get basic export working first, harden later.
 - **`LogRecord.attributes`** is its own sub-milestone — clean prerequisite
   boundary, separate PR.
+- **Pure Dart boundary** — `soliplex_logging` only adds `http` as a
+  dependency. Flutter plugins (`connectivity_plus`, `flutter_secure_storage`,
+  `package_info_plus`, `device_info_plus`) stay in the app layer and are
+  injected via constructor args (`NetworkStatusChecker` callback, `http.Client`,
+  resource attributes `Map`).
 
 ## Codebase Readiness
 
@@ -77,7 +82,7 @@ all ingested correctly.
 | Riverpod sink provider pattern | Ready (3 sinks as model) |
 | `LogLevel` → OTel `SeverityNumber` mapping | Validated in spike |
 | `flutter_secure_storage` | Already in `pubspec.yaml` |
-| `connectivity_plus` | Must be added |
+| `connectivity_plus` | Must be added (app layer, injected via callback) |
 | `LogRecord.attributes` field | Missing — sub-milestone 12.1 |
 | Backend proxy endpoint | Not started — sub-milestone 12.4 |
 

@@ -103,12 +103,20 @@ abstract interface class OtelExporter {
   /// Releases any resources held by this exporter.
   Future<void> shutdown();
 }
+
+/// Callback to check network availability before export.
+/// Returns true if online. Injected by the app layer
+/// (e.g. via connectivity_plus). If null, OtelSink always
+/// attempts export.
+typedef NetworkStatusChecker = bool Function();
 ```
 
 **`packages/soliplex_logging/lib/src/sinks/logfire_exporter.dart` (new):**
 
 - Implements `OtelExporter`
-- Constructor takes `endpoint` (URL) and `authToken` (raw write token)
+- Constructor takes `endpoint` (URL), `authToken` (raw write token),
+  and optional `http.Client` (defaults to `http.Client()` — allows app
+  to inject platform-native client from `soliplex_client_native`)
 - POST to endpoint with `Content-Type: application/json` and raw token
   in `Authorization` header
 - Maps HTTP status to `ExportResult`:
@@ -119,7 +127,8 @@ abstract interface class OtelExporter {
 **`packages/soliplex_logging/lib/src/sinks/proxy_exporter.dart` (new):**
 
 - Implements `OtelExporter`
-- Constructor takes `endpoint` (relative URL) and `sessionToken` (JWT)
+- Constructor takes `endpoint` (relative URL), `sessionToken` (JWT),
+  and optional `http.Client`
 - POST to endpoint with `Authorization: Bearer <jwt>`
 - Same HTTP status → `ExportResult` mapping as `LogfireExporter`
 - Token can be updated at runtime (session refresh) via setter
@@ -128,8 +137,11 @@ abstract interface class OtelExporter {
 
 - Implements `LogSink`
 - Constructor takes `OtelExporter`, `resourceAttributes` (Map),
+  optional `networkChecker` (`NetworkStatusChecker?`),
   optional `batchSize` (default 256), `flushInterval` (default 30s),
   `maxQueueSize` (default 1024)
+- When `networkChecker` is provided and returns false, skip export
+  attempt and keep records buffered
 - `write()` — enqueues record; triggers immediate export on ERROR/FATAL
 - `flush()` — builds OTLP payload via mapper, calls `exporter.export()`
 - `close()` — drains remaining queue, cancels timer, calls
@@ -168,10 +180,24 @@ abstract interface class OtelExporter {
   re-enter the logging pipeline — use a separate diagnostic callback or
   `stderr` only.
 
+**`packages/soliplex_logging/pubspec.yaml`:**
+
+- Add `http: ^1.2.0` (pure Dart — the only new dependency)
+
 **`packages/soliplex_logging/lib/soliplex_logging.dart`:**
 
 - Export `otel_sink.dart`, `otel_exporter.dart`, `logfire_exporter.dart`,
   `proxy_exporter.dart`, and `otel_mapper.dart`
+
+### Layering Note
+
+All code in 12.2 is **pure Dart**. No Flutter imports. Platform concerns
+are injected via constructor arguments:
+
+- `http.Client?` on exporters — app injects native client
+- `NetworkStatusChecker?` on `OtelSink` — app injects connectivity check
+- `Map<String, Object> resourceAttributes` on `OtelSink` — app builds
+  from `device_info_plus` / `package_info_plus`
 
 ### Unit Tests
 
@@ -289,18 +315,32 @@ config separate from general app settings.
 **`lib/core/logging/logging_provider.dart` (exporter + sink):**
 
 - Add `otelExporterProvider` — creates `LogfireExporter` with endpoint
-  from config and token from `otelTokenProvider`. All platforms use
-  `LogfireExporter` in this milestone.
+  from config, token from `otelTokenProvider`, and injected
+  `http.Client` from existing platform client provider. All platforms
+  use `LogfireExporter` in this milestone.
 
   ```dart
   final exporter = LogfireExporter(
     endpoint: config.otelEndpoint,
-    authToken: token, // from otelTokenProvider
+    authToken: token,       // from otelTokenProvider
+    client: httpClient,     // from platform client provider
   );
   ```
 
 - Add `otelSinkProvider` — creates `OtelSink` with the exporter,
-  registers with LogManager, `ref.onDispose → close`
+  resource attributes (built from `package_info_plus` +
+  `device_info_plus`), and connectivity checker (from
+  `connectivity_plus`). Registers with LogManager,
+  `ref.onDispose → close`.
+
+  ```dart
+  final sink = OtelSink(
+    exporter: exporter,
+    resourceAttributes: resourceMap,  // built in app layer
+    networkChecker: () => connectivityState != ConnectivityResult.none,
+  );
+  ```
+
 - Sink disabled when `otelEnabled` is false or token is empty
 
 **`lib/core/logging/logging_provider.dart` (config controller):**
@@ -322,13 +362,23 @@ config separate from general app settings.
   `--dart-define`), `os.name`, `os.version` (platform detection),
   `device.model` (from `device_info_plus`)
 
-### Dependencies
+### Dependencies (App Layer Only)
 
-- `connectivity_plus` — add to `pubspec.yaml` for network awareness
-  before export attempts. **Note:** requires `WidgetsFlutterBinding` to
-  be initialized before use (platform channels). Existing provider
-  pattern initializes lazily which is safe, but integration tests must
-  call `WidgetsFlutterBinding.ensureInitialized()` explicitly.
+These are Flutter plugins added to `pubspec.yaml` (root app), NOT to
+`soliplex_logging`. They are injected into pure Dart components via
+constructor arguments.
+
+- `connectivity_plus` — provides `NetworkStatusChecker` callback to
+  `OtelSink`. **Note:** requires `WidgetsFlutterBinding` to be
+  initialized before use. Existing provider pattern initializes lazily
+  which is safe, but integration tests must call
+  `WidgetsFlutterBinding.ensureInitialized()` explicitly.
+- `package_info_plus` — provides `service.version` for resource
+  attributes map
+- `device_info_plus` — provides `device.model`, `os.version` for
+  resource attributes map
+- `flutter_secure_storage` — already in pubspec.yaml, provides token
+  storage
 
 ### Unit Tests
 
