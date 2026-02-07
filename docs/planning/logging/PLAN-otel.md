@@ -41,17 +41,25 @@ contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 
 - Include non-empty attributes in `toString()` output for debug visibility
 
-### Tests
+### Unit Tests
 
 - `test/log_record_test.dart` — attributes stored, default empty, included
   in `toString()`
 - `test/logger_test.dart` — attributes passed through to `LogRecord`
+
+### Integration Tests
+
+- `test/integration/attributes_through_sink_test.dart` — Log a message
+  with attributes via `Logger`, verify the `LogRecord` captured by
+  `MemorySink` carries the attributes intact. Confirms the full path:
+  `Logger.info(attributes:) → LogManager → LogSink.write() → LogRecord`
 
 ### Acceptance Criteria
 
 - [ ] `LogRecord` has `attributes` field, default `const {}`
 - [ ] All `Logger` methods accept optional `attributes`
 - [ ] Existing call sites compile without changes
+- [ ] Integration: attributes survive Logger → LogManager → sink pipeline
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
@@ -165,18 +173,41 @@ abstract interface class OtelExporter {
 - Export `otel_sink.dart`, `otel_exporter.dart`, `logfire_exporter.dart`,
   `proxy_exporter.dart`, and `otel_mapper.dart`
 
-### Tests
+### Unit Tests
 
 - `test/sinks/otel_mapper_test.dart` — severity mapping, timestamp
-  conversion, attribute encoding, error conventions, scope grouping
+  conversion, attribute encoding, error conventions, scope grouping,
+  non-primitive attribute coercion
 - `test/sinks/otel_sink_test.dart` — timer flush, size flush, severity
   flush, queue overflow/drop policy, close() drain, retry on retryable,
-  disable on fatal
+  disable on fatal, concurrent flush guard
 - `test/sinks/logfire_exporter_test.dart` — HTTP status mapping, auth
-  header format
+  header format, Content-Type header
 - `test/sinks/proxy_exporter_test.dart` — HTTP status mapping, Bearer
-  auth, token refresh
+  auth, token refresh via setter
 - Use a mock HTTP client for all exporter tests
+
+### Integration Tests
+
+- `test/integration/otel_pipeline_test.dart` — End-to-end pipeline:
+  `Logger.info()` → `LogManager` → `OtelSink` → mock `OtelExporter`.
+  Verify the exporter receives a valid OTLP JSON payload with correct
+  severity, timestamp, scope, body, and attributes.
+- `test/integration/otel_batch_flush_test.dart` — Write N records below
+  batch size, advance fake timer past `flushInterval`, verify exporter
+  called exactly once with N records.
+- `test/integration/otel_severity_flush_test.dart` — Write an ERROR
+  record, verify exporter called immediately (no timer wait).
+- `test/integration/otel_circuit_breaker_test.dart` — Configure exporter
+  to return `fatal` N times. Verify OtelSink disables export, fires
+  `onError` callback, and does NOT generate log records about the failure
+  (no re-entrant logging).
+- `test/integration/otel_retry_split_test.dart` — Configure exporter to
+  return `retryable` on first call (simulating 413), verify sink splits
+  batch and retries with smaller payload.
+- `test/integration/otel_close_drain_test.dart` — Write records, call
+  `close()`, verify all buffered records exported before shutdown
+  completes.
 
 ### Acceptance Criteria
 
@@ -196,6 +227,9 @@ abstract interface class OtelExporter {
 - [ ] Queue overflow drops TRACE/DEBUG first; if all ERROR/FATAL, drops
   oldest ERROR (never blocks writes)
 - [ ] `close()` drains remaining queue
+- [ ] Integration: full pipeline Logger → OtelSink → exporter produces
+  valid OTLP
+- [ ] Integration: circuit breaker disables without re-entrant logging
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass, coverage 85%+
 
@@ -296,7 +330,7 @@ config separate from general app settings.
   pattern initializes lazily which is safe, but integration tests must
   call `WidgetsFlutterBinding.ensureInitialized()` explicitly.
 
-### Tests
+### Unit Tests
 
 - `test/core/logging/logging_provider_test.dart`:
   - OtelSink created with `LogfireExporter` when enabled + token present
@@ -305,9 +339,41 @@ config separate from general app settings.
   - Disposed on ref dispose
 - `test/core/logging/log_config_test.dart` — new fields serialize/
   deserialize correctly (token NOT in config)
-- Telemetry screen widget test — token saved to secure storage on submit,
-  toggle enables/disables export, connection status reflects sink state
-- Lifecycle: `visibilitychange` (web) and `paused` (native) trigger flush
+
+### Widget Tests
+
+- `test/features/settings/telemetry_screen_test.dart`:
+  - Token saved to secure storage on submit
+  - Toggle enables/disables export
+  - Connection status reflects sink state (active/disabled/failed)
+  - Endpoint field pre-filled with default, editable
+  - Empty token shows empty state, stored token shows checkmark
+
+### Integration Tests
+
+- `test/integration/otel_token_flow_test.dart` — Enter token on
+  Telemetry screen → token written to secure storage →
+  `otelTokenProvider` invalidated → `otelExporterProvider` recreates
+  `LogfireExporter` with new token → `OtelSink` begins exporting.
+  Verify full provider chain reacts to token change.
+- `test/integration/otel_toggle_flow_test.dart` — Toggle OTel off on
+  Telemetry screen → `otelEnabled` set to false in `LogConfig` →
+  `OtelSink` unregistered from `LogManager`. Toggle back on → sink
+  re-registered. Verify logs stop/start flowing to exporter.
+- `test/integration/otel_lifecycle_flush_test.dart` — Write records to
+  `OtelSink`, simulate `AppLifecycleState.paused` (native) or
+  `visibilitychange` hidden (web), verify `flush()` called and
+  exporter receives buffered records.
+- `test/integration/otel_offline_skip_test.dart` — Mock
+  `connectivity_plus` to report offline. Write records. Verify exporter
+  is NOT called. Mock connectivity back online, trigger flush, verify
+  exporter receives records.
+- `test/integration/otel_logfire_roundtrip_test.dart` — **Manual/CI
+  gated:** Full round-trip to Logfire staging endpoint using real
+  `LOGFIRE_TOKEN` from env. Log records at each severity level with
+  attributes. Verify HTTP 200 response. This test is skipped by default
+  (requires `LOGFIRE_TOKEN` env var) and runs in CI with the token
+  configured as a secret.
 
 ### Acceptance Criteria
 
@@ -320,11 +386,16 @@ config separate from general app settings.
 - [ ] Token is NOT in `LogConfig` or `SharedPreferences`
 - [ ] `otelExporterProvider` creates `LogfireExporter` (all platforms)
 - [ ] `otelSinkProvider` creates `OtelSink`, disabled when no token
-- [ ] Token change in Settings → provider invalidation → exporter recreated
+- [ ] Token change in Telemetry → provider invalidation → exporter recreated
 - [ ] Config toggle enables/disables OTel export at runtime
 - [ ] Lifecycle flush: `paused` on native, `visibilitychange` on web
 - [ ] Resource attributes populated from device info
 - [ ] `connectivity_plus` added, export skipped when offline
+- [ ] Integration: token entry → provider chain → export starts
+- [ ] Integration: toggle off → export stops, toggle on → export resumes
+- [ ] Integration: lifecycle event → flush → exporter called
+- [ ] Integration: offline → skip export, online → resume
+- [ ] Integration (CI-gated): round-trip to Logfire staging returns 200
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
@@ -380,7 +451,7 @@ the web client in production — the proxy holds it server-side.
 - No Logfire token on web client in production
 - `ProxyExporter` uses session JWT from existing auth state
 
-### Tests
+### Unit Tests
 
 **Backend:**
 
@@ -394,7 +465,25 @@ the web client in production — the proxy holds it server-side.
 - Web provider creates `ProxyExporter` with relative endpoint
 - Native provider creates `LogfireExporter` with Logfire URL
 - `OtelSink` works identically with either exporter
+
+### Widget Tests
+
 - Telemetry screen hides token field on web
+- Telemetry screen still shows toggle and endpoint on web
+
+### Integration Tests
+
+- `test/integration/otel_proxy_exporter_test.dart` — On web, verify
+  `otelExporterProvider` creates `ProxyExporter` with relative endpoint
+  and session JWT. On native, verify `LogfireExporter` with Logfire URL
+  and write token. Write records through `OtelSink`, verify mock
+  exporter receives identical OTLP payloads regardless of exporter type.
+- `test/integration/otel_proxy_session_refresh_test.dart` — Simulate
+  session JWT refresh. Verify `ProxyExporter.sessionToken` setter
+  updates the token. Next export uses new JWT in `Authorization` header.
+- **Backend integration (CI-gated):** Deploy proxy to staging. Send OTLP
+  JSON via `ProxyExporter` with valid session JWT. Verify HTTP 200 and
+  logs appear in Logfire staging.
 
 ### Acceptance Criteria
 
@@ -402,8 +491,11 @@ the web client in production — the proxy holds it server-side.
 - [ ] `otelExporterProvider` selects `ProxyExporter` on web,
   `LogfireExporter` on native
 - [ ] `OtelSink` unchanged — only the exporter differs
-- [ ] Settings UI hides token field on web
+- [ ] Telemetry screen hides token field on web
 - [ ] Web clients no longer store the Logfire write token
+- [ ] Integration: same OTLP payload produced regardless of exporter
+- [ ] Integration: session JWT refresh propagates to ProxyExporter
+- [ ] Integration (CI-gated): round-trip through proxy to Logfire staging
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
