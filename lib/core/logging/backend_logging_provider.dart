@@ -106,12 +106,15 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
     diskQueue = DiskQueue(directoryPath: '${appDir.path}/log_queue');
   }
 
+  final memorySink = ref.read(memorySinkProvider);
+
   final sink = BackendLogSink(
     endpoint: endpoint,
     client: client,
     installId: installId,
     sessionId: sessionId,
     diskQueue: diskQueue,
+    memorySink: memorySink,
     resourceAttributes: resourceAttrs,
     jwtProvider: () {
       final authState = ref.read(authProvider);
