@@ -199,7 +199,7 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 
 ## Production Roadmap (Post-Spike)
 
-### Phase 1 — OtelSink + Pluggable Exporters (Sub-milestones 12.1–12.2)
+### Phase 1 — Mapper + Transport + Sink (Sub-milestones 12.1–12.5)
 
 - [ ] Add `Map<String, Object> attributes` field to `LogRecord`
 - [ ] `OtelExporter` interface with `export()` and `shutdown()`
@@ -209,8 +209,12 @@ Map `loggerName` to `scope.name` (already planned). Should also send
   Accepts injected `http.Client`
 - [ ] `OtelSink` implements `LogSink`, takes any `OtelExporter`.
   Accepts optional `NetworkStatusChecker` callback for connectivity
-- [ ] `OtelMapper` with safe serialization (coerce non-primitives to
-  `.toString()`)
+- [ ] `OtelMapper` with typed `AnyValue` serialization: preserve `bool`,
+  `int`, `double`, `List`, `Map` into correct OTLP type wrappers.
+  Only fall back to `.toString()` for unknown types
+- [ ] `OtelMapper` emits `observedTimeUnixNano` (set at sink `write()` time)
+- [ ] `OtelMapper` emits `droppedAttributesCount` when attributes truncated
+- [ ] `OtelMapper` emits `flags` field from trace context
 - [ ] Batch processor with **mobile-tuned** settings:
   - Batch size: 256 records
   - Export interval: **30s** (not 5s — preserves battery/radio)
@@ -218,6 +222,7 @@ Map `loggerName` to `scope.name` (already planned). Should also send
   - Max queue size: 1024 records (bounded memory)
   - Drop policy: when full, drop TRACE/DEBUG first. If queue is all
     ERROR/FATAL, drop oldest ERROR (never block writes)
+- [ ] Exporters send `Content-Encoding: gzip` compressed payloads
 - [ ] Retry with exponential backoff + jitter (1s, 2s, 4s, max 32s)
 - [ ] HTTP status classification via `ExportResult`:
   - 401/403 → `fatal` (disable export)
@@ -230,7 +235,7 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 - [ ] Graceful shutdown: flush remaining records in `close()`
 - [ ] Export from `soliplex_logging.dart` barrel
 
-### Phase 2a — App Integration, Native Platforms (Sub-milestone 12.3)
+### Phase 2a — App Integration, Native Platforms (Sub-milestones 12.6–12.7)
 
 - [ ] **Telemetry screen** — dedicated Settings sub-screen with token
   entry field, enable/disable toggle, endpoint field, connection status.
@@ -238,7 +243,7 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 - [ ] `otelTokenProvider` (`FutureProvider<String?>`) — reads Logfire
   write token from `flutter_secure_storage`
 - [ ] `otelExporterProvider` — creates `LogfireExporter` on mobile/desktop
-  (direct to Logfire). Web OTel-disabled until 12.4 proxy.
+  (direct to Logfire). Web OTel-disabled until 12.8 proxy.
 - [ ] `otelSinkProvider` — creates `OtelSink` with exporter, registers
   with LogManager (follows existing sink provider pattern)
 - [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint` (NOT token —
@@ -255,7 +260,7 @@ Map `loggerName` to `scope.name` (already planned). Should also send
   `AppLifecycleState.hidden` and `detached` (desktop does not reliably
   emit `paused`)
 
-### Phase 2b — Web Proxy Swap (Sub-milestone 12.4)
+### Phase 2b — Web Proxy Swap (Sub-milestone 12.8)
 
 - [ ] **Backend proxy endpoint** — `POST /api/v1/telemetry/logs` on
   Soliplex backend (forwards OTLP to Logfire with server-side token)
@@ -270,6 +275,25 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 - [ ] Or `flutterrific_opentelemetry` for automatic navigation/lifecycle spans
 - [ ] Propagate W3C traceparent header from HTTP requests to log records
 - [ ] Link x-request-id (Milestone 11) to OTel trace context
+
+### Context Propagation Preparedness
+
+Currently `traceId`/`spanId` are passed manually via `Logger.info(traceId:
+...)`. This works for Phase 1 but becomes unmaintainable when tracing is
+added. Preparation for Phase 3:
+
+- **Zone-based context holder** — implement a lightweight `OtelContext`
+  that stores the active trace/span in `Zone` values (via `dart:async`).
+  When a span starts, it populates the Zone. Logs emitted inside that
+  Zone automatically inherit the correct parent trace/span IDs without
+  manual threading at every call site.
+- **Scope:** This is a Phase 3 concern but the `Logger` API should be
+  designed to not *require* manual `traceId`/`spanId` params. The mapper
+  should prefer Zone-provided context over explicit params, falling back
+  to explicit params when present (manual override).
+- **Why now:** Retrofitting Zone-based context after hundreds of
+  `Logger.info(traceId: ...)` call sites is painful. Design the API so
+  that explicit params are optional overrides, not the primary mechanism.
 
 ## Field Mapping Reference
 
@@ -288,15 +312,38 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 
 | LogRecord field | OTLP field | Conversion |
 |----------------|------------|------------|
-| `timestamp` | `timeUnixNano` | `microsecondsSinceEpoch * 1000` |
+| `timestamp` | `timeUnixNano` | `microsecondsSinceEpoch * 1000` (string) |
+| *(set by sink)* | `observedTimeUnixNano` | `DateTime.now()` at `write()` time (string) |
 | `level` | `severityNumber` | See mapping table above |
 | `level.label` | `severityText` | Direct string |
 | `message` | `body.stringValue` | Direct string |
 | `loggerName` | `scope.name` | InstrumentationScope |
 | `traceId` | `traceId` | Hex string (32 chars) |
 | `spanId` | `spanId` | Hex string (16 chars) |
+| *(trace context)* | `flags` | `0x01` if sampled, `0x00` otherwise |
 | `error` | `attributes[exception.type, exception.message]` | OTel semantic conventions |
 | `stackTrace` | `attributes[exception.stacktrace]` | String representation |
+| `attributes` | `attributes` | Typed `AnyValue` mapping (see below) |
+| *(computed)* | `droppedAttributesCount` | Count of attributes dropped by limit |
+
+### Attribute `AnyValue` Mapping
+
+OTLP attributes are a typed union — **do NOT `toString()` everything**.
+The mapper must preserve Dart types into their correct OTLP wrappers:
+
+| Dart type | OTLP `AnyValue` key | Example |
+|-----------|---------------------|---------|
+| `String` | `stringValue` | `{"stringValue": "hello"}` |
+| `int` | `intValue` | `{"intValue": "42"}` (string-encoded int64) |
+| `double` | `doubleValue` | `{"doubleValue": 3.14}` |
+| `bool` | `boolValue` | `{"boolValue": true}` |
+| `List` | `arrayValue` | `{"arrayValue": {"values": [...]}}` |
+| `Map<String, Object>` | `kvlistValue` | `{"kvlistValue": {"values": [{"key":..., "value":...}]}}` |
+| *(other)* | `stringValue` | Fallback: `.toString()` for unknown types only |
+
+This enables Logfire's SQL-like querying on structured attributes
+(e.g., `WHERE attributes.cart.total > 50`). Flattening to strings
+would destroy this capability.
 
 ## Web Platform (Proxy Route)
 
@@ -508,7 +555,12 @@ The spike validates protocol acceptance but production needs:
 Production-ready when:
 
 - [ ] OTLP JSON mapping matches OTel spec (unit tests)
-- [ ] Mapper safely coerces non-primitive attribute values to `.toString()`
+- [ ] Mapper uses typed `AnyValue` wrappers (not `toString()`) for
+  `String`, `int`, `double`, `bool`, `List`, `Map` attribute values
+- [ ] `observedTimeUnixNano` set at sink `write()` time
+- [ ] `droppedAttributesCount` tracked when attributes exceed limits
+- [ ] `flags` field set from trace context (0x01 if sampled)
+- [ ] Exporters send `Content-Encoding: gzip` (compressed payloads)
 - [ ] Batch processor respects size, timer, and severity triggers
 - [ ] Queue overflow drops by severity (TRACE first); if all ERROR/FATAL,
   drops oldest ERROR (never blocks writes)
@@ -525,6 +577,41 @@ Production-ready when:
 - [ ] Web clients never receive or store the Logfire write token
 - [ ] No PII in exported attributes (redaction tests pass — hardening)
 - [ ] Drop counter tracks and reports lost records
+
+## Dartastic Review Findings (Feb 2026)
+
+Reviewed `dartastic_opentelemetry` v1.0.0-alpha feature set against our
+plan. Key takeaways incorporated into milestones above.
+
+### Weaknesses Found & Fixed
+
+| Finding | Severity | Fix Applied |
+|---------|----------|-------------|
+| `toString()` attribute coercion destroys structured querying | P0 | Typed `AnyValue` mapper (12.2) |
+| Missing `observedTimeUnixNano` field | P0 | Added to field mapping + mapper (12.2) |
+| No gzip compression on HTTP payloads | P1 | Added to exporter spec (12.3) |
+| Missing `droppedAttributesCount` field | P1 | Added to mapper (12.2) |
+| Missing `flags` (trace flags) field | P1 | Added to mapper (12.2) |
+| Manual `traceId`/`spanId` threading won't scale | P2 | Context propagation prep noted (Phase 3) |
+| Lifecycle flush race (OS kills before Future completes) | P2 | Acknowledged; disk persistence deferred |
+
+### Opportunities Noted (Not Yet Adopted)
+
+| Feature (from dartastic) | Value | Decision |
+|--------------------------|-------|----------|
+| Composite exporter (fan-out) | Dev visibility + prod export | Defer to 12.9+ |
+| Resource detectors (abstraction) | Cleaner testing | Defer — raw Map is pragmatic for now |
+| Three-tier config (code > dart-define > env) | CI/CD target switching | Defer to 12.9+ |
+| W3C Trace Context propagation | Backend correlation | Phase 3 |
+| Console/file OTLP exporter for local dev | Debug OTLP payloads | Defer to 12.9+ |
+
+### What We Do Better Than Dartastic
+
+- **Log support exists** — dartastic has no working log SDK
+- **Web proxy architecture** — dartastic assumes direct collector access
+- **Mobile-first tuning** — 30s batch, connectivity checks, severity-aware drops
+- **Pure Dart boundary** — no global statics, clean constructor injection
+- **Circuit breaker + re-entrant logging protection** — production lesson
 
 ## Breaking Changes
 

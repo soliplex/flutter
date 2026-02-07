@@ -49,10 +49,14 @@ all ingested correctly.
 | # | Name | Scope | Depends On |
 |---|------|-------|------------|
 | 12.1 | LogRecord attributes | Add `Map<String, Object> attributes` to `LogRecord`, update `Logger` API | — |
-| 12.2 | OtelSink core | `OtelExporter` interface, `LogfireExporter`, `ProxyExporter`, OTLP mapper, batch processor, circuit breaker | 12.1 |
-| 12.3 | App integration (native) | Telemetry screen, Riverpod providers, `LogfireExporter` on mobile/desktop, lifecycle flush. Web OTel-disabled (CORS). | 12.2 |
-| 12.4 | Web proxy (swap exporter) | Backend proxy endpoint, swap web to `ProxyExporter`, enable web OTel, web lifecycle flush | 12.3 |
-| 12.5 | Hardening | PII redaction, sampling, rate limiting, backpressure. Can parallelize with 12.3/12.4 (pure Dart). | 12.2 |
+| 12.2 | OTLP mapper | `OtelMapper`: typed `AnyValue` serialization, timestamps, `observedTimeUnixNano`, `flags`, `droppedAttributesCount`, payload structure | 12.1 |
+| 12.3 | Exporter transport | `OtelExporter` interface, `LogfireExporter`, `ProxyExporter`, gzip compression, HTTP status → `ExportResult` mapping | 12.2 |
+| 12.4 | OtelSink batching | `OtelSink` implements `LogSink`: queue, timer/size/severity flush triggers, overflow drop policy, concurrent flush guard, `close()` drain | 12.3 |
+| 12.5 | Reliability layer | Retry with exponential backoff, 413 batch split, circuit breaker, `NetworkStatusChecker`, no re-entrant logging | 12.4 |
+| 12.6 | App wiring (native) | Riverpod providers, resource attributes, connectivity integration, lifecycle flush (no UI yet). Web OTel-disabled. | 12.5 |
+| 12.7 | Telemetry screen UI | Dedicated settings screen: token entry, enable/disable toggle, endpoint, connection status | 12.6 |
+| 12.8 | Web proxy (swap exporter) | Backend proxy endpoint, swap web to `ProxyExporter`, web lifecycle flush, web UI adjustments | 12.7 |
+| 12.9 | Hardening | PII redaction, sampling, rate limiting, backpressure observability. Can parallelize with 12.6–12.8 (pure Dart). | 12.5 |
 
 ## Key Decisions
 
@@ -64,6 +68,11 @@ all ingested correctly.
   at `/api/v1/telemetry/logs` attaches Logfire token server-side.
 - **Raw OTLP/HTTP JSON** — no `dartastic_opentelemetry` dependency. Their
   log SDK is not implemented. Hand-crafted JSON is simpler and validated.
+- **Typed `AnyValue` attributes** — mapper preserves `bool`, `int`,
+  `double`, `List`, `Map` into correct OTLP type wrappers (not
+  `toString()`). Enables Logfire SQL-like attribute querying.
+- **Gzip compression** — exporters compress payloads by default to reduce
+  mobile battery/data usage.
 - **PII/sampling deferred** — get basic export working first, harden later.
 - **`LogRecord.attributes`** is its own sub-milestone — clean prerequisite
   boundary, separate PR.
@@ -84,7 +93,19 @@ all ingested correctly.
 | `flutter_secure_storage` | Already in `pubspec.yaml` |
 | `connectivity_plus` | Must be added (app layer, injected via callback) |
 | `LogRecord.attributes` field | Missing — sub-milestone 12.1 |
-| Backend proxy endpoint | Not started — sub-milestone 12.4 |
+| Backend proxy endpoint | Not started — sub-milestone 12.8 |
+
+## Dartastic Review (Feb 2026)
+
+Reviewed `dartastic_opentelemetry` v1.0.0-alpha against our plan.
+See full findings in [12-opentelemetry-integration.md § Dartastic Review
+Findings](./12-opentelemetry-integration.md#dartastic-review-findings-feb-2026).
+
+**Applied:** typed `AnyValue` mapper, `observedTimeUnixNano`, gzip
+compression, `droppedAttributesCount`, `flags` field.
+
+**Deferred:** composite exporter, resource detectors, three-tier config,
+W3C trace context propagation (Phase 3).
 
 ## Reference
 
