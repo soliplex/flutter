@@ -6,6 +6,7 @@ import 'package:soliplex_client/src/http/http_observer.dart';
 import 'package:soliplex_client/src/http/http_redactor.dart';
 import 'package:soliplex_client/src/http/http_response.dart';
 import 'package:soliplex_client/src/http/soliplex_http_client.dart';
+import 'package:uuid/uuid.dart';
 
 /// HTTP client decorator that notifies observers of all HTTP activity.
 ///
@@ -39,7 +40,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
   /// - [client]: The underlying client to wrap
   /// - [observers]: List of observers to notify (defaults to empty)
   /// - [generateRequestId]: Optional ID generator for correlation
-  ///   (defaults to timestamp-based IDs)
+  ///   (defaults to UUID v4)
   ObservableHttpClient({
     required SoliplexHttpClient client,
     List<HttpObserver> observers = const [],
@@ -52,16 +53,13 @@ class ObservableHttpClient implements SoliplexHttpClient {
   final List<HttpObserver> _observers;
   final String Function() _generateRequestId;
 
-  /// Counter for request ID generation.
-  static int _requestCounter = 0;
-
   /// Maximum buffer size for SSE streams (500KB).
   static const _maxStreamBufferSize = 500 * 1024;
 
-  /// Default request ID generator using timestamp and counter.
-  static String _defaultRequestIdGenerator() {
-    return '${DateTime.now().millisecondsSinceEpoch}-${_requestCounter++}';
-  }
+  static const _uuid = Uuid();
+
+  /// Default request ID generator using UUID v4.
+  static String _defaultRequestIdGenerator() => _uuid.v4();
 
   @override
   Future<HttpResponse> request(
@@ -71,12 +69,17 @@ class ObservableHttpClient implements SoliplexHttpClient {
     Object? body,
     Duration? timeout,
   }) async {
-    final requestId = _generateRequestId();
+    // Respect caller-supplied x-request-id, otherwise generate one
+    final requestId = headers?['x-request-id'] ?? _generateRequestId();
+    final enrichedHeaders = {
+      ...?headers,
+      'x-request-id': requestId,
+    };
     final startTime = DateTime.now();
 
     // Redact sensitive data before emitting to observers
     final redactedUri = HttpRedactor.redactUri(uri);
-    final redactedHeaders = HttpRedactor.redactHeaders(headers ?? const {});
+    final redactedHeaders = HttpRedactor.redactHeaders(enrichedHeaders);
     final redactedBody = _redactRequestBody(body, uri);
 
     // Notify request start
@@ -97,7 +100,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
       final response = await _client.request(
         method,
         uri,
-        headers: headers,
+        headers: enrichedHeaders,
         body: body,
         timeout: timeout,
       );
@@ -156,7 +159,12 @@ class ObservableHttpClient implements SoliplexHttpClient {
     Map<String, String>? headers,
     Object? body,
   }) {
-    final requestId = _generateRequestId();
+    // Respect caller-supplied x-request-id, otherwise generate one
+    final requestId = headers?['x-request-id'] ?? _generateRequestId();
+    final enrichedHeaders = {
+      ...?headers,
+      'x-request-id': requestId,
+    };
     final startTime = DateTime.now();
     var bytesReceived = 0;
 
@@ -165,7 +173,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
 
     // Redact sensitive data before emitting to observers
     final redactedUri = HttpRedactor.redactUri(uri);
-    final redactedHeaders = HttpRedactor.redactHeaders(headers ?? const {});
+    final redactedHeaders = HttpRedactor.redactHeaders(enrichedHeaders);
     final redactedBody = _redactRequestBody(body, uri);
 
     // Notify stream start
@@ -186,7 +194,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
     final sourceStream = _client.requestStream(
       method,
       uri,
-      headers: headers,
+      headers: enrichedHeaders,
       body: body,
     );
 
