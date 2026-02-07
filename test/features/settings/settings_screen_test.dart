@@ -7,6 +7,8 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/logging/log_config.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -41,6 +43,7 @@ Widget _createAppWithRouter({
     container: ProviderContainer(
       overrides: [
         shellConfigProvider.overrideWithValue(testSoliplexConfig),
+        logConfigProvider.overrideWith(_TestLogConfigNotifier.new),
         backendVersionInfoProvider.overrideWithValue(
           const AsyncValue.data(testBackendVersionInfo),
         ),
@@ -49,6 +52,11 @@ Widget _createAppWithRouter({
     ),
     child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
+}
+
+class _TestLogConfigNotifier extends LogConfigNotifier {
+  @override
+  LogConfig build() => LogConfig.defaultConfig;
 }
 
 class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {

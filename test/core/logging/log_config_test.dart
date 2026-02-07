@@ -8,6 +8,8 @@ void main() {
       expect(LogConfig.defaultConfig.minimumLevel, LogLevel.debug);
       expect(LogConfig.defaultConfig.consoleLoggingEnabled, isTrue);
       expect(LogConfig.defaultConfig.stdoutLoggingEnabled, isTrue);
+      expect(LogConfig.defaultConfig.backendLoggingEnabled, isFalse);
+      expect(LogConfig.defaultConfig.backendEndpoint, '/api/v1/logs');
     });
 
     test('creates with specified values', () {
@@ -53,6 +55,24 @@ void main() {
         expect(copied.stdoutLoggingEnabled, isFalse);
       });
 
+      test('copies backendLoggingEnabled only', () {
+        const original = LogConfig.defaultConfig;
+
+        final copied = original.copyWith(backendLoggingEnabled: true);
+
+        expect(copied.backendLoggingEnabled, isTrue);
+        expect(copied.backendEndpoint, '/api/v1/logs');
+      });
+
+      test('copies backendEndpoint only', () {
+        const original = LogConfig.defaultConfig;
+
+        final copied = original.copyWith(backendEndpoint: '/custom');
+
+        expect(copied.backendEndpoint, '/custom');
+        expect(copied.backendLoggingEnabled, isFalse);
+      });
+
       test('copies all values', () {
         const original = LogConfig.defaultConfig;
 
@@ -60,11 +80,15 @@ void main() {
           minimumLevel: LogLevel.error,
           consoleLoggingEnabled: false,
           stdoutLoggingEnabled: false,
+          backendLoggingEnabled: true,
+          backendEndpoint: '/v2/logs',
         );
 
         expect(copied.minimumLevel, LogLevel.error);
         expect(copied.consoleLoggingEnabled, isFalse);
         expect(copied.stdoutLoggingEnabled, isFalse);
+        expect(copied.backendLoggingEnabled, isTrue);
+        expect(copied.backendEndpoint, '/v2/logs');
       });
 
       test('preserves values when no arguments given', () {
@@ -72,6 +96,8 @@ void main() {
           minimumLevel: LogLevel.debug,
           consoleLoggingEnabled: false,
           stdoutLoggingEnabled: false,
+          backendLoggingEnabled: true,
+          backendEndpoint: '/custom',
         );
 
         final copied = original.copyWith();
@@ -79,6 +105,8 @@ void main() {
         expect(copied.minimumLevel, LogLevel.debug);
         expect(copied.consoleLoggingEnabled, isFalse);
         expect(copied.stdoutLoggingEnabled, isFalse);
+        expect(copied.backendLoggingEnabled, isTrue);
+        expect(copied.backendEndpoint, '/custom');
       });
     });
 
@@ -123,6 +151,22 @@ void main() {
 
         expect(config1, isNot(equals(config2)));
       });
+
+      test('different backendLoggingEnabled are not equal', () {
+        const config1 = LogConfig.defaultConfig;
+        final config2 =
+            LogConfig.defaultConfig.copyWith(backendLoggingEnabled: true);
+
+        expect(config1, isNot(equals(config2)));
+      });
+
+      test('different backendEndpoint are not equal', () {
+        const config1 = LogConfig.defaultConfig;
+        final config2 =
+            LogConfig.defaultConfig.copyWith(backendEndpoint: '/other');
+
+        expect(config1, isNot(equals(config2)));
+      });
     });
 
     test('toString returns expected format', () {
@@ -130,13 +174,17 @@ void main() {
         minimumLevel: LogLevel.warning,
         consoleLoggingEnabled: false,
         stdoutLoggingEnabled: true,
+        backendLoggingEnabled: true,
+        backendEndpoint: '/v2/logs',
       );
 
       expect(
         config.toString(),
         'LogConfig(minimumLevel: LogLevel.warning, '
         'consoleLoggingEnabled: false, '
-        'stdoutLoggingEnabled: true)',
+        'stdoutLoggingEnabled: true, '
+        'backendLoggingEnabled: true, '
+        'backendEndpoint: /v2/logs)',
       );
     });
   });
