@@ -1,8 +1,20 @@
+import 'dart:async';
+import 'dart:developer' as developer;
+
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
+import 'package:uuid/uuid.dart';
 
 /// SharedPreferences key for minimum log level.
 const _kLogLevelKey = 'log_level';
@@ -12,6 +24,15 @@ const _kConsoleLoggingKey = 'console_logging';
 
 /// SharedPreferences key for stdout logging enabled.
 const _kStdoutLoggingKey = 'stdout_logging';
+
+/// SharedPreferences key for backend logging enabled.
+const _kBackendLoggingKey = 'backend_logging';
+
+/// SharedPreferences key for backend endpoint.
+const _kBackendEndpointKey = 'backend_endpoint';
+
+/// SharedPreferences key for persistent install ID.
+const _kInstallIdKey = 'install_id';
 
 /// Notifier for managing log configuration.
 ///
@@ -31,6 +52,8 @@ class LogConfigNotifier extends Notifier<LogConfig> {
     final levelIndex = prefs.getInt(_kLogLevelKey);
     final consoleEnabled = prefs.getBool(_kConsoleLoggingKey);
     final stdoutEnabled = prefs.getBool(_kStdoutLoggingKey);
+    final backendEnabled = prefs.getBool(_kBackendLoggingKey);
+    final backendEndpoint = prefs.getString(_kBackendEndpointKey);
 
     return LogConfig(
       minimumLevel: levelIndex != null && levelIndex < LogLevel.values.length
@@ -40,6 +63,10 @@ class LogConfigNotifier extends Notifier<LogConfig> {
           consoleEnabled ?? LogConfig.defaultConfig.consoleLoggingEnabled,
       stdoutLoggingEnabled:
           stdoutEnabled ?? LogConfig.defaultConfig.stdoutLoggingEnabled,
+      backendLoggingEnabled:
+          backendEnabled ?? LogConfig.defaultConfig.backendLoggingEnabled,
+      backendEndpoint:
+          backendEndpoint ?? LogConfig.defaultConfig.backendEndpoint,
     );
   }
 
@@ -59,6 +86,18 @@ class LogConfigNotifier extends Notifier<LogConfig> {
   Future<void> setStdoutLoggingEnabled({required bool enabled}) async {
     await _prefs.setBool(_kStdoutLoggingKey, enabled);
     state = state.copyWith(stdoutLoggingEnabled: enabled);
+  }
+
+  /// Updates whether backend log shipping is enabled.
+  Future<void> setBackendLoggingEnabled({required bool enabled}) async {
+    await _prefs.setBool(_kBackendLoggingKey, enabled);
+    state = state.copyWith(backendLoggingEnabled: enabled);
+  }
+
+  /// Updates the backend endpoint for log ingestion.
+  Future<void> setBackendEndpoint(String endpoint) async {
+    await _prefs.setString(_kBackendEndpointKey, endpoint);
+    state = state.copyWith(backendEndpoint: endpoint);
   }
 }
 
@@ -152,6 +191,150 @@ final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
 });
 
 // ============================================================================
+// Backend Telemetry Providers
+// ============================================================================
+
+/// Persistent install ID (UUID v4), generated once and stored in prefs.
+final installIdProvider = Provider<String>((ref) {
+  ref.keepAlive();
+  final prefs = ref.read(preloadedPrefsProvider);
+  var id = prefs.getString(_kInstallIdKey);
+  if (id == null) {
+    id = const Uuid().v4();
+    prefs.setString(_kInstallIdKey, id);
+  }
+  return id;
+});
+
+/// Session ID (UUID v4), generated once per provider container lifetime.
+final sessionIdProvider = Provider<String>((ref) {
+  ref.keepAlive();
+  return const Uuid().v4();
+});
+
+/// Current network connectivity state.
+///
+/// Emits a `network_changed` log when connectivity changes.
+final connectivityProvider =
+    StreamProvider<List<ConnectivityResult>>((ref) async* {
+  ref.keepAlive();
+  final connectivity = Connectivity();
+
+  // Emit current state first.
+  yield await connectivity.checkConnectivity();
+
+  // Then listen for changes.
+  await for (final results in connectivity.onConnectivityChanged) {
+    Loggers.telemetry.info(
+      'network_changed',
+      attributes: {'connectivity': results.map((r) => r.name).join(', ')},
+    );
+    yield results;
+  }
+});
+
+/// Resource attributes gathered from device and package info.
+///
+/// Resolved once asynchronously; cached for the lifetime of the container.
+final resourceAttributesProvider =
+    FutureProvider<Map<String, Object>>((ref) async {
+  ref.keepAlive();
+
+  final packageInfo = await PackageInfo.fromPlatform();
+  final attributes = <String, Object>{
+    'app.version': packageInfo.version,
+    'app.build': packageInfo.buildNumber,
+    'app.package': packageInfo.packageName,
+  };
+
+  if (!kIsWeb) {
+    final deviceInfo = DeviceInfoPlugin();
+    final base = await deviceInfo.deviceInfo;
+    final data = base.data;
+    // Extract common fields safely.
+    final model = data['model'];
+    if (model is String) attributes['device.model'] = model;
+    final systemVersion = data['systemVersion'] ?? data['version'];
+    if (systemVersion is String) {
+      attributes['os.version'] = systemVersion;
+    } else if (systemVersion is Map) {
+      final release = systemVersion['release'];
+      if (release is String) attributes['os.version'] = release;
+    }
+  }
+
+  attributes['os.type'] = defaultTargetPlatform.name;
+
+  return attributes;
+});
+
+/// Holds the [BackendLogSink] instance when backend logging is enabled.
+///
+/// Created lazily when first accessed. The controller manages registration
+/// with LogManager based on config.backendLoggingEnabled.
+final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
+  ref.keepAlive();
+
+  final config = ref.read(logConfigProvider);
+  if (!config.backendLoggingEnabled) return null;
+
+  final appConfig = ref.read(configProvider);
+  final client = ref.read(httpClientProvider);
+  final installId = ref.read(installIdProvider);
+  final sessionId = ref.read(sessionIdProvider);
+  final endpoint = '${appConfig.baseUrl}${config.backendEndpoint}';
+
+  // Resolve async dependencies.
+  final resourceAttrs =
+      await ref.read(resourceAttributesProvider.future).catchError(
+            (_) => <String, Object>{},
+          );
+
+  // Build disk queue directory (web gets in-memory fallback).
+  late final DiskQueue diskQueue;
+  if (kIsWeb) {
+    diskQueue = DiskQueue(directoryPath: '');
+  } else {
+    final appDir = await getApplicationSupportDirectory();
+    diskQueue = DiskQueue(directoryPath: '${appDir.path}/log_queue');
+  }
+
+  final sink = BackendLogSink(
+    endpoint: endpoint,
+    client: client,
+    installId: installId,
+    sessionId: sessionId,
+    diskQueue: diskQueue,
+    resourceAttributes: resourceAttrs,
+    jwtProvider: () => ref.read(accessTokenProvider),
+    networkChecker: () {
+      final connectivity = ref.read(connectivityProvider);
+      return connectivity.maybeWhen(
+        data: (results) => !results.contains(ConnectivityResult.none),
+        orElse: () => true,
+      );
+    },
+    onError: (message, error) {
+      developer.log(
+        'BackendLogSink: $message',
+        error: error,
+        name: 'Telemetry',
+      );
+    },
+  );
+
+  LogManager.instance.addSink(sink);
+
+  ref.onDispose(() {
+    LogManager.instance.removeSink(sink);
+    unawaited(sink.close());
+    unawaited(diskQueue.close());
+  });
+
+  return sink;
+});
+
+// ============================================================================
 // Log Config Controller
 // ============================================================================
 // This provider manages the side effects of applying config to the logging
@@ -163,6 +346,8 @@ final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
 /// This provider:
 /// - Sets the global minimum log level on LogManager
 /// - Enables/disables sinks based on config
+/// - Wires `LogSanitizer` into `LogManager.instance.sanitizer`
+/// - Creates/destroys `BackendLogSink` based on config
 /// - Uses ref.listen to react to config changes without rebuilding sinks
 ///
 /// Watch this provider in your app root to initialize logging.
@@ -176,20 +361,35 @@ final logConfigControllerProvider = Provider<void>((ref) {
   final consoleSink = ref.watch(consoleSinkProvider);
   final stdoutSink = ref.watch(stdoutSinkProvider);
 
+  // Wire sanitizer into LogManager.
+  LogManager.instance.sanitizer ??= LogSanitizer();
+
   // Apply config immediately and listen for changes.
-  void applyConfig(LogConfig config) {
+  void applyConfig(LogConfig? previous, LogConfig config) {
     // Apply minimum level to LogManager (centralized ownership).
     LogManager.instance.minimumLevel = config.minimumLevel;
 
     // Enable/disable sinks based on config.
     consoleSink.enabled = config.consoleLoggingEnabled;
     stdoutSink?.enabled = config.stdoutLoggingEnabled;
+
+    // Handle backend sink lifecycle on toggle change.
+    final backendChanged = previous == null ||
+        previous.backendLoggingEnabled != config.backendLoggingEnabled;
+    if (backendChanged) {
+      // Invalidate to dispose any existing sink (onDispose removes from
+      // LogManager and closes it). Then re-read to trigger creation if
+      // the new config has backend logging enabled.
+      ref
+        ..invalidate(backendLogSinkProvider)
+        ..read(backendLogSinkProvider);
+    }
   }
 
   // Listen to config changes.
   ref.listen(
     logConfigProvider,
-    (previous, next) => applyConfig(next),
+    applyConfig,
     fireImmediately: true,
   );
 });

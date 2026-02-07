@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
@@ -39,6 +41,17 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
     if (state == AppLifecycleState.resumed) {
       _enableWakelock();
     }
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached) {
+      _flushBackendLogs();
+    }
+  }
+
+  void _flushBackendLogs() {
+    ref.read(backendLogSinkProvider).whenData((sink) {
+      if (sink != null) unawaited(sink.flush());
+    });
   }
 
   Future<void> _enableWakelock() async {

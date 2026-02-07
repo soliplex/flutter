@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -104,9 +106,29 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 }
 
 void main() {
+  late SharedPreferences prefs;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
+  });
+
+  /// Common overrides needed for SettingsScreen (includes logConfig prefs).
+  List<dynamic> settingsOverrides([List<dynamic> extra = const []]) {
+    return [
+      preloadedPrefsProvider.overrideWithValue(prefs),
+      ...extra,
+    ];
+  }
+
   group('SettingsScreen', () {
     testWidgets('displays frontend version', (tester) async {
-      await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
+      await tester.pumpWidget(
+        createTestApp(
+          home: const SettingsScreen(),
+          overrides: settingsOverrides(),
+        ),
+      );
 
       expect(find.text('Frontend Version'), findsOneWidget);
       expect(find.text(soliplexVersion), findsOneWidget);
@@ -116,11 +138,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
-          overrides: [
+          overrides: settingsOverrides([
             configProviderOverride(
               const AppConfig(baseUrl: 'http://localhost:8000'),
             ),
-          ],
+          ]),
         ),
       );
 
@@ -132,7 +154,9 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
-          overrides: [authProvider.overrideWith(_MockAuthNotifier.new)],
+          overrides: settingsOverrides([
+            authProvider.overrideWith(_MockAuthNotifier.new),
+          ]),
         ),
       );
 
@@ -146,11 +170,11 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
-          overrides: [
+          overrides: settingsOverrides([
             authProvider.overrideWith(
               () => _MockAuthNotifier(initialState: const NoAuthRequired()),
             ),
-          ],
+          ]),
         ),
       );
 
@@ -165,13 +189,13 @@ void main() {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
-          overrides: [
+          overrides: settingsOverrides([
             authProvider.overrideWith(() {
               return mockNotifier = _MockAuthNotifier(
                 initialState: const NoAuthRequired(),
               );
             }),
-          ],
+          ]),
         ),
       );
 
@@ -186,7 +210,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const SettingsScreen(),
-            overrides: [
+            overrides: settingsOverrides([
               authProvider.overrideWith(
                 () => _MockAuthNotifier(
                   initialState: TestData.createAuthenticated(
@@ -194,7 +218,7 @@ void main() {
                   ),
                 ),
               ),
-            ],
+            ]),
           ),
         );
 
@@ -207,13 +231,13 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const SettingsScreen(),
-            overrides: [
+            overrides: settingsOverrides([
               authProvider.overrideWith(
                 () => _MockAuthNotifier(
                   initialState: TestData.createAuthenticated(),
                 ),
               ),
-            ],
+            ]),
           ),
         );
 
@@ -228,13 +252,13 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const SettingsScreen(),
-            overrides: [
+            overrides: settingsOverrides([
               authProvider.overrideWith(
                 () => _MockAuthNotifier(
                   initialState: TestData.createAuthenticated(),
                 ),
               ),
-            ],
+            ]),
           ),
         );
 
@@ -254,13 +278,13 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const SettingsScreen(),
-            overrides: [
+            overrides: settingsOverrides([
               authProvider.overrideWith(() {
                 return mockNotifier = _MockAuthNotifier(
                   initialState: TestData.createAuthenticated(),
                 );
               }),
-            ],
+            ]),
           ),
         );
 
@@ -281,11 +305,11 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const SettingsScreen(),
-            overrides: [
+            overrides: settingsOverrides([
               authProvider.overrideWith(
                 () => _MockAuthNotifier(initialState: const AuthLoading()),
               ),
-            ],
+            ]),
           ),
         );
         // Don't use pumpAndSettle - CircularProgressIndicator animates forever
@@ -308,7 +332,12 @@ void main() {
     group('Backend version', () {
       testWidgets('displays backend version when loaded', (tester) async {
         // Uses default testBackendVersionInfo from createTestApp
-        await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
+        await tester.pumpWidget(
+          createTestApp(
+            home: const SettingsScreen(),
+            overrides: settingsOverrides(),
+          ),
+        );
         // Just pump once - the value is immediately available via AsyncValue
         await tester.pump();
 
@@ -322,12 +351,12 @@ void main() {
           createTestApp(
             home: const SettingsScreen(),
             skipBackendVersionOverride: true,
-            overrides: [
+            overrides: settingsOverrides([
               // Use AsyncValue.loading() to avoid pending timers
               backendVersionInfoProvider.overrideWithValue(
                 const AsyncValue<BackendVersionInfo>.loading(),
               ),
-            ],
+            ]),
           ),
         );
         await tester.pump();
@@ -348,7 +377,7 @@ void main() {
           createTestApp(
             home: const SettingsScreen(),
             skipBackendVersionOverride: true,
-            overrides: [
+            overrides: settingsOverrides([
               // Use AsyncValue.error() to avoid retry timers
               backendVersionInfoProvider.overrideWithValue(
                 const AsyncValue<BackendVersionInfo>.error(
@@ -356,7 +385,7 @@ void main() {
                   StackTrace.empty,
                 ),
               ),
-            ],
+            ]),
           ),
         );
         await tester.pump();
@@ -377,7 +406,7 @@ void main() {
         await tester.pumpWidget(
           _createAppWithRouter(
             home: const SettingsScreen(),
-            overrides: const [],
+            overrides: settingsOverrides(),
           ),
         );
         await tester.pump();

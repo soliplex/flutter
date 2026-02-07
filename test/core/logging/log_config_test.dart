@@ -8,6 +8,8 @@ void main() {
       expect(LogConfig.defaultConfig.minimumLevel, LogLevel.debug);
       expect(LogConfig.defaultConfig.consoleLoggingEnabled, isTrue);
       expect(LogConfig.defaultConfig.stdoutLoggingEnabled, isTrue);
+      expect(LogConfig.defaultConfig.backendLoggingEnabled, isFalse);
+      expect(LogConfig.defaultConfig.backendEndpoint, '/api/v1/logs');
     });
 
     test('creates with specified values', () {
@@ -80,6 +82,25 @@ void main() {
         expect(copied.consoleLoggingEnabled, isFalse);
         expect(copied.stdoutLoggingEnabled, isFalse);
       });
+
+      test('copies backendLoggingEnabled only', () {
+        const original = LogConfig.defaultConfig;
+
+        final copied = original.copyWith(backendLoggingEnabled: true);
+
+        expect(copied.backendLoggingEnabled, isTrue);
+        expect(copied.backendEndpoint, '/api/v1/logs');
+        expect(copied.minimumLevel, LogLevel.debug);
+      });
+
+      test('copies backendEndpoint only', () {
+        const original = LogConfig.defaultConfig;
+
+        final copied = original.copyWith(backendEndpoint: '/custom');
+
+        expect(copied.backendEndpoint, '/custom');
+        expect(copied.backendLoggingEnabled, isFalse);
+      });
     });
 
     group('equality', () {
@@ -123,6 +144,30 @@ void main() {
 
         expect(config1, isNot(equals(config2)));
       });
+
+      test('different backendLoggingEnabled are not equal', () {
+        const config1 = LogConfig.defaultConfig;
+        const config2 = LogConfig(
+          minimumLevel: LogLevel.debug,
+          consoleLoggingEnabled: true,
+          stdoutLoggingEnabled: true,
+          backendLoggingEnabled: true,
+        );
+
+        expect(config1, isNot(equals(config2)));
+      });
+
+      test('different backendEndpoint are not equal', () {
+        const config1 = LogConfig.defaultConfig;
+        const config2 = LogConfig(
+          minimumLevel: LogLevel.debug,
+          consoleLoggingEnabled: true,
+          stdoutLoggingEnabled: true,
+          backendEndpoint: '/custom',
+        );
+
+        expect(config1, isNot(equals(config2)));
+      });
     });
 
     test('toString returns expected format', () {
@@ -136,7 +181,9 @@ void main() {
         config.toString(),
         'LogConfig(minimumLevel: LogLevel.warning, '
         'consoleLoggingEnabled: false, '
-        'stdoutLoggingEnabled: true)',
+        'stdoutLoggingEnabled: true, '
+        'backendLoggingEnabled: false, '
+        'backendEndpoint: /api/v1/logs)',
       );
     });
   });

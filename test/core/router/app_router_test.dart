@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
@@ -60,6 +61,7 @@ Widget createRouterApp({
   bool authenticated = true,
   bool noAuthMode = false,
   SoliplexConfig config = const SoliplexConfig(logo: LogoConfig.soliplex),
+  SharedPreferences? prefs,
 }) {
   return createRouterAppAt(
     '/',
@@ -67,6 +69,7 @@ Widget createRouterApp({
     authenticated: authenticated,
     noAuthMode: noAuthMode,
     config: config,
+    prefs: prefs,
   );
 }
 
@@ -88,6 +91,7 @@ Widget createRouterAppAt(
   bool authenticated = true,
   bool noAuthMode = false,
   SoliplexConfig config = const SoliplexConfig(logo: LogoConfig.soliplex),
+  SharedPreferences? prefs,
 }) {
   final authState = _resolveAuthState(
     authenticated: authenticated,
@@ -98,6 +102,7 @@ Widget createRouterAppAt(
     overrides: [
       shellConfigProvider.overrideWithValue(config),
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
+      if (prefs != null) preloadedPrefsProvider.overrideWithValue(prefs),
       routerProvider.overrideWith((ref) {
         final currentAuthState = ref.watch(authProvider);
         final hasAccess = currentAuthState is Authenticated ||
@@ -208,8 +213,11 @@ Widget createRouterAppAt(
 }
 
 void main() {
-  setUp(() {
+  late SharedPreferences prefs;
+
+  setUp(() async {
     SharedPreferences.setMockInitialValues({});
+    prefs = await SharedPreferences.getInstance();
   });
 
   group('AppRouter', () {
@@ -330,7 +338,7 @@ void main() {
     });
 
     testWidgets('navigates to settings screen', (tester) async {
-      await tester.pumpWidget(createRouterAppAt('/settings'));
+      await tester.pumpWidget(createRouterAppAt('/settings', prefs: prefs));
       await tester.pumpAndSettle();
       expect(find.byType(SettingsScreen), findsOneWidget);
     });
@@ -543,6 +551,7 @@ void main() {
     ) async {
       final container = ProviderContainer(
         overrides: [
+          preloadedPrefsProvider.overrideWithValue(prefs),
           shellConfigProvider.overrideWithValue(testSoliplexConfig),
           backendVersionInfoProvider.overrideWithValue(
             const AsyncValue.data(testBackendVersionInfo),
@@ -1072,6 +1081,7 @@ void main() {
       // Setup: initialRoute: '/settings', enableSettings: true (defaults)
       final container = ProviderContainer(
         overrides: [
+          preloadedPrefsProvider.overrideWithValue(prefs),
           shellConfigProvider.overrideWithValue(
             const SoliplexConfig(
               logo: LogoConfig.soliplex,
