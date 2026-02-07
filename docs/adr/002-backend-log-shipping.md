@@ -15,10 +15,10 @@ screen-sharing or reading console output. This approach fails when:
 - The app crashes (logs lost with the process)
 - The user is offline or on a flaky connection (logs never seen)
 - Support engineers need historical context across sessions and devices
-- Government deployments require audit trails
+- Deployments require audit trails
 
 We needed centralized, persistent log shipping that works within our
-self-hosted DoD-compliant environment (no commercial SaaS).
+self-hosted environment.
 
 ## Decisions
 
@@ -94,6 +94,9 @@ within the same trust boundary.
 
 - `installId` (stable UUID per install) identifies the device across sessions
 - `sessionId` (new UUID per launch) groups logs within a single app run
+- Each session gets a memorable alias (e.g. `glad-raven-tundra`) derived
+  deterministically from the install ID, making it easy to find and correlate
+  sessions in Logfire without copying raw UUIDs
 - Resource attributes enable filtering in Logfire by OS, version, etc.
 - Follows OTel semantic conventions for future compatibility
 
