@@ -128,9 +128,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     }
 
     _isStarting = true;
-    Loggers.activeRun.debug(
-      'startRun called: room=$roomId, thread=$threadId',
-    );
     StreamSubscription<BaseEvent>? subscription;
     String? runId;
 
@@ -185,8 +182,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         aguiState: cachedAguiState,
       );
 
-      // Set running state
+      // Set running state — fires listener that sets activeRun on sink.
       state = RunningState(conversation: conversation);
+      Loggers.activeRun.debug(
+        'startRun called: room=$roomId, thread=$threadId',
+      );
 
       // Step 2: Build the streaming endpoint URL with backend run_id
       final endpoint = 'rooms/$roomId/agui/$threadId/$runId';

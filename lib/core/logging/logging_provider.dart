@@ -10,8 +10,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/logging/device_alias.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
@@ -207,6 +210,16 @@ final installIdProvider = Provider<String>((ref) {
   return id;
 });
 
+/// Human-readable session alias derived deterministically from session ID.
+///
+/// Changes each app restart (e.g., "calm-falcon-ridge"). Displayed in the
+/// telemetry UI so users can identify their session to support staff.
+final deviceAliasProvider = Provider<String>((ref) {
+  ref.keepAlive();
+  final sessionId = ref.read(sessionIdProvider);
+  return generateDeviceAlias(sessionId);
+});
+
 /// Session ID (UUID v4), generated once per provider container lifetime.
 final sessionIdProvider = Provider<String>((ref) {
   ref.keepAlive();
@@ -241,11 +254,13 @@ final resourceAttributesProvider =
     FutureProvider<Map<String, Object>>((ref) async {
   ref.keepAlive();
 
+  final deviceAlias = ref.read(deviceAliasProvider);
   final packageInfo = await PackageInfo.fromPlatform();
   final attributes = <String, Object>{
     'app.version': packageInfo.version,
     'app.build': packageInfo.buildNumber,
     'app.package': packageInfo.packageName,
+    'device.alias': deviceAlias,
   };
 
   if (!kIsWeb) {
@@ -318,6 +333,14 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
       // Pre-auth: return null to buffer logs until authenticated.
       if (authState is! Authenticated) return null;
       return authState.accessToken;
+    },
+    flushGate: () {
+      try {
+        final runState = ref.read(activeRunNotifierProvider);
+        return runState is! RunningState;
+      } catch (_) {
+        return true;
+      }
     },
     networkChecker: () {
       final connectivity = ref.read(connectivityProvider);
@@ -398,10 +421,43 @@ final logConfigControllerProvider = Provider<void>((ref) {
     }
   }
 
-  // Listen to config changes.
-  ref.listen(
-    logConfigProvider,
-    applyConfig,
-    fireImmediately: true,
-  );
+  // Cache resolved BackendLogSink for synchronous access in run listener.
+  // Using a closure variable avoids the async .then() delay that caused
+  // early run logs (startRun, Stream subscription) to miss activeRun context.
+  BackendLogSink? cachedBackendSink;
+
+  // Listen to config changes and active run completion.
+  ref
+    ..listen(
+      logConfigProvider,
+      applyConfig,
+      fireImmediately: true,
+    )
+    ..listen(
+      backendLogSinkProvider,
+      (_, next) {
+        cachedBackendSink = next.asData?.value;
+      },
+      fireImmediately: true,
+    )
+    // Track active run context and flush on completion.
+    ..listen<ActiveRunState>(
+      activeRunNotifierProvider,
+      (previous, next) {
+        final sink = cachedBackendSink;
+        if (sink == null) return;
+        if (next is RunningState) {
+          sink
+            ..threadId = next.threadId
+            ..runId = next.runId;
+        } else {
+          sink
+            ..threadId = null
+            ..runId = null;
+        }
+        if (previous is RunningState && next is CompletedState) {
+          unawaited(sink.flush(force: true));
+        }
+      },
+    );
 });

@@ -62,7 +62,13 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
       _suppressedRequestIds.add(event.requestId);
     } else {
       _requestInfoById[event.requestId] = '${event.method} ${event.uri}';
-      Loggers.http.debug('${event.method} ${event.uri}');
+      Loggers.http.debug(
+        '${event.method} ${event.uri}',
+        attributes: {
+          'http.request_id': event.requestId,
+          'http.type': 'request',
+        },
+      );
     }
     _addEvent(event);
   }
@@ -73,7 +79,14 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
       _requestInfoById.remove(event.requestId);
     } else {
       final info = _requestInfoById.remove(event.requestId);
-      Loggers.http.debug('${event.statusCode} $info');
+      Loggers.http.debug(
+        '${event.statusCode} $info',
+        attributes: {
+          'http.request_id': event.requestId,
+          'http.type': 'response',
+          'http.status_code': event.statusCode,
+        },
+      );
     }
     _addEvent(event);
   }
@@ -87,6 +100,10 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
     Loggers.http.error(
       '${event.method} ${event.uri}',
       error: event.exception,
+      attributes: {
+        'http.request_id': event.requestId,
+        'http.type': 'error',
+      },
     );
     _addEvent(event);
   }

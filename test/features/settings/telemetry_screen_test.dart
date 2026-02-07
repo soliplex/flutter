@@ -37,6 +37,20 @@ void main() {
   }
 
   group('TelemetryScreen', () {
+    testWidgets('displays session alias', (tester) async {
+      await tester.pumpWidget(buildScreen());
+
+      expect(find.text('Session Alias'), findsOneWidget);
+      // Alias is a three-word hyphenated string.
+      final aliasFinder = find.byWidgetPredicate(
+        (widget) =>
+            widget is SelectableText &&
+            widget.data != null &&
+            RegExp(r'^[a-z]+-[a-z]+-[a-z]+$').hasMatch(widget.data!),
+      );
+      expect(aliasFinder, findsOneWidget);
+    });
+
     testWidgets('shows toggle in off state by default', (tester) async {
       await tester.pumpWidget(buildScreen());
 

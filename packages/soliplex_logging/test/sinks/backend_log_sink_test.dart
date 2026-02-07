@@ -51,6 +51,8 @@ void main() {
   BackendLogSink createSink({
     String? Function()? jwtProvider,
     bool Function()? networkChecker,
+    bool Function()? flushGate,
+    Duration maxFlushHoldDuration = const Duration(minutes: 5),
     SinkErrorCallback? onError,
     Duration flushInterval = const Duration(hours: 1),
   }) {
@@ -68,6 +70,8 @@ void main() {
       flushInterval: flushInterval,
       jwtProvider: jwtProvider,
       networkChecker: networkChecker,
+      flushGate: flushGate,
+      maxFlushHoldDuration: maxFlushHoldDuration,
       onError: onError,
     );
   }
@@ -392,6 +396,104 @@ void main() {
       final body =
           jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
       expect(body['logs'], isNotEmpty);
+    });
+
+    group('flushGate', () {
+      test('blocks flush when returning false', () async {
+        final sink = createSink(flushGate: () => false)..write(makeRecord());
+        await sink.flush();
+
+        expect(capturedRequests, isEmpty);
+        expect(await diskQueue.pendingCount, 1);
+        await sink.close();
+      });
+
+      test('allows flush when returning true', () async {
+        final sink = createSink(flushGate: () => true)..write(makeRecord());
+        await sink.flush();
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('null defaults to allow', () async {
+        final sink = createSink()..write(makeRecord());
+        await sink.flush();
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('safety valve flushes after maxFlushHoldDuration', () async {
+        final sink = createSink(
+          flushGate: () => false,
+          maxFlushHoldDuration: const Duration(milliseconds: 1),
+        )..write(makeRecord());
+
+        // First flush starts the gated timer.
+        await sink.flush();
+        expect(capturedRequests, isEmpty);
+
+        // Wait for the safety valve to expire.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+
+        // Second flush should proceed via safety valve.
+        await sink.flush();
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('force: true bypasses flushGate', () async {
+        final sink = createSink(flushGate: () => false)..write(makeRecord());
+        await sink.flush(force: true);
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('error-level logs bypass gate via force flush', () async {
+        final sink = createSink(flushGate: () => false)
+          ..write(
+            makeRecord(level: LogLevel.error, message: 'Error!'),
+          );
+
+        // Give the unawaited flush a moment.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('gatedSince resets when gate opens', () async {
+        var gateOpen = false;
+        final sink = createSink(
+          flushGate: () => gateOpen,
+          maxFlushHoldDuration: const Duration(milliseconds: 1),
+        )..write(makeRecord(message: 'First'));
+
+        // Start gated.
+        await sink.flush();
+        expect(capturedRequests, isEmpty);
+
+        // Open gate — flush succeeds and resets gatedSince.
+        gateOpen = true;
+        await sink.flush();
+        expect(capturedRequests, hasLength(1));
+
+        // Close gate again with new record.
+        gateOpen = false;
+        sink.write(makeRecord(message: 'Second'));
+        await sink.flush();
+        // Gate just closed — gatedSince was reset so timer starts fresh.
+        // With 1ms hold, it should NOT flush immediately (fresh timer).
+        expect(capturedRequests, hasLength(1));
+
+        // Wait for safety valve and try again.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await sink.flush();
+        expect(capturedRequests, hasLength(2));
+        await sink.close();
+      });
     });
   });
 }
