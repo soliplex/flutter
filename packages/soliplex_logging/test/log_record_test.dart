@@ -167,6 +167,100 @@ void main() {
       expect(record.toString(), contains('span=span-123'));
     });
 
+    test('stores attributes', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'User action',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+        attributes: const {'user_id': 'u-42', 'http_status': 200},
+      );
+
+      expect(record.attributes, {'user_id': 'u-42', 'http_status': 200});
+    });
+
+    test('attributes default to empty map', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'Test',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+      );
+
+      expect(record.attributes, isEmpty);
+    });
+
+    test('toString includes attributes when non-empty', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'Test',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+        attributes: const {'view_name': 'home'},
+      );
+
+      expect(record.toString(), contains('view_name'));
+      expect(record.toString(), contains('home'));
+    });
+
+    test('toString omits attributes when empty', () {
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'Test',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+      );
+
+      // Should not contain curly braces from an empty map
+      expect(record.toString(), isNot(contains('{}')));
+    });
+
+    group('copyWith', () {
+      test('returns new record with overridden fields', () {
+        final original = LogRecord(
+          level: LogLevel.info,
+          message: 'Original',
+          timestamp: DateTime(2024),
+          loggerName: 'Test',
+          attributes: const {'key': 'value'},
+        );
+
+        final copied = original.copyWith(
+          message: 'Copied',
+          attributes: {'new_key': 'new_value'},
+        );
+
+        expect(copied.level, LogLevel.info);
+        expect(copied.message, 'Copied');
+        expect(copied.loggerName, 'Test');
+        expect(copied.attributes, {'new_key': 'new_value'});
+        expect(original.message, 'Original');
+        expect(original.attributes, {'key': 'value'});
+      });
+
+      test('with no args returns equivalent record', () {
+        final original = LogRecord(
+          level: LogLevel.warning,
+          message: 'Test',
+          timestamp: DateTime(2024, 6, 15),
+          loggerName: 'Logger',
+          spanId: 'span-1',
+          traceId: 'trace-1',
+          attributes: const {'k': 'v'},
+        );
+
+        final copied = original.copyWith();
+
+        expect(copied.level, original.level);
+        expect(copied.message, original.message);
+        expect(copied.timestamp, original.timestamp);
+        expect(copied.loggerName, original.loggerName);
+        expect(copied.spanId, original.spanId);
+        expect(copied.traceId, original.traceId);
+        expect(copied.attributes, original.attributes);
+      });
+    });
+
     test('toString includes error when present', () {
       final record = LogRecord(
         level: LogLevel.error,

@@ -19,6 +19,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     _log(
       LogLevel.trace,
@@ -27,6 +28,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes,
     );
   }
 
@@ -37,6 +39,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     _log(
       LogLevel.debug,
@@ -45,6 +48,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes,
     );
   }
 
@@ -55,6 +59,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     _log(
       LogLevel.info,
@@ -63,6 +68,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes,
     );
   }
 
@@ -73,6 +79,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     _log(
       LogLevel.warning,
@@ -81,6 +88,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes,
     );
   }
 
@@ -91,6 +99,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     _log(
       LogLevel.error,
@@ -99,6 +108,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes,
     );
   }
 
@@ -109,6 +119,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     _log(
       LogLevel.fatal,
@@ -117,6 +128,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes,
     );
   }
 
@@ -127,6 +139,7 @@ class Logger {
     StackTrace? stackTrace,
     String? spanId,
     String? traceId,
+    Map<String, Object>? attributes,
   }) {
     if (level < _manager.minimumLevel) return;
 
@@ -139,6 +152,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
+      attributes: attributes != null ? Map.unmodifiable(attributes) : const {},
     );
 
     _manager.emit(record);
