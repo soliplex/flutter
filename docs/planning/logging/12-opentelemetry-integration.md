@@ -266,29 +266,42 @@ requiring changes at every call site.
 | error | 17 | ERROR |
 | fatal | 21 | FATAL |
 
-### LogRecord → OTLP LogRecord
+### Field Mapping: Two Stages
 
-| LogRecord field | OTLP field | Conversion |
-|----------------|------------|------------|
-| `timestamp` | `timeUnixNano` | `microsecondsSinceEpoch * 1000` (string) |
-| *(set by sink)* | `observedTimeUnixNano` | `DateTime.now()` at `write()` time (string) |
+With Option B, field mapping happens in **two stages**:
+
+**Stage 1 — Flutter client → Backend (simple JSON):**
+
+The client sends plain JSON (ISO timestamps, native JSON types). No OTLP
+formatting. See payload format in PLAN-otel.md 12.2.
+
+**Stage 2 — Python backend → Logfire (OTLP):**
+
+The Python OTel SDK maps the plain JSON to OTLP fields:
+
+| Client JSON field | OTLP field | Conversion (Python backend) |
+|-------------------|------------|---------------------------|
+| `timestamp` | `timeUnixNano` | Parse ISO → nanoseconds |
+| *(server clock)* | `observedTimeUnixNano` | `server_received_at` from server time |
 | `level` | `severityNumber` | See mapping table above |
-| `level.label` | `severityText` | Direct string |
+| `level` | `severityText` | Direct string |
 | `message` | `body.stringValue` | Direct string |
-| `loggerName` | `scope.name` | InstrumentationScope |
+| `logger` | `scope.name` | InstrumentationScope |
 | `traceId` | `traceId` | Hex string (32 chars) |
 | `spanId` | `spanId` | Hex string (16 chars) |
-| *(trace context)* | `flags` | `0x01` if sampled, `0x00` otherwise |
 | `error` | `attributes[exception.type, exception.message]` | OTel semantic conventions |
 | `stackTrace` | `attributes[exception.stacktrace]` | String representation |
-| `attributes` | `attributes` | Typed `AnyValue` mapping (see below) |
-| *(computed)* | `droppedAttributesCount` | Count of attributes dropped by limit |
+| `attributes` | `attributes` | Python SDK handles typed AnyValue mapping |
+| `installId` | `attributes[install.id]` | Resource or record attribute |
+| `sessionId` | `attributes[session.id]` | Resource or record attribute |
+| `userId` | `attributes[user.id]` | Resource or record attribute |
 
-### Attribute `AnyValue` Mapping (Reference)
+### Attribute `AnyValue` Mapping (Reference — Python Backend Side)
 
-With Option B, the Python OTel SDK handles typed attribute mapping. This
-section is retained as reference for the JSON attribute format the Flutter
-client sends to the backend. The Python SDK maps these to OTLP `AnyValue`:
+The Flutter client sends **plain JSON attribute values** (strings, numbers,
+booleans, arrays, objects). The Python OTel SDK on the backend handles
+the conversion to OTLP typed `AnyValue` wrappers. This table shows what
+the Python SDK produces — the client does NOT send these wrappers:
 
 | Dart type | OTLP `AnyValue` key | Example |
 |-----------|---------------------|---------|
