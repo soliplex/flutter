@@ -135,7 +135,10 @@ abstract interface class OtelExporter {
 - `mapLogRecord(LogRecord) → Map<String, Object>` — OTLP JSON mapping
 - `mapSeverity(LogLevel) → (int severityNumber, String severityText)`
 - `mapTimestamp(DateTime) → String` (nanosecond string)
-- `mapAttributes(Map<String, Object>) → List<Map>` (OTel attribute format)
+- `mapAttributes(Map<String, Object>) → List<Map>` (OTel attribute format).
+  **Safe serialization:** coerce non-primitive values (`String`, `int`,
+  `double`, `bool`) to `.toString()` to prevent `jsonEncode` crashes from
+  complex objects passed as attribute values.
 - `mapError(Object?, StackTrace?) → List<Map>` (exception semantic
   conventions)
 - `buildPayload(List<LogRecord>, Map resourceAttrs) → Map` (full OTLP
@@ -172,6 +175,7 @@ abstract interface class OtelExporter {
 - [ ] `LogfireExporter` sends raw token, maps HTTP status correctly
 - [ ] `ProxyExporter` sends Bearer JWT, supports token refresh
 - [ ] OTLP JSON matches OTel spec (field names, types, nesting)
+- [ ] Mapper safely coerces non-primitive attribute values to `.toString()`
 - [ ] `OtelSink` retries on `retryable`, disables on `fatal`
 - [ ] Batch processor respects size, timer, and severity triggers
 - [ ] Queue overflow drops TRACE/DEBUG first, never ERROR/FATAL
@@ -217,11 +221,31 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 
 - Add `otelEnabled` (bool, default false)
 - Add `otelEndpoint` (String, default Logfire URL)
-- Add `otelAuthToken` (String, default empty)
+- **Do NOT add `otelAuthToken` to `LogConfig`.** `LogConfig` is backed by
+  `SharedPreferences` and builds synchronously via `preloadedPrefsProvider`.
+  The Logfire write token must live in `flutter_secure_storage` (async).
+  Mixing the two would either break sync init or leak the token to
+  SharedPreferences.
 
-**`lib/core/logging/logging_provider.dart`:**
+**`lib/core/logging/logging_provider.dart` (token provider):**
 
-- Add `otelExporterProvider` — selects exporter by platform:
+- Add `otelTokenProvider` — `FutureProvider<String?>` that reads the
+  Logfire write token from `flutter_secure_storage`. This keeps the
+  token decoupled from the synchronous `LogConfig` lifecycle.
+
+  ```dart
+  final otelTokenProvider = FutureProvider<String?>((ref) async {
+    if (kIsWeb) return null; // web uses proxy, no client token
+    final storage = ref.read(secureStorageProvider);
+    return storage.read(key: 'logfire_write_token');
+  });
+  ```
+
+**`lib/core/logging/logging_provider.dart` (exporter + sink):**
+
+- Add `otelExporterProvider` — selects exporter by platform. On native,
+  watches `otelTokenProvider` for the Logfire write token. On web, uses
+  session JWT from existing auth state.
 
   ```dart
   final exporter = kIsWeb
@@ -230,15 +254,16 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
           sessionToken: sessionJwt,
         )
       : LogfireExporter(
-          endpoint: 'https://logfire-us.pydantic.dev/v1/logs',
-          authToken: logfireToken,
+          endpoint: config.otelEndpoint,
+          authToken: token, // from otelTokenProvider
         );
   ```
 
 - Add `otelSinkProvider` — creates `OtelSink` with the exporter from
   `otelExporterProvider`, registers with LogManager,
   `ref.onDispose → close`
-- Sink disabled when `otelEnabled` is false
+- Sink disabled when `otelEnabled` is false or token is unavailable
+  (native) / session is unauthenticated (web)
 - `OtelSink` is platform-agnostic — only the exporter differs
 
 **`lib/core/logging/logging_provider.dart` (config controller):**
@@ -255,8 +280,10 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 
 **Token handling (platform-aware):**
 
-- **Mobile/Desktop:** Read `otelAuthToken` from `flutter_secure_storage`
-  at startup. Never persist in SharedPreferences or log output.
+- **Mobile/Desktop:** `otelTokenProvider` reads from
+  `flutter_secure_storage` asynchronously. Never persisted in
+  SharedPreferences or log output. Token rotation triggers provider
+  invalidation → exporter recreation.
 - **Web:** No Logfire token on client — proxy holds it server-side.
   `ProxyExporter` uses session JWT, refreshed via setter on token
   rotation.
@@ -269,7 +296,10 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 ### Dependencies
 
 - `connectivity_plus` — add to `pubspec.yaml` for network awareness
-  before export attempts
+  before export attempts. **Note:** requires `WidgetsFlutterBinding` to
+  be initialized before use (platform channels). Existing provider
+  pattern initializes lazily which is safe, but integration tests must
+  call `WidgetsFlutterBinding.ensureInitialized()` explicitly.
 
 ### Tests (Flutter)
 
@@ -284,12 +314,13 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 
 ### Acceptance Criteria
 
+- [ ] `otelTokenProvider` reads token from `flutter_secure_storage` (async)
+- [ ] Token is NOT in `LogConfig` or `SharedPreferences`
 - [ ] `otelExporterProvider` selects `ProxyExporter` on web,
   `LogfireExporter` on native
 - [ ] `otelSinkProvider` creates `OtelSink` with platform exporter
 - [ ] `OtelSink` is platform-agnostic — no `kIsWeb` inside sink
 - [ ] Config toggle enables/disables OTel export at runtime
-- [ ] Token: secure storage on native, server-side on web
 - [ ] Lifecycle flush: `paused` on native, `visibilitychange` on web
 - [ ] Resource attributes populated from device info
 - [ ] `connectivity_plus` added, export skipped when offline
