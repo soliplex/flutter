@@ -273,7 +273,7 @@ With Option B, field mapping happens in **two stages**:
 **Stage 1 — Flutter client → Backend (simple JSON):**
 
 The client sends plain JSON (ISO timestamps, native JSON types). No OTLP
-formatting. See payload format in PLAN-otel.md 12.2.
+formatting. See payload format in PLAN-logfire.md 12.2.
 
 **Stage 2 — Python backend → Logfire (OTLP):**
 
