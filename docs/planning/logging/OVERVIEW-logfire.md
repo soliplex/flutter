@@ -115,5 +115,6 @@ previous milestone structure.
 
 - **Full spec:** [12-opentelemetry-integration.md](./12-opentelemetry-integration.md)
 - **Execution plan:** [PLAN-logfire.md](./PLAN-logfire.md)
+- **Backend spec:** [BACKEND-logfire.md](./BACKEND-logfire.md)
 - **Logfire endpoint:** `https://logfire-us.pydantic.dev/v1/logs`
 - **Auth:** Python backend holds Logfire write token server-side
