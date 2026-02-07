@@ -105,8 +105,8 @@ abstract interface class OtelExporter {
   in `Authorization` header
 - Maps HTTP status to `ExportResult`:
   - 200 → `success`
-  - 429/5xx → `retryable`
-  - 401/403/413 → `fatal`
+  - 413/429/5xx → `retryable` (413: sink splits batch in half and retries)
+  - 401/403 → `fatal`
 
 **`packages/soliplex_logging/lib/src/sinks/proxy_exporter.dart` (new):**
 
@@ -149,7 +149,16 @@ abstract interface class OtelExporter {
 - Timer-based flush every `flushInterval`
 - Size-based flush when queue reaches `batchSize`
 - Severity-triggered flush: immediate on ERROR/FATAL
-- Queue capped at `maxQueueSize`; oldest TRACE/DEBUG dropped first
+- Queue capped at `maxQueueSize`; oldest TRACE/DEBUG dropped first.
+  If queue is entirely ERROR/FATAL, drop oldest ERROR (never block writes)
+- **Concurrent flush guard:** If an export is in-flight when a timer or
+  severity trigger fires, skip the duplicate flush (do not queue a second
+  concurrent HTTP request)
+- **Circuit breaker:** After N consecutive `fatal` results (e.g. 3),
+  disable export entirely. Surface disabled state via `onError` callback.
+  OtelSink must never generate log records about its own failures that
+  re-enter the logging pipeline — use a separate diagnostic callback or
+  `stderr` only.
 
 **`packages/soliplex_logging/lib/soliplex_logging.dart`:**
 
@@ -176,9 +185,16 @@ abstract interface class OtelExporter {
 - [ ] `ProxyExporter` sends Bearer JWT, supports token refresh
 - [ ] OTLP JSON matches OTel spec (field names, types, nesting)
 - [ ] Mapper safely coerces non-primitive attribute values to `.toString()`
-- [ ] `OtelSink` retries on `retryable`, disables on `fatal`
+- [ ] `OtelSink` retries on `retryable` (splits batch on 413), disables
+  on `fatal`
+- [ ] Circuit breaker disables export after N consecutive fatals
+- [ ] OtelSink never generates log records about its own failures (no
+  re-entrant logging — diagnostic errors go to `onError` callback or
+  `stderr` only)
+- [ ] Concurrent flush guard prevents overlapping in-flight exports
 - [ ] Batch processor respects size, timer, and severity triggers
-- [ ] Queue overflow drops TRACE/DEBUG first, never ERROR/FATAL
+- [ ] Queue overflow drops TRACE/DEBUG first; if all ERROR/FATAL, drops
+  oldest ERROR (never blocks writes)
 - [ ] `close()` drains remaining queue
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass, coverage 85%+
@@ -282,8 +298,9 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 
 - **Mobile/Desktop:** `otelTokenProvider` reads from
   `flutter_secure_storage` asynchronously. Never persisted in
-  SharedPreferences or log output. Token rotation triggers provider
-  invalidation → exporter recreation.
+  SharedPreferences or log output. The Logfire write token is a static
+  OAuth credential (no rotation needed), but the provider pattern
+  supports invalidation if that changes.
 - **Web:** No Logfire token on client — proxy holds it server-side.
   `ProxyExporter` uses session JWT, refreshed via setter on token
   rotation.
@@ -291,7 +308,9 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 **Resource attributes:**
 
 - Build resource map at startup: `service.name`, `service.version` (from
-  `package_info_plus`), `deployment.environment`, `os.name`
+  `package_info_plus`), `deployment.environment` (build-time constant via
+  `--dart-define`), `os.name`, `os.version` (platform detection),
+  `device.model` (from `device_info_plus`)
 
 ### Dependencies
 

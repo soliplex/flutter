@@ -78,7 +78,7 @@ all ingested correctly.
 | `flutter_secure_storage` | Already in `pubspec.yaml` |
 | `connectivity_plus` | Must be added |
 | `LogRecord.attributes` field | Missing — sub-milestone 12.1 |
-| Backend proxy endpoint | Not started — sub-milestone 12.4 |
+| Backend proxy endpoint | Not started — sub-milestone 12.3a |
 
 ## Reference
 

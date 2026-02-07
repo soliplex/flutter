@@ -41,8 +41,10 @@ Logfire (Pydantic) accepts standard OTLP. Endpoint format:
 https://logfire-us.pydantic.dev/v1/logs
 ```
 
-Authentication via write token in `Authorization` header (no "Bearer" prefix).
-Logfire supports both JSON and Protobuf over HTTP (no gRPC).
+Authentication via static OAuth write token in `Authorization` header
+(no "Bearer" prefix). The token does not expire or rotate — it is a
+long-lived project-level credential. Logfire supports both JSON and
+Protobuf over HTTP (no gRPC).
 
 ### Spike Results (Validated)
 
@@ -141,7 +143,8 @@ investment. Re-evaluate dartastic for production tracing later.
    - Includes an error record with exception + stack trace
 2. **LogLevel → SeverityNumber mapping** — Validated against OTel spec
 3. **LogRecord → OTLP LogRecord conversion** — Field mapping documented
-4. **Logfire authentication** — Bearer token via `LOGFIRE_TOKEN` env var
+4. **Logfire authentication** — Raw write token (no "Bearer" prefix) via
+   `LOGFIRE_TOKEN` env var
 
 ### Spike Success Criteria
 
@@ -196,37 +199,54 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 
 ## Production Roadmap (Post-Spike)
 
-### Phase 1 — OtelSink Implementation
+### Phase 1 — OtelSink + Pluggable Exporters (Sub-milestones 12.1–12.2)
 
-- [ ] `OtelSink` implements `LogSink` interface
 - [ ] Add `Map<String, Object> attributes` field to `LogRecord`
+- [ ] `OtelExporter` interface with `export()` and `shutdown()`
+- [ ] `LogfireExporter` — direct OTLP/HTTP to Logfire (raw write token)
+- [ ] `ProxyExporter` — routes through backend proxy (session JWT)
+- [ ] `OtelSink` implements `LogSink`, takes any `OtelExporter`
+- [ ] `OtelMapper` with safe serialization (coerce non-primitives to
+  `.toString()`)
 - [ ] Batch processor with **mobile-tuned** settings:
   - Batch size: 256 records
   - Export interval: **30s** (not 5s — preserves battery/radio)
   - Severity-based flush: immediate export on ERROR/FATAL
   - Max queue size: 1024 records (bounded memory)
-- [ ] OTLP/HTTP JSON exporter (evaluate protobuf if payload size is concern)
-- [ ] Retry with exponential backoff (1s, 2s, 4s, max 32s)
+  - Drop policy: when full, drop TRACE/DEBUG first. If queue is all
+    ERROR/FATAL, drop oldest ERROR (never block writes)
+- [ ] Retry with exponential backoff + jitter (1s, 2s, 4s, max 32s)
+- [ ] HTTP status classification via `ExportResult`:
+  - 401/403 → `fatal` (disable export)
+  - 413 → `retryable` (split batch in half and retry)
+  - 429 → `retryable` (respect `Retry-After`)
+  - 5xx → `retryable` (backoff, max 5 min per batch)
 - [ ] **Connectivity check** before export attempts (avoid spinning retry
   loops on mobile — use `connectivity_plus`)
 - [ ] Graceful shutdown: flush remaining records in `close()`
 - [ ] Export from `soliplex_logging.dart` barrel
 
-### Phase 2 — App Integration
+### Phase 2 — App Integration, All Platforms (Sub-milestone 12.3)
 
-- [ ] `otelSinkProvider` in `logging_provider.dart` (follows existing pattern)
-- [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint`, `otelAuthToken`
+- [ ] `otelTokenProvider` (`FutureProvider<String?>`) — reads Logfire
+  write token from `flutter_secure_storage` (native only)
+- [ ] `otelExporterProvider` — selects `LogfireExporter` (native) or
+  `ProxyExporter` (web) based on `kIsWeb`
+- [ ] `otelSinkProvider` — creates `OtelSink` with platform exporter,
+  registers with LogManager (follows existing sink provider pattern)
+- [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint` (NOT token —
+  token lives in `flutter_secure_storage` via separate async provider)
 - [ ] Settings UI toggle for OTel export
 - [ ] `logConfigControllerProvider` updated to manage OtelSink
-- [ ] **Resource provider** — collects device/app metadata at startup
-- [ ] **App lifecycle flush** — `flush()` on `AppLifecycleState.paused`
-  via `AppLifecycleListener` (prevents log loss on background kill)
-- [ ] **Web proxy endpoint** — `POST /api/v1/telemetry/logs` on Soliplex
-  backend (forwards OTLP to Logfire with server-side token)
+- [ ] **Resource provider** — collects device/app metadata at startup:
+  `service.name`, `service.version`, `os.name`, `os.version`,
+  `device.model`, `deployment.environment`
+- [ ] **Native lifecycle flush** — `flush()` on `AppLifecycleState.paused`
+  via `AppLifecycleListener`
 - [ ] **Web lifecycle flush** — `visibilitychange` listener triggers
   `flush()` when tab is hidden; best-effort `beforeunload` flush
-- [ ] **Platform endpoint selection** — `kIsWeb` branching in provider
-  to route web traffic through proxy, native traffic direct to Logfire
+- [ ] **Web proxy endpoint** — `POST /api/v1/telemetry/logs` on Soliplex
+  backend (forwards OTLP to Logfire with server-side token)
 
 ### Phase 3 — Tracing Integration (Optional)
 
@@ -396,13 +416,24 @@ No sanitizer layer exists. Before production export:
 
 ### Backpressure & Drop Policy
 
-Max queue size is 1024 records, but behavior when full is undefined:
+Max queue size is 1024 records:
 
 - **Drop strategy:** Drop oldest records first (preserve recent context)
-- **Severity protection:** Never drop ERROR/FATAL; drop TRACE/DEBUG first
+- **Severity protection:** Drop TRACE/DEBUG first. If queue is entirely
+  ERROR/FATAL, drop oldest ERROR (never block writes)
 - **Drop counter:** Track and export `otel.logs.dropped_count` as a
   self-diagnostic metric
 - **User alert:** Surface sustained drop rates via in-app debug indicator
+
+### Circuit Breaker & Self-Logging Protection
+
+- **Circuit breaker:** After N consecutive `fatal` export results (e.g. 3),
+  disable export entirely until config is changed or app restarts.
+  Surface disabled state via `onError` callback.
+- **No re-entrant logging:** `OtelSink` must NEVER generate log records
+  about its own failures that re-enter the logging pipeline. This
+  prevents infinite loops where export failure → log → export failure.
+  Diagnostic errors go to a separate `onError` callback or `stderr` only.
 
 ### Error Handling (HTTP Classification)
 
@@ -420,17 +451,22 @@ need specific handling:
 
 ### Token Security
 
-`otelAuthToken` is listed in `LogConfig` but storage is platform-dependent:
+The Logfire write token is **not** stored in `LogConfig` (which uses
+synchronous `SharedPreferences`). Instead, it is loaded via a dedicated
+async provider backed by `flutter_secure_storage`:
 
-- **Mobile / Desktop:** Use `flutter_secure_storage` (Keychain on iOS,
-  Keystore on Android) — never persist in SharedPreferences
+- **Mobile / Desktop:** `otelTokenProvider` (`FutureProvider<String?>`)
+  reads from `flutter_secure_storage` (Keychain on iOS, Keystore on
+  Android). Token rotation invalidates the provider, triggering exporter
+  recreation.
 - **Web:** Write token never reaches the client. The backend proxy
   holds the Logfire token in server-side config. Web clients authenticate
   to the proxy via session JWT only.
 - **Never log the token:** Ensure token value is excluded from all
   log output, error messages, and debug prints
-- **Rotation:** Support token refresh without app restart (update
-  `OtelSink` endpoint config at runtime)
+- **Static token:** The Logfire write token is a long-lived static OAuth
+  credential. No rotation mechanism is needed, but the provider pattern
+  supports invalidation if Logfire changes this in the future.
 - **Startup policy:** If token unavailable at startup, disable OTel
   export gracefully (fail open for logging, closed for export)
 
@@ -453,19 +489,25 @@ The spike validates protocol acceptance but production needs:
 
 ## Validation Gate
 
-Phase 1 is production-ready when:
+Production-ready when:
 
 - [ ] OTLP JSON mapping matches OTel spec (unit tests)
+- [ ] Mapper safely coerces non-primitive attribute values to `.toString()`
 - [ ] Batch processor respects size, timer, and severity triggers
-- [ ] Queue overflow drops by severity (TRACE first, ERROR never)
-- [ ] Retry handles 401/403/413/429/5xx correctly
-- [ ] Token stored in secure storage, never logged
+- [ ] Queue overflow drops by severity (TRACE first); if all ERROR/FATAL,
+  drops oldest ERROR (never blocks writes)
+- [ ] Retry handles 401/403/413/429/5xx correctly (413 splits batch)
+- [ ] Circuit breaker disables export after consecutive fatals
+- [ ] OtelSink never re-enters logging pipeline on failure
+- [ ] Concurrent flush guard prevents overlapping exports
+- [ ] Token stored in `flutter_secure_storage` (NOT `LogConfig`/
+  `SharedPreferences`), never logged
 - [ ] `flush()` called on app lifecycle pause (mobile) and
   `visibilitychange` (web)
 - [ ] `close()` drains remaining queue
 - [ ] Web proxy forwards OTLP, attaches token server-side, validates session
 - [ ] Web clients never receive or store the Logfire write token
-- [ ] No PII in exported attributes (redaction tests pass)
+- [ ] No PII in exported attributes (redaction tests pass — hardening)
 - [ ] Drop counter tracks and reports lost records
 
 ## Breaking Changes
