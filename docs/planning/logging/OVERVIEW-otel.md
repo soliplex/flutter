@@ -49,9 +49,10 @@ all ingested correctly.
 | # | Name | Scope | Depends On |
 |---|------|-------|------------|
 | 12.1 | LogRecord attributes | Add `Map<String, Object> attributes` to `LogRecord`, update `Logger` API | — |
-| 12.2 | OtelSink core | `OtelExporter` interface, `LogfireExporter`, `ProxyExporter`, OTLP mapper, batch processor | 12.1 |
-| 12.3 | App integration (all platforms) | Riverpod provider with platform exporter selection, backend proxy, `LogConfig`, lifecycle flush | 12.2 |
-| 12.4 | Hardening | PII redaction, sampling, rate limiting, backpressure | 12.3 |
+| 12.2 | OtelSink core | `OtelExporter` interface, `LogfireExporter`, `ProxyExporter`, OTLP mapper, batch processor, circuit breaker | 12.1 |
+| 12.3 | App integration (direct) | Telemetry screen (token entry), Riverpod providers, `LogfireExporter` on all platforms, lifecycle flush | 12.2 |
+| 12.4 | Web proxy (swap exporter) | Backend proxy endpoint, swap web to `ProxyExporter`, hide token on web | 12.3 |
+| 12.5 | Hardening | PII redaction, sampling, rate limiting, backpressure | 12.4 |
 
 ## Key Decisions
 
@@ -78,7 +79,7 @@ all ingested correctly.
 | `flutter_secure_storage` | Already in `pubspec.yaml` |
 | `connectivity_plus` | Must be added |
 | `LogRecord.attributes` field | Missing — sub-milestone 12.1 |
-| Backend proxy endpoint | Not started — sub-milestone 12.3a |
+| Backend proxy endpoint | Not started — sub-milestone 12.4 |
 
 ## Reference
 

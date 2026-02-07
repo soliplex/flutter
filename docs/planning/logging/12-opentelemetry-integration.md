@@ -226,17 +226,18 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 - [ ] Graceful shutdown: flush remaining records in `close()`
 - [ ] Export from `soliplex_logging.dart` barrel
 
-### Phase 2 — App Integration, All Platforms (Sub-milestone 12.3)
+### Phase 2a — App Integration, Direct to Logfire (Sub-milestone 12.3)
 
+- [ ] **Telemetry screen** — dedicated Settings sub-screen with token
+  entry field, enable/disable toggle, endpoint field, connection status
 - [ ] `otelTokenProvider` (`FutureProvider<String?>`) — reads Logfire
-  write token from `flutter_secure_storage` (native only)
-- [ ] `otelExporterProvider` — selects `LogfireExporter` (native) or
-  `ProxyExporter` (web) based on `kIsWeb`
-- [ ] `otelSinkProvider` — creates `OtelSink` with platform exporter,
-  registers with LogManager (follows existing sink provider pattern)
+  write token from `flutter_secure_storage`
+- [ ] `otelExporterProvider` — creates `LogfireExporter` on all platforms
+  (direct to Logfire for initial testing)
+- [ ] `otelSinkProvider` — creates `OtelSink` with exporter, registers
+  with LogManager (follows existing sink provider pattern)
 - [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint` (NOT token —
   token lives in `flutter_secure_storage` via separate async provider)
-- [ ] Settings UI toggle for OTel export
 - [ ] `logConfigControllerProvider` updated to manage OtelSink
 - [ ] **Resource provider** — collects device/app metadata at startup:
   `service.name`, `service.version`, `os.name`, `os.version`,
@@ -245,8 +246,15 @@ Map `loggerName` to `scope.name` (already planned). Should also send
   via `AppLifecycleListener`
 - [ ] **Web lifecycle flush** — `visibilitychange` listener triggers
   `flush()` when tab is hidden; best-effort `beforeunload` flush
-- [ ] **Web proxy endpoint** — `POST /api/v1/telemetry/logs` on Soliplex
-  backend (forwards OTLP to Logfire with server-side token)
+
+### Phase 2b — Web Proxy Swap (Sub-milestone 12.4)
+
+- [ ] **Backend proxy endpoint** — `POST /api/v1/telemetry/logs` on
+  Soliplex backend (forwards OTLP to Logfire with server-side token)
+- [ ] `otelExporterProvider` updated — selects `ProxyExporter` (web) or
+  `LogfireExporter` (native) based on `kIsWeb`
+- [ ] **Telemetry screen (web)** — hides token field (proxy holds token)
+- [ ] Web clients no longer store the Logfire write token
 
 ### Phase 3 — Tracing Integration (Optional)
 

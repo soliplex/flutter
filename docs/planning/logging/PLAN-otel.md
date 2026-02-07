@@ -201,57 +201,52 @@ abstract interface class OtelExporter {
 
 ---
 
-## 12.3 — App Integration (All Platforms)
+## 12.3 — App Integration (Direct to Logfire)
 
 **Status:** Pending (blocked by 12.2)
 
-**Goal:** Wire `OtelSink` into the app with platform-aware exporter
-selection from day one. Web is a first-class citizen — both
-`LogfireExporter` (native) and `ProxyExporter` (web) ship together.
+**Goal:** Wire `OtelSink` + `LogfireExporter` into the app with a Settings
+UI for entering the Logfire write token. All platforms use direct export
+initially — no backend proxy needed. This lets us validate end-to-end
+export before introducing the proxy layer.
 
-### 12.3a — Backend Proxy Endpoint (~/dev/soliplex, git worktree)
+### Telemetry Screen
 
-This can be worked in parallel with 12.3b since the contract is defined
-in 12.2 (`OtelExporter` interface + `ProxyExporter`).
+**`lib/features/settings/telemetry_screen.dart` (new):**
 
-**`POST /api/v1/telemetry/logs`:**
+Dedicated screen accessible from Settings navigation. Keeps telemetry
+config separate from general app settings.
 
-- Validate session JWT from `Authorization: Bearer <jwt>` header
-- Forward request body (OTLP JSON) to
-  `https://logfire-us.pydantic.dev/v1/logs`
-- Attach Logfire write token from server config (env var)
-- Return upstream status code to client
-- Rate limit: per-user/per-session caps
-- Reject payloads > 1 MB (413)
+- **Enable/disable toggle** — controls `otelEnabled` in `LogConfig`
+- **Logfire token field** — `TextField` (obscured) where user pastes
+  their write token. Saved to `flutter_secure_storage` on submit.
+  Shows checkmark when token is stored, empty state when not.
+- **Endpoint field** — pre-filled with Logfire URL, editable for
+  custom collectors
+- **Connection status** — indicator showing whether export is active,
+  disabled, or failed (from circuit breaker state)
+- Token is written to `flutter_secure_storage` and `otelTokenProvider`
+  is invalidated → exporter recreated → export starts
 
-**Tests (backend):**
+**`lib/core/router/`:**
 
-- Proxy forwards OTLP payload correctly
-- Rejects unauthenticated requests (401)
-- Enforces rate limits (429)
-- Rejects oversized payloads (413)
+- Add route for Telemetry screen (linked from Settings)
 
-### 12.3b — Flutter Integration
+### Providers
 
 **`lib/core/logging/log_config.dart`:**
 
 - Add `otelEnabled` (bool, default false)
 - Add `otelEndpoint` (String, default Logfire URL)
-- **Do NOT add `otelAuthToken` to `LogConfig`.** `LogConfig` is backed by
-  `SharedPreferences` and builds synchronously via `preloadedPrefsProvider`.
-  The Logfire write token must live in `flutter_secure_storage` (async).
-  Mixing the two would either break sync init or leak the token to
-  SharedPreferences.
+- Token is NOT in `LogConfig` — lives in `flutter_secure_storage` only
 
 **`lib/core/logging/logging_provider.dart` (token provider):**
 
 - Add `otelTokenProvider` — `FutureProvider<String?>` that reads the
-  Logfire write token from `flutter_secure_storage`. This keeps the
-  token decoupled from the synchronous `LogConfig` lifecycle.
+  Logfire write token from `flutter_secure_storage`.
 
   ```dart
   final otelTokenProvider = FutureProvider<String?>((ref) async {
-    if (kIsWeb) return null; // web uses proxy, no client token
     final storage = ref.read(secureStorageProvider);
     return storage.read(key: 'logfire_write_token');
   });
@@ -259,51 +254,32 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
 
 **`lib/core/logging/logging_provider.dart` (exporter + sink):**
 
-- Add `otelExporterProvider` — selects exporter by platform. On native,
-  watches `otelTokenProvider` for the Logfire write token. On web, uses
-  session JWT from existing auth state.
+- Add `otelExporterProvider` — creates `LogfireExporter` with endpoint
+  from config and token from `otelTokenProvider`. All platforms use
+  `LogfireExporter` in this milestone.
 
   ```dart
-  final exporter = kIsWeb
-      ? ProxyExporter(
-          endpoint: '/api/v1/telemetry/logs',
-          sessionToken: sessionJwt,
-        )
-      : LogfireExporter(
-          endpoint: config.otelEndpoint,
-          authToken: token, // from otelTokenProvider
-        );
+  final exporter = LogfireExporter(
+    endpoint: config.otelEndpoint,
+    authToken: token, // from otelTokenProvider
+  );
   ```
 
-- Add `otelSinkProvider` — creates `OtelSink` with the exporter from
-  `otelExporterProvider`, registers with LogManager,
-  `ref.onDispose → close`
-- Sink disabled when `otelEnabled` is false or token is unavailable
-  (native) / session is unauthenticated (web)
-- `OtelSink` is platform-agnostic — only the exporter differs
+- Add `otelSinkProvider` — creates `OtelSink` with the exporter,
+  registers with LogManager, `ref.onDispose → close`
+- Sink disabled when `otelEnabled` is false or token is empty
 
 **`lib/core/logging/logging_provider.dart` (config controller):**
 
 - React to `otelEnabled` changes: register/unregister `OtelSink`
+- React to token changes (provider invalidation): recreate exporter
 
-**Lifecycle flush (platform-aware):**
+**Lifecycle flush:**
 
 - **Mobile/Desktop:** `AppLifecycleListener` calls `OtelSink.flush()`
   on `AppLifecycleState.paused`
 - **Web:** `visibilitychange` listener calls `flush()` when
-  `document.hidden == true`. Best-effort `beforeunload` flush
-  (accept potential log loss on abrupt tab close)
-
-**Token handling (platform-aware):**
-
-- **Mobile/Desktop:** `otelTokenProvider` reads from
-  `flutter_secure_storage` asynchronously. Never persisted in
-  SharedPreferences or log output. The Logfire write token is a static
-  OAuth credential (no rotation needed), but the provider pattern
-  supports invalidation if that changes.
-- **Web:** No Logfire token on client — proxy holds it server-side.
-  `ProxyExporter` uses session JWT, refreshed via setter on token
-  rotation.
+  `document.hidden == true`. Best-effort `beforeunload` flush.
 
 **Resource attributes:**
 
@@ -320,39 +296,122 @@ in 12.2 (`OtelExporter` interface + `ProxyExporter`).
   pattern initializes lazily which is safe, but integration tests must
   call `WidgetsFlutterBinding.ensureInitialized()` explicitly.
 
-### Tests (Flutter)
+### Tests
 
 - `test/core/logging/logging_provider_test.dart`:
-  - Web: `ProxyExporter` selected, uses relative endpoint
-  - Native: `LogfireExporter` selected, uses Logfire URL
-  - OtelSink created when enabled, not created when disabled
+  - OtelSink created with `LogfireExporter` when enabled + token present
+  - Sink not created when disabled or token empty
+  - Token change triggers exporter recreation
   - Disposed on ref dispose
 - `test/core/logging/log_config_test.dart` — new fields serialize/
-  deserialize correctly
+  deserialize correctly (token NOT in config)
+- Telemetry screen widget test — token saved to secure storage on submit,
+  toggle enables/disables export, connection status reflects sink state
 - Lifecycle: `visibilitychange` (web) and `paused` (native) trigger flush
 
 ### Acceptance Criteria
 
+- [ ] Telemetry screen allows entering Logfire token (stored in secure
+  storage)
+- [ ] Telemetry screen has enable/disable toggle, endpoint field, and
+  connection status indicator
+- [ ] Telemetry screen routed from Settings
 - [ ] `otelTokenProvider` reads token from `flutter_secure_storage` (async)
 - [ ] Token is NOT in `LogConfig` or `SharedPreferences`
-- [ ] `otelExporterProvider` selects `ProxyExporter` on web,
-  `LogfireExporter` on native
-- [ ] `otelSinkProvider` creates `OtelSink` with platform exporter
-- [ ] `OtelSink` is platform-agnostic — no `kIsWeb` inside sink
+- [ ] `otelExporterProvider` creates `LogfireExporter` (all platforms)
+- [ ] `otelSinkProvider` creates `OtelSink`, disabled when no token
+- [ ] Token change in Settings → provider invalidation → exporter recreated
 - [ ] Config toggle enables/disables OTel export at runtime
 - [ ] Lifecycle flush: `paused` on native, `visibilitychange` on web
 - [ ] Resource attributes populated from device info
 - [ ] `connectivity_plus` added, export skipped when offline
-- [ ] Backend proxy forwards OTLP, attaches token, validates session
-- [ ] Web clients never receive/store the Logfire write token
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
 ---
 
-## 12.4 — Hardening (Deferred)
+## 12.4 — Web Proxy (Swap Exporter)
 
 **Status:** Pending (blocked by 12.3)
+
+**Goal:** Add backend proxy and swap web to `ProxyExporter`. Native
+continues using `LogfireExporter`. The token no longer needs to be on
+the web client in production — the proxy holds it server-side.
+
+### Backend (~/dev/soliplex, git worktree)
+
+**`POST /api/v1/telemetry/logs`:**
+
+- Validate session JWT from `Authorization: Bearer <jwt>` header
+- Forward request body (OTLP JSON) to
+  `https://logfire-us.pydantic.dev/v1/logs`
+- Attach Logfire write token from server config (env var)
+- Return upstream status code to client
+- Rate limit: per-user/per-session caps
+- Reject payloads > 1 MB (413)
+
+### Flutter Changes
+
+**`lib/core/logging/logging_provider.dart`:**
+
+- Update `otelExporterProvider` to select exporter by platform:
+
+  ```dart
+  final exporter = kIsWeb
+      ? ProxyExporter(
+          endpoint: '/api/v1/telemetry/logs',
+          sessionToken: sessionJwt,
+        )
+      : LogfireExporter(
+          endpoint: config.otelEndpoint,
+          authToken: token,
+        );
+  ```
+
+- `OtelSink` constructor unchanged — only the exporter differs
+
+**Telemetry screen (web):**
+
+- Hide token field on web (not needed — proxy holds token)
+- Keep enable/disable toggle and endpoint field
+
+**Token handling (web):**
+
+- No Logfire token on web client in production
+- `ProxyExporter` uses session JWT from existing auth state
+
+### Tests
+
+**Backend:**
+
+- Proxy forwards OTLP payload correctly
+- Rejects unauthenticated requests (401)
+- Enforces rate limits (429)
+- Rejects oversized payloads (413)
+
+**Flutter:**
+
+- Web provider creates `ProxyExporter` with relative endpoint
+- Native provider creates `LogfireExporter` with Logfire URL
+- `OtelSink` works identically with either exporter
+- Telemetry screen hides token field on web
+
+### Acceptance Criteria
+
+- [ ] Backend proxy forwards OTLP, attaches token, validates session
+- [ ] `otelExporterProvider` selects `ProxyExporter` on web,
+  `LogfireExporter` on native
+- [ ] `OtelSink` unchanged — only the exporter differs
+- [ ] Settings UI hides token field on web
+- [ ] Web clients no longer store the Logfire write token
+- [ ] `dart analyze` — 0 issues
+- [ ] Tests pass
+
+---
+
+## 12.5 — Hardening (Deferred)
+
+**Status:** Pending (blocked by 12.4)
 
 **Goal:** Production-harden OTel export with PII protection, sampling,
 and backpressure observability.
@@ -384,5 +443,6 @@ and backpressure observability.
 |---------------|--------|----|
 | 12.1 LogRecord attributes | Pending | — |
 | 12.2 OtelSink core | Pending | — |
-| 12.3 App integration (all platforms) | Pending | — |
-| 12.4 Hardening | Deferred | — |
+| 12.3 App integration (direct Logfire) | Pending | — |
+| 12.4 Web proxy (swap exporter) | Pending | — |
+| 12.5 Hardening | Deferred | — |
