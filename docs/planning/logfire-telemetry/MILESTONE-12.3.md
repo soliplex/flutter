@@ -23,7 +23,7 @@ Telemetry screen for enable/disable. All platforms use the same endpoint.
 - Add `backendLoggingEnabled` (bool, default false)
 - Add `backendEndpoint` (String, default `/api/v1/logs`).
   **Locked in production builds** — editable only in debug/dev to
-  prevent misconfiguration or exfiltration risk (DoD)
+  prevent misconfiguration or exfiltration risk
 
 ### Providers
 
@@ -44,7 +44,7 @@ Telemetry screen for enable/disable. All platforms use the same endpoint.
     `BackendLogSink` can read breadcrumbs on ERROR/FATAL (12.5).
     Sinks are siblings under `LogManager`, so `BackendLogSink` has
     no implicit access to `MemorySink` — it must be injected.
-- Wire `LogSanitizer` with default DoD-appropriate rules via
+- Wire `LogSanitizer` with default security-appropriate rules via
   `LogManager.instance.sanitizer = ...` (property setter, not
   constructor — `LogManager` is a `static final` singleton)
 - Register with `LogManager`, `ref.onDispose → close`
@@ -81,7 +81,7 @@ Set up `PlatformDispatcher.instance.onError` and
 
 - Enable/disable toggle
 - Endpoint field (pre-filled, **read-only in production builds**,
-  editable in debug/dev only — DoD exfil prevention)
+  editable in debug/dev only — exfiltration prevention)
 - Connection status indicator
 - No token field needed (backend holds Logfire token)
 

@@ -80,7 +80,7 @@ Authorization: Bearer <session-jwt>
 4. **Stamp server-received timestamp** on each record:
    `server_received_at = datetime.utcnow()`. Persist both client
    `timestamp` and `server_received_at` as OTel attributes. This
-   handles clock skew on DoD devices with manual/incorrect time.
+   handles clock skew on field devices with manual/incorrect time.
 5. **Map each log** to OTel `LogRecord` using `opentelemetry-sdk`:
 
    | Client field | OTel field | Conversion |
@@ -333,7 +333,7 @@ trigger an alert (email, webhook, etc.). Implementation details TBD.
 
 ### Key Constraints
 
-- **DoD environment** — no commercial SaaS. Logfire (Pydantic) is approved.
+- **Self-hosted environment** — no commercial SaaS. Logfire (Pydantic) is approved.
 - **Logfire write token** stays server-side. Never sent to Flutter client.
 - **All platforms** (mobile, desktop, web) use the same endpoint.
 - **At-least-once delivery** — expect occasional duplicate logs.

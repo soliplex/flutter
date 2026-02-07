@@ -14,7 +14,7 @@ their dependencies are met.
 - **Spec:** `docs/planning/logging/12-opentelemetry-integration.md`
 - **Logfire:** Account ready, write token available via `LOGFIRE_TOKEN`
 - **Backend repo:** `~/dev/soliplex` (Python ingest endpoint in 12.4)
-- **Constraint:** DoD — no commercial SaaS. Self-hosted/open-source only.
+- **Constraint:** Self-hosted — no commercial SaaS. Open-source only.
 
 ---
 
@@ -94,7 +94,7 @@ reconstructs what happened.
 | Remote log export | Covered | BackendLogSink → Logfire |
 | Dart crash capture | Covered | FlutterError + PlatformDispatcher hooks |
 | Offline persistence | Covered | DiskQueue (JSONL write-ahead) |
-| PII/classified redaction | Covered | LogSanitizer (P0 for DoD) |
+| PII/classified redaction | Covered | LogSanitizer (P0) |
 | Session correlation | Covered | UUID sessionId + userId |
 | Install ID (device Y) | Covered | Per-install UUID for cross-session queries |
 | Session start marker | Covered | Device/app fingerprint on startup |
@@ -144,7 +144,7 @@ can query Logfire by sessionId, see the session start marker (device,
 app version, OS), connectivity history, categorized breadcrumbs leading
 up to the error, the full stack trace, and the sanitized attributes.
 
-For a DoD Flutter app with self-hosted constraints, this is a
+For a Flutter app with self-hosted constraints, this is a
 **pragmatic field-support logging framework**.
 
 ---

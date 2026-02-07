@@ -13,8 +13,9 @@ determined that building a full OTel client in Dart (mapper, exporters, batch
 processor, retry, circuit breaker) is not justified for log-only export. The
 Python OTel SDK is mature and handles all OTLP complexity server-side.
 
-**Constraint:** DoD environment — no commercial SaaS (Sentry, Crashlytics,
-Datadog). Self-hosted/open-source only. Logfire (Pydantic) is approved.
+**Constraint:** Restricted environment — no commercial SaaS (Sentry,
+Crashlytics, Datadog). Self-hosted/open-source only. Logfire (Pydantic)
+is approved.
 
 ## Context
 
@@ -381,7 +382,7 @@ With Option B, the Python OTel SDK handles OTLP mapping, batching, retry,
 compression, gzip, and circuit breaking. The Flutter client is simpler but
 still needs:
 
-### PII & Redaction (P0 — DoD Requirement)
+### PII & Redaction (P0 — Security Requirement)
 
 `LogSanitizer` (12.2) is wired into `LogManager` so ALL sinks (Console,
 Memory, Backend) receive sanitized data. No unsanitized PII reaches any
@@ -465,7 +466,7 @@ Production-ready when:
 - [ ] `LogRecord` has `attributes` field and `copyWith()` method
 - [ ] All `Logger` methods accept optional `attributes`
 - [ ] `LogSanitizer` wired into `LogManager` — all sinks get sanitized data
-- [ ] `LogSanitizer` redacts sensitive keys and PII patterns (DoD P0)
+- [ ] `LogSanitizer` redacts sensitive keys and PII patterns (P0)
 - [ ] `DiskQueue` uses conditional imports (io/web)
 - [ ] `DiskQueue` persists records to JSONL (io), memory (web)
 - [ ] `DiskQueue.appendSync` for fatal logs (synchronous disk write)
@@ -517,7 +518,7 @@ not justified when the Python OTel SDK is mature.
 - **Log export works** — dartastic has no log SDK; we ship logs via backend relay
 - **All platforms, one endpoint** — no CORS issues, no web proxy needed
 - **Crash persistence** — `DiskQueue` survives crashes (dartastic has no persistence)
-- **PII protection** — `LogSanitizer` (DoD P0) before data leaves device
+- **PII protection** — `LogSanitizer` (P0) before data leaves device
 - **Pure Dart boundary** — no global statics, clean constructor injection
 
 ## Breaking Changes

@@ -28,7 +28,7 @@ to Logfire via the Python OTel SDK.
 - **Server-received timestamp:** stamp each record with
   `server_received_at` from server clock. Persists both client
   `timestamp` and server `server_received_at` as OTel attributes.
-  Handles clock skew on DoD devices with manual/incorrect time.
+  Handles clock skew on field devices with manual/incorrect time.
 - Map each log to OTel `LogRecord` using Python `opentelemetry-sdk`:
   - `level` → `SeverityNumber`
   - `timestamp` → `observedTimestamp` (client time)

@@ -15,8 +15,9 @@ exporters, batch processor, retry, circuit breaker) is not justified for
 log-only export. The Python OTel SDK is mature and handles all OTLP
 complexity server-side.
 
-**Constraint:** DoD environment — no commercial SaaS (Sentry, Crashlytics,
-Datadog). Self-hosted/open-source only. Logfire (Pydantic) is approved.
+**Constraint:** Restricted environment — no commercial SaaS (Sentry,
+Crashlytics, Datadog). Self-hosted/open-source only. Logfire (Pydantic)
+is approved.
 
 **Scope:** This is a **pragmatic logging framework for field support** — not
 a Crashlytics replacement. The goal is: when a support engineer gets a bug
@@ -89,7 +90,7 @@ happened. Native crashes (SIGSEGV) and session replay are out of scope.
   Eliminates need for custom OTel client in Dart.
 - **Disk-backed queue** — logs persist to JSONL file before HTTP send.
   Survives crashes and OS kills. Store-and-forward on next launch.
-- **Log sanitizer** — PII/classified data redaction is P0 (DoD
+- **Log sanitizer** — PII/classified data redaction is P0 (security
   requirement). Set via `LogManager.instance.sanitizer` (property setter
   on the singleton). Runs in `emit()` before any sink receives the
   record — Console, Memory, and Backend sinks all get sanitized data.

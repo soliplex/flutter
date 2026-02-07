@@ -73,7 +73,7 @@ BackendLogSink (LogSink)
   `record = sanitizer!.sanitize(record)` before dispatching to sinks.
   `sanitize()` returns a **new** `LogRecord` via `copyWith()` (original
   is `@immutable`). All sinks receive the sanitized copy.
-  DoD P0: no unsanitized PII reaches any output.
+  P0: no unsanitized PII reaches any output.
 
 ### DiskQueue (new file)
 
