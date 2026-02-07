@@ -118,6 +118,9 @@ BackendLogSink (LogSink)
   IP addresses in message strings
 - **Stack trace trimming:** strip absolute file paths to relative
 - Configurable: additional keys/patterns can be added at construction
+- **Deferred:** Pattern scrubbing on attribute *values* (not just message
+  strings). Current scope covers key blocklist + message regex. Extending
+  to attribute values is additive — no architectural rework needed.
 
 **`packages/soliplex_logging/lib/src/log_manager.dart`:**
 
@@ -161,6 +164,14 @@ BackendLogSink (LogSink)
   - Optional `maxBatchBytes` (default 900 KB — stays under 1 MB limit)
   - Optional `batchSize` (default 100), `flushInterval` (default 30s)
   - Optional `networkChecker` (`bool Function()?`)
+  - Optional `jwtProvider` (`String? Function()`) — returns current JWT
+    or null if not yet authenticated. Flush skips when null.
+
+**Pre-auth behavior:** `write()` always appends to `DiskQueue` regardless
+of auth state. Logs buffer on disk pre-login. `flush()` skips the HTTP
+POST when `jwtProvider` returns null. Once the user authenticates, the
+next flush drains the full buffer — startup logs, session marker, and
+connectivity events all ship together.
 
 **`write(LogRecord)`:**
 
@@ -195,19 +206,21 @@ BackendLogSink (LogSink)
 
 **`flush()`:**
 
-1. If `networkChecker` provided and returns false → skip, keep buffered
-2. Drain records from `DiskQueue` up to `batchSize` OR `maxBatchBytes`
+1. If `jwtProvider` returns null → skip, keep buffered (pre-auth)
+2. If `networkChecker` provided and returns false → skip, keep buffered
+3. Drain records from `DiskQueue` up to `batchSize` OR `maxBatchBytes`
    (whichever limit hits first — prevents 413 from backend)
-3. POST JSON object to endpoint with `Authorization: Bearer <jwt>`
-4. On 200 → confirm records in queue, reset retry counter
-5. On 429/5xx → exponential backoff (1s, 2s, 4s, max 60s), records
+4. POST JSON object to endpoint with `Authorization: Bearer <jwt>`
+   (JWT from `jwtProvider`)
+5. On 200 → confirm records in queue, reset retry counter
+6. On 429/5xx → exponential backoff (1s, 2s, 4s, max 60s), records
    stay in queue for next attempt, increment retry counter
-6. On 401/403 → disable export, surface via `onError` callback.
+7. On 401/403 → disable export, surface via `onError` callback.
    **Recovery:** if a new JWT is observed (e.g. re-login), re-enable
    export automatically and retry
-7. On 404 → treat as permanent failure (endpoint not deployed), disable
+8. On 404 → treat as permanent failure (endpoint not deployed), disable
    export, surface via `onError`. Re-enable on config change.
-8. **Poison pill:** if same batch fails 3 consecutive times → discard
+9. **Poison pill:** if same batch fails 3 consecutive times → discard
    batch, log diagnostic to `onError`, move to next batch
 
 **`close()`:**
@@ -296,6 +309,8 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
   - NetworkChecker false → skip flush
   - HTTP 200 → records confirmed
   - HTTP 429/5xx → records stay in queue, backoff
+  - Pre-auth: flush skips when jwtProvider returns null
+  - Post-auth: buffered pre-login logs drain on first flush
   - HTTP 401 → onError callback, stop retrying, re-enable on new JWT
   - HTTP 404 → onError callback, disable until config change
   - Poison pill: 3 consecutive failures → batch discarded
@@ -334,6 +349,7 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
 - [ ] HTTP 200 confirms records, 429/5xx retries with backoff
 - [ ] HTTP 401 disables export, re-enables on new JWT
 - [ ] HTTP 404 disables export (endpoint not deployed)
+- [ ] Pre-auth logs buffer in DiskQueue, flush after first JWT available
 - [ ] NetworkChecker skips flush when offline
 - [ ] `close()` drains remaining queue
 - [ ] Poison pill: batch discarded after 3 consecutive failures
