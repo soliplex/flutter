@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
+import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
@@ -299,14 +300,25 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
     diskQueue = DiskQueue(directoryPath: '${appDir.path}/log_queue');
   }
 
+  final memorySink = ref.read(memorySinkProvider);
+
   final sink = BackendLogSink(
     endpoint: endpoint,
     client: client,
     installId: installId,
     sessionId: sessionId,
     diskQueue: diskQueue,
+    memorySink: memorySink,
     resourceAttributes: resourceAttrs,
-    jwtProvider: () => ref.read(accessTokenProvider),
+    jwtProvider: () {
+      final authState = ref.read(authProvider);
+      // No-auth mode doesn't require JWT — return empty string to
+      // signal "proceed without auth" (non-null skips pre-auth buffer).
+      if (authState is NoAuthRequired) return '';
+      // Pre-auth: return null to buffer logs until authenticated.
+      if (authState is! Authenticated) return null;
+      return authState.accessToken;
+    },
     networkChecker: () {
       final connectivity = ref.read(connectivityProvider);
       return connectivity.maybeWhen(

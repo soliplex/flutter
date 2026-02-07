@@ -171,7 +171,7 @@ class BackendLogSink implements LogSink {
         Uri.parse(endpoint),
         headers: {
           'Content-Type': 'application/json',
-          if (jwt != null) 'Authorization': 'Bearer $jwt',
+          if (jwt != null && jwt.isNotEmpty) 'Authorization': 'Bearer $jwt',
         },
         body: payload,
       );
