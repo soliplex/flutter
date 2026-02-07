@@ -54,12 +54,14 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
   }
 
   final _suppressedRequestIds = <String>{};
+  final _requestInfoById = <String, String>{};
 
   @override
   void onRequest(HttpRequestEvent event) {
     if (event.uri.path.endsWith('/v1/logs')) {
       _suppressedRequestIds.add(event.requestId);
     } else {
+      _requestInfoById[event.requestId] = '${event.method} ${event.uri}';
       Loggers.http.debug('${event.method} ${event.uri}');
     }
     _addEvent(event);
@@ -67,14 +69,19 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
 
   @override
   void onResponse(HttpResponseEvent event) {
-    if (!_suppressedRequestIds.remove(event.requestId)) {
-      Loggers.http.debug('${event.statusCode} response');
+    if (_suppressedRequestIds.remove(event.requestId)) {
+      _requestInfoById.remove(event.requestId);
+    } else {
+      final info = _requestInfoById.remove(event.requestId);
+      Loggers.http.debug('${event.statusCode} $info');
     }
     _addEvent(event);
   }
 
   @override
   void onError(HttpErrorEvent event) {
+    _suppressedRequestIds.remove(event.requestId);
+    _requestInfoById.remove(event.requestId);
     // Note: HttpErrorEvent does not carry a StackTrace from the call site.
     // The stack trace is lost at the ObservableHttpClient boundary.
     Loggers.http.error(
