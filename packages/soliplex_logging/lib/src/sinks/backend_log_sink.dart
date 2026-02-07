@@ -42,6 +42,8 @@ class BackendLogSink implements LogSink {
     Duration flushInterval = const Duration(seconds: 30),
     this.networkChecker,
     this.jwtProvider,
+    this.flushGate,
+    this.maxFlushHoldDuration = const Duration(minutes: 5),
     this.onError,
   })  : _client = client,
         _diskQueue = diskQueue {
@@ -59,6 +61,12 @@ class BackendLogSink implements LogSink {
 
   /// Current user ID (null before auth).
   String? userId;
+
+  /// Current active run thread ID (null when idle).
+  String? threadId;
+
+  /// Current active run ID (null when idle).
+  String? runId;
 
   /// Optional memory sink for breadcrumb retrieval on error/fatal.
   final MemorySink? memorySink;
@@ -78,6 +86,16 @@ class BackendLogSink implements LogSink {
   /// Returns the current JWT or null if not yet authenticated.
   final String? Function()? jwtProvider;
 
+  /// Returns `true` when flushing is allowed.
+  ///
+  /// When non-null and returning `false`, periodic flushes are held until
+  /// the gate opens or [maxFlushHoldDuration] elapses (safety valve).
+  /// `flush(force: true)` bypasses this gate entirely.
+  final bool Function()? flushGate;
+
+  /// Maximum time to hold flushes when [flushGate] returns `false`.
+  final Duration maxFlushHoldDuration;
+
   /// Callback for error reporting.
   final SinkErrorCallback? onError;
 
@@ -89,6 +107,7 @@ class BackendLogSink implements LogSink {
 
   bool _closed = false;
   bool _disabled = false;
+  DateTime? _gatedSince;
   int _retryCount = 0;
   int _consecutiveFailures = 0;
   String? _lastJwt;
@@ -155,6 +174,20 @@ class BackendLogSink implements LogSink {
     // Respect backoff timer.
     if (backoffUntil != null && DateTime.now().isBefore(backoffUntil!)) {
       return;
+    }
+
+    // Respect flush gate (e.g., active run in progress).
+    if (!force && flushGate != null) {
+      if (!flushGate!()) {
+        _gatedSince ??= DateTime.now();
+        if (DateTime.now().difference(_gatedSince!) < maxFlushHoldDuration) {
+          return;
+        }
+        // Safety valve triggered — reset timer and proceed.
+        _gatedSince = null;
+      } else {
+        _gatedSince = null;
+      }
     }
 
     final records = await _diskQueue.drain(batchSize);
@@ -250,6 +283,8 @@ class BackendLogSink implements LogSink {
       'installId': installId,
       'sessionId': sessionId,
       'userId': userId,
+      'activeRun':
+          threadId != null ? {'threadId': threadId, 'runId': runId} : null,
     };
   }
 
