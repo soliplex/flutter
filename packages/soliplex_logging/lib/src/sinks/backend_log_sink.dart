@@ -9,6 +9,7 @@ import 'package:soliplex_logging/src/log_level.dart';
 import 'package:soliplex_logging/src/log_record.dart';
 import 'package:soliplex_logging/src/log_sink.dart';
 import 'package:soliplex_logging/src/sinks/disk_queue.dart';
+import 'package:soliplex_logging/src/sinks/memory_sink.dart';
 
 /// Maximum record size in bytes before truncation (64 KB).
 const _maxRecordBytes = 64 * 1024;
@@ -34,6 +35,7 @@ class BackendLogSink implements LogSink {
     required this.sessionId,
     required DiskQueue diskQueue,
     this.userId,
+    this.memorySink,
     this.resourceAttributes = const {},
     this.maxBatchBytes = _defaultMaxBatchBytes,
     this.batchSize = 100,
@@ -57,6 +59,9 @@ class BackendLogSink implements LogSink {
 
   /// Current user ID (null before auth).
   String? userId;
+
+  /// Optional memory sink for breadcrumb retrieval on error/fatal.
+  final MemorySink? memorySink;
 
   /// Resource attributes for the payload envelope.
   final Map<String, Object> resourceAttributes;
@@ -97,6 +102,11 @@ class BackendLogSink implements LogSink {
     if (_closed) return;
 
     final json = _recordToJson(record);
+
+    if (record.level >= LogLevel.error && memorySink != null) {
+      json['breadcrumbs'] = _collectBreadcrumbs();
+    }
+
     final truncated = _truncateRecord(json);
 
     if (record.level == LogLevel.fatal) {
@@ -302,6 +312,26 @@ class BackendLogSink implements LogSink {
     return '${utf8.decode(encoded.sublist(0, end))}…[truncated]';
   }
 
+  /// Reads the last 20 records from [memorySink] as breadcrumbs.
+  List<Map<String, Object?>> _collectBreadcrumbs() {
+    final records = memorySink!.records;
+    final start = records.length > 20 ? records.length - 20 : 0;
+    return [
+      for (var i = start; i < records.length; i++)
+        _breadcrumbFromRecord(records[i]),
+    ];
+  }
+
+  Map<String, Object?> _breadcrumbFromRecord(LogRecord record) {
+    return {
+      'timestamp': record.timestamp.toUtc().toIso8601String(),
+      'level': record.level.name,
+      'logger': record.loggerName,
+      'message': record.message,
+      'category': deriveBreadcrumbCategory(record),
+    };
+  }
+
   /// Caps records by byte size.
   List<Map<String, Object?>> _capByBytes(List<Map<String, Object?>> records) {
     final result = <Map<String, Object?>>[];
@@ -321,4 +351,38 @@ class BackendLogSink implements LogSink {
     }
     return result;
   }
+}
+
+/// Logger name prefixes that map to breadcrumb categories.
+const _loggerCategoryPrefixes = {
+  'Router': 'ui',
+  'Navigation': 'ui',
+  'UI': 'ui',
+  'Http': 'network',
+  'Network': 'network',
+  'Connectivity': 'network',
+  'Lifecycle': 'system',
+  'Permission': 'system',
+  'Auth': 'user',
+  'Login': 'user',
+  'User': 'user',
+};
+
+/// Derives a breadcrumb category from a [LogRecord].
+///
+/// If the record has an explicit `breadcrumb_category` attribute, that
+/// value is used. Otherwise, the category is inferred from the
+/// [LogRecord.loggerName] prefix (e.g. `Router.Home` → `ui`).
+/// Falls back to `system` if no match is found.
+String deriveBreadcrumbCategory(LogRecord record) {
+  final explicit = record.attributes['breadcrumb_category'];
+  if (explicit is String) return explicit;
+
+  final name = record.loggerName;
+  for (final entry in _loggerCategoryPrefixes.entries) {
+    if (name == entry.key || name.startsWith('${entry.key}.')) {
+      return entry.value;
+    }
+  }
+  return 'system';
 }
