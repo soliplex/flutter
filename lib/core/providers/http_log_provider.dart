@@ -53,15 +53,23 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
     });
   }
 
+  final _suppressedRequestIds = <String>{};
+
   @override
   void onRequest(HttpRequestEvent event) {
-    Loggers.http.debug('${event.method} ${event.uri}');
+    if (event.uri.path.endsWith('/v1/logs')) {
+      _suppressedRequestIds.add(event.requestId);
+    } else {
+      Loggers.http.debug('${event.method} ${event.uri}');
+    }
     _addEvent(event);
   }
 
   @override
   void onResponse(HttpResponseEvent event) {
-    Loggers.http.debug('${event.statusCode} response');
+    if (!_suppressedRequestIds.remove(event.requestId)) {
+      Loggers.http.debug('${event.statusCode} response');
+    }
     _addEvent(event);
   }
 

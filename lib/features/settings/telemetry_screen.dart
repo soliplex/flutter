@@ -2,6 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 
 /// Telemetry settings screen for enabling/disabling backend log shipping.
@@ -45,6 +46,18 @@ class TelemetryScreen extends ConsumerWidget {
           title: const Text('Connection Status'),
           subtitle: Text(_connectivityLabel(connectivity)),
         ),
+        if (!kReleaseMode) ...[
+          const Divider(),
+          ListTile(
+            leading: const Icon(Icons.bug_report, color: Colors.orange),
+            title: const Text('Test Exception'),
+            subtitle: const Text('Log an error with stack trace'),
+            trailing: FilledButton.tonal(
+              onPressed: () => _fireTestException(context),
+              child: const Text('Fire'),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -82,6 +95,21 @@ class TelemetryScreen extends ConsumerWidget {
       loading: () => 'Checking...',
       error: (_, __) => 'Unknown',
     );
+  }
+
+  void _fireTestException(BuildContext context) {
+    try {
+      throw Exception('Test exception from Telemetry screen');
+    } on Exception catch (e, s) {
+      Loggers.telemetry.error(
+        'Test exception fired',
+        error: e,
+        stackTrace: s,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Error logged — check Logfire')),
+      );
+    }
   }
 
   Future<void> _showEndpointDialog(
