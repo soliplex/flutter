@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/logging/backend_logging_provider.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 export 'package:soliplex_frontend/core/logging/backend_logging_provider.dart'
     show
         backendLogSinkProvider,
+        deviceAliasProvider,
         installIdProvider,
         resourceAttributesProvider,
         sessionIdProvider;
@@ -233,12 +238,57 @@ final logConfigControllerProvider = Provider<void>((ref) {
     }
   }
 
-  // Listen to config changes and network connectivity.
+  // Cache resolved BackendLogSink for synchronous access in run listener.
+  BackendLogSink? cachedBackendSink;
+
+  // Listen to config changes, backend sink resolution, active run, and
+  // network connectivity.
   ref
     ..listen(
       logConfigProvider,
       applyConfig,
       fireImmediately: true,
+    )
+    ..listen(
+      backendLogSinkProvider,
+      (_, next) {
+        final sink = next.asData?.value;
+        cachedBackendSink = sink;
+        // Sync run state immediately so early-run logs get context.
+        if (sink != null) {
+          try {
+            final runState = ref.read(activeRunNotifierProvider);
+            if (runState is RunningState) {
+              sink
+                ..threadId = runState.threadId
+                ..runId = runState.runId;
+            }
+          } catch (_) {
+            // activeRunNotifierProvider may not be initialized yet.
+          }
+        }
+      },
+      fireImmediately: true,
+    )
+    // Track active run context and flush on completion.
+    ..listen<ActiveRunState>(
+      activeRunNotifierProvider,
+      (previous, next) {
+        final sink = cachedBackendSink;
+        if (sink == null) return;
+        if (next is RunningState) {
+          sink
+            ..threadId = next.threadId
+            ..runId = next.runId;
+        } else {
+          sink
+            ..threadId = null
+            ..runId = null;
+        }
+        if (previous is RunningState && next is CompletedState) {
+          unawaited(sink.flush(force: true));
+        }
+      },
     )
     ..listen(
       connectivityProvider,

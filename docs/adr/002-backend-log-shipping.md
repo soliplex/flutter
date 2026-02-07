@@ -95,7 +95,7 @@ within the same trust boundary.
 - `installId` (stable UUID per install) identifies the device across sessions
 - `sessionId` (new UUID per launch) groups logs within a single app run
 - Each session gets a memorable alias (e.g. `glad-raven-tundra`) derived
-  deterministically from the install ID, making it easy to find and correlate
+  deterministically from the session ID, making it easy to find and correlate
   sessions in Logfire without copying raw UUIDs
 - Resource attributes enable filtering in Logfire by OS, version, etc.
 - Follows OTel semantic conventions for future compatibility

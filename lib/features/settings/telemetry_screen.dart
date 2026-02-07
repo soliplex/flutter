@@ -14,9 +14,26 @@ class TelemetryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final config = ref.watch(logConfigProvider);
     final connectivity = ref.watch(connectivityProvider);
+    final deviceAlias = ref.watch(deviceAliasProvider);
 
     return ListView(
       children: [
+        ListTile(
+          leading: const Icon(Icons.badge_outlined),
+          title: const Text('Session Alias'),
+          subtitle: SelectableText(
+            deviceAlias,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+          ),
+          trailing: const Tooltip(
+            message: 'Tell support staff this name to identify your session',
+            child: Icon(Icons.info_outline),
+          ),
+        ),
+        const Divider(),
         SwitchListTile(
           secondary: const Icon(Icons.cloud_upload_outlined),
           title: const Text('Backend Logging'),
