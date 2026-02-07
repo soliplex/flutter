@@ -265,10 +265,13 @@ are injected via constructor arguments:
 
 **Status:** Pending (blocked by 12.2)
 
-**Goal:** Wire `OtelSink` + `LogfireExporter` into the app with a Settings
-UI for entering the Logfire write token. All platforms use direct export
-initially — no backend proxy needed. This lets us validate end-to-end
-export before introducing the proxy layer.
+**Goal:** Wire `OtelSink` + `LogfireExporter` into the app with a
+Telemetry screen for entering the Logfire write token. Native platforms
+(mobile/desktop) export directly to Logfire. **Web is OTel-disabled in
+this milestone** — CORS blocks direct Logfire POST from the browser. Web
+export is enabled in 12.4 when the proxy is ready. The Telemetry screen
+on web shows a "requires backend proxy" message instead of the token
+field.
 
 ### Telemetry Screen
 
@@ -285,6 +288,9 @@ config separate from general app settings.
   custom collectors
 - **Connection status** — indicator showing whether export is active,
   disabled, or failed (from circuit breaker state)
+- **Web (12.3):** Token field and toggle hidden. Shows "OTel export
+  requires backend proxy (coming in 12.4)" message. Web export is
+  enabled when `ProxyExporter` ships.
 - Token is written to `flutter_secure_storage` and `otelTokenProvider`
   is invalidated → exporter recreated → export starts
 
@@ -350,10 +356,16 @@ config separate from general app settings.
 
 **Lifecycle flush:**
 
-- **Mobile/Desktop:** `AppLifecycleListener` calls `OtelSink.flush()`
-  on `AppLifecycleState.paused`
-- **Web:** `visibilitychange` listener calls `flush()` when
-  `document.hidden == true`. Best-effort `beforeunload` flush.
+- **Mobile:** `AppLifecycleListener` calls `OtelSink.flush()` on
+  `AppLifecycleState.paused`
+- **Desktop:** `AppLifecycleListener` calls `OtelSink.flush()` on
+  `AppLifecycleState.hidden` (desktop does not reliably emit `paused`).
+  Also flush on `AppLifecycleState.detached` as a final-chance drain.
+- **Web (12.4 only):** `visibilitychange` listener calls `flush()` when
+  `document.hidden == true`. `beforeunload` is best-effort only — accept
+  that up to 30s of logs may be lost on abrupt tab close (sendBeacon
+  cannot set auth headers, and adding a nonce mechanism is not worth the
+  complexity).
 
 **Resource attributes:**
 
@@ -411,8 +423,8 @@ constructor arguments.
   `OtelSink` unregistered from `LogManager`. Toggle back on → sink
   re-registered. Verify logs stop/start flowing to exporter.
 - `test/integration/otel_lifecycle_flush_test.dart` — Write records to
-  `OtelSink`, simulate `AppLifecycleState.paused` (native) or
-  `visibilitychange` hidden (web), verify `flush()` called and
+  `OtelSink`, simulate `AppLifecycleState.paused` (mobile) and
+  `AppLifecycleState.hidden` (desktop), verify `flush()` called and
   exporter receives buffered records.
 - `test/integration/otel_offline_skip_test.dart` — Mock
   `connectivity_plus` to report offline. Write records. Verify exporter
@@ -434,11 +446,12 @@ constructor arguments.
 - [ ] Telemetry screen routed from Settings
 - [ ] `otelTokenProvider` reads token from `flutter_secure_storage` (async)
 - [ ] Token is NOT in `LogConfig` or `SharedPreferences`
-- [ ] `otelExporterProvider` creates `LogfireExporter` (all platforms)
-- [ ] `otelSinkProvider` creates `OtelSink`, disabled when no token
+- [ ] `otelExporterProvider` creates `LogfireExporter` (native platforms)
+- [ ] `otelSinkProvider` creates `OtelSink`, disabled when no token or web
 - [ ] Token change in Telemetry → provider invalidation → exporter recreated
 - [ ] Config toggle enables/disables OTel export at runtime
-- [ ] Lifecycle flush: `paused` on native, `visibilitychange` on web
+- [ ] Lifecycle flush: `paused` on mobile, `hidden`/`detached` on desktop
+- [ ] Web: OTel disabled, Telemetry screen shows proxy-required message
 - [ ] Resource attributes populated from device info
 - [ ] `connectivity_plus` added, export skipped when offline
 - [ ] Integration: token entry → provider chain → export starts
@@ -493,13 +506,22 @@ the web client in production — the proxy holds it server-side.
 
 **Telemetry screen (web):**
 
+- Replace "requires backend proxy" message with enable/disable toggle
 - Hide token field on web (not needed — proxy holds token)
-- Keep enable/disable toggle and endpoint field
+- Keep endpoint field
 
 **Token handling (web):**
 
 - No Logfire token on web client in production
 - `ProxyExporter` uses session JWT from existing auth state
+
+**Web lifecycle flush:**
+
+- `visibilitychange` listener calls `flush()` when
+  `document.hidden == true`
+- `beforeunload` is best-effort only — accept up to 30s of log loss on
+  abrupt tab close (`sendBeacon` cannot set auth headers; not worth
+  adding nonce complexity)
 
 ### Unit Tests
 
@@ -585,6 +607,6 @@ and backpressure observability.
 |---------------|--------|----|
 | 12.1 LogRecord attributes | Pending | — |
 | 12.2 OtelSink core | Pending | — |
-| 12.3 App integration (direct Logfire) | Pending | — |
+| 12.3 App integration (native, web disabled) | Pending | — |
 | 12.4 Web proxy (swap exporter) | Pending | — |
 | 12.5 Hardening | Deferred | — |

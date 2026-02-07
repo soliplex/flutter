@@ -230,14 +230,15 @@ Map `loggerName` to `scope.name` (already planned). Should also send
 - [ ] Graceful shutdown: flush remaining records in `close()`
 - [ ] Export from `soliplex_logging.dart` barrel
 
-### Phase 2a — App Integration, Direct to Logfire (Sub-milestone 12.3)
+### Phase 2a — App Integration, Native Platforms (Sub-milestone 12.3)
 
 - [ ] **Telemetry screen** — dedicated Settings sub-screen with token
-  entry field, enable/disable toggle, endpoint field, connection status
+  entry field, enable/disable toggle, endpoint field, connection status.
+  Web shows "requires backend proxy" message (CORS blocks direct export).
 - [ ] `otelTokenProvider` (`FutureProvider<String?>`) — reads Logfire
   write token from `flutter_secure_storage`
-- [ ] `otelExporterProvider` — creates `LogfireExporter` on all platforms
-  (direct to Logfire for initial testing)
+- [ ] `otelExporterProvider` — creates `LogfireExporter` on mobile/desktop
+  (direct to Logfire). Web OTel-disabled until 12.4 proxy.
 - [ ] `otelSinkProvider` — creates `OtelSink` with exporter, registers
   with LogManager (follows existing sink provider pattern)
 - [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint` (NOT token —
@@ -248,10 +249,11 @@ Map `loggerName` to `scope.name` (already planned). Should also send
   `device_info_plus`: `service.name`, `service.version`, `os.name`,
   `os.version`, `device.model`, `deployment.environment`. Passed to
   `OtelSink` constructor (pure Dart accepts a `Map`)
-- [ ] **Native lifecycle flush** — `flush()` on `AppLifecycleState.paused`
+- [ ] **Mobile lifecycle flush** — `flush()` on `AppLifecycleState.paused`
   via `AppLifecycleListener`
-- [ ] **Web lifecycle flush** — `visibilitychange` listener triggers
-  `flush()` when tab is hidden; best-effort `beforeunload` flush
+- [ ] **Desktop lifecycle flush** — `flush()` on
+  `AppLifecycleState.hidden` and `detached` (desktop does not reliably
+  emit `paused`)
 
 ### Phase 2b — Web Proxy Swap (Sub-milestone 12.4)
 

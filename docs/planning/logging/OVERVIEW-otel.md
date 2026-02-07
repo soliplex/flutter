@@ -50,9 +50,9 @@ all ingested correctly.
 |---|------|-------|------------|
 | 12.1 | LogRecord attributes | Add `Map<String, Object> attributes` to `LogRecord`, update `Logger` API | — |
 | 12.2 | OtelSink core | `OtelExporter` interface, `LogfireExporter`, `ProxyExporter`, OTLP mapper, batch processor, circuit breaker | 12.1 |
-| 12.3 | App integration (direct) | Telemetry screen (token entry), Riverpod providers, `LogfireExporter` on all platforms, lifecycle flush | 12.2 |
-| 12.4 | Web proxy (swap exporter) | Backend proxy endpoint, swap web to `ProxyExporter`, hide token on web | 12.3 |
-| 12.5 | Hardening | PII redaction, sampling, rate limiting, backpressure | 12.4 |
+| 12.3 | App integration (native) | Telemetry screen, Riverpod providers, `LogfireExporter` on mobile/desktop, lifecycle flush. Web OTel-disabled (CORS). | 12.2 |
+| 12.4 | Web proxy (swap exporter) | Backend proxy endpoint, swap web to `ProxyExporter`, enable web OTel, web lifecycle flush | 12.3 |
+| 12.5 | Hardening | PII redaction, sampling, rate limiting, backpressure. Can parallelize with 12.3/12.4 (pure Dart). | 12.2 |
 
 ## Key Decisions
 
