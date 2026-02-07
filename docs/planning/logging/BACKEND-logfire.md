@@ -170,6 +170,79 @@ by `(installId, sessionId, timestamp, message)` but this is not required
 
 ---
 
+## Phase 2 — Breadcrumbs in Error Payloads (Milestone 12.5)
+
+When the Flutter client sends an ERROR or FATAL log, it may include a
+`breadcrumbs` array — the last 20 log records leading up to the error.
+This gives support engineers the context to understand what happened.
+
+### Payload Extension
+
+Error/fatal log records include an additional `breadcrumbs` field:
+
+```json
+{
+  "logs": [
+    {
+      "timestamp": "2026-02-06T12:00:05.000Z",
+      "level": "error",
+      "logger": "Http",
+      "message": "Request failed: 500",
+      "attributes": {"url": "/api/v1/chat", "status": 500},
+      "error": "HttpException",
+      "stackTrace": "...",
+      "spanId": null,
+      "traceId": null,
+      "installId": "install-uuid",
+      "sessionId": "session-uuid",
+      "userId": "user-abc",
+      "breadcrumbs": [
+        {
+          "timestamp": "2026-02-06T11:59:50.000Z",
+          "level": "info",
+          "logger": "Router",
+          "message": "Navigated to /chat",
+          "category": "ui"
+        },
+        {
+          "timestamp": "2026-02-06T11:59:55.000Z",
+          "level": "info",
+          "logger": "Http",
+          "message": "POST /api/v1/chat",
+          "category": "network"
+        }
+      ]
+    }
+  ],
+  "resource": { "...": "..." }
+}
+```
+
+### Breadcrumb Fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `timestamp` | ISO 8601 string | When the breadcrumb was logged |
+| `level` | string | Log level of the breadcrumb |
+| `logger` | string | Logger name |
+| `message` | string | Log message (already PII-scrubbed) |
+| `category` | string | `ui`, `network`, `system`, or `user` |
+
+### Backend Handling
+
+- `breadcrumbs` is **optional** — only present on error/fatal records
+- If present, persist as an OTel attribute (`breadcrumbs` JSON string)
+  or as individual linked log records (implementation choice)
+- Non-error records will have `breadcrumbs: null` or the field absent
+
+### Acceptance Criteria
+
+- [ ] Backend accepts `breadcrumbs` field on log records (optional)
+- [ ] Breadcrumbs persisted and queryable in Logfire
+- [ ] Non-error records without breadcrumbs handled gracefully
+
+---
+
 ## Phase 2 — Remote Log Level (Milestone 12.6)
 
 ### `GET /api/v1/config/logging`
@@ -254,6 +327,7 @@ trigger an alert (email, webhook, etc.). Implementation details TBD.
 | Priority | Milestone | Endpoint | Effort |
 |----------|-----------|----------|--------|
 | P0 | 12.4 | `POST /api/v1/logs` | Medium — OTel SDK does the heavy lifting |
+| P1 | 12.5 | Breadcrumbs (in 12.4 payload) | Small — optional field on error records |
 | P1 | 12.6 | `GET /api/v1/config/logging` | Small — config endpoint |
 | P1 | 12.7 | Error fingerprinting (in 12.4 pipeline) | Medium — hashing + storage |
 

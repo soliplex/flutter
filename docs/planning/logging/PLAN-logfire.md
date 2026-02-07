@@ -124,11 +124,15 @@ BackendLogSink (LogSink)
 
 **`packages/soliplex_logging/lib/src/log_manager.dart`:**
 
-- Add optional `LogSanitizer? sanitizer` to `LogManager` constructor
-- In `emit()`, run `record = sanitizer.sanitize(record)` before
-  dispatching to sinks. `sanitize()` returns a **new** `LogRecord` via
-  `copyWith()` (original is `@immutable`). All sinks receive the
-  sanitized copy. DoD P0: no unsanitized PII reaches any output.
+- Add `LogSanitizer? sanitizer` **property setter** on the singleton.
+  `LogManager` uses a `static final` singleton (`LogManager.instance`)
+  — you cannot pass constructor arguments. The app layer sets it after
+  initialization: `LogManager.instance.sanitizer = LogSanitizer(...)`.
+- In `emit()`, if `sanitizer != null`, run
+  `record = sanitizer!.sanitize(record)` before dispatching to sinks.
+  `sanitize()` returns a **new** `LogRecord` via `copyWith()` (original
+  is `@immutable`). All sinks receive the sanitized copy.
+  DoD P0: no unsanitized PII reaches any output.
 
 **`packages/soliplex_logging/lib/src/sinks/disk_queue.dart` (new):**
 
@@ -166,6 +170,8 @@ BackendLogSink (LogSink)
   - Optional `networkChecker` (`bool Function()?`)
   - Optional `jwtProvider` (`String? Function()`) — returns current JWT
     or null if not yet authenticated. Flush skips when null.
+  - Optional `memorySink` (`MemorySink?`) — injected for breadcrumb
+    access on ERROR/FATAL (12.5). Null until Phase 2.
 
 **Pre-auth behavior:** `write()` always appends to `DiskQueue` regardless
 of auth state. Logs buffer on disk pre-login. `flush()` skips the HTTP
@@ -195,14 +201,19 @@ connectivity events all ship together.
    }
    ```
 
-3. **Record size guard:** truncate the **Map values** before encoding
+3. **Attribute value safety:** before building the JSON map, coerce
+   any non-JSON-primitive attribute values to `String` via `.toString()`.
+   Only `String`, `num`, `bool`, `null`, `List`, and `Map` pass through
+   directly. This prevents `jsonEncode` from throwing at runtime if a
+   developer passes a custom object (e.g. `{'user': userObj}`).
+4. **Record size guard:** truncate the **Map values** before encoding
    (not after). Check estimated size, truncate in order: `message`,
    `attributes`, `stackTrace`, `error`. Use UTF-8 safe truncation
    (never split multi-byte characters — find last valid char boundary).
-4. If FATAL → `DiskQueue.appendSync(map)` (synchronous write —
+5. If FATAL → `DiskQueue.appendSync(map)` (synchronous write —
    guarantees crash log hits disk before process dies)
-5. Else → `DiskQueue.append(map)` (async, non-blocking)
-6. If ERROR/FATAL → trigger immediate flush
+6. Else → `DiskQueue.append(map)` (async, non-blocking)
+7. If ERROR/FATAL → trigger immediate flush
 
 **`flush()`:**
 
@@ -314,6 +325,7 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
   - HTTP 401 → onError callback, stop retrying, re-enable on new JWT
   - HTTP 404 → onError callback, disable until config change
   - Poison pill: 3 consecutive failures → batch discarded
+  - Attribute value safety: non-primitive → `.toString()` before encode
   - Record size guard: Map values truncated before encoding
   - UTF-8 safe truncation (no split multi-byte characters)
   - Fatal records use `appendSync` (synchronous disk write)
@@ -353,6 +365,7 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
 - [ ] NetworkChecker skips flush when offline
 - [ ] `close()` drains remaining queue
 - [ ] Poison pill: batch discarded after 3 consecutive failures
+- [ ] Attribute value safety: non-primitive values coerced via `.toString()`
 - [ ] Record size guard: Map values truncated before encoding (not after)
 - [ ] UTF-8 safe truncation (no split multi-byte characters)
 - [ ] Fatal logs use `appendSync` (synchronous disk write)
@@ -394,8 +407,13 @@ the same endpoint.
   - `resourceAttributes` from `package_info_plus` + `device_info_plus`
   - `networkChecker` from `connectivity_plus`
   - `DiskQueue` with path from `path_provider`
-- Wire `LogSanitizer` with default DoD-appropriate rules into
-  `LogManager` (not `BackendLogSink`) so all sinks get sanitized data
+  - `memorySink` from `memorySinkProvider` — injected so
+    `BackendLogSink` can read breadcrumbs on ERROR/FATAL (12.5).
+    Sinks are siblings under `LogManager`, so `BackendLogSink` has
+    no implicit access to `MemorySink` — it must be injected.
+- Wire `LogSanitizer` with default DoD-appropriate rules via
+  `LogManager.instance.sanitizer = ...` (property setter, not
+  constructor — `LogManager` is a `static final` singleton)
 - Register with `LogManager`, `ref.onDispose → close`
 - Sink disabled when `backendLoggingEnabled` is false
 
@@ -559,8 +577,9 @@ contextual breadcrumbs to help reconstruct what happened.
 
 #### Changes
 
-- On ERROR/FATAL, `BackendLogSink` reads last 20 records from
-  `MemorySink.records` (ring buffer already exists)
+- On ERROR/FATAL, `BackendLogSink` reads last 20 records from its
+  injected `MemorySink` instance (ring buffer already exists). The
+  `memorySink` parameter is set via `backendLogSinkProvider` in 12.3.
 - Attaches as `"breadcrumbs": [...]` array in the crash payload
 - Each breadcrumb includes: timestamp, level, logger, message, **category**
 - **Categories** help support filter noise:

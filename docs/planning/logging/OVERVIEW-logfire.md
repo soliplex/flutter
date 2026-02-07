@@ -90,8 +90,9 @@ happened. Native crashes (SIGSEGV) and session replay are out of scope.
 - **Disk-backed queue** — logs persist to JSONL file before HTTP send.
   Survives crashes and OS kills. Store-and-forward on next launch.
 - **Log sanitizer** — PII/classified data redaction is P0 (DoD
-  requirement). Runs in `LogManager` pipeline before any sink receives
-  the record — Console, Memory, and Backend sinks all get sanitized data.
+  requirement). Set via `LogManager.instance.sanitizer` (property setter
+  on the singleton). Runs in `emit()` before any sink receives the
+  record — Console, Memory, and Backend sinks all get sanitized data.
 - **Same endpoint all platforms** — no web proxy needed. All platforms
   POST to `/api/v1/logs` with session JWT. No CORS issue.
 - **Dart crash hooks** — `FlutterError.onError` and
