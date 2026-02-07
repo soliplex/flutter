@@ -90,6 +90,7 @@ class SettingsScreen extends ConsumerWidget {
         const Divider(),
         const _NetworkRequestsTile(),
         const _LogViewerTile(),
+        const _TelemetryTile(),
         const Divider(),
         _AuthSection(authState: authState),
       ],
@@ -135,6 +136,23 @@ class _LogViewerTile extends ConsumerWidget {
           onTap: () => context.push('/settings/logs'),
         );
       },
+    );
+  }
+}
+
+class _TelemetryTile extends ConsumerWidget {
+  const _TelemetryTile();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final config = ref.watch(logConfigProvider);
+
+    return ListTile(
+      leading: const Icon(Icons.cloud_upload_outlined),
+      title: const Text('Telemetry'),
+      subtitle: Text(config.backendLoggingEnabled ? 'Enabled' : 'Disabled'),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push('/settings/telemetry'),
     );
   }
 }
