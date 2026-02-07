@@ -14,6 +14,7 @@ class LogRecord {
     this.stackTrace,
     this.spanId,
     this.traceId,
+    this.attributes = const {},
   });
 
   /// Severity level of this log.
@@ -40,6 +41,34 @@ class LogRecord {
   /// Trace ID for telemetry correlation.
   final String? traceId;
 
+  /// Structured key-value attributes for contextual metadata.
+  final Map<String, Object> attributes;
+
+  /// Returns a copy of this record with the given fields replaced.
+  LogRecord copyWith({
+    LogLevel? level,
+    String? message,
+    DateTime? timestamp,
+    String? loggerName,
+    Object? error,
+    StackTrace? stackTrace,
+    String? spanId,
+    String? traceId,
+    Map<String, Object>? attributes,
+  }) {
+    return LogRecord(
+      level: level ?? this.level,
+      message: message ?? this.message,
+      timestamp: timestamp ?? this.timestamp,
+      loggerName: loggerName ?? this.loggerName,
+      error: error ?? this.error,
+      stackTrace: stackTrace ?? this.stackTrace,
+      spanId: spanId ?? this.spanId,
+      traceId: traceId ?? this.traceId,
+      attributes: attributes ?? this.attributes,
+    );
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer()
@@ -51,6 +80,10 @@ class LogRecord {
       if (spanId != null && traceId != null) buffer.write(', ');
       if (spanId != null) buffer.write('span=$spanId');
       buffer.write(')');
+    }
+
+    if (attributes.isNotEmpty) {
+      buffer.write(' $attributes');
     }
 
     if (error != null) {

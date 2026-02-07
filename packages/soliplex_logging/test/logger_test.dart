@@ -112,6 +112,22 @@ void main() {
       expect(sink.records.first.traceId, 'trace-456');
     });
 
+    test('passes attributes to record', () {
+      final attrs = {'user_id': 'u-1', 'view_name': 'settings'};
+      LogManager.instance.getLogger('Test').info(
+            'Navigated',
+            attributes: attrs,
+          );
+
+      expect(sink.records.first.attributes, attrs);
+    });
+
+    test('attributes default to empty when not provided', () {
+      LogManager.instance.getLogger('Test').info('No attrs');
+
+      expect(sink.records.first.attributes, isEmpty);
+    });
+
     test('sets correct logger name on records', () {
       LogManager.instance.getLogger('MyLogger').info('Test');
 
