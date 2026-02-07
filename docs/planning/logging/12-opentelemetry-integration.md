@@ -2,10 +2,19 @@
 
 ## Goal
 
-Validate that soliplex_logging can export structured logs to an OpenTelemetry
-collector (Logfire) via OTLP/HTTP, then build a production-ready `OtelSink`.
+Export structured logs from `soliplex_logging` to Logfire (Pydantic) via a
+backend relay. Flutter POSTs simple JSON to the Soliplex Python backend,
+which uses the mature Python OTel SDK to forward logs as OTLP.
 
-## Status: Spike Complete
+## Status: Pivoting to Option B (Backend Relay)
+
+The spike validated OTLP/HTTP JSON delivery to Logfire. Architectural review
+determined that building a full OTel client in Dart (mapper, exporters, batch
+processor, retry, circuit breaker) is not justified for log-only export. The
+Python OTel SDK is mature and handles all OTLP complexity server-side.
+
+**Constraint:** DoD environment — no commercial SaaS (Sentry, Crashlytics,
+Datadog). Self-hosted/open-source only. Logfire (Pydantic) is approved.
 
 ## Context
 
@@ -79,9 +88,9 @@ incomplete.
 
 **Resolution:** The spike was updated to omit `traceId`/`spanId` from log
 records. For production, trace context should only be attached to log records
-when it originates from real trace spans (Phase 3). The `OtelSink` should
-pass through `traceId`/`spanId` from `LogRecord` fields only when they are
-populated by the tracing layer, not synthesized.
+when it originates from real trace spans. The `BackendLogSink` passes through
+`traceId`/`spanId` from `LogRecord` fields only when they are populated by
+the tracing layer, not synthesized.
 
 ## Approach: Spike First
 
@@ -182,7 +191,7 @@ flat messages and exceptions — no structured context like `user_id`,
 ### Resource Detection
 
 The OTel `Resource` describes the entity producing telemetry. For production
-the `OtelSink` constructor needs:
+the `BackendLogSink` constructor needs:
 
 - `service.name` — "soliplex-flutter"
 - `service.version` — from `package_info_plus`
@@ -197,103 +206,52 @@ The spike hardcodes these; production builds them dynamically.
 Map `loggerName` to `scope.name` (already planned). Should also send
 `scope.version` with the `soliplex_logging` package version.
 
-## Production Roadmap (Post-Spike)
+## Production Roadmap (Option B — Backend Relay)
 
-### Phase 1 — Mapper + Transport + Sink (Sub-milestones 12.1–12.5)
+The previous roadmap (commit `84d7950`) built a full OTel client in Dart:
+OtelMapper, OtelExporter, LogfireExporter, ProxyExporter, batch processor,
+retry/circuit breaker, gzip compression. That approach was over-engineered
+for log-only export.
 
-- [ ] Add `Map<String, Object> attributes` field to `LogRecord`
-- [ ] `OtelExporter` interface with `export()` and `shutdown()`
-- [ ] `LogfireExporter` — direct OTLP/HTTP to Logfire (raw write token).
-  Accepts injected `http.Client` (app provides native client)
-- [ ] `ProxyExporter` — routes through backend proxy (session JWT).
-  Accepts injected `http.Client`
-- [ ] `OtelSink` implements `LogSink`, takes any `OtelExporter`.
-  Accepts optional `NetworkStatusChecker` callback for connectivity
-- [ ] `OtelMapper` with typed `AnyValue` serialization: preserve `bool`,
-  `int`, `double`, `List`, `Map` into correct OTLP type wrappers.
-  Only fall back to `.toString()` for unknown types
-- [ ] `OtelMapper` emits `observedTimeUnixNano` (set at sink `write()` time)
-- [ ] `OtelMapper` emits `droppedAttributesCount` when attributes truncated
-- [ ] `OtelMapper` emits `flags` field from trace context
-- [ ] Batch processor with **mobile-tuned** settings:
-  - Batch size: 256 records
-  - Export interval: **30s** (not 5s — preserves battery/radio)
-  - Severity-based flush: immediate export on ERROR/FATAL
-  - Max queue size: 1024 records (bounded memory)
-  - Drop policy: when full, drop TRACE/DEBUG first. If queue is all
-    ERROR/FATAL, drop oldest ERROR (never block writes)
-- [ ] Exporters send `Content-Encoding: gzip` compressed payloads
-- [ ] Retry with exponential backoff + jitter (1s, 2s, 4s, max 32s)
-- [ ] HTTP status classification via `ExportResult`:
-  - 401/403 → `fatal` (disable export)
-  - 413 → `retryable` (split batch in half and retry)
-  - 429 → `retryable` (respect `Retry-After`)
-  - 5xx → `retryable` (backoff, max 5 min per batch)
-- [ ] **Connectivity check** via injected `NetworkStatusChecker` callback
-  (app layer provides using `connectivity_plus`; `soliplex_logging` stays
-  pure Dart)
-- [ ] Graceful shutdown: flush remaining records in `close()`
-- [ ] Export from `soliplex_logging.dart` barrel
+**Option B** sends simple JSON to the Soliplex Python backend, which uses
+the mature Python OTel SDK for OTLP mapping, batching, retry, and
+compression.
 
-### Phase 2a — App Integration, Native Platforms (Sub-milestones 12.6–12.7)
+### Phase 1 — Core (P0, Sub-milestones 12.1–12.4)
 
-- [ ] **Telemetry screen** — dedicated Settings sub-screen with token
-  entry field, enable/disable toggle, endpoint field, connection status.
-  Web shows "requires backend proxy" message (CORS blocks direct export).
-- [ ] `otelTokenProvider` (`FutureProvider<String?>`) — reads Logfire
-  write token from `flutter_secure_storage`
-- [ ] `otelExporterProvider` — creates `LogfireExporter` on mobile/desktop
-  (direct to Logfire). Web OTel-disabled until 12.8 proxy.
-- [ ] `otelSinkProvider` — creates `OtelSink` with exporter, registers
-  with LogManager (follows existing sink provider pattern)
-- [ ] `LogConfig` extended with `otelEnabled`, `otelEndpoint` (NOT token —
-  token lives in `flutter_secure_storage` via separate async provider)
-- [ ] `logConfigControllerProvider` updated to manage OtelSink
-- [ ] **Resource provider** (app layer) — builds `Map<String, Object>`
-  resource attributes at startup using `package_info_plus` and
-  `device_info_plus`: `service.name`, `service.version`, `os.name`,
-  `os.version`, `device.model`, `deployment.environment`. Passed to
-  `OtelSink` constructor (pure Dart accepts a `Map`)
-- [ ] **Mobile lifecycle flush** — `flush()` on `AppLifecycleState.paused`
-  via `AppLifecycleListener`
-- [ ] **Desktop lifecycle flush** — `flush()` on
-  `AppLifecycleState.hidden` and `detached` (desktop does not reliably
-  emit `paused`)
+- [ ] **12.1 LogRecord attributes** — Add `Map<String, Object> attributes`
+  field to `LogRecord` (default `const {}`). Update `Logger` API.
+- [ ] **12.2 BackendLogSink** — disk-backed queue (JSONL), JSON POST to
+  backend, timer + severity flush, basic retry, `LogSanitizer` (PII
+  redaction), session/user correlation, Dart crash hooks
+- [ ] **12.3 App integration** — Riverpod providers, Telemetry screen UI,
+  resource attributes, connectivity check, lifecycle flush
+- [ ] **12.4 Backend ingest** — Python `POST /api/v1/logs` endpoint,
+  Python OTel SDK forwarding to Logfire
 
-### Phase 2b — Web Proxy Swap (Sub-milestone 12.8)
+### Phase 2 — Enhanced Context (P1, Sub-milestones 12.5–12.7)
 
-- [ ] **Backend proxy endpoint** — `POST /api/v1/telemetry/logs` on
-  Soliplex backend (forwards OTLP to Logfire with server-side token)
-- [ ] `otelExporterProvider` updated — selects `ProxyExporter` (web) or
-  `LogfireExporter` (native) based on `kIsWeb`
-- [ ] **Telemetry screen (web)** — hides token field (proxy holds token)
-- [ ] Web clients no longer store the Logfire write token
+- [ ] **12.5 Breadcrumbs** — last N logs from MemorySink attached to
+  crash/error payloads
+- [ ] **12.6 Remote log level** — backend config endpoint, app polls on
+  startup + periodically
+- [ ] **12.7 Error fingerprinting** — backend groups errors by type + top
+  stack frame (Python side)
 
-### Phase 3 — Tracing Integration (Optional)
+### Phase 3 — Diagnostics (P2, Sub-milestones 12.8–12.9)
 
-- [ ] Evaluate `dartastic_opentelemetry` for tracing (if log support matures)
-- [ ] Or `flutterrific_opentelemetry` for automatic navigation/lifecycle spans
-- [ ] Propagate W3C traceparent header from HTTP requests to log records
-- [ ] Link x-request-id (Milestone 11) to OTel trace context
+- [ ] **12.8 RUM / performance** — cold start, slow frames, route timing,
+  HTTP latency as structured log attributes
+- [ ] **12.9 Screenshot on error** — RepaintBoundary capture, attach to
+  error reports
 
-### Context Propagation Preparedness
+### Context Propagation (Future)
 
 Currently `traceId`/`spanId` are passed manually via `Logger.info(traceId:
-...)`. This works for Phase 1 but becomes unmaintainable when tracing is
-added. Preparation for Phase 3:
-
-- **Zone-based context holder** — implement a lightweight `OtelContext`
-  that stores the active trace/span in `Zone` values (via `dart:async`).
-  When a span starts, it populates the Zone. Logs emitted inside that
-  Zone automatically inherit the correct parent trace/span IDs without
-  manual threading at every call site.
-- **Scope:** This is a Phase 3 concern but the `Logger` API should be
-  designed to not *require* manual `traceId`/`spanId` params. The mapper
-  should prefer Zone-provided context over explicit params, falling back
-  to explicit params when present (manual override).
-- **Why now:** Retrofitting Zone-based context after hundreds of
-  `Logger.info(traceId: ...)` call sites is painful. Design the API so
-  that explicit params are optional overrides, not the primary mechanism.
+...)`. The `Logger` API is designed so that explicit params are optional
+overrides, not the primary mechanism. When tracing is added later, a
+Zone-based context holder can propagate trace context automatically without
+requiring changes at every call site.
 
 ## Field Mapping Reference
 
@@ -326,10 +284,11 @@ added. Preparation for Phase 3:
 | `attributes` | `attributes` | Typed `AnyValue` mapping (see below) |
 | *(computed)* | `droppedAttributesCount` | Count of attributes dropped by limit |
 
-### Attribute `AnyValue` Mapping
+### Attribute `AnyValue` Mapping (Reference)
 
-OTLP attributes are a typed union — **do NOT `toString()` everything**.
-The mapper must preserve Dart types into their correct OTLP wrappers:
+With Option B, the Python OTel SDK handles typed attribute mapping. This
+section is retained as reference for the JSON attribute format the Flutter
+client sends to the backend. The Python SDK maps these to OTLP `AnyValue`:
 
 | Dart type | OTLP `AnyValue` key | Example |
 |-----------|---------------------|---------|
@@ -345,83 +304,35 @@ This enables Logfire's SQL-like querying on structured attributes
 (e.g., `WHERE attributes.cart.total > 50`). Flattening to strings
 would destroy this capability.
 
-## Web Platform (Proxy Route)
+## Web Platform Considerations
 
-### Problem
+### Why Backend Relay Solves CORS
 
-Browsers enforce same-origin policy. A direct `POST` from Flutter Web to
-`https://logfire-us.pydantic.dev/v1/logs` with a custom `Authorization`
-header triggers a CORS preflight that Logfire does not support. Additional
-web constraints:
+The previous plan required a web-specific proxy because browsers block
+direct OTLP POSTs to `https://logfire-us.pydantic.dev/v1/logs` (CORS
+preflight failure). Option B eliminates this — all platforms POST to the
+same backend endpoint (`/api/v1/logs`), which is same-origin for web.
+
+### Remaining Web Constraints
 
 | Concern | Mobile/Desktop | Web |
 |---------|---------------|-----|
-| CORS | N/A | Blocks cross-origin OTLP requests |
-| Token storage | Keychain / Keystore | No secure storage — `localStorage` is visible in DevTools |
 | Lifecycle flush | `AppLifecycleState.paused` | No `paused` — must use `visibilitychange` / `beforeunload` |
 | Background timers | Run freely | Throttled to ~1/min in background tabs |
 | Connectivity | `connectivity_plus` | `navigator.onLine` (unreliable) |
+| DiskQueue | JSONL file | No filesystem — falls back to in-memory queue |
 
-### Solution: Backend Proxy
+### Platform Handling (Option B)
 
-Route web log export through the Soliplex backend. The proxy:
-
-1. Receives OTLP JSON from the client on a same-origin endpoint
-2. Attaches the Logfire write token server-side
-3. Forwards to `https://logfire-us.pydantic.dev/v1/logs`
-4. Returns the upstream status code to the client
-
-```text
-Flutter Web ──POST /api/v1/telemetry/logs──▶ Soliplex Backend ──POST /v1/logs──▶ Logfire
-              (same origin, no auth header)     (attaches write token)
-```
-
-**Benefits:**
-
-- **No CORS** — same-origin request, no preflight
-- **Token never reaches the client** — write token lives in backend
-  config/secrets, not in browser storage or JS bundles
-- **Unified auth** — proxy authenticates the request using the existing
-  session/JWT, so only authenticated users can export logs
-- **Rate limiting** — backend can enforce per-user/per-session rate limits
-  before forwarding to Logfire
-
-### Proxy Endpoint Spec
-
-```text
-POST /api/v1/telemetry/logs
-Content-Type: application/json
-Authorization: Bearer <session-jwt>
-
-Body: OTLP JSON (same schema as direct Logfire export)
-```
-
-The backend validates the session, then forwards the body to Logfire with
-the write token. Returns:
-
-- **200** — forwarded successfully
-- **401** — invalid/expired session
-- **413** — payload too large (reject before forwarding)
-- **429** — rate limited
-- **502** — Logfire upstream error
-
-### OtelSink Platform Branching
-
-`OtelSink` accepts an endpoint URL at construction. The platform difference
-is configuration only — no conditional code inside the sink:
+With Option B, all platforms POST to the same backend endpoint (`/api/v1/logs`)
+using session JWT auth. No platform branching is needed:
 
 | Platform | Endpoint | Auth Header |
 |----------|----------|-------------|
-| Mobile / Desktop | `https://logfire-us.pydantic.dev/v1/logs` | `<write-token>` (raw) |
-| Web | `/api/v1/telemetry/logs` (relative, same origin) | `Bearer <session-jwt>` |
+| Mobile / Desktop / Web | `/api/v1/logs` | `Bearer <session-jwt>` |
 
-The Riverpod provider selects the endpoint based on `kIsWeb`:
-
-```dart
-final endpoint = kIsWeb
-    ? '/api/v1/telemetry/logs'
-    : 'https://logfire-us.pydantic.dev/v1/logs';
-```
+The Logfire write token never reaches the client on any platform. The Python
+backend holds it server-side.
 
 ### Web Lifecycle Handling
 
@@ -451,176 +362,119 @@ call per minute. Impact on the 30s batch interval:
 
 No mitigation needed. The `visibilitychange` flush covers the gap.
 
-## Production Concerns (from Codex Review)
+## Production Concerns
 
-### Sampling & Rate Limiting
+### What Moves Server-Side (Option B)
 
-The spec defines batching but no sampling. For production:
+With Option B, the Python OTel SDK handles OTLP mapping, batching, retry,
+compression, gzip, and circuit breaking. The Flutter client is simpler but
+still needs:
 
-- **Level-based sampling:** Always export ERROR/FATAL. Sample DEBUG/TRACE
-  at a configurable rate (e.g., 10% in prod, 100% in dev)
-- **Per-logger rate caps:** Prevent noisy loggers from dominating export
-  bandwidth (e.g., max 100 records/min per logger)
-- **Burst limits:** Allow short bursts but throttle sustained high volume
-- **Interaction with trace sampling:** When Phase 3 adds tracing, ensure
-  log sampling aligns with trace sampling to avoid orphaned context
+### PII & Redaction (P0 — DoD Requirement)
 
-### PII & Redaction
+`LogSanitizer` (12.2) runs client-side before any data leaves the device:
 
-No sanitizer layer exists. Before production export:
-
-- **Attribute allowlist:** Only export known-safe attribute keys by default
-- **Message scrubbing:** Configurable regex patterns to redact emails,
-  tokens, IPs, and other PII from message bodies
-- **Stack trace trimming:** Strip file paths that may leak internal
-  directory structure
-- **Guidelines:** Document which attributes are safe to export and which
-  require scrubbing
+- **Key blocklist:** `password`, `token`, `auth`, `secret`, `ssn`,
+  `credential` → values replaced with `[REDACTED]`
+- **Pattern scrubbing:** regex for emails, SSNs, bearer tokens, IPs
+- **Stack trace trimming:** strip absolute file paths to relative
+- Configurable: additional keys/patterns at construction
 
 ### Backpressure & Drop Policy
 
-Max queue size is 1024 records:
+`DiskQueue` (12.2) caps at 10 MB. When full:
 
-- **Drop strategy:** Drop oldest records first (preserve recent context)
-- **Severity protection:** Drop TRACE/DEBUG first. If queue is entirely
-  ERROR/FATAL, drop oldest ERROR (never block writes)
-- **Drop counter:** Track and export `otel.logs.dropped_count` as a
-  self-diagnostic metric
-- **User alert:** Surface sustained drop rates via in-app debug indicator
+- Drop oldest records (preserve recent context)
+- File rotation: new file, discard oldest
+- Drop counter tracked for diagnostics
 
-### Circuit Breaker & Self-Logging Protection
+### Error Handling (HTTP)
 
-- **Circuit breaker:** After N consecutive `fatal` export results (e.g. 3),
-  disable export entirely until config is changed or app restarts.
-  Surface disabled state via `onError` callback.
-- **No re-entrant logging:** `OtelSink` must NEVER generate log records
-  about its own failures that re-enter the logging pipeline. This
-  prevents infinite loops where export failure → log → export failure.
-  Diagnostic errors go to a separate `onError` callback or `stderr` only.
+`BackendLogSink` (12.2) classifies HTTP responses:
 
-### Error Handling (HTTP Classification)
+- **200** — confirm records, remove from queue
+- **401/403** — disable export, fire `onError` callback
+- **429/5xx** — exponential backoff (1s, 2s, 4s, max 60s), keep in queue
+- **No re-entrant logging:** sink failures go to `onError` callback or
+  `stderr`, never re-enter the logging pipeline
 
-Retry with exponential backoff is planned, but HTTP error responses
-need specific handling:
+### Token Security (Simplified)
 
-- **401/403:** Disable export and surface auth error to settings UI.
-  Do not retry (token is invalid/revoked)
-- **413:** Batch too large — split and retry with smaller batches
-- **429:** Respect `Retry-After` header; back off accordingly
-- **5xx:** Exponential backoff with jitter (1s, 2s, 4s, max 32s).
-  Max retry window: 5 minutes per batch
-- **Partial success:** If Logfire returns per-record errors, drop
-  failed records and log diagnostically
-
-### Token Security
-
-The Logfire write token is **not** stored in `LogConfig` (which uses
-synchronous `SharedPreferences`). Instead, it is loaded via a dedicated
-async provider backed by `flutter_secure_storage`:
-
-- **Mobile / Desktop:** `otelTokenProvider` (`FutureProvider<String?>`)
-  reads from `flutter_secure_storage` (Keychain on iOS, Keystore on
-  Android). Token rotation invalidates the provider, triggering exporter
-  recreation.
-- **Web:** Write token never reaches the client. The backend proxy
-  holds the Logfire token in server-side config. Web clients authenticate
-  to the proxy via session JWT only.
-- **Never log the token:** Ensure token value is excluded from all
-  log output, error messages, and debug prints
-- **Static token:** The Logfire write token is a long-lived static OAuth
-  credential. No rotation mechanism is needed, but the provider pattern
-  supports invalidation if Logfire changes this in the future.
-- **Startup policy:** If token unavailable at startup, disable OTel
-  export gracefully (fail open for logging, closed for export)
+With Option B, the Logfire write token **never reaches the Flutter client**.
+The Python backend holds it in server-side config. Flutter clients
+authenticate to the backend via session JWT only. No `flutter_secure_storage`
+needed for token storage.
 
 ### Testing Strategy
 
-The spike validates protocol acceptance but production needs:
-
-- **Unit tests:** OTLP JSON mapping (severity, timestamp, attributes,
-  error conventions, scope grouping)
-- **Batch processor tests:** Timer-based flush, size-based flush,
-  severity-triggered flush, queue overflow/drop policy
-- **Retry tests:** Backoff timing, jitter, HTTP status classification,
-  max retry window
-- **Redaction tests:** PII patterns scrubbed, allowlist enforced
-- **Integration test:** Round-trip to Logfire staging endpoint
-- **Lifecycle tests:** Flush on `AppLifecycleState.paused` (mobile),
-  `visibilitychange` (web), graceful `close()` drain
-- **Proxy tests:** Backend forwards OTLP payload, attaches token,
-  rejects unauthenticated requests, enforces rate limits
+- **LogSanitizer tests:** PII patterns scrubbed, key blocklist enforced
+- **DiskQueue tests:** append/drain round-trip, crash recovery, rotation
+- **BackendLogSink tests:** timer flush, severity flush, HTTP classification,
+  offline skip, `close()` drain
+- **Integration tests:** full pipeline (Logger → sink → mock HTTP),
+  crash recovery, sanitizer in payload
+- **Backend tests (Python):** OTel mapping, auth, rate limits, size limits
 
 ## Validation Gate
 
 Production-ready when:
 
-- [ ] OTLP JSON mapping matches OTel spec (unit tests)
-- [ ] Mapper uses typed `AnyValue` wrappers (not `toString()`) for
-  `String`, `int`, `double`, `bool`, `List`, `Map` attribute values
-- [ ] `observedTimeUnixNano` set at sink `write()` time
-- [ ] `droppedAttributesCount` tracked when attributes exceed limits
-- [ ] `flags` field set from trace context (0x01 if sampled)
-- [ ] Exporters send `Content-Encoding: gzip` (compressed payloads)
-- [ ] Batch processor respects size, timer, and severity triggers
-- [ ] Queue overflow drops by severity (TRACE first); if all ERROR/FATAL,
-  drops oldest ERROR (never blocks writes)
-- [ ] Retry handles 401/403/413/429/5xx correctly (413 splits batch)
-- [ ] Circuit breaker disables export after consecutive fatals
-- [ ] OtelSink never re-enters logging pipeline on failure
-- [ ] Concurrent flush guard prevents overlapping exports
-- [ ] Token stored in `flutter_secure_storage` (NOT `LogConfig`/
-  `SharedPreferences`), never logged
-- [ ] `flush()` called on app lifecycle pause (mobile) and
-  `visibilitychange` (web)
+- [ ] `LogRecord` has `attributes` field, all `Logger` methods accept it
+- [ ] `LogSanitizer` redacts sensitive keys and PII patterns (DoD P0)
+- [ ] `DiskQueue` persists records to JSONL, survives crashes
+- [ ] `DiskQueue` rotates at 10 MB cap
+- [ ] `BackendLogSink` serializes `LogRecord` to simple JSON
+- [ ] SessionId and userId injected into every payload
+- [ ] Timer-based flush (30s) and severity-triggered flush (ERROR/FATAL)
+- [ ] HTTP 200 confirms records, 429/5xx retries with backoff
+- [ ] HTTP 401/403 disables export, fires `onError`
+- [ ] Sink never re-enters logging pipeline on failure
+- [ ] NetworkChecker skips flush when offline
+- [ ] `flush()` called on app lifecycle pause/hidden/visibilitychange
 - [ ] `close()` drains remaining queue
-- [ ] Web proxy forwards OTLP, attaches token server-side, validates session
-- [ ] Web clients never receive or store the Logfire write token
-- [ ] No PII in exported attributes (redaction tests pass — hardening)
-- [ ] Drop counter tracks and reports lost records
+- [ ] Dart crash hooks capture uncaught exceptions as fatal logs
+- [ ] Logfire write token never reaches the Flutter client
+- [ ] Python endpoint maps to OTel LogRecords, forwards to Logfire
+- [ ] Backend enforces auth, rate limits, and size limits
+- [ ] No PII in exported payloads (sanitizer tests pass)
 
 ## Dartastic Review Findings (Feb 2026)
 
-Reviewed `dartastic_opentelemetry` v1.0.0-alpha feature set against our
-plan. Key takeaways incorporated into milestones above.
+Reviewed `dartastic_opentelemetry` v1.0.0-alpha feature set. Key insight:
+dartastic has no working log SDK. This reinforced the Option B decision —
+there is no viable Dart OTel log library. Building one from scratch is
+not justified when the Python OTel SDK is mature.
 
-### Weaknesses Found & Fixed
+### Weaknesses Identified (Informed Option B Decision)
 
-| Finding | Severity | Fix Applied |
-|---------|----------|-------------|
-| `toString()` attribute coercion destroys structured querying | P0 | Typed `AnyValue` mapper (12.2) |
-| Missing `observedTimeUnixNano` field | P0 | Added to field mapping + mapper (12.2) |
-| No gzip compression on HTTP payloads | P1 | Added to exporter spec (12.3) |
-| Missing `droppedAttributesCount` field | P1 | Added to mapper (12.2) |
-| Missing `flags` (trace flags) field | P1 | Added to mapper (12.2) |
-| Manual `traceId`/`spanId` threading won't scale | P2 | Context propagation prep noted (Phase 3) |
-| Lifecycle flush race (OS kills before Future completes) | P2 | Acknowledged; disk persistence deferred |
+| Finding | Severity | Resolution |
+|---------|----------|------------|
+| `toString()` attribute coercion | P0 | Moot — Python SDK handles typed mapping server-side |
+| Missing `observedTimeUnixNano` | P0 | Moot — Python SDK sets `observedTimestamp` |
+| No gzip compression | P1 | Moot — Python SDK handles compression |
+| Missing `droppedAttributesCount`/`flags` | P1 | Moot — Python SDK handles these fields |
+| Manual `traceId`/`spanId` threading | P2 | Context propagation prep noted (Future) |
+| Lifecycle flush race | P2 | Solved — `DiskQueue` (12.2) survives OS kills |
 
-### Opportunities Noted (Not Yet Adopted)
+### What We Do Better
 
-| Feature (from dartastic) | Value | Decision |
-|--------------------------|-------|----------|
-| Composite exporter (fan-out) | Dev visibility + prod export | Defer to 12.9+ |
-| Resource detectors (abstraction) | Cleaner testing | Defer — raw Map is pragmatic for now |
-| Three-tier config (code > dart-define > env) | CI/CD target switching | Defer to 12.9+ |
-| W3C Trace Context propagation | Backend correlation | Phase 3 |
-| Console/file OTLP exporter for local dev | Debug OTLP payloads | Defer to 12.9+ |
-
-### What We Do Better Than Dartastic
-
-- **Log support exists** — dartastic has no working log SDK
-- **Web proxy architecture** — dartastic assumes direct collector access
-- **Mobile-first tuning** — 30s batch, connectivity checks, severity-aware drops
+- **Log export works** — dartastic has no log SDK; we ship logs via backend relay
+- **All platforms, one endpoint** — no CORS issues, no web proxy needed
+- **Crash persistence** — `DiskQueue` survives crashes (dartastic has no persistence)
+- **PII protection** — `LogSanitizer` (DoD P0) before data leaves device
 - **Pure Dart boundary** — no global statics, clean constructor injection
-- **Circuit breaker + re-entrant logging protection** — production lesson
 
 ## Breaking Changes
 
 **Spike:** None.
 
-**Phase 1:** Adding `attributes` to `LogRecord` constructor is non-breaking
-(optional with default). Updating `Logger` method signatures to accept
-`attributes` is an API change — all call sites still compile but should be
-coordinated.
+**12.1:** Adding `attributes` to `LogRecord` constructor is non-breaking
+(optional with default `const {}`). Updating `Logger` method signatures to
+accept `attributes` is an API change — all call sites still compile but
+should be coordinated.
+
+**12.2:** New files only (`BackendLogSink`, `DiskQueue`, `LogSanitizer`).
+No breaking changes.
 
 ## Dependencies
 
@@ -630,32 +484,40 @@ coordinated.
 
 ### Production — soliplex_logging (Pure Dart)
 
-- `http` package for OTLP/HTTP (pure Dart, added to
-  `packages/soliplex_logging/pubspec.yaml`)
-- No Flutter plugins — all platform concerns injected via constructor
+- `http` package for HTTP POST (pure Dart)
+- `path_provider` for `DiskQueue` file location (Flutter plugin — see
+  layering note below)
 
 ### Production — soliplex_frontend (Flutter App Layer)
 
-- `connectivity_plus` for network awareness (injected to `OtelSink` via
-  `NetworkStatusChecker` callback)
-- `flutter_secure_storage` for token storage (already in pubspec.yaml)
+- `connectivity_plus` for network awareness (injected to `BackendLogSink`
+  via `networkChecker` callback)
 - `package_info_plus` for `service.version` resource attribute
 - `device_info_plus` for `device.model` resource attribute
-- Possibly `dartastic_opentelemetry` if their log export matures
-- Possibly `protobuf` if upgrading from JSON to binary encoding
+- `uuid` for session ID generation
+
+### Layering Note
+
+`path_provider` is a Flutter plugin, which conflicts with the pure Dart
+boundary of `soliplex_logging`. Options:
+
+1. **Inject the file path** — `DiskQueue` constructor takes a `String`
+   directory path. App layer calls `path_provider` and passes the result.
+   `soliplex_logging` stays pure Dart. **(Preferred)**
+2. **Accept the dependency** — add `path_provider` to `soliplex_logging`.
+   Simpler but breaks the pure Dart boundary.
 
 ### Layering Principle
 
 ```text
 soliplex_logging (Pure Dart)        soliplex_frontend (Flutter)
 ├── http                            ├── connectivity_plus
-├── OtelSink                        ├── flutter_secure_storage
-│   accepts NetworkStatusChecker    ├── package_info_plus
-│   accepts resourceAttributes Map  ├── device_info_plus
-├── OtelExporter interface          └── Riverpod providers compose
-├── LogfireExporter                     pure Dart + Flutter plugins
-│   accepts http.Client
-├── ProxyExporter
-│   accepts http.Client
-└── OtelMapper
+├── BackendLogSink                  ├── package_info_plus
+│   accepts http.Client             ├── device_info_plus
+│   accepts networkChecker          ├── path_provider (→ DiskQueue path)
+│   accepts resourceAttributes Map  ├── uuid (→ sessionId)
+├── DiskQueue                       └── Riverpod providers compose
+│   accepts directory path String       pure Dart + Flutter plugins
+├── LogSanitizer
+└── LogRecord + attributes
 ```

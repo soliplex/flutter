@@ -1,11 +1,10 @@
-# OpenTelemetry Integration - Execution Plan
+# OpenTelemetry Integration - Execution Plan (Option B)
 
 ## How to Use This Plan
 
-Each sub-milestone is a single PR. Work them in order — each depends on the
-previous (except 12.9 which can parallelize with 12.6–12.8). A developer or
-agent (wiggum) can pick up any pending sub-milestone by reading its section
-below, implementing the changes, and checking off the acceptance criteria.
+Each sub-milestone is a single PR. Phase 1 milestones are sequential
+(12.1→12.2→12.3, with 12.4 parallel to 12.3). Phase 2 and 3 milestones
+can be worked independently once their dependencies are met.
 
 ## Resumption Context
 
@@ -13,18 +12,21 @@ below, implementing the changes, and checking off the acceptance criteria.
 - **Base:** `main`
 - **Spec:** `docs/planning/logging/12-opentelemetry-integration.md`
 - **Logfire:** Account ready, write token available via `LOGFIRE_TOKEN` env var
-- **Backend repo:** `~/dev/soliplex` (git worktree for proxy work in 12.8)
+- **Backend repo:** `~/dev/soliplex` (for Python ingest endpoint in 12.4)
+- **Constraint:** DoD — no commercial SaaS. Self-hosted/open-source only.
 
 ---
 
-## 12.1 — LogRecord Attributes
+## Phase 1 — Core (P0)
+
+### 12.1 — LogRecord Attributes
 
 **Status:** Pending
 
-**Goal:** Add structured attributes to `LogRecord` so OTel export can carry
+**Goal:** Add structured attributes to `LogRecord` so log export can carry
 contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 
-### Changes
+#### Changes
 
 **`packages/soliplex_logging/lib/src/log_record.dart`:**
 
@@ -41,20 +43,20 @@ contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 
 - Include non-empty attributes in `toString()` output for debug visibility
 
-### Unit Tests
+#### Unit Tests
 
 - `test/log_record_test.dart` — attributes stored, default empty, included
   in `toString()`
 - `test/logger_test.dart` — attributes passed through to `LogRecord`
 
-### Integration Tests
+#### Integration Tests
 
 - `test/integration/attributes_through_sink_test.dart` — Log a message
   with attributes via `Logger`, verify the `LogRecord` captured by
   `MemorySink` carries the attributes intact. Confirms the full path:
   `Logger.info(attributes:) → LogManager → LogSink.write() → LogRecord`
 
-### Acceptance Criteria
+#### Acceptance Criteria
 
 - [ ] `LogRecord` has `attributes` field, default `const {}`
 - [ ] All `Logger` methods accept optional `attributes`
@@ -65,707 +67,567 @@ contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 
 ---
 
-## 12.2 — OTLP Mapper
+### 12.2 — BackendLogSink
 
 **Status:** Pending (blocked by 12.1)
 
-**Goal:** Pure-function mapper that converts `LogRecord` instances into
-OTLP JSON structures. No state, no I/O, no HTTP — just deterministic
-data transformation. This is the foundation that all downstream milestones
-build on.
+**Goal:** A "dumb" sink that persists logs to disk and periodically POSTs
+them as JSON to the Soliplex backend. No OTLP mapping — the backend
+handles conversion to OTel format. Includes crash hooks, session
+correlation, log sanitizer, and disk-backed queue.
 
-### Changes
+#### Architecture
 
-**`packages/soliplex_logging/lib/src/sinks/otel_mapper.dart` (new):**
+```text
+BackendLogSink (LogSink)
+├── LogSanitizer (PII redaction — runs first)
+├── DiskQueue (JSONL write-ahead log)
+│   ├── write() → append to file
+│   ├── drain() → read + delete confirmed lines
+│   └── Survives crashes, OS kills, restarts
+├── BatchUploader (periodic HTTP POST)
+│   ├── Timer-based flush (30s)
+│   ├── Severity-triggered flush (immediate on ERROR/FATAL)
+│   ├── Lifecycle flush (app pause/hidden)
+│   └── Basic retry (backoff on 5xx/429, disable on 401)
+└── SessionContext (injected into every payload)
+    ├── sessionId (UUID, generated on app start)
+    └── userId (from auth state)
+```
 
-- `mapLogRecord(LogRecord, {DateTime? observedTime}) → Map<String, Object>`
-  — OTLP JSON mapping. `observedTime` defaults to `DateTime.now()` (set
-  by `OtelSink.write()` to capture ingestion time)
-- `mapSeverity(LogLevel) → (int severityNumber, String severityText)`
-- `mapTimestamp(DateTime) → String` (nanosecond string)
-- `mapObservedTimestamp(DateTime) → String` — same format, distinct field
-  (`observedTimeUnixNano`) per OTel spec
-- `mapAttributes(Map<String, Object>) → List<Map>` (OTel attribute format).
-  **Typed `AnyValue` serialization:** preserve Dart types into correct
-  OTLP type wrappers:
-  - `String` → `{"stringValue": ...}`
-  - `int` → `{"intValue": "..."}` (string-encoded int64)
-  - `double` → `{"doubleValue": ...}`
-  - `bool` → `{"boolValue": ...}`
-  - `List` → `{"arrayValue": {"values": [...]}}`
-  - `Map<String, Object>` → `{"kvlistValue": {"values": [...]}}`
-  - Unknown types → `.toString()` fallback only
-  This preserves Logfire's SQL-like attribute querying capability.
-- `mapError(Object?, StackTrace?) → List<Map>` (exception semantic
-  conventions)
-- `buildPayload(List<LogRecord>, Map resourceAttrs) → Map` (full OTLP
-  `resourceLogs/scopeLogs` structure)
-- `mapFlags(String? traceId) → int` — `0x01` if trace context present
-  (sampled), `0x00` otherwise
-- Track `droppedAttributesCount` when attribute map exceeds size limits
+#### Changes
 
-**`packages/soliplex_logging/lib/soliplex_logging.dart`:**
+**`packages/soliplex_logging/lib/src/sinks/log_sanitizer.dart` (new):**
 
-- Export `otel_mapper.dart`
+- `LogSanitizer` class with configurable rules
+- **Key redaction:** blocklist of sensitive keys (`password`, `token`,
+  `auth`, `authorization`, `secret`, `ssn`, `credential`). Values
+  replaced with `[REDACTED]`
+- **Pattern scrubbing:** regex patterns for emails, SSNs, bearer tokens,
+  IP addresses in message strings
+- **Stack trace trimming:** strip absolute file paths to relative
+- Runs on `LogRecord` before it reaches any sink
+- Configurable: additional keys/patterns can be added at construction
 
-### Unit Tests
+**`packages/soliplex_logging/lib/src/sinks/disk_queue.dart` (new):**
 
-- `test/sinks/otel_mapper_test.dart`:
-  - Severity mapping (all 6 levels)
-  - Timestamp conversion (microseconds × 1000 → nanosecond string)
-  - `observedTimeUnixNano` generation (distinct from `timeUnixNano`)
-  - `flags` field (`0x01` when traceId present, `0x00` when null)
-  - `droppedAttributesCount` (truncation when attributes exceed limit)
-  - Typed `AnyValue` attribute encoding:
-    - `String` → `stringValue`
-    - `int` → `intValue` (string-encoded)
-    - `double` → `doubleValue`
-    - `bool` → `boolValue`
-    - `List` → `arrayValue` (recursive)
-    - `Map<String, Object>` → `kvlistValue` (recursive)
-    - Unknown types → `.toString()` fallback
-  - Error conventions (`exception.type`, `exception.message`,
-    `exception.stacktrace`)
-  - Scope grouping (records grouped by `loggerName`)
-  - `buildPayload` produces valid `resourceLogs/scopeLogs` structure
-  - Null `traceId`/`spanId` omitted from output
+- Write-ahead log backed by a JSONL file (one JSON object per line)
+- `append(Map<String, Object> json)` — appends serialized record to file
+- `drain(int count) → List<Map>` — reads up to N records from head
+- `confirm(int count)` — removes confirmed records from file (rewrite
+  remaining or use offset tracking)
+- `pendingCount` — number of unsent records
+- Constructor takes a `String directoryPath` (app layer resolves via
+  `path_provider` and injects — keeps `soliplex_logging` pure Dart)
+- **Web platform:** falls back to in-memory queue (no filesystem). Accept
+  that web logs may be lost on tab close (same as before).
+- File rotation: cap at 10 MB, drop oldest on overflow
 
-### Acceptance Criteria
+**`packages/soliplex_logging/lib/src/sinks/backend_log_sink.dart` (new):**
 
-- [ ] OTLP JSON matches OTel spec (field names, types, nesting)
-- [ ] Mapper uses typed `AnyValue` wrappers — preserves `String`, `int`,
-  `double`, `bool`, `List`, `Map` into correct OTLP type keys. Falls back
-  to `.toString()` only for unknown types
-- [ ] Mapper emits `observedTimeUnixNano` (distinct from `timeUnixNano`)
-- [ ] Mapper emits `flags` field from trace context
-- [ ] Mapper tracks `droppedAttributesCount` when attributes truncated
-- [ ] `buildPayload` groups records by scope (logger name)
-- [ ] Null `traceId`/`spanId` omitted (not empty strings)
-- [ ] `dart analyze` — 0 issues
-- [ ] Tests pass, coverage 85%+
+- Implements `LogSink`
+- Constructor takes:
+  - `endpoint` (URL string, e.g. `/api/v1/logs`)
+  - `http.Client` (injected by app layer)
+  - `sessionId` (String)
+  - `userId` (String?, nullable for pre-auth)
+  - `resourceAttributes` (Map — service.name, version, os, device)
+  - `LogSanitizer` (injected)
+  - `DiskQueue` (injected)
+  - Optional `batchSize` (default 100), `flushInterval` (default 30s)
+  - Optional `networkChecker` (`bool Function()?`)
 
----
+**`write(LogRecord)`:**
 
-## 12.3 — Exporter Transport
+1. Run record through `LogSanitizer`
+2. Serialize to JSON map:
 
-**Status:** Pending (blocked by 12.2)
+   ```json
+   {
+     "timestamp": "2026-02-06T12:00:00.000Z",
+     "level": "info",
+     "logger": "Auth",
+     "message": "User logged in",
+     "attributes": {"user_id": "abc123"},
+     "error": null,
+     "stackTrace": null,
+     "spanId": null,
+     "traceId": null,
+     "sessionId": "uuid-here",
+     "userId": "user-abc"
+   }
+   ```
 
-**Goal:** Define the `OtelExporter` interface and implement two transports:
-`LogfireExporter` (direct OTLP/HTTP) and `ProxyExporter` (backend proxy).
-Exporters handle HTTP, auth, and gzip — no batching or retry logic.
+3. Append to `DiskQueue`
+4. If ERROR/FATAL → trigger immediate flush
 
-### Changes
+**`flush()`:**
 
-**`packages/soliplex_logging/lib/src/sinks/otel_exporter.dart` (new):**
+1. If `networkChecker` provided and returns false → skip, keep buffered
+2. Drain up to `batchSize` records from `DiskQueue`
+3. POST JSON array to endpoint with `Authorization: Bearer <jwt>`
+4. On 200 → confirm records in queue
+5. On 429/5xx → exponential backoff (1s, 2s, 4s, max 60s), records
+   stay in queue for next attempt
+6. On 401/403 → stop retrying, surface via `onError` callback
 
-```dart
-/// Result of an export attempt.
-enum ExportResult { success, retryable, fatal }
+**`close()`:**
 
-/// Pluggable transport for OTLP log payloads.
-///
-/// Implementations handle authentication, endpoint routing, and HTTP
-/// concerns. The [OtelSink] calls [export] with pre-built OTLP JSON
-/// payloads and handles retry/backoff based on the [ExportResult].
-abstract interface class OtelExporter {
-  /// Exports a batch of OTLP JSON (the full `resourceLogs` payload).
-  Future<ExportResult> export(Map<String, Object> payload);
+- Final flush attempt, cancel timer
 
-  /// Releases any resources held by this exporter.
-  Future<void> shutdown();
+**Payload format:**
+
+```json
+{
+  "logs": [ ...array of log objects... ],
+  "resource": {
+    "service.name": "soliplex-flutter",
+    "service.version": "1.0.0",
+    "os.name": "android",
+    "device.model": "Pixel 7"
+  }
 }
 ```
 
-**`packages/soliplex_logging/lib/src/sinks/logfire_exporter.dart` (new):**
+**Dart crash hooks (in sink or app-layer setup):**
 
-- Implements `OtelExporter`
-- Constructor takes `endpoint` (URL), `authToken` (raw write token),
-  optional `http.Client` (defaults to `http.Client()` — allows app
-  to inject platform-native client from `soliplex_client_native`),
-  and optional `bool compress` (default `true`)
-- POST to endpoint with `Content-Type: application/json` and raw token
-  in `Authorization` header
-- When `compress` is true, gzip the request body and set
-  `Content-Encoding: gzip` header (reduces payload size significantly
-  on mobile — battery/data savings)
-- Maps HTTP status to `ExportResult`:
-  - 200 → `success`
-  - 413/429/5xx → `retryable` (413: sink splits batch in half and retries)
-  - 401/403 → `fatal`
+```dart
+PlatformDispatcher.instance.onError = (error, stack) {
+  logger.fatal('Uncaught async error', error: error, stackTrace: stack);
+  return true;
+};
 
-**`packages/soliplex_logging/lib/src/sinks/proxy_exporter.dart` (new):**
-
-- Implements `OtelExporter`
-- Constructor takes `endpoint` (relative URL), `sessionToken` (JWT),
-  optional `http.Client`, and optional `bool compress` (default `true`)
-- POST to endpoint with `Authorization: Bearer <jwt>`
-- When `compress` is true, gzip the request body and set
-  `Content-Encoding: gzip` header
-- Same HTTP status → `ExportResult` mapping as `LogfireExporter`
-- Token can be updated at runtime (session refresh) via setter
+FlutterError.onError = (details) {
+  logger.fatal('Flutter framework error',
+    error: details.exception, stackTrace: details.stack);
+};
+```
 
 **`packages/soliplex_logging/pubspec.yaml`:**
 
-- Add `http: ^1.2.0` (pure Dart — the only new dependency)
+- Add `http: ^1.2.0`
+- NO `path_provider` — directory path injected by app layer (pure Dart)
 
 **`packages/soliplex_logging/lib/soliplex_logging.dart`:**
 
-- Export `otel_exporter.dart`, `logfire_exporter.dart`,
-  `proxy_exporter.dart`
+- Export `backend_log_sink.dart`, `disk_queue.dart`, `log_sanitizer.dart`
 
-### Layering Note
+#### Layering Note
 
-All code in 12.3 is **pure Dart**. No Flutter imports. Platform concerns
-are injected via constructor arguments:
+`BackendLogSink` and `DiskQueue` are **pure Dart**. All platform
+concerns are injected by the app layer: `http.Client`, `directoryPath`
+(from `path_provider`), `sessionId`, `userId`, `networkChecker`, and
+`resourceAttributes`.
 
-- `http.Client?` on exporters — app injects native client
+#### Unit Tests
 
-### Unit Tests
+- `test/sinks/log_sanitizer_test.dart`:
+  - Key redaction (password, token, auth → `[REDACTED]`)
+  - Pattern scrubbing (emails, SSNs, bearer tokens in messages)
+  - Stack trace path trimming
+  - Custom additional keys/patterns
+  - Does not modify safe records
+- `test/sinks/disk_queue_test.dart`:
+  - Append + drain round-trip
+  - Confirm removes records
+  - Survives simulated "crash" (create new instance, read pending)
+  - File rotation at size limit
+  - `pendingCount` accuracy
+- `test/sinks/backend_log_sink_test.dart`:
+  - Timer-based flush (advance fake timer)
+  - Severity-triggered flush (ERROR → immediate)
+  - Records serialized with sessionId/userId
+  - Sanitizer runs before serialization
+  - NetworkChecker false → skip flush
+  - HTTP 200 → records confirmed
+  - HTTP 429/5xx → records stay in queue, backoff
+  - HTTP 401 → onError callback, stop retrying
+  - `close()` attempts final flush
 
-- `test/sinks/logfire_exporter_test.dart` — HTTP status mapping, auth
-  header format (raw token, no "Bearer"), Content-Type header, gzip
-  compression (Content-Encoding header set, body is valid gzip),
-  uncompressed mode when `compress: false`
-- `test/sinks/proxy_exporter_test.dart` — HTTP status mapping, Bearer
-  auth, token refresh via setter, gzip compression
-- Use a mock HTTP client for all exporter tests
+#### Integration Tests
 
-### Acceptance Criteria
+- `test/integration/backend_sink_pipeline_test.dart` — Logger.info() →
+  LogManager → BackendLogSink → mock HTTP client. Verify JSON payload
+  includes sessionId, resource attributes, sanitized message.
+- `test/integration/backend_sink_crash_recovery_test.dart` — Write
+  records to DiskQueue, destroy sink (simulating crash), create new sink
+  instance, verify pending records are sent on first flush.
+- `test/integration/backend_sink_sanitizer_test.dart` — Log a message
+  containing an email and a password attribute. Verify the HTTP payload
+  has `[REDACTED]` values and scrubbed message.
 
-- [ ] `OtelExporter` interface defined with `export()` and `shutdown()`
-- [ ] `LogfireExporter` sends raw token, maps HTTP status correctly
-- [ ] `ProxyExporter` sends Bearer JWT, supports token refresh
-- [ ] Exporters send `Content-Encoding: gzip` compressed payloads
-- [ ] Uncompressed mode works when `compress: false`
-- [ ] `http` dependency added to `soliplex_logging/pubspec.yaml`
+#### Acceptance Criteria
+
+- [ ] `LogSanitizer` redacts sensitive keys and patterns
+- [ ] `DiskQueue` persists records to JSONL file
+- [ ] Records survive app crash (new instance reads pending)
+- [ ] `BackendLogSink` serializes `LogRecord` to simple JSON
+- [ ] SessionId and userId injected into every payload
+- [ ] Timer-based and severity-triggered flush
+- [ ] HTTP 200 confirms records, 429/5xx retries with backoff
+- [ ] HTTP 401 disables export, fires `onError`
+- [ ] NetworkChecker skips flush when offline
+- [ ] `close()` drains remaining queue
+- [ ] Dart crash hooks capture uncaught exceptions as fatal logs
+- [ ] Integration: crash recovery round-trip
+- [ ] Integration: sanitizer scrubs PII from payload
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass, coverage 85%+
 
 ---
 
-## 12.4 — OtelSink Batching Core
+### 12.3 — App Integration
 
-**Status:** Pending (blocked by 12.3)
+**Status:** Pending (blocked by 12.2)
 
-**Goal:** Implement `OtelSink` as a `LogSink` with queue management,
-batch processing, and flush triggers. Uses `OtelMapper` for payload
-building and delegates to `OtelExporter` for transport. No retry or
-circuit breaker logic — that comes in 12.5.
+**Goal:** Wire `BackendLogSink` into the Flutter app via Riverpod
+providers. Add Telemetry screen for enable/disable. All platforms use
+the same endpoint.
 
-### Changes
-
-**`packages/soliplex_logging/lib/src/sinks/otel_sink.dart` (new):**
-
-- Implements `LogSink`
-- Constructor takes `OtelExporter`, `resourceAttributes` (Map),
-  optional `batchSize` (default 256), `flushInterval` (default 30s),
-  `maxQueueSize` (default 1024)
-- `write()` — enqueues record (capturing `observedTime` via
-  `DateTime.now()`); triggers immediate flush on ERROR/FATAL
-- `flush()` — builds OTLP payload via `OtelMapper`, calls
-  `exporter.export()`
-- `close()` — drains remaining queue, cancels timer, calls
-  `exporter.shutdown()`
-
-**Batch processor (inside `OtelSink`):**
-
-- Timer-based flush every `flushInterval`
-- Size-based flush when queue reaches `batchSize`
-- Severity-triggered flush: immediate on ERROR/FATAL
-- Queue capped at `maxQueueSize`; oldest TRACE/DEBUG dropped first.
-  If queue is entirely ERROR/FATAL, drop oldest ERROR (never block writes)
-- **Concurrent flush guard:** If an export is in-flight when a timer or
-  severity trigger fires, skip the duplicate flush (do not queue a second
-  concurrent HTTP request)
-
-**`packages/soliplex_logging/lib/soliplex_logging.dart`:**
-
-- Export `otel_sink.dart`
-
-### Unit Tests
-
-- `test/sinks/otel_sink_test.dart`:
-  - Timer-based flush (advance fake timer past `flushInterval`)
-  - Size-based flush (write `batchSize` records → flush triggered)
-  - Severity-triggered flush (ERROR/FATAL → immediate flush)
-  - Queue overflow: drop TRACE/DEBUG first; if all ERROR/FATAL, drop
-    oldest ERROR
-  - Concurrent flush guard (second trigger while export in-flight → skip)
-  - `close()` drains remaining queue
-  - Payload passed to exporter matches `OtelMapper.buildPayload` output
-  - Uses a fake/mock `OtelExporter` (always returns `success`)
-
-### Integration Tests
-
-- `test/integration/otel_pipeline_test.dart` — End-to-end pipeline:
-  `Logger.info()` → `LogManager` → `OtelSink` → mock `OtelExporter`.
-  Verify the exporter receives a valid OTLP JSON payload with correct
-  severity, timestamp, scope, body, and attributes.
-- `test/integration/otel_batch_flush_test.dart` — Write N records below
-  batch size, advance fake timer past `flushInterval`, verify exporter
-  called exactly once with N records.
-- `test/integration/otel_severity_flush_test.dart` — Write an ERROR
-  record, verify exporter called immediately (no timer wait).
-- `test/integration/otel_close_drain_test.dart` — Write records, call
-  `close()`, verify all buffered records exported before shutdown
-  completes.
-
-### Acceptance Criteria
-
-- [ ] `OtelSink` implements `LogSink` (`write`, `flush`, `close`)
-- [ ] Batch processor respects size, timer, and severity triggers
-- [ ] Queue overflow drops TRACE/DEBUG first; if all ERROR/FATAL, drops
-  oldest ERROR (never blocks writes)
-- [ ] Concurrent flush guard prevents overlapping in-flight exports
-- [ ] `close()` drains remaining queue and calls `exporter.shutdown()`
-- [ ] Integration: full pipeline Logger → OtelSink → exporter produces
-  valid OTLP
-- [ ] `dart analyze` — 0 issues
-- [ ] Tests pass, coverage 85%+
-
----
-
-## 12.5 — Reliability Layer
-
-**Status:** Pending (blocked by 12.4)
-
-**Goal:** Add retry, circuit breaker, and network awareness to `OtelSink`.
-This milestone makes the sink production-ready for unreliable networks.
-
-### Changes
-
-**`packages/soliplex_logging/lib/src/sinks/otel_sink.dart` (modify):**
-
-- Add `networkChecker` (`NetworkStatusChecker?`) constructor parameter.
-  When provided and returns false, skip export attempt and keep records
-  buffered
-- Retry with exponential backoff + jitter (1s, 2s, 4s, max 32s) on
-  `ExportResult.retryable`
-- On 413 (`retryable` from oversized batch): split batch in half and
-  retry each half
-- **Circuit breaker:** After N consecutive `fatal` results (e.g. 3),
-  disable export entirely. Surface disabled state via `onError` callback
-- **No re-entrant logging:** `OtelSink` must NEVER generate log records
-  about its own failures that re-enter the logging pipeline — use a
-  separate diagnostic `onError` callback or `stderr` only
-- Disables export on `ExportResult.fatal` (surfaces error via callback)
-
-**`packages/soliplex_logging/lib/src/sinks/otel_exporter.dart` (modify):**
-
-- Add `NetworkStatusChecker` typedef (if not already exported)
-
-### Unit Tests
-
-- `test/sinks/otel_sink_reliability_test.dart`:
-  - Retry on `retryable` with exponential backoff timing
-  - 413 split: batch split in half, both halves exported
-  - Circuit breaker: N consecutive `fatal` → export disabled, `onError`
-    fired
-  - `networkChecker` returns false → export skipped, records buffered
-  - `networkChecker` returns true → normal export
-  - No re-entrant logging: verify `OtelSink` does not call
-    `LogManager.emit()` or `Logger` on failure
-
-### Integration Tests
-
-- `test/integration/otel_circuit_breaker_test.dart` — Configure exporter
-  to return `fatal` N times. Verify OtelSink disables export, fires
-  `onError` callback, and does NOT generate log records about the failure
-  (no re-entrant logging).
-- `test/integration/otel_retry_split_test.dart` — Configure exporter to
-  return `retryable` on first call (simulating 413), verify sink splits
-  batch and retries with smaller payload.
-- `test/integration/otel_offline_skip_test.dart` — Mock
-  `networkChecker` to return false. Write records. Verify exporter
-  is NOT called. Mock back online, trigger flush, verify exporter
-  receives records.
-
-### Acceptance Criteria
-
-- [ ] Retry with exponential backoff + jitter on `retryable`
-- [ ] 413 triggers batch split in half and retry
-- [ ] Circuit breaker disables export after N consecutive fatals
-- [ ] `onError` callback fires when circuit breaker trips
-- [ ] `networkChecker` skips export when offline, buffers records
-- [ ] OtelSink never generates log records about its own failures (no
-  re-entrant logging — diagnostic errors go to `onError` callback or
-  `stderr` only)
-- [ ] Integration: circuit breaker disables without re-entrant logging
-- [ ] Integration: retry splits batch on 413
-- [ ] Integration: offline → skip export, online → resume
-- [ ] `dart analyze` — 0 issues
-- [ ] Tests pass, coverage 85%+
-
----
-
-## 12.6 — App Wiring (Native)
-
-**Status:** Pending (blocked by 12.5)
-
-**Goal:** Wire `OtelSink` + `LogfireExporter` into the Flutter app via
-Riverpod providers. Build resource attributes, integrate connectivity,
-and add lifecycle flush. **No UI in this milestone** — Telemetry screen
-comes in 12.7. Web is OTel-disabled until 12.8.
-
-### Changes
+#### Changes
 
 **`lib/core/logging/log_config.dart`:**
 
-- Add `otelEnabled` (bool, default false)
-- Add `otelEndpoint` (String, default Logfire URL)
-- Token is NOT in `LogConfig` — lives in `flutter_secure_storage` only
-
-**`lib/core/logging/logging_provider.dart` (token provider):**
-
-- Add `otelTokenProvider` — `FutureProvider<String?>` that reads the
-  Logfire write token from `flutter_secure_storage`.
-
-  ```dart
-  final otelTokenProvider = FutureProvider<String?>((ref) async {
-    final storage = ref.read(secureStorageProvider);
-    return storage.read(key: 'logfire_write_token');
-  });
-  ```
-
-**`lib/core/logging/logging_provider.dart` (exporter + sink):**
-
-- Add `otelExporterProvider` — creates `LogfireExporter` with endpoint
-  from config, token from `otelTokenProvider`, and injected
-  `http.Client` from existing platform client provider. All platforms
-  use `LogfireExporter` in this milestone.
-
-  ```dart
-  final exporter = LogfireExporter(
-    endpoint: config.otelEndpoint,
-    authToken: token,       // from otelTokenProvider
-    client: httpClient,     // from platform client provider
-  );
-  ```
-
-- Add `otelSinkProvider` — creates `OtelSink` with the exporter,
-  resource attributes (built from `package_info_plus` +
-  `device_info_plus`), and connectivity checker (from
-  `connectivity_plus`). Registers with LogManager,
-  `ref.onDispose → close`.
-
-  ```dart
-  final sink = OtelSink(
-    exporter: exporter,
-    resourceAttributes: resourceMap,  // built in app layer
-    networkChecker: () => connectivityState != ConnectivityResult.none,
-  );
-  ```
-
-- Sink disabled when `otelEnabled` is false or token is empty
-
-**`lib/core/logging/logging_provider.dart` (config controller):**
-
-- React to `otelEnabled` changes: register/unregister `OtelSink`
-- React to token changes (provider invalidation): recreate exporter
-
-**Lifecycle flush:**
-
-- **Mobile:** `AppLifecycleListener` calls `OtelSink.flush()` on
-  `AppLifecycleState.paused`
-- **Desktop:** `AppLifecycleListener` calls `OtelSink.flush()` on
-  `AppLifecycleState.hidden` (desktop does not reliably emit `paused`).
-  Also flush on `AppLifecycleState.detached` as a final-chance drain.
-
-**Resource attributes:**
-
-- Build resource map at startup: `service.name`, `service.version` (from
-  `package_info_plus`), `deployment.environment` (build-time constant via
-  `--dart-define`), `os.name`, `os.version` (platform detection),
-  `device.model` (from `device_info_plus`)
-
-### Dependencies (App Layer Only)
-
-These are Flutter plugins added to `pubspec.yaml` (root app), NOT to
-`soliplex_logging`. They are injected into pure Dart components via
-constructor arguments.
-
-- `connectivity_plus` — provides `NetworkStatusChecker` callback to
-  `OtelSink`. **Note:** requires `WidgetsFlutterBinding` to be
-  initialized before use. Existing provider pattern initializes lazily
-  which is safe, but integration tests must call
-  `WidgetsFlutterBinding.ensureInitialized()` explicitly.
-- `package_info_plus` — provides `service.version` for resource
-  attributes map
-- `device_info_plus` — provides `device.model`, `os.version` for
-  resource attributes map
-- `flutter_secure_storage` — already in pubspec.yaml, provides token
-  storage
-
-### Unit Tests
-
-- `test/core/logging/logging_provider_test.dart`:
-  - OtelSink created with `LogfireExporter` when enabled + token present
-  - Sink not created when disabled or token empty
-  - Token change triggers exporter recreation
-  - Disposed on ref dispose
-- `test/core/logging/log_config_test.dart` — new fields serialize/
-  deserialize correctly (token NOT in config)
-
-### Integration Tests
-
-- `test/integration/otel_token_flow_test.dart` — Write token to secure
-  storage → `otelTokenProvider` invalidated → `otelExporterProvider`
-  recreates `LogfireExporter` with new token → `OtelSink` begins
-  exporting. Verify full provider chain reacts to token change.
-- `test/integration/otel_toggle_flow_test.dart` — Toggle `otelEnabled`
-  false → `OtelSink` unregistered from `LogManager`. Toggle back on →
-  sink re-registered. Verify logs stop/start flowing to exporter.
-- `test/integration/otel_lifecycle_flush_test.dart` — Write records to
-  `OtelSink`, simulate `AppLifecycleState.paused` (mobile) and
-  `AppLifecycleState.hidden` (desktop), verify `flush()` called and
-  exporter receives buffered records.
-- `test/integration/otel_logfire_roundtrip_test.dart` — **Manual/CI
-  gated:** Full round-trip to Logfire staging endpoint using real
-  `LOGFIRE_TOKEN` from env. Log records at each severity level with
-  attributes. Verify HTTP 200 response. This test is skipped by default
-  (requires `LOGFIRE_TOKEN` env var) and runs in CI with the token
-  configured as a secret.
-
-### Acceptance Criteria
-
-- [ ] `otelTokenProvider` reads token from `flutter_secure_storage` (async)
-- [ ] Token is NOT in `LogConfig` or `SharedPreferences`
-- [ ] `otelExporterProvider` creates `LogfireExporter` (native platforms)
-- [ ] `otelSinkProvider` creates `OtelSink`, disabled when no token or web
-- [ ] Token change → provider invalidation → exporter recreated
-- [ ] Config toggle enables/disables OTel export at runtime
-- [ ] Lifecycle flush: `paused` on mobile, `hidden`/`detached` on desktop
-- [ ] Web: OTel disabled (no sink created)
-- [ ] Resource attributes populated from device info
-- [ ] `connectivity_plus` added, export skipped when offline
-- [ ] Integration: token write → provider chain → export starts
-- [ ] Integration: toggle off → export stops, toggle on → export resumes
-- [ ] Integration: lifecycle event → flush → exporter called
-- [ ] Integration (CI-gated): round-trip to Logfire staging returns 200
-- [ ] `dart analyze` — 0 issues
-- [ ] Tests pass
-
----
-
-## 12.7 — Telemetry Screen UI
-
-**Status:** Pending (blocked by 12.6)
-
-**Goal:** Add a dedicated Telemetry settings screen for configuring OTel
-export. Uses the providers from 12.6 — no new backend logic.
-
-### Changes
-
-**`lib/features/settings/telemetry_screen.dart` (new):**
-
-Dedicated screen accessible from Settings navigation. Keeps telemetry
-config separate from general app settings.
-
-- **Enable/disable toggle** — controls `otelEnabled` in `LogConfig`
-- **Logfire token field** — `TextField` (obscured) where user pastes
-  their write token. Saved to `flutter_secure_storage` on submit.
-  Shows checkmark when token is stored, empty state when not.
-- **Endpoint field** — pre-filled with Logfire URL, editable for
-  custom collectors
-- **Connection status** — indicator showing whether export is active,
-  disabled, or failed (from circuit breaker state)
-- **Web (12.7):** Token field and toggle hidden. Shows "OTel export
-  requires backend proxy (coming in 12.8)" message. Web export is
-  enabled when `ProxyExporter` ships.
-- Token is written to `flutter_secure_storage` and `otelTokenProvider`
-  is invalidated → exporter recreated → export starts
-
-**`lib/core/router/`:**
-
-- Add route for Telemetry screen (linked from Settings)
-
-### Widget Tests
-
-- `test/features/settings/telemetry_screen_test.dart`:
-  - Token saved to secure storage on submit
-  - Toggle enables/disables export
-  - Connection status reflects sink state (active/disabled/failed)
-  - Endpoint field pre-filled with default, editable
-  - Empty token shows empty state, stored token shows checkmark
-  - Web shows proxy-required message, hides token field
-
-### Integration Tests
-
-- `test/integration/otel_screen_token_test.dart` — Enter token on
-  Telemetry screen → token written to secure storage →
-  `otelTokenProvider` invalidated → `otelExporterProvider` recreates
-  `LogfireExporter` with new token → `OtelSink` begins exporting.
-  Verify full UI → provider chain → export flow.
-- `test/integration/otel_screen_toggle_test.dart` — Toggle OTel off on
-  Telemetry screen → `otelEnabled` set to false in `LogConfig` →
-  `OtelSink` unregistered from `LogManager`. Toggle back on → sink
-  re-registered. Verify UI toggle drives export state.
-
-### Acceptance Criteria
-
-- [ ] Telemetry screen allows entering Logfire token (stored in secure
-  storage)
-- [ ] Telemetry screen has enable/disable toggle, endpoint field, and
-  connection status indicator
-- [ ] Telemetry screen routed from Settings
-- [ ] Web: Telemetry screen shows proxy-required message
-- [ ] Integration: UI token entry → provider chain → export starts
-- [ ] Integration: UI toggle → export stops/resumes
-- [ ] `dart analyze` — 0 issues
-- [ ] Tests pass
-
----
-
-## 12.8 — Web Proxy (Swap Exporter)
-
-**Status:** Pending (blocked by 12.7)
-
-**Goal:** Add backend proxy and swap web to `ProxyExporter`. Native
-continues using `LogfireExporter`. The token no longer needs to be on
-the web client in production — the proxy holds it server-side.
-
-### Backend (~/dev/soliplex, git worktree)
-
-**`POST /api/v1/telemetry/logs`:**
-
-- Validate session JWT from `Authorization: Bearer <jwt>` header
-- Forward request body (OTLP JSON) to
-  `https://logfire-us.pydantic.dev/v1/logs`
-- Attach Logfire write token from server config (env var)
-- Return upstream status code to client
-- Rate limit: per-user/per-session caps
-- Reject payloads > 1 MB (413)
-
-### Flutter Changes
+- Add `backendLoggingEnabled` (bool, default false)
+- Add `backendEndpoint` (String, default `/api/v1/logs`)
 
 **`lib/core/logging/logging_provider.dart`:**
 
-- Update `otelExporterProvider` to select exporter by platform:
+- Add `backendLogSinkProvider` — creates `BackendLogSink` with:
+  - Endpoint from config
+  - `http.Client` from platform client provider
+  - `sessionId` from new `sessionIdProvider` (UUID, generated once)
+  - `userId` from auth state provider
+  - `resourceAttributes` from `package_info_plus` + `device_info_plus`
+  - `networkChecker` from `connectivity_plus`
+  - `LogSanitizer` with default DoD-appropriate rules
+  - `DiskQueue` with path from `path_provider`
+- Register with `LogManager`, `ref.onDispose → close`
+- Sink disabled when `backendLoggingEnabled` is false
 
-  ```dart
-  final exporter = kIsWeb
-      ? ProxyExporter(
-          endpoint: '/api/v1/telemetry/logs',
-          sessionToken: sessionJwt,
-        )
-      : LogfireExporter(
-          endpoint: config.otelEndpoint,
-          authToken: token,
-        );
-  ```
+**Lifecycle flush:**
 
-- `OtelSink` constructor unchanged — only the exporter differs
+- **Mobile:** `AppLifecycleListener` → `flush()` on `paused`
+- **Desktop:** `AppLifecycleListener` → `flush()` on `hidden`/`detached`
+- **Web:** `visibilitychange` → `flush()` when `document.hidden`
 
-**Telemetry screen (web):**
+**Dart crash hooks:**
 
-- Replace "requires backend proxy" message with enable/disable toggle
-- Hide token field on web (not needed — proxy holds token)
-- Keep endpoint field
+- Set up `PlatformDispatcher.instance.onError` and
+  `FlutterError.onError` in app initialization (before `runApp`)
 
-**Token handling (web):**
+**`lib/features/settings/telemetry_screen.dart` (new):**
 
-- No Logfire token on web client in production
-- `ProxyExporter` uses session JWT from existing auth state
+- Enable/disable toggle
+- Endpoint field (pre-filled, editable)
+- Connection status indicator
+- No token field needed (backend holds Logfire token)
 
-**Web lifecycle flush:**
+**`lib/core/router/`:**
 
-- `visibilitychange` listener calls `flush()` when
-  `document.hidden == true`
-- `beforeunload` is best-effort only — accept up to 30s of log loss on
-  abrupt tab close (`sendBeacon` cannot set auth headers; not worth
-  adding nonce complexity)
+- Add route for Telemetry screen
 
-### Unit Tests
+#### Dependencies (App Layer Only)
 
-**Backend:**
+- `connectivity_plus` — `NetworkStatusChecker` callback
+- `package_info_plus` — `service.version` resource attribute
+- `device_info_plus` — `device.model`, `os.version` resource attributes
+- `path_provider` — `DiskQueue` file location
+- `uuid` — session ID generation
+- `flutter_secure_storage` — already in pubspec (not needed for token
+  in Option B, but available for future use)
 
-- Proxy forwards OTLP payload correctly
-- Rejects unauthenticated requests (401)
-- Enforces rate limits (429)
-- Rejects oversized payloads (413)
+#### Unit Tests
 
-**Flutter:**
+- `test/core/logging/logging_provider_test.dart`:
+  - BackendLogSink created when enabled
+  - Sink not created when disabled
+  - SessionId persists across provider rebuilds (same session)
+  - UserId updates when auth state changes
+  - Disposed on ref dispose
 
-- Web provider creates `ProxyExporter` with relative endpoint
-- Native provider creates `LogfireExporter` with Logfire URL
-- `OtelSink` works identically with either exporter
+#### Widget Tests
 
-### Widget Tests
+- `test/features/settings/telemetry_screen_test.dart`:
+  - Toggle enables/disables export
+  - Connection status reflects sink state
+  - Endpoint field editable
 
-- Telemetry screen hides token field on web
-- Telemetry screen still shows toggle and endpoint on web
+#### Integration Tests
 
-### Integration Tests
+- `test/integration/backend_toggle_flow_test.dart` — Toggle backend
+  logging off → sink unregistered. Toggle on → re-registered. Verify
+  logs stop/start flowing.
+- `test/integration/backend_lifecycle_flush_test.dart` — Write records,
+  simulate `AppLifecycleState.paused`, verify flush called.
 
-- `test/integration/otel_proxy_exporter_test.dart` — On web, verify
-  `otelExporterProvider` creates `ProxyExporter` with relative endpoint
-  and session JWT. On native, verify `LogfireExporter` with Logfire URL
-  and write token. Write records through `OtelSink`, verify mock
-  exporter receives identical OTLP payloads regardless of exporter type.
-- `test/integration/otel_proxy_session_refresh_test.dart` — Simulate
-  session JWT refresh. Verify `ProxyExporter.sessionToken` setter
-  updates the token. Next export uses new JWT in `Authorization` header.
-- **Backend integration (CI-gated):** Deploy proxy to staging. Send OTLP
-  JSON via `ProxyExporter` with valid session JWT. Verify HTTP 200 and
-  logs appear in Logfire staging.
+#### Acceptance Criteria
 
-### Acceptance Criteria
-
-- [ ] Backend proxy forwards OTLP, attaches token, validates session
-- [ ] `otelExporterProvider` selects `ProxyExporter` on web,
-  `LogfireExporter` on native
-- [ ] `OtelSink` unchanged — only the exporter differs
-- [ ] Telemetry screen hides token field on web
-- [ ] Web clients no longer store the Logfire write token
-- [ ] Web lifecycle flush via `visibilitychange`
-- [ ] Integration: same OTLP payload produced regardless of exporter
-- [ ] Integration: session JWT refresh propagates to ProxyExporter
-- [ ] Integration (CI-gated): round-trip through proxy to Logfire staging
+- [ ] `backendLogSinkProvider` creates sink with all injected deps
+- [ ] SessionId generated on startup, injected into every payload
+- [ ] UserId from auth state, nullable for pre-auth logs
+- [ ] Config toggle enables/disables at runtime
+- [ ] Lifecycle flush on all platforms
+- [ ] Dart crash hooks wired before `runApp`
+- [ ] Telemetry screen with toggle, endpoint, status
+- [ ] `connectivity_plus` integration
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
 ---
 
-## 12.9 — Hardening
+### 12.4 — Backend Ingest Endpoint
 
-**Status:** Pending (blocked by 12.5, can parallelize with 12.6–12.8)
+**Status:** Pending (can parallelize with 12.3)
 
-**Goal:** Production-harden OTel export with PII protection, sampling,
-and backpressure observability. All code is pure Dart — no Flutter
-dependency, so this can be developed in parallel with app integration
-milestones.
+**Goal:** Python endpoint that receives log JSON from Flutter clients and
+forwards to Logfire via the Python OTel SDK.
 
-### Scope
+#### Backend (~/dev/soliplex)
 
-- **PII redaction:** Attribute allowlist, message scrubbing (regex for
-  emails, tokens, IPs), stack trace path trimming
-- **Sampling:** Level-based (always export ERROR/FATAL, configurable rate
-  for DEBUG/TRACE), per-logger rate caps, burst limits
-- **Backpressure observability:** Track `otel.logs.dropped_count`, surface
-  sustained drop rates in debug indicator
-- **Drop policy:** Severity-aware — drop TRACE/DEBUG first, never
-  ERROR/FATAL
+**`POST /api/v1/logs`:**
 
-### Acceptance Criteria
+- Validate session JWT from `Authorization: Bearer <jwt>` header
+- Accept JSON body: `{"logs": [...], "resource": {...}}`
+- Map each log to OTel `LogRecord` using Python `opentelemetry-sdk`:
+  - `level` → `SeverityNumber`
+  - `timestamp` → `observedTimestamp`
+  - `logger` → `InstrumentationScope`
+  - `attributes` → OTel attributes (typed correctly by Python SDK)
+  - `error`/`stackTrace` → exception semantic conventions
+  - `sessionId`/`userId` → resource or record attributes
+- Forward to Logfire via `OTLPLogExporter` (Python SDK handles batching,
+  retry, compression, OTLP compliance)
+- Rate limit: per-user/per-session caps
+- Reject payloads > 1 MB (413)
 
-- [ ] No PII in exported attributes (redaction tests pass)
-- [ ] Sampling rates configurable per-level and per-logger
-- [ ] Drop counter tracks and reports lost records
-- [ ] `dart analyze` — 0 issues
-- [ ] Tests pass, coverage 85%+
+#### Response Codes
+
+- **200** — accepted
+- **401** — invalid/expired session
+- **413** — payload too large
+- **429** — rate limited
+- **502** — Logfire upstream error
+
+#### Unit Tests (Python)
+
+- Payload parsed correctly
+- OTel mapping produces valid LogRecords
+- Auth validation (reject invalid JWT)
+- Rate limiting
+- Oversized payload rejection
+
+#### Acceptance Criteria
+
+- [ ] Endpoint accepts Flutter log JSON
+- [ ] Maps to OTel LogRecords via Python SDK
+- [ ] Forwards to Logfire (verified in staging)
+- [ ] Auth, rate limiting, size limits enforced
+- [ ] Tests pass
+
+---
+
+## Phase 2 — Enhanced Context (P1)
+
+### 12.5 — Breadcrumbs
+
+**Status:** Pending (blocked by 12.2)
+
+**Goal:** When a crash or error occurs, attach the last N log records as
+contextual breadcrumbs to help reconstruct what happened.
+
+#### Changes
+
+- On ERROR/FATAL, `BackendLogSink` reads last 20 records from
+  `MemorySink.records` (ring buffer already exists)
+- Attaches as `"breadcrumbs": [...]` array in the crash payload
+- Breadcrumb records are lightweight: timestamp, level, logger, message
+  (no full attributes/stacktraces)
+
+#### Acceptance Criteria
+
+- [ ] Crash payloads include last 20 breadcrumb records
+- [ ] Breadcrumbs come from existing MemorySink (no duplication)
+- [ ] Tests verify breadcrumb attachment on fatal log
+
+---
+
+### 12.6 — Remote Log Level Control
+
+**Status:** Pending (blocked by 12.3)
+
+**Goal:** Allow the backend to control the app's minimum log level
+without pushing an app update.
+
+#### Changes
+
+**Backend:** `GET /api/v1/config/logging`
+
+```json
+{
+  "min_level": "debug",
+  "modules": {"http": "trace", "auth": "debug"}
+}
+```
+
+**Flutter:** On startup and every 10 minutes, fetch config. Update
+`LogManager.minimumLevel` and per-logger overrides via Riverpod.
+
+#### Acceptance Criteria
+
+- [ ] App fetches log config on startup
+- [ ] Log level changes without app restart
+- [ ] Per-module overrides supported
+- [ ] Graceful fallback if endpoint unreachable
+
+---
+
+### 12.7 — Error Fingerprinting (Backend)
+
+**Status:** Pending (blocked by 12.4)
+
+**Goal:** Group identical errors on the backend so operators see "Top 5
+errors" rather than thousands of individual log entries.
+
+#### Changes (Python)
+
+- Hash: `sha256(exception_type + top_3_stack_frames)` → fingerprint
+- Store fingerprint + count in database
+- Logfire attributes include fingerprint for grouping
+- Optional: alerting when error count exceeds threshold
+
+#### Acceptance Criteria
+
+- [ ] Errors grouped by fingerprint
+- [ ] Count tracked per fingerprint per time window
+- [ ] Fingerprint visible in Logfire attributes
+
+---
+
+## Phase 3 — Diagnostics (P2)
+
+### 12.8 — RUM / Performance Metrics
+
+**Status:** Pending (blocked by 12.2)
+
+**Goal:** Capture basic performance metrics for the Flutter app.
+
+#### Changes
+
+- **Cold start:** Measure `main()` to first frame via
+  `WidgetsBinding.instance.addPostFrameCallback`
+- **Slow frames:** `SchedulerBinding.instance.addTimingsCallback` to
+  detect frames exceeding 16ms
+- **Route transitions:** `NavigatorObserver` logs timestamps on
+  `didPush`/`didPop`
+- **HTTP latency:** Already have `HttpObserver` — log request duration
+  as attributes
+
+All metrics logged as `info` with `{"metric": "cold_start", "ms": 1200}`
+style attributes. Backend/Logfire aggregates.
+
+#### Acceptance Criteria
+
+- [ ] Cold start time captured and logged
+- [ ] Slow frames detected and logged (with threshold)
+- [ ] Route transition timing logged
+- [ ] HTTP latency logged as structured attributes
+
+---
+
+### 12.9 — Screenshot on Error
+
+**Status:** Pending (blocked by 12.2)
+
+**Goal:** Capture a screenshot when an error occurs for visual debugging.
+
+#### Changes
+
+- Wrap `MaterialApp` in `RepaintBoundary` with `GlobalKey`
+- On ERROR/FATAL, capture via `toImage()` → PNG bytes → base64
+- Attach as attribute or separate upload (base64 in JSON is large)
+- Consider: upload screenshot separately, reference by ID in log
+
+#### Acceptance Criteria
+
+- [ ] Screenshot captured on error
+- [ ] Image attached to or referenced from error log
+- [ ] Does not crash if RepaintBoundary unavailable
+
+---
+
+## Observability Gap Analysis
+
+Comprehensive assessment of what the logging solution covers after all
+phases, evaluated for a DoD Flutter app.
+
+### Coverage After Phase 1 (Core)
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| Structured logging | Covered | LogRecord + attributes |
+| Remote log export | Covered | BackendLogSink → Logfire |
+| Dart crash capture | Covered | FlutterError + PlatformDispatcher hooks |
+| Offline persistence | Covered | DiskQueue (JSONL write-ahead) |
+| PII/classified redaction | Covered | LogSanitizer (P0 for DoD) |
+| Session correlation | Covered | UUID sessionId + userId |
+| In-app log viewer | Covered | MemorySink + existing UI |
+| Cross-platform support | Covered | Same endpoint all platforms |
+| Lifecycle-aware flush | Covered | paused/hidden/visibilitychange |
+
+### Coverage After Phase 2 (Enhanced Context)
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| Breadcrumbs / event trail | Covered | Last N logs attached to crashes |
+| Remote log level control | Covered | Backend config endpoint |
+| Error grouping / fingerprinting | Covered | Backend-side (Python) |
+
+### Coverage After Phase 3 (Diagnostics)
+
+| Capability | Status | Notes |
+|------------|--------|-------|
+| Cold start timing | Covered | RUM metrics |
+| Slow frame detection | Covered | SchedulerBinding callback |
+| Route transition timing | Covered | NavigatorObserver |
+| HTTP latency metrics | Covered | HttpObserver attributes |
+| Screenshot on error | Covered | RepaintBoundary capture |
+
+### Remaining Gaps (Accepted or Deferred)
+
+| Capability | Status | Rationale |
+|------------|--------|-----------|
+| Native crash capture (SIGSEGV) | **Not covered** | Requires OS-level signal handlers (XL effort). Rely on device logs (adb logcat / Console.app) for repro. Most crashes will be Dart-level. |
+| Session replay (video) | **Not covered** | Requires commercial-grade infrastructure. Screenshot-on-error is the pragmatic substitute. |
+| Distributed tracing (spans) | **Deferred** | Phase 1 is log-only. When Python backend adds tracing, can propagate `traceparent` headers from HTTP client and attach trace context to logs. Evaluate `dartastic_opentelemetry` if their SDK matures. |
+| Metrics (counters, histograms) | **Deferred** | RUM captures basic timing as log attributes. True OTel metrics (counters, histograms, gauges) can be added when the Python backend supports metrics ingest. |
+| Alerting | **Partial** | Error fingerprinting (12.7) enables threshold-based alerts on the backend. Not a Flutter-side concern. |
+| Log search / analytics | **Delegated** | Logfire provides SQL-like querying on structured attributes. No Flutter-side work needed. |
+
+### Comprehensive Solution Grade: **B+**
+
+After all 3 phases, the solution covers structured logging, crash
+capture (Dart), offline persistence, PII protection, session
+correlation, breadcrumbs, remote config, performance metrics, and error
+grouping. The main gaps (native crashes, session replay, full
+distributed tracing) are either impractical without commercial tools or
+deferred to a future tracing phase.
+
+For a DoD Flutter app with self-hosted constraints, this is a
+**pragmatic and thorough** observability solution.
 
 ---
 
 ## Progress Tracker
 
-| Sub-Milestone | Status | PR |
-|---------------|--------|----|
-| 12.1 LogRecord attributes | Pending | — |
-| 12.2 OTLP mapper | Pending | — |
-| 12.3 Exporter transport | Pending | — |
-| 12.4 OtelSink batching core | Pending | — |
-| 12.5 Reliability layer | Pending | — |
-| 12.6 App wiring (native) | Pending | — |
-| 12.7 Telemetry screen UI | Pending | — |
-| 12.8 Web proxy (swap exporter) | Pending | — |
-| 12.9 Hardening | Deferred | — |
+| Sub-Milestone | Phase | Status | PR |
+|---------------|-------|--------|----|
+| 12.1 LogRecord attributes | 1 | Pending | — |
+| 12.2 BackendLogSink | 1 | Pending | — |
+| 12.3 App integration | 1 | Pending | — |
+| 12.4 Backend ingest | 1 | Pending | — |
+| 12.5 Breadcrumbs | 2 | Pending | — |
+| 12.6 Remote log level | 2 | Pending | — |
+| 12.7 Error fingerprinting | 2 | Pending | — |
+| 12.8 RUM / performance | 3 | Pending | — |
+| 12.9 Screenshot on error | 3 | Pending | — |
