@@ -138,17 +138,19 @@ void main() {
       });
     });
 
-    test('toString includes basic info', () {
+    test('toString includes timestamp and basic info', () {
       final record = LogRecord(
         level: LogLevel.info,
         message: 'Test message',
-        timestamp: DateTime.now(),
+        timestamp: DateTime(2025, 3, 15, 9, 5, 7, 42),
         loggerName: 'TestLogger',
       );
 
-      expect(record.toString(), contains('[INFO]'));
-      expect(record.toString(), contains('TestLogger'));
-      expect(record.toString(), contains('Test message'));
+      final str = record.toString();
+      expect(str, startsWith('09:05:07.042 '));
+      expect(str, contains('[INFO]'));
+      expect(str, contains('TestLogger'));
+      expect(str, contains('Test message'));
     });
 
     test('toString includes span context when present', () {
