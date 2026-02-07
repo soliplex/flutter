@@ -31,6 +31,9 @@ contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 **`packages/soliplex_logging/lib/src/log_record.dart`:**
 
 - Add `final Map<String, Object> attributes` field with default `const {}`
+- Add `copyWith(...)` method — `LogRecord` is `@immutable` with `final`
+  fields, so `LogSanitizer` (12.2) needs `copyWith()` to return a new
+  sanitized record. Returns a new `LogRecord` with overridden fields.
 - Non-breaking: existing constructor call sites compile unchanged
 
 **`packages/soliplex_logging/lib/src/logger.dart`:**
@@ -46,7 +49,8 @@ contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 #### Unit Tests
 
 - `test/log_record_test.dart` — attributes stored, default empty, included
-  in `toString()`
+  in `toString()`, `copyWith` returns new record with overridden fields,
+  `copyWith` with no args returns equivalent record
 - `test/logger_test.dart` — attributes passed through to `LogRecord`
 
 #### Integration Tests
@@ -59,6 +63,7 @@ contextual key-value pairs (e.g. `user_id`, `http_status`, `view_name`).
 #### Acceptance Criteria
 
 - [ ] `LogRecord` has `attributes` field, default `const {}`
+- [ ] `LogRecord` has `copyWith(...)` method (required for sanitizer)
 - [ ] All `Logger` methods accept optional `attributes`
 - [ ] Existing call sites compile without changes
 - [ ] Integration: attributes survive Logger → LogManager → sink pipeline
@@ -117,22 +122,29 @@ BackendLogSink (LogSink)
 **`packages/soliplex_logging/lib/src/log_manager.dart`:**
 
 - Add optional `LogSanitizer? sanitizer` to `LogManager` constructor
-- In `emit()`, run `sanitizer.sanitize(record)` before dispatching to
-  sinks. This ensures ALL sinks (Console, Memory, Backend) receive
-  sanitized data. DoD P0: no unsanitized PII reaches any output.
+- In `emit()`, run `record = sanitizer.sanitize(record)` before
+  dispatching to sinks. `sanitize()` returns a **new** `LogRecord` via
+  `copyWith()` (original is `@immutable`). All sinks receive the
+  sanitized copy. DoD P0: no unsanitized PII reaches any output.
 
 **`packages/soliplex_logging/lib/src/sinks/disk_queue.dart` (new):**
 
-- Write-ahead log backed by a JSONL file (one JSON object per line)
-- `append(Map<String, Object> json)` — appends serialized record to file
-- `drain(int count) → List<Map>` — reads up to N records from head
-- `confirm(int count)` — removes confirmed records from file (rewrite
-  remaining or use offset tracking)
+- Abstract `DiskQueue` interface with `append`, `appendSync`, `drain`,
+  `confirm`, `pendingCount`
+- **Conditional imports** (like `ConsoleSink` pattern):
+  - `disk_queue_io.dart` — JSONL file implementation using `dart:io`
+  - `disk_queue_web.dart` — in-memory `List<Map>` fallback (no filesystem)
+- `DiskQueueIo` constructor takes `String directoryPath` (app layer
+  resolves via `path_provider` — keeps `soliplex_logging` pure Dart)
+- `append(Map<String, Object> json)` — async append to file
+- `appendSync(Map<String, Object> json)` — **synchronous** file write
+  for fatal logs (blocks UI briefly but guarantees crash log hits disk)
+- `drain(int count) → List<Map>` — reads up to N records from head.
+  **Corruption recovery:** wraps each line's `jsonDecode` in try-catch,
+  skips malformed lines (from mid-crash writes). Logs skipped count to
+  diagnostics.
+- `confirm(int count)` — removes confirmed records from file
 - `pendingCount` — number of unsent records
-- Constructor takes a `String directoryPath` (app layer resolves via
-  `path_provider` and injects — keeps `soliplex_logging` pure Dart)
-- **Web platform:** falls back to in-memory queue (no filesystem). Accept
-  that web logs may be lost on tab close (same as before).
 - File rotation: cap at 10 MB, drop oldest on overflow
 
 **`packages/soliplex_logging/lib/src/sinks/backend_log_sink.dart` (new):**
@@ -153,7 +165,7 @@ BackendLogSink (LogSink)
 **`write(LogRecord)`:**
 
 1. Record is already sanitized by `LogManager` pipeline
-2. Serialize to JSON map:
+2. Build JSON map (not yet encoded):
 
    ```json
    {
@@ -172,10 +184,14 @@ BackendLogSink (LogSink)
    }
    ```
 
-3. **Record size guard:** if serialized JSON exceeds 64 KB, truncate
-   `message`, `attributes`, `stackTrace`, and `error` (in that order)
-4. Append to `DiskQueue`
-5. If ERROR/FATAL → trigger immediate flush
+3. **Record size guard:** truncate the **Map values** before encoding
+   (not after). Check estimated size, truncate in order: `message`,
+   `attributes`, `stackTrace`, `error`. Use UTF-8 safe truncation
+   (never split multi-byte characters — find last valid char boundary).
+4. If FATAL → `DiskQueue.appendSync(map)` (synchronous write —
+   guarantees crash log hits disk before process dies)
+5. Else → `DiskQueue.append(map)` (async, non-blocking)
+6. If ERROR/FATAL → trigger immediate flush
 
 **`flush()`:**
 
@@ -189,12 +205,20 @@ BackendLogSink (LogSink)
 6. On 401/403 → disable export, surface via `onError` callback.
    **Recovery:** if a new JWT is observed (e.g. re-login), re-enable
    export automatically and retry
-7. **Poison pill:** if same batch fails 3 consecutive times → discard
+7. On 404 → treat as permanent failure (endpoint not deployed), disable
+   export, surface via `onError`. Re-enable on config change.
+8. **Poison pill:** if same batch fails 3 consecutive times → discard
    batch, log diagnostic to `onError`, move to next batch
 
 **`close()`:**
 
 - Final flush attempt, cancel timer
+
+**Duplicate log note:** If the app crashes after POST succeeds but before
+`confirm()` removes records from `DiskQueue`, the next launch will re-send
+those records. This is accepted behavior — at-least-once delivery. The
+backend can deduplicate by `(installId, sessionId, timestamp, message)`
+if needed, but for a logging system duplicates are preferable to lost logs.
 
 **Payload format:**
 
@@ -257,10 +281,13 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
   - LogManager without sanitizer passes records unmodified
 - `test/sinks/disk_queue_test.dart`:
   - Append + drain round-trip
+  - `appendSync` writes synchronously (verify file content immediately)
   - Confirm removes records
   - Survives simulated "crash" (create new instance, read pending)
+  - **Corrupted JSONL:** half-written line skipped, valid lines preserved
   - File rotation at size limit
   - `pendingCount` accuracy
+  - Web fallback: in-memory queue (conditional import)
 - `test/sinks/backend_log_sink_test.dart`:
   - Timer-based flush (advance fake timer)
   - Severity-triggered flush (ERROR → immediate)
@@ -269,10 +296,15 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
   - NetworkChecker false → skip flush
   - HTTP 200 → records confirmed
   - HTTP 429/5xx → records stay in queue, backoff
-  - HTTP 401 → onError callback, stop retrying
+  - HTTP 401 → onError callback, stop retrying, re-enable on new JWT
+  - HTTP 404 → onError callback, disable until config change
   - Poison pill: 3 consecutive failures → batch discarded
-  - Record size guard: oversized record truncated before queue
+  - Record size guard: Map values truncated before encoding
+  - UTF-8 safe truncation (no split multi-byte characters)
+  - Fatal records use `appendSync` (synchronous disk write)
   - `close()` attempts final flush
+  - Flush race: `append()` immediately followed by `flush()` — record
+    either included or safely deferred, never lost
 
 #### Integration Tests
 
@@ -290,7 +322,10 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
 
 - [ ] `LogSanitizer` redacts sensitive keys and patterns
 - [ ] `LogSanitizer` wired into `LogManager` — all sinks get sanitized data
-- [ ] `DiskQueue` persists records to JSONL file
+- [ ] `DiskQueue` uses conditional imports (io/web)
+- [ ] `DiskQueue` persists records to JSONL file (io) / memory (web)
+- [ ] `DiskQueue.appendSync` guarantees disk write for fatal logs
+- [ ] `DiskQueue.drain` skips corrupted JSONL lines (crash recovery)
 - [ ] Records survive app crash (new instance reads pending)
 - [ ] `BackendLogSink` serializes `LogRecord` to simple JSON
 - [ ] installId, sessionId, and userId injected into every payload
@@ -298,11 +333,13 @@ app layer: `http.Client`, `directoryPath` (from `path_provider`),
 - [ ] Batch capped by bytes (< 1 MB) and record count
 - [ ] HTTP 200 confirms records, 429/5xx retries with backoff
 - [ ] HTTP 401 disables export, re-enables on new JWT
+- [ ] HTTP 404 disables export (endpoint not deployed)
 - [ ] NetworkChecker skips flush when offline
 - [ ] `close()` drains remaining queue
 - [ ] Poison pill: batch discarded after 3 consecutive failures
-- [ ] Record size guard: records > 64 KB truncated (message, attributes,
-  stackTrace, error — in priority order)
+- [ ] Record size guard: Map values truncated before encoding (not after)
+- [ ] UTF-8 safe truncation (no split multi-byte characters)
+- [ ] Fatal logs use `appendSync` (synchronous disk write)
 - [ ] Dart crash hooks capture uncaught exceptions as fatal logs
 - [ ] Integration: crash recovery round-trip
 - [ ] Integration: sanitizer scrubs PII from payload

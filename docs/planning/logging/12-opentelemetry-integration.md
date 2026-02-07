@@ -408,21 +408,33 @@ output:
 - **200** — confirm records, remove from queue
 - **401/403** — disable export, fire `onError` callback. **Recovery:**
   re-enable automatically when a new JWT is observed (e.g. re-login)
+- **404** — endpoint not deployed, disable export, surface via `onError`.
+  Re-enable on config change.
 - **429/5xx** — exponential backoff (1s, 2s, 4s, max 60s), keep in queue
 - **Poison pill:** if same batch fails 3 consecutive times, discard it
   and move to next batch (prevents one malformed record from blocking
   all log delivery)
+- **Duplicate delivery:** at-least-once semantics. If app crashes after
+  POST succeeds but before confirm, logs re-sent on next launch.
+  Acceptable — duplicates preferable to lost logs.
 - **No re-entrant logging:** sink failures go to `onError` callback or
   `stderr`, never re-enter the logging pipeline
 
 ### Record Size Guard
 
-Individual log records are capped at 64 KB serialized JSON. If a developer
-accidentally logs a large API response or binary blob, the record is
-truncated before entering `DiskQueue`. Truncation order: `message`,
+Individual log records are capped at 64 KB. Truncation happens on the
+**Map values before JSON encoding** (not after) to avoid `jsonEncode`
+blocking the UI thread on oversized payloads. Truncation order: `message`,
 `attributes`, `stackTrace`, `error` (preserve error identity, trim
-verbosity first). This prevents mega-logs from filling the queue and
-burning battery on repeated writes.
+verbosity first). Uses UTF-8 safe truncation (never splits multi-byte
+characters). This prevents mega-logs from filling the queue and burning
+battery on repeated writes.
+
+### Synchronous Write for Fatal Logs
+
+`DiskQueue` provides `appendSync()` for FATAL-level records. Blocking
+the UI thread for ~20ms during a fatal crash is acceptable — losing the
+crash log is not. All other levels use async `append()`.
 
 ### Token Security (Simplified)
 
@@ -433,22 +445,31 @@ needed for token storage.
 
 ### Testing Strategy
 
-- **LogSanitizer tests:** PII patterns scrubbed, key blocklist enforced
-- **DiskQueue tests:** append/drain round-trip, crash recovery, rotation
-- **BackendLogSink tests:** timer flush, severity flush, HTTP classification,
-  offline skip, `close()` drain
-- **Integration tests:** full pipeline (Logger → sink → mock HTTP),
-  crash recovery, sanitizer in payload
-- **Backend tests (Python):** OTel mapping, auth, rate limits, size limits
+- **LogSanitizer tests:** PII patterns scrubbed, key blocklist enforced,
+  returns new `LogRecord` via `copyWith` (immutability preserved)
+- **DiskQueue tests:** append/drain round-trip, `appendSync` for fatal,
+  crash recovery, corrupted JSONL line skipping, rotation, web fallback
+- **BackendLogSink tests:** timer flush, severity flush, HTTP classification
+  (including 404), offline skip, poison pill, `close()` drain, flush
+  race condition (append + immediate flush), UTF-8 safe truncation with
+  multi-byte characters at boundary
+- **Integration tests:** full pipeline (Logger → sanitizer → sink → mock
+  HTTP), crash recovery, sanitizer in payload
+- **Backend tests (Python):** OTel mapping, server timestamp, auth, rate
+  limits, size limits
 
 ## Validation Gate
 
 Production-ready when:
 
-- [ ] `LogRecord` has `attributes` field, all `Logger` methods accept it
+- [ ] `LogRecord` has `attributes` field and `copyWith()` method
+- [ ] All `Logger` methods accept optional `attributes`
 - [ ] `LogSanitizer` wired into `LogManager` — all sinks get sanitized data
 - [ ] `LogSanitizer` redacts sensitive keys and PII patterns (DoD P0)
-- [ ] `DiskQueue` persists records to JSONL, survives crashes
+- [ ] `DiskQueue` uses conditional imports (io/web)
+- [ ] `DiskQueue` persists records to JSONL (io), memory (web)
+- [ ] `DiskQueue.appendSync` for fatal logs (synchronous disk write)
+- [ ] `DiskQueue.drain` skips corrupted JSONL lines
 - [ ] `DiskQueue` rotates at 10 MB cap
 - [ ] `BackendLogSink` serializes `LogRecord` to simple JSON
 - [ ] installId, sessionId, and userId injected into every payload
@@ -461,8 +482,8 @@ Production-ready when:
 - [ ] `flush()` called on app lifecycle pause/hidden/visibilitychange
 - [ ] `close()` drains remaining queue
 - [ ] Poison pill: batch discarded after 3 consecutive failures
-- [ ] Record size guard: records > 64 KB truncated (message, attributes,
-  stackTrace, error — in priority order)
+- [ ] Record size guard: Map values truncated before encoding
+- [ ] UTF-8 safe truncation (no split multi-byte characters)
 - [ ] Session start marker emitted on startup with device/app attributes
 - [ ] Connectivity changes logged as `network_changed` events
 - [ ] Dart crash hooks capture uncaught exceptions as fatal logs
