@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:soliplex_logging/src/sinks/disk_queue.dart';
 
 /// Maximum queue file size before rotation (10 MB).
-const _maxFileBytes = 10 * 1024 * 1024;
+const int _maxFileBytes = 10 * 1024 * 1024;
 
 /// Native (io) implementation of [DiskQueue] using JSONL files.
 class PlatformDiskQueue implements DiskQueue {

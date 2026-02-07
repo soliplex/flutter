@@ -12,10 +12,10 @@ import 'package:soliplex_logging/src/sinks/disk_queue.dart';
 import 'package:soliplex_logging/src/sinks/memory_sink.dart';
 
 /// Maximum record size in bytes before truncation (64 KB).
-const _maxRecordBytes = 64 * 1024;
+const int _maxRecordBytes = 64 * 1024;
 
 /// Default maximum batch payload size in bytes (900 KB).
-const _defaultMaxBatchBytes = 900 * 1024;
+const int _defaultMaxBatchBytes = 900 * 1024;
 
 /// Callback for error reporting from [BackendLogSink].
 typedef SinkErrorCallback = void Function(String message, Object? error);
@@ -133,7 +133,7 @@ class BackendLogSink implements LogSink {
     } else {
       final future = _diskQueue.append(truncated);
       _pendingWrites.add(future);
-      future.whenComplete(() => _pendingWrites.remove(future));
+      unawaited(future.whenComplete(() => _pendingWrites.remove(future)));
     }
 
     if (record.level >= LogLevel.error) {
