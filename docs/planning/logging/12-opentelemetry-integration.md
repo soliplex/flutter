@@ -395,8 +395,18 @@ still needs:
 - **200** — confirm records, remove from queue
 - **401/403** — disable export, fire `onError` callback
 - **429/5xx** — exponential backoff (1s, 2s, 4s, max 60s), keep in queue
+- **Poison pill:** if same batch fails 3 consecutive times, discard it
+  and move to next batch (prevents one malformed record from blocking
+  all log delivery)
 - **No re-entrant logging:** sink failures go to `onError` callback or
   `stderr`, never re-enter the logging pipeline
+
+### Record Size Guard
+
+Individual log records are capped at 64 KB serialized JSON. If a developer
+accidentally logs a large API response or binary blob, the record is
+truncated before entering `DiskQueue`. This prevents mega-logs from
+filling the queue and burning battery on repeated writes.
 
 ### Token Security (Simplified)
 
@@ -432,6 +442,10 @@ Production-ready when:
 - [ ] NetworkChecker skips flush when offline
 - [ ] `flush()` called on app lifecycle pause/hidden/visibilitychange
 - [ ] `close()` drains remaining queue
+- [ ] Poison pill: batch discarded after 3 consecutive failures
+- [ ] Record size guard: records > 64 KB truncated
+- [ ] Session start marker emitted on startup with device/app attributes
+- [ ] Connectivity changes logged as `network_changed` events
 - [ ] Dart crash hooks capture uncaught exceptions as fatal logs
 - [ ] Logfire write token never reaches the Flutter client
 - [ ] Python endpoint maps to OTel LogRecords, forwards to Logfire

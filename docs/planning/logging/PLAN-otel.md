@@ -89,7 +89,8 @@ BackendLogSink (LogSink)
 │   ├── Timer-based flush (30s)
 │   ├── Severity-triggered flush (immediate on ERROR/FATAL)
 │   ├── Lifecycle flush (app pause/hidden)
-│   └── Basic retry (backoff on 5xx/429, disable on 401)
+│   ├── Basic retry (backoff on 5xx/429, disable on 401)
+│   └── Poison pill protection (max 3 retries per batch, then discard)
 └── SessionContext (injected into every payload)
     ├── sessionId (UUID, generated on app start)
     └── userId (from auth state)
@@ -158,18 +159,22 @@ BackendLogSink (LogSink)
    }
    ```
 
-3. Append to `DiskQueue`
-4. If ERROR/FATAL → trigger immediate flush
+3. **Record size guard:** if serialized JSON exceeds 64 KB, truncate
+   `message` and `attributes` (prevent mega-logs from filling queue)
+4. Append to `DiskQueue`
+5. If ERROR/FATAL → trigger immediate flush
 
 **`flush()`:**
 
 1. If `networkChecker` provided and returns false → skip, keep buffered
 2. Drain up to `batchSize` records from `DiskQueue`
 3. POST JSON array to endpoint with `Authorization: Bearer <jwt>`
-4. On 200 → confirm records in queue
+4. On 200 → confirm records in queue, reset retry counter
 5. On 429/5xx → exponential backoff (1s, 2s, 4s, max 60s), records
-   stay in queue for next attempt
+   stay in queue for next attempt, increment retry counter
 6. On 401/403 → stop retrying, surface via `onError` callback
+7. **Poison pill:** if same batch fails 3 consecutive times → discard
+   batch, log diagnostic to `onError`, move to next batch
 
 **`close()`:**
 
@@ -242,6 +247,8 @@ concerns are injected by the app layer: `http.Client`, `directoryPath`
   - HTTP 200 → records confirmed
   - HTTP 429/5xx → records stay in queue, backoff
   - HTTP 401 → onError callback, stop retrying
+  - Poison pill: 3 consecutive failures → batch discarded
+  - Record size guard: oversized record truncated before queue
   - `close()` attempts final flush
 
 #### Integration Tests
@@ -268,6 +275,8 @@ concerns are injected by the app layer: `http.Client`, `directoryPath`
 - [ ] HTTP 401 disables export, fires `onError`
 - [ ] NetworkChecker skips flush when offline
 - [ ] `close()` drains remaining queue
+- [ ] Poison pill: batch discarded after 3 consecutive failures
+- [ ] Record size guard: records > 64 KB truncated before queue
 - [ ] Dart crash hooks capture uncaught exceptions as fatal logs
 - [ ] Integration: crash recovery round-trip
 - [ ] Integration: sanitizer scrubs PII from payload
@@ -310,6 +319,20 @@ the same endpoint.
 - **Mobile:** `AppLifecycleListener` → `flush()` on `paused`
 - **Desktop:** `AppLifecycleListener` → `flush()` on `hidden`/`detached`
 - **Web:** `visibilitychange` → `flush()` when `document.hidden`
+
+**Session start marker:**
+
+- On app startup (after providers initialize), emit a single `info`-level
+  log with attributes: `app_version`, `build_number`, `os_name`,
+  `os_version`, `device_model`, `dart_version`. This is the first record
+  in every session — gives support a device fingerprint per session.
+
+**Connectivity listener:**
+
+- Subscribe to `connectivity_plus` stream. On connectivity change, emit
+  `info`-level log: `network_changed` with attributes `type`
+  (wifi/cellular/none) and `online` (bool). Support needs to know if the
+  device was offline *when* the error occurred, not just at flush time.
 
 **Dart crash hooks:**
 
@@ -367,10 +390,12 @@ the same endpoint.
 - [ ] SessionId generated on startup, injected into every payload
 - [ ] UserId from auth state, nullable for pre-auth logs
 - [ ] Config toggle enables/disables at runtime
+- [ ] Session start marker emitted on startup with device/app attributes
+- [ ] Connectivity listener logs `network_changed` events
 - [ ] Lifecycle flush on all platforms
 - [ ] Dart crash hooks wired before `runApp`
 - [ ] Telemetry screen with toggle, endpoint, status
-- [ ] `connectivity_plus` integration
+- [ ] `connectivity_plus` integration (flush check + change listener)
 - [ ] `dart analyze` — 0 issues
 - [ ] Tests pass
 
@@ -441,14 +466,21 @@ contextual breadcrumbs to help reconstruct what happened.
 - On ERROR/FATAL, `BackendLogSink` reads last 20 records from
   `MemorySink.records` (ring buffer already exists)
 - Attaches as `"breadcrumbs": [...]` array in the crash payload
-- Breadcrumb records are lightweight: timestamp, level, logger, message
-  (no full attributes/stacktraces)
+- Each breadcrumb includes: timestamp, level, logger, message, **category**
+- **Categories** help support filter noise:
+  - `ui` — navigation, taps, screen transitions
+  - `network` — HTTP requests, connectivity changes
+  - `system` — lifecycle events, permission changes
+  - `user` — login, logout, explicit user actions
+- Category is derived from `loggerName` convention (e.g. `Router.*` → `ui`,
+  `Http.*` → `network`) or from an explicit `breadcrumb_category` attribute
 
 #### Acceptance Criteria
 
 - [ ] Crash payloads include last 20 breadcrumb records
+- [ ] Breadcrumbs categorized (ui/network/system/user)
 - [ ] Breadcrumbs come from existing MemorySink (no duplication)
-- [ ] Tests verify breadcrumb attachment on fatal log
+- [ ] Tests verify breadcrumb attachment and categorization on fatal log
 
 ---
 
@@ -544,22 +576,30 @@ style attributes. Backend/Logfire aggregates.
 #### Changes
 
 - Wrap `MaterialApp` in `RepaintBoundary` with `GlobalKey`
-- On ERROR/FATAL, capture via `toImage()` → PNG bytes → base64
-- Attach as attribute or separate upload (base64 in JSON is large)
-- Consider: upload screenshot separately, reference by ID in log
+- On ERROR/FATAL, capture via `toImage()` → PNG bytes
+- **Encode in background isolate** — base64 encoding a retina screenshot
+  (5MB+) on the UI thread causes visible jank. Use `compute()` for
+  PNG-to-base64 conversion.
+- Upload screenshot as separate POST (reference by ID in error log) —
+  embedding large base64 in JSON payload bloats the log pipeline
+- Thumbnail option: downscale to 480p before encoding (reduces to ~50 KB)
 
 #### Acceptance Criteria
 
 - [ ] Screenshot captured on error
-- [ ] Image attached to or referenced from error log
+- [ ] PNG-to-base64 runs in background isolate (not UI thread)
+- [ ] Image uploaded separately, referenced by ID in error log
 - [ ] Does not crash if RepaintBoundary unavailable
+- [ ] Does not jank the UI on capture
 
 ---
 
 ## Observability Gap Analysis
 
-Comprehensive assessment of what the logging solution covers after all
-phases, evaluated for a DoD Flutter app.
+Comprehensive assessment of what this **pragmatic field-support logging
+framework** covers after all phases. This is NOT a Crashlytics replacement
+— the goal is: support engineer gets a bug report, queries Logfire,
+reconstructs what happened.
 
 ### Coverage After Phase 1 (Core)
 
@@ -571,6 +611,10 @@ phases, evaluated for a DoD Flutter app.
 | Offline persistence | Covered | DiskQueue (JSONL write-ahead) |
 | PII/classified redaction | Covered | LogSanitizer (P0 for DoD) |
 | Session correlation | Covered | UUID sessionId + userId |
+| Session start marker | Covered | Device/app fingerprint on startup |
+| Connectivity history | Covered | `network_changed` events logged |
+| Poison pill protection | Covered | Bad batches discarded after 3 retries |
+| Record size guard | Covered | Oversized records truncated at 64 KB |
 | In-app log viewer | Covered | MemorySink + existing UI |
 | Cross-platform support | Covered | Same endpoint all platforms |
 | Lifecycle-aware flush | Covered | paused/hidden/visibilitychange |
@@ -579,7 +623,7 @@ phases, evaluated for a DoD Flutter app.
 
 | Capability | Status | Notes |
 |------------|--------|-------|
-| Breadcrumbs / event trail | Covered | Last N logs attached to crashes |
+| Categorized breadcrumbs | Covered | Last N logs with ui/network/system/user categories |
 | Remote log level control | Covered | Backend config endpoint |
 | Error grouping / fingerprinting | Covered | Backend-side (Python) |
 
@@ -597,24 +641,30 @@ phases, evaluated for a DoD Flutter app.
 
 | Capability | Status | Rationale |
 |------------|--------|-----------|
-| Native crash capture (SIGSEGV) | **Not covered** | Requires OS-level signal handlers (XL effort). Rely on device logs (adb logcat / Console.app) for repro. Most crashes will be Dart-level. |
-| Session replay (video) | **Not covered** | Requires commercial-grade infrastructure. Screenshot-on-error is the pragmatic substitute. |
+| Native crash capture (SIGSEGV) | **Out of scope** | Not a Crashlytics replacement. Requires OS-level signal handlers (XL effort). Rely on `adb logcat` / Console.app. Most crashes are Dart-level and captured. |
+| Session replay (video) | **Out of scope** | Not a Crashlytics replacement. Screenshot-on-error is the pragmatic substitute. |
 | Distributed tracing (spans) | **Deferred** | Phase 1 is log-only. When Python backend adds tracing, can propagate `traceparent` headers from HTTP client and attach trace context to logs. Evaluate `dartastic_opentelemetry` if their SDK matures. |
 | Metrics (counters, histograms) | **Deferred** | RUM captures basic timing as log attributes. True OTel metrics (counters, histograms, gauges) can be added when the Python backend supports metrics ingest. |
 | Alerting | **Partial** | Error fingerprinting (12.7) enables threshold-based alerts on the backend. Not a Flutter-side concern. |
 | Log search / analytics | **Delegated** | Logfire provides SQL-like querying on structured attributes. No Flutter-side work needed. |
 
-### Comprehensive Solution Grade: **B+**
+### Field Support Readiness Grade: **B+**
 
-After all 3 phases, the solution covers structured logging, crash
-capture (Dart), offline persistence, PII protection, session
-correlation, breadcrumbs, remote config, performance metrics, and error
-grouping. The main gaps (native crashes, session replay, full
-distributed tracing) are either impractical without commercial tools or
-deferred to a future tracing phase.
+**"User X on device Y had issue Z at time T" — can we reconstruct that?**
+
+After all 3 phases: **Yes**, for Dart-level issues. The support engineer
+can query Logfire by sessionId, see the session start marker (device,
+app version, OS), connectivity history, categorized breadcrumbs leading
+up to the error, the full stack trace, and the sanitized attributes.
+
+The solution covers structured logging, Dart crash capture, offline
+persistence, PII protection, session correlation, connectivity tracking,
+categorized breadcrumbs, remote config, performance metrics, and error
+grouping. Out-of-scope items (native crashes, session replay) require
+commercial-grade infrastructure that DoD constraints prohibit.
 
 For a DoD Flutter app with self-hosted constraints, this is a
-**pragmatic and thorough** observability solution.
+**pragmatic field-support logging framework**.
 
 ---
 

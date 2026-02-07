@@ -18,6 +18,11 @@ complexity server-side.
 **Constraint:** DoD environment — no commercial SaaS (Sentry, Crashlytics,
 Datadog). Self-hosted/open-source only. Logfire (Pydantic) is approved.
 
+**Scope:** This is a **pragmatic logging framework for field support** — not
+a Crashlytics replacement. The goal is: when a support engineer gets a bug
+report from a user in the field, they can query Logfire and reconstruct what
+happened. Native crashes (SIGSEGV) and session replay are out of scope.
+
 ## Architecture (Option B — Backend Relay)
 
 ```text
@@ -58,15 +63,15 @@ Datadog). Self-hosted/open-source only. Logfire (Pydantic) is approved.
 | # | Name | Scope | Depends On |
 |---|------|-------|------------|
 | 12.1 | LogRecord attributes | Add `Map<String, Object> attributes` to `LogRecord`, update `Logger` API | — |
-| 12.2 | BackendLogSink | Disk-backed queue, JSON POST, batch flush, basic retry, lifecycle flush, log sanitizer, session/user correlation, Dart crash hooks | 12.1 |
-| 12.3 | App integration | Riverpod providers, Telemetry screen UI, resource attributes, connectivity check | 12.2 |
+| 12.2 | BackendLogSink | Disk-backed queue, JSON POST, batch flush, basic retry, lifecycle flush, log sanitizer, session/user correlation, Dart crash hooks, poison pill protection, isolate-safe serialization | 12.1 |
+| 12.3 | App integration | Riverpod providers, Telemetry screen UI, resource attributes, connectivity listener, session start marker | 12.2 |
 | 12.4 | Backend ingest | Python `POST /api/v1/logs` endpoint, OTel SDK forwarding to Logfire | 12.2 |
 
 ### Phase 2 — Enhanced Context (P1)
 
 | # | Name | Scope | Depends On |
 |---|------|-------|------------|
-| 12.5 | Breadcrumbs | Attach last N logs from MemorySink as context on crash/error reports | 12.2 |
+| 12.5 | Breadcrumbs | Categorized breadcrumbs (ui/network/system) from MemorySink attached to crash/error reports | 12.2 |
 | 12.6 | Remote log level | Backend config endpoint, app polls on startup + periodically | 12.3 |
 | 12.7 | Error fingerprinting | Backend groups errors by type + top stack frame (Python side) | 12.4 |
 
