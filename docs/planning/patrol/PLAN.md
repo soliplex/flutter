@@ -4,22 +4,23 @@
 
 Get to a working Patrol E2E test as fast as possible. Start with
 `--no-auth-mode` to eliminate auth complexity, prove the toolchain, then layer
-on OIDC and CI.
+on OIDC and CI. Leverage the existing logging system (`soliplex_logging`) for
+white-box observability, event-driven waits, and self-documenting failures.
 
 ## Phases
 
 | Phase | Focus | Auth | Outcome |
 |-------|-------|------|---------|
-| **A** | [Setup + Smoke](./phase-a-setup-smoke.md) | no-auth | `patrol test` runs, app boots, backend reachable |
-| **B** | [Live Chat](./phase-b-live-chat.md) | no-auth | Rooms load, chat send/receive end-to-end |
-| **C** | [OIDC + CI](./phase-c-oidc-ci.md) | oidc | Token-seeded auth, GitHub Actions pipeline |
+| **A** | [Setup + Smoke](./phase-a-setup-smoke.md) | no-auth | Patrol runs, app boots with logging, backend reachable |
+| **B** | [Live Chat](./phase-b-live-chat.md) | no-auth | Rooms load, chat send/receive with log-driven waits |
+| **C** | [OIDC + CI](./phase-c-oidc-ci.md) | oidc | Token-seeded auth, CI with Logfire correlation |
 
 ## Dependency Graph
 
 ```text
-Phase A (Setup + Smoke)
-└── Phase B (Live Chat, no-auth)
-    └── Phase C (OIDC + CI)
+Phase A (Setup + Smoke + TestLogHarness)
+└── Phase B (Live Chat, log-driven waits)
+    └── Phase C (OIDC + CI + Logfire correlation)
 ```
 
 ## Progress
@@ -46,23 +47,43 @@ to a future hardening phase.
 **Keycloak requirement:** The test client must have "Direct Access Grants"
 enabled. See [Phase C](./phase-c-oidc-ci.md#keycloak-configuration).
 
-### Streaming-Safe Pumping
+### Logging as Test Infrastructure
 
-`pumpAndSettle()` hangs on SSE streams. All tests use condition-based polling:
+The `soliplex_logging` package provides white-box observability inside E2E
+tests. This is the key differentiator of our Patrol rig:
 
-```dart
-await waitForCondition(
-  tester,
-  condition: () => find.byType(ChatMessageWidget).evaluate().length > 1,
-  timeout: Duration(seconds: 30),
-);
+| Capability | Logging Component | Phase |
+|------------|-------------------|-------|
+| Event-driven waits (replace polling) | `MemorySink.onRecord` stream | A, B |
+| Internal pipeline assertions | `MemorySink.records` query | B |
+| Auto-diagnostics on failure | `MemorySink` dump (last 2000 records) | A |
+| Logfire correlation (`testRunId`) | `LogSanitizer` attribute injection | C |
+| CI failure artifacts | `logs.jsonl` + breadcrumbs bundle | C |
+| Performance regression detection | `LogRecord.timestamp` diffs | Future |
+
+### Logging Exploitation Levels
+
+```text
+Level 1: Free observation (read existing Loggers.* calls)      ← Phase A
+Level 2: Event-driven waits (MemorySink.onRecord stream)       ← Phase B
+Level 3: Structured event assertions (attribute-based)          ← Phase B
+Level 4: Logfire correlation (testRunId across client+server)   ← Phase C
+Level 5: Self-documenting failures (artifact bundles)           ← Phase C
+Level 6: Test step instrumentation (runStep → timeline)         ← Future
+Level 7: Performance regression detection (timestamp diffs)     ← Future
 ```
 
-### Minimal Harness
+### Streaming-Safe Pumping
 
-No big shared test base up front. Phase A introduces only what's needed:
-`verifyBackendOrFail` and `waitForCondition`. Helpers grow with real
-duplication, not speculation.
+`pumpAndSettle()` hangs on SSE streams. Phase A uses condition-based polling
+via `waitForCondition`. Phase B upgrades to log-driven waits via
+`harness.waitForLog()` where possible.
+
+### Minimal Harness, Grown Incrementally
+
+Phase A introduces `TestLogHarness` with just enough to boot the app with
+logging and dump diagnostics on failure. Each subsequent phase adds only what
+it needs.
 
 ## Deferred (Future Phases)
 
@@ -72,11 +93,12 @@ Intentionally deferred until the core test suite is stable:
 |------|-----------------|
 | `$.native` browser automation | Blocked by macOS `ASWebAuthenticationSession` |
 | Tool calling tests | Add after chat tests are stable |
-| Screenshot-on-failure wrapper | Add with CI pipeline |
 | Dual auth modes | One mode at a time is fine |
 | Dot-separated test IDs | Normal names until >5 tests |
 | `integration_test/README.md` | Write when there are real tests to document |
 | iOS targeting | Minimal config delta from macOS; add after macOS is green |
+| `runStep()` instrumentation | Add when >3 tests need timing |
+| Performance regression detection | Add when baseline established |
 
 ## Review Process
 

@@ -2,12 +2,13 @@
 
 **Status:** pending
 **Depends on:** Phase B
+**Logging level:** 4-5 (Logfire correlation + CI failure artifacts)
 
 ## Objective
 
-Add OIDC authentication via Keycloak ROPC token seeding, then create a GitHub
-Actions workflow. After this phase, tests can run authenticated against a
-Keycloak-protected backend both locally and in CI.
+Add OIDC authentication via Keycloak ROPC token seeding, create a GitHub Actions
+workflow, and enable Logfire correlation so every test run is queryable
+server-side. On CI failure, automatically produce a diagnostic artifact bundle.
 
 ## Auth Strategy: Token Seeding (Not $.native)
 
@@ -50,14 +51,17 @@ Provision a dedicated test user in Keycloak:
 - [ ] Backend running with Keycloak auth (not `--no-auth-mode`)
 - [ ] `GET /api/login` returns at least one auth provider config
 - [ ] Review `lib/core/auth/auth_notifier.dart` for state injection point
+- [ ] Verify `AuthNotifier.build()` calls `_restoreSession()` async — injection
+  must wait until restore completes to avoid race condition
 
 ## Deliverables
 
-1. **`lib/core/auth/auth_notifier.dart`** — Add `@visibleForTesting`
+1. `lib/core/auth/auth_notifier.dart` — Add `@visibleForTesting`
    `injectTestTokens` method
-2. **`integration_test/patrol_test_config.dart`** — Add OIDC helpers
-3. **`integration_test/authenticated_test.dart`** — Authenticated rooms test
-4. **`.github/workflows/patrol-integration.yml`** — CI workflow
+2. `integration_test/test_log_harness.dart` — Add Logfire correlation
+3. `integration_test/patrol_test_config.dart` — Add OIDC helpers
+4. `integration_test/authenticated_test.dart` — Authenticated rooms test
+5. `.github/workflows/patrol-integration.yml` — CI workflow
 
 ## Implementation Steps
 
@@ -90,7 +94,44 @@ void injectTestTokens({
 }
 ```
 
-### Step 2: Add OIDC helpers to test config
+- [ ] **Race condition guard:** Ensure `_restoreSession()` has completed before
+  calling `injectTestTokens`. Options:
+  - Wait for auth state to leave `AuthLoading` before injection
+  - Add a `Completer` that signals when `build()` finishes
+
+### Step 2: Add Logfire correlation to TestLogHarness
+
+**File:** `integration_test/test_log_harness.dart`
+
+- [ ] Generate a `testRunId` (UUID) per test invocation
+- [ ] Wrap `LogManager.instance.sanitizer` to inject `testRunId` into every
+  `LogRecord.attributes` via `record.copyWith(attributes: {...})`:
+
+```dart
+class _TestCorrelationSanitizer implements LogSanitizer {
+  final String testRunId;
+  final LogSanitizer? inner;
+
+  _TestCorrelationSanitizer(this.testRunId, {this.inner});
+
+  @override
+  LogRecord sanitize(LogRecord record) {
+    var processed = inner?.sanitize(record) ?? record;
+    return processed.copyWith(attributes: {
+      ...processed.attributes,
+      'testRunId': testRunId,
+    });
+  }
+}
+```
+
+- [ ] Enable `BackendLogSink` when `--dart-define SOLIPLEX_SHIP_LOGS=true`
+- [ ] Add `dumpArtifactBundle(String testName)` method that writes:
+  - `logs.jsonl` — all MemorySink records as JSON
+  - `breadcrumbs.json` — last 20 records before failure
+  - `metadata.json` — testRunId, device, timestamps, test name
+
+### Step 3: Add OIDC helpers to test config
 
 **File:** `integration_test/patrol_test_config.dart`
 
@@ -99,26 +140,35 @@ void injectTestTokens({
 ```dart
 const oidcUsername = String.fromEnvironment('SOLIPLEX_OIDC_USERNAME');
 const oidcPassword = String.fromEnvironment('SOLIPLEX_OIDC_PASSWORD');
+const shipLogs = bool.fromEnvironment('SOLIPLEX_SHIP_LOGS');
 ```
 
 - [ ] Add `fetchOidcConfig(String backendUrl)` — fetches provider config from
-  `GET /api/login`
+  `GET /api/login`, returns `serverUrl`, `clientId`, `scope`
 - [ ] Add `seedAuthTokens(PatrolTester $)` — performs ROPC token exchange with
   Keycloak and injects tokens into `AuthNotifier` via `injectTestTokens`
+- [ ] Derive token endpoint from OIDC discovery
+  (`serverUrl/.well-known/openid-configuration`) rather than hardcoding
+  Keycloak-specific paths
 
-### Step 3: Create authenticated test
+### Step 4: Create authenticated test
 
 **File:** `integration_test/authenticated_test.dart`
 
 - [ ] `patrolTest('authenticated rooms load', ...)`
+- [ ] Initialize `TestLogHarness` with `testRunId` for Logfire correlation
 - [ ] Call `verifyBackendOrFail(backendUrl)`
 - [ ] Pump app with **in-memory auth storage** override (prevents Keychain
   state leaks from stale tokens)
+- [ ] Wait for auth state to leave `AuthLoading` (restore completes)
 - [ ] Call `seedAuthTokens($)` to obtain and inject ROPC tokens
-- [ ] Use `waitForCondition` to wait for rooms to render
+- [ ] Use `harness.waitForLog('HTTP', 'GET /rooms')` to detect room load
 - [ ] Assert at least one room is present
+- [ ] **White-box:** `harness.expectLog('Auth', 'Authenticated')` to verify
+  token injection worked
+- [ ] On failure: `harness.dumpArtifactBundle('authenticated_rooms_load')`
 
-### Step 4: Create CI workflow
+### Step 5: Create CI workflow
 
 **File:** `.github/workflows/patrol-integration.yml`
 
@@ -152,6 +202,9 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Install CocoaPods
+        run: pod install --project-directory=macos
+
       - name: Backend health check
         env:
           BACKEND_URL: ${{ secrets.STAGING_BACKEND_URL }}
@@ -166,18 +219,21 @@ jobs:
             --target integration_test/ \
             --dart-define SOLIPLEX_BACKEND_URL=${{ secrets.STAGING_BACKEND_URL }} \
             --dart-define SOLIPLEX_OIDC_USERNAME=${{ secrets.OIDC_TEST_USERNAME }} \
-            --dart-define SOLIPLEX_OIDC_PASSWORD=${{ secrets.OIDC_TEST_PASSWORD }}
+            --dart-define SOLIPLEX_OIDC_PASSWORD=${{ secrets.OIDC_TEST_PASSWORD }} \
+            --dart-define SOLIPLEX_SHIP_LOGS=true
 
-      - name: Upload screenshots on failure
+      - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: patrol-screenshots
-          path: build/patrol/screenshots/
+          name: patrol-failure-bundle
+          path: |
+            build/patrol/screenshots/
+            build/patrol/logs/
           retention-days: 7
 ```
 
-### Step 5: Document required GitHub secrets
+### Step 6: Document required GitHub secrets
 
 | Secret | Description |
 |--------|-------------|
@@ -185,53 +241,74 @@ jobs:
 | `OIDC_TEST_USERNAME` | Keycloak test user username |
 | `OIDC_TEST_PASSWORD` | Keycloak test user password |
 
-### Step 6: Run and verify
+### Step 7: Run and verify
 
 ```bash
-# Local (authenticated)
+# Local (authenticated, with Logfire shipping)
 patrol test --target integration_test/authenticated_test.dart \
   --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000 \
   --dart-define SOLIPLEX_OIDC_USERNAME=patrol-test \
-  --dart-define SOLIPLEX_OIDC_PASSWORD=testpass
+  --dart-define SOLIPLEX_OIDC_PASSWORD=testpass \
+  --dart-define SOLIPLEX_SHIP_LOGS=true
 
 # Verify no-auth tests still pass
 patrol test --target integration_test/smoke_test.dart \
   --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+
+# Verify testRunId appears in Logfire
+# Search: testRunId="<uuid from test output>"
 ```
+
+## Logfire Correlation
+
+When `SOLIPLEX_SHIP_LOGS=true`:
+
+1. `TestLogHarness` generates a `testRunId` (UUID) and prints it to console
+2. Every `LogRecord` gets `testRunId` injected via sanitizer
+3. `BackendLogSink` ships records to backend → Logfire
+4. In Logfire, query `testRunId="<uuid>"` to see:
+   - All client-side logs (HTTP, auth, router, activeRun)
+   - All server-side logs (if backend also tags with the ID via HTTP header)
+   - Full distributed timeline of the test run
 
 ## Out of Scope
 
 - `$.native` browser automation (deferred to hardening phase)
 - Tool calling tests (add after auth is stable)
-- Screenshot-on-failure wrapper (add as needed)
 - Token refresh testing (unit-tested separately)
 - Logout/re-auth flow
 - iOS/Android CI runners
+- `runStep()` instrumentation (deferred to future)
+- Performance regression detection (deferred to future)
 
 ## Review Gate
 
 **Tool:** `mcp__gemini__read_files` with `gemini-3-pro-preview`
 
 **Files:** `lib/core/auth/auth_notifier.dart`,
+`integration_test/test_log_harness.dart`,
 `integration_test/patrol_test_config.dart`,
 `integration_test/authenticated_test.dart`,
 `.github/workflows/patrol-integration.yml`,
+`lib/core/logging/logging_provider.dart`,
 `docs/planning/patrol/phase-c-oidc-ci.md`
 
 **Prompt:**
 
 ```text
-Review the OIDC token seeding and CI pipeline against the Phase C spec.
+Review the OIDC token seeding, Logfire correlation, and CI pipeline
+against the Phase C spec.
 
 Check:
 1. injectTestTokens uses @visibleForTesting correctly
-2. ROPC token exchange hits the correct Keycloak endpoint
-3. Credentials passed via --dart-define (not hardcoded)
-4. CI workflow uses secrets for all sensitive values
-5. Backend health check runs before expensive tests
-6. $HOME/.pub-cache/bin added to GITHUB_PATH
-7. Screenshot artifacts uploaded only on failure
-8. No pumpAndSettle used
+2. Race condition with _restoreSession() is addressed
+3. TestCorrelationSanitizer injects testRunId into LogRecord.attributes
+4. testRunId flows through BackendLogSink to Logfire
+5. ROPC token endpoint derived from OIDC discovery (not hardcoded)
+6. CI workflow includes CocoaPods install step
+7. CI uploads both screenshots and log artifacts on failure
+8. SOLIPLEX_SHIP_LOGS flag controls BackendLogSink in tests
+9. Credentials passed via --dart-define (not hardcoded)
 
 Report PASS or list specific issues.
 ```
@@ -240,6 +317,8 @@ Report PASS or list specific issues.
 
 - [ ] Authenticated test passes against Keycloak-protected backend
 - [ ] ROPC token exchange works with "Direct Access Grants" enabled
+- [ ] `testRunId` appears in Logfire when `SOLIPLEX_SHIP_LOGS=true`
+- [ ] Failure artifact bundle produced (logs.jsonl, breadcrumbs, metadata)
 - [ ] No-auth tests still pass (no regressions)
 - [ ] CI workflow syntax is valid
 - [ ] Zero analyzer issues
