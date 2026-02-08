@@ -18,6 +18,7 @@ import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/backend_versions_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
+import 'package:soliplex_frontend/features/settings/telemetry_screen.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
@@ -336,6 +337,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               name: 'log-viewer',
               pageBuilder: (context, state) => const NoTransitionPage(
                 child: LogViewerScreen(),
+              ),
+            ),
+            GoRoute(
+              path: 'telemetry',
+              name: 'telemetry',
+              pageBuilder: (context, state) => _staticPage(
+                title: const Text('Telemetry'),
+                body: const TelemetryScreen(),
               ),
             ),
           ],
