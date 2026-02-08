@@ -1,6 +1,10 @@
 import 'package:meta/meta.dart';
 import 'package:soliplex_logging/src/log_level.dart';
 
+/// Sentinel value to distinguish "not provided" from explicit `null` in
+/// [LogRecord.copyWith].
+const Object _sentinel = Object();
+
 /// Immutable log record containing all information about a log event.
 @immutable
 class LogRecord {
@@ -45,15 +49,18 @@ class LogRecord {
   final Map<String, Object> attributes;
 
   /// Returns a copy of this record with the given fields replaced.
+  ///
+  /// Nullable fields ([error], [stackTrace], [spanId], [traceId]) can be
+  /// explicitly cleared by passing `null`.
   LogRecord copyWith({
     LogLevel? level,
     String? message,
     DateTime? timestamp,
     String? loggerName,
-    Object? error,
-    StackTrace? stackTrace,
-    String? spanId,
-    String? traceId,
+    Object? error = _sentinel,
+    Object? stackTrace = _sentinel,
+    Object? spanId = _sentinel,
+    Object? traceId = _sentinel,
     Map<String, Object>? attributes,
   }) {
     return LogRecord(
@@ -61,10 +68,11 @@ class LogRecord {
       message: message ?? this.message,
       timestamp: timestamp ?? this.timestamp,
       loggerName: loggerName ?? this.loggerName,
-      error: error ?? this.error,
-      stackTrace: stackTrace ?? this.stackTrace,
-      spanId: spanId ?? this.spanId,
-      traceId: traceId ?? this.traceId,
+      error: error == _sentinel ? this.error : error,
+      stackTrace:
+          stackTrace == _sentinel ? this.stackTrace : stackTrace as StackTrace?,
+      spanId: spanId == _sentinel ? this.spanId : spanId as String?,
+      traceId: traceId == _sentinel ? this.traceId : traceId as String?,
       attributes: attributes ?? this.attributes,
     );
   }

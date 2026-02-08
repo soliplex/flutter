@@ -238,6 +238,33 @@ void main() {
         expect(original.attributes, {'key': 'value'});
       });
 
+      test('can clear nullable fields by passing null', () {
+        final original = LogRecord(
+          level: LogLevel.error,
+          message: 'Original',
+          timestamp: DateTime(2024),
+          loggerName: 'Test',
+          error: Exception('error'),
+          stackTrace: StackTrace.current,
+          spanId: 'span-1',
+          traceId: 'trace-1',
+        );
+
+        final copied = original.copyWith(
+          error: null,
+          stackTrace: null,
+          spanId: null,
+          traceId: null,
+        );
+
+        expect(original.error, isNotNull);
+        expect(original.spanId, isNotNull);
+        expect(copied.error, isNull);
+        expect(copied.stackTrace, isNull);
+        expect(copied.spanId, isNull);
+        expect(copied.traceId, isNull);
+      });
+
       test('with no args returns equivalent record', () {
         final original = LogRecord(
           level: LogLevel.warning,
