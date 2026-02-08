@@ -166,6 +166,9 @@ app.*.symbols
 
 scratchpad/*
 
+# Patrol-generated test bundle
+integration_test/test_bundle.dart
+
 # Developer-specific Xcode configuration (contains DEVELOPMENT_TEAM)
 **/Local.xcconfig
 # Claude Code local config

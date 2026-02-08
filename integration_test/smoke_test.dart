@@ -66,6 +66,10 @@ void main() {
       // Verify the router ran (proves full boot sequence: binding → logging
       // → auth → router → screen). Log-based assertion from the harness.
       harness.expectLog('Router', 'redirect called');
+
+      // Pump a few extra frames so the rendered UI is
+      // visible in the macOS window during the test run.
+      await $.tester.pump(const Duration(seconds: 1));
     } catch (e) {
       harness.dumpLogs(last: 50);
       rethrow;
