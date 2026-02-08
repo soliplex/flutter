@@ -13,21 +13,24 @@ white-box observability, event-driven waits, and self-documenting failures.
 |-------|-------|------|---------|
 | **A** | [Setup + Smoke](./phase-a-setup-smoke.md) | no-auth | Patrol runs, app boots with logging, backend reachable |
 | **B** | [Live Chat](./phase-b-live-chat.md) | no-auth | Rooms load, chat send/receive with log-driven waits |
-| **C** | [OIDC + CI](./phase-c-oidc-ci.md) | oidc | Token-seeded auth, CI with Logfire correlation |
+| **C** | [OIDC + CI](./phase-c-oidc-ci.md) | oidc | Token-seeded auth via ROPC |
+| **D** | [Log Hardening](./phase-d-log-hardening.md) | both | Error sentinels, perf bounds, HTTP audit, negative assertions |
 
 ## Dependency Graph
 
 ```text
 Phase A (Setup + Smoke + TestLogHarness)
 └── Phase B (Live Chat, log-driven waits)
-    └── Phase C (OIDC + CI + Logfire correlation)
+    └── Phase C (OIDC auth via ROPC)
+        └── Phase D (Log hardening: sentinels, perf, audit)
 ```
 
 ## Progress
 
-- [ ] Phase A — Setup + Smoke
-- [ ] Phase B — Live Chat (no-auth)
-- [ ] Phase C — OIDC + CI
+- [x] Phase A — Setup + Smoke
+- [x] Phase B — Live Chat (no-auth)
+- [x] Phase C — OIDC auth via ROPC
+- [ ] Phase D — Log Hardening
 
 ## Key Design Decisions
 
@@ -68,9 +71,9 @@ Level 1: Free observation (read existing Loggers.* calls)      ← Phase A
 Level 2: Event-driven waits (MemorySink.onRecord stream)       ← Phase B
 Level 3: Structured event assertions (attribute-based)          ← Phase B
 Level 4: Logfire correlation (testRunId across client+server)   ← Phase C
-Level 5: Self-documenting failures (artifact bundles)           ← Phase C
-Level 6: Test step instrumentation (runStep → timeline)         ← Future
-Level 7: Performance regression detection (timestamp diffs)     ← Future
+Level 5: Error sentinels (expectNoErrors across all tests)       ← Phase D
+Level 6: Negative/audit assertions (HTTP 401, auth restore)     ← Phase D
+Level 7: Performance regression detection (timestamp diffs)     ← Phase D
 ```
 
 ### Streaming-Safe Pumping

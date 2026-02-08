@@ -32,9 +32,10 @@ void main() {
       // → auth → router → screen). Log-based assertion from the harness.
       harness.expectLog('Router', 'redirect called');
 
-      // Pump a few extra frames so the rendered UI is
-      // visible in the macOS window during the test run.
-      await $.tester.pump(const Duration(seconds: 1));
+      // Pump extra frames so the rendered UI is visible in the macOS window.
+      for (var i = 0; i < 5; i++) {
+        await $.tester.pump(const Duration(milliseconds: 200));
+      }
     } catch (e) {
       harness.dumpLogs(last: 50);
       rethrow;
