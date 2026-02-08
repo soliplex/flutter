@@ -9,6 +9,7 @@ import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider_observer.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -104,6 +105,7 @@ Future<void> runSoliplexApp({
 
   runApp(
     ProviderScope(
+      observers: [LoggingProviderObserver()],
       overrides: [
         // Inject shell configuration via ProviderScope (no global state)
         shellConfigProvider.overrideWithValue(config),
