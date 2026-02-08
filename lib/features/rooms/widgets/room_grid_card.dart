@@ -1,4 +1,3 @@
-import 'package:dashed_border/dashed_border.dart';
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 
@@ -13,43 +12,6 @@ class RoomGridCard extends StatefulWidget {
 
   @override
   State<RoomGridCard> createState() => _RoomGridCardState();
-
-  /// Placeholder card for creating a new room.
-  static Widget ghost({
-    required BuildContext context,
-    VoidCallback? onTap,
-  }) {
-    return Semantics(
-      button: true,
-      label: 'Create new room',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(soliplexRadii.lg),
-            border: DashedBorder(
-              color: Theme.of(context).dividerTheme.color!,
-              width: 2,
-              dashGap: 6,
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.add, size: 64, color: Colors.grey),
-              const SizedBox(height: SoliplexSpacing.s2),
-              Text(
-                'New Room',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Colors.grey,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _RoomGridCardState extends State<RoomGridCard> {
@@ -108,9 +70,9 @@ class _RoomGridCardState extends State<RoomGridCard> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                       ],

@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -184,6 +185,7 @@ void main() {
         _createAppWithRouter(
           home: const AuthCallbackScreen(),
           overrides: [
+            shellConfigProvider.overrideWithValue(testSoliplexConfig),
             capturedCallbackParamsProvider.overrideWithValue(
               const WebCallbackParams(
                 accessToken: 'test-access-token',
@@ -210,8 +212,9 @@ void main() {
       expect(find.text('Rooms'), findsOneWidget);
     });
 
-    testWidgets('shows error when completeWebAuth throws AuthException',
-        (tester) async {
+    testWidgets('shows error when completeWebAuth throws AuthException', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const AuthCallbackScreen(),
@@ -232,8 +235,9 @@ void main() {
       expect(find.text('Pre-auth state expired'), findsOneWidget);
     });
 
-    testWidgets('shows generic error when completeWebAuth throws Exception',
-        (tester) async {
+    testWidgets('shows generic error when completeWebAuth throws Exception', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const AuthCallbackScreen(),

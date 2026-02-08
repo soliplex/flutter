@@ -1,4 +1,3 @@
-import 'package:dashed_border/dashed_border.dart';
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
 
@@ -13,45 +12,6 @@ class RoomListTile extends StatefulWidget {
 
   @override
   State<RoomListTile> createState() => _RoomListTileState();
-
-  /// Placeholder tile for creating a new room.
-  static Widget ghost({
-    required BuildContext context,
-    VoidCallback? onTap,
-  }) {
-    return Semantics(
-      button: true,
-      label: 'Create new room',
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 86,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(soliplexRadii.md),
-            border: DashedBorder(
-              color: Theme.of(context).dividerTheme.color!,
-              width: 2,
-              dashGap: 6,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            spacing: SoliplexSpacing.s2,
-            children: [
-              const Icon(Icons.add, size: 48, color: Colors.grey),
-              const SizedBox(width: SoliplexSpacing.s2),
-              Text(
-                'New Room',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Colors.grey,
-                    ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
 
 class _RoomListTileState extends State<RoomListTile> {
@@ -110,9 +70,9 @@ class _RoomListTileState extends State<RoomListTile> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                       ],
@@ -120,9 +80,9 @@ class _RoomListTileState extends State<RoomListTile> {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: Theme.of(context).iconTheme.color?.withAlpha(
-                          (0.6 * 255).toInt(),
-                        ),
+                    color: Theme.of(
+                      context,
+                    ).iconTheme.color?.withAlpha((0.6 * 255).toInt()),
                   ),
                 ],
               ),

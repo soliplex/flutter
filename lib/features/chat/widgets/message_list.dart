@@ -1,14 +1,101 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show ChatMessage, Streaming;
+    show AwaitingText, ChatMessage, ChatUser, TextMessage, TextStreaming;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/source_references_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
+
+/// Result of computing display messages from history and streaming state.
+@immutable
+class DisplayMessagesResult {
+  /// Creates a result with the computed messages and streaming flags.
+  const DisplayMessagesResult(
+    this.messages, {
+    required this.hasSyntheticMessage,
+    this.isThinkingStreaming = false,
+  });
+
+  /// The messages to display.
+  final List<ChatMessage> messages;
+
+  /// Whether a synthetic streaming message was appended.
+  final bool hasSyntheticMessage;
+
+  /// Whether thinking is currently streaming (only relevant for synthetic
+  /// message).
+  final bool isThinkingStreaming;
+}
+
+/// Computes the list of messages to display by merging historical messages
+/// with the active streaming state.
+///
+/// Returns a [DisplayMessagesResult] containing:
+/// - The merged message list
+/// - Whether a synthetic message was created from streaming state
+///
+/// This is a pure function for testability.
+/// Temporary ID for synthetic message during pre-text thinking phase.
+const _kPendingThinkingId = '__pending_thinking__';
+
+@visibleForTesting
+DisplayMessagesResult computeDisplayMessages(
+  List<ChatMessage> historicalMessages,
+  ActiveRunState runState,
+) {
+  // Only RunningState can have active streaming
+  if (runState is! RunningState) {
+    return DisplayMessagesResult(
+      historicalMessages,
+      hasSyntheticMessage: false,
+    );
+  }
+
+  final streaming = runState.streaming;
+
+  // Actively streaming text - create synthetic message with text and thinking
+  if (streaming is TextStreaming) {
+    final syntheticMessage = TextMessage.create(
+      id: streaming.messageId,
+      user: streaming.user,
+      text: streaming.text,
+      thinkingText: streaming.thinkingText,
+    );
+
+    return DisplayMessagesResult(
+      [...historicalMessages, syntheticMessage],
+      hasSyntheticMessage: true,
+      isThinkingStreaming: streaming.isThinkingStreaming,
+    );
+  }
+
+  // Pre-text thinking: thinking events arrived but text hasn't started yet
+  if (streaming is AwaitingText && streaming.hasThinkingContent) {
+    final syntheticMessage = TextMessage.create(
+      id: _kPendingThinkingId,
+      user: ChatUser.assistant,
+      text: '',
+      thinkingText: streaming.bufferedThinkingText,
+    );
+
+    return DisplayMessagesResult(
+      [...historicalMessages, syntheticMessage],
+      hasSyntheticMessage: true,
+      isThinkingStreaming: streaming.isThinkingStreaming,
+    );
+  }
+
+  // Not streaming and no thinking - return history unchanged
+  return DisplayMessagesResult(
+    historicalMessages,
+    hasSyntheticMessage: false,
+  );
+}
 
 /// Widget that displays the list of messages in the current thread.
 ///
@@ -40,35 +127,51 @@ class _MessageListState extends ConsumerState<MessageList> {
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_scrollListener);
+
+    _scrollController.addListener(_onScroll);
+
+    ref.listenManual(activeRunNotifierProvider, (previous, next) {
+      if (previous == null ||
+          (previous is! RunningState && next is RunningState) ||
+          (previous is RunningState && next is! RunningState)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+      }
+    });
   }
 
   @override
   void dispose() {
     _scrollController
-      ..removeListener(_scrollListener)
+      ..removeListener(_onScroll)
       ..dispose();
     super.dispose();
   }
 
-  void _scrollListener() {
+  /// Scroll listener to manage auto-scroll state.
+  /// Disables auto-scroll if user scrolls up.
+  void _onScroll() {
     if (!_scrollController.hasClients) return;
 
-    final position = _scrollController.position;
-    // 50 pixels margin to avoid accidentally triggering auto-scroll
-    const threshold = 50.0;
-    final atBottom = position.pixels >= position.maxScrollExtent - threshold;
+    final maxScroll = _scrollController.position.maxScrollExtent;
+    final currentScroll = _scrollController.position.pixels;
+    const threshold = 50.0; // Pixels from bottom to consider "at bottom"
 
-    if (atBottom != _autoScrollEnabled && mounted) {
+    final isAtBottom = (maxScroll - currentScroll) <= threshold;
+
+    if (isAtBottom && !_autoScrollEnabled) {
       setState(() {
-        _autoScrollEnabled = atBottom;
+        _autoScrollEnabled = true;
+      });
+    } else if (!isAtBottom && _autoScrollEnabled) {
+      setState(() {
+        _autoScrollEnabled = false;
       });
     }
   }
 
   /// Scrolls to the bottom of the list.
   /// Can be forced to scroll even if auto-scroll is disabled.
-  void _scrollToBottom({bool force = false}) {
+  void _scrollToBottom({bool force = false, bool animate = false}) {
     if (!force && !_autoScrollEnabled) return;
 
     if (!_scrollController.hasClients) return;
@@ -85,11 +188,15 @@ class _MessageListState extends ConsumerState<MessageList> {
     // Use a post-frame callback to ensure the list has been built/updated
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        if (animate) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+        }
       }
     });
   }
@@ -97,45 +204,39 @@ class _MessageListState extends ConsumerState<MessageList> {
   @override
   Widget build(BuildContext context) {
     final messagesAsync = ref.watch(allMessagesProvider);
+    final messagesNow =
+        messagesAsync.hasValue ? messagesAsync.value! : <ChatMessage>[];
     final isStreaming = ref.watch(isStreamingProvider);
     final runState = ref.watch(activeRunNotifierProvider);
 
-    // Scroll to bottom when messages change, if auto-scroll is enabled
-    ref.listen<AsyncValue<List<ChatMessage>>>(allMessagesProvider, (
-      previous,
-      next,
-    ) {
-      final prevLength = switch (previous) {
-        AsyncData(:final value) => value.length,
-        _ => 0,
-      };
-      final nextLength = switch (next) {
-        AsyncData(:final value) => value.length,
-        _ => 0,
-      };
-      if (nextLength > prevLength) {
-        _scrollToBottom();
-      }
-    });
-
-    return messagesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stackTrace) => ErrorDisplay(
-        error: error,
-        onRetry: () => ref.invalidate(allMessagesProvider),
-      ),
-      data: (messages) =>
-          _buildMessageList(context, messages, isStreaming, runState),
+    // Show loading overlay, not different widget tree
+    return Stack(
+      children: [
+        _buildMessageList(context, messagesNow, isStreaming, runState),
+        if (messagesAsync.isLoading && messagesNow.isEmpty)
+          const Center(child: CircularProgressIndicator()),
+        if (messagesAsync.hasError && messagesNow.isEmpty)
+          Center(
+            child: ErrorDisplay(
+              error: messagesAsync.error!,
+              stackTrace: messagesAsync.stackTrace ?? StackTrace.empty,
+            ),
+          ),
+      ],
     );
   }
 
   Widget _buildMessageList(
     BuildContext context,
-    List<ChatMessage> messages,
+    List<ChatMessage> historicalMessages,
     bool isStreaming,
     ActiveRunState runState,
   ) {
     final soliplexTheme = SoliplexTheme.of(context);
+
+    // Merge historical messages with streaming state
+    final computation = computeDisplayMessages(historicalMessages, runState);
+    final messages = computation.messages;
 
     // Empty state
     if (messages.isEmpty && !isStreaming) {
@@ -150,55 +251,35 @@ class _MessageListState extends ConsumerState<MessageList> {
         ListView.builder(
           controller: _scrollController,
           padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s4),
-          itemCount: messages.length + (isStreaming ? 1 : 0),
+          itemCount: messages.length,
           itemBuilder: (context, index) {
-            // Show streaming indicator at the bottom
-            if (index == messages.length) {
-              return Semantics(
-                label: 'Assistant is thinking',
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        'Assistant is thinking...',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
-                              fontStyle: FontStyle.italic,
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
+            final message = messages[index];
+            final isLast = index == messages.length - 1;
+            final isSyntheticMessage =
+                isLast && computation.hasSyntheticMessage;
+
+            // Derive user message ID for citation lookup.
+            // Citations are keyed by the user message that triggered the run,
+            // so for an assistant message at index i, we look at index i-1.
+            String? userMessageId;
+            if (message.user == ChatUser.assistant && index > 0) {
+              final preceding = messages[index - 1];
+              if (preceding.user == ChatUser.user) {
+                userMessageId = preceding.id;
+              }
             }
 
-            final message = messages[index];
-            // Check if this message is currently being streamed
-            final isCurrentlyStreaming = switch (runState) {
-              RunningState(streaming: Streaming(:final messageId)) =>
-                messageId == message.id,
-              _ => false,
-            };
+            final sourceRefs = ref.watch(
+              sourceReferencesForUserMessageProvider(userMessageId),
+            );
 
             return ChatMessageWidget(
               key: ValueKey(message.id),
               message: message,
-              isStreaming: isCurrentlyStreaming,
+              isStreaming: isSyntheticMessage,
+              isThinkingStreaming:
+                  isSyntheticMessage && computation.isThinkingStreaming,
+              sourceReferences: sourceRefs,
             );
           },
         ),
@@ -214,9 +295,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                 elevation: 8,
                 borderRadius: BorderRadius.circular(soliplexTheme.radii.xl),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(
-                    soliplexTheme.radii.xl,
-                  ),
+                  borderRadius: BorderRadius.circular(soliplexTheme.radii.xl),
                   onTap: () => _scrollToBottom(force: true),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -235,18 +314,18 @@ class _MessageListState extends ConsumerState<MessageList> {
                         Icon(
                           Icons.arrow_downward,
                           size: 20,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onSecondaryContainer,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSecondaryContainer,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'Scroll to bottom',
                           style:
                               Theme.of(context).textTheme.labelLarge?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSecondaryContainer,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSecondaryContainer,
                                   ),
                         ),
                       ],

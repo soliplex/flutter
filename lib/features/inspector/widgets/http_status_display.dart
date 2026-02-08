@@ -2,29 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:soliplex_frontend/features/inspector/models/http_event_group.dart';
 import 'package:soliplex_frontend/shared/utils/format_utils.dart';
 
-/// Extension on [ColorScheme] to provide warning color.
+/// Extension on [ColorScheme] to provide status colors.
 ///
-/// Material Design 3 ColorScheme doesn't include a warning color.
-/// This extension derives one that adapts to light/dark themes.
-extension WarningColors on ColorScheme {
+/// Material Design 3 ColorScheme doesn't include warning or success colors.
+/// This extension derives ones that adapt to light/dark themes.
+extension HTTPStatusColors on ColorScheme {
   /// Warning color that adapts to the current theme brightness.
   Color get warning =>
       brightness == Brightness.light ? Colors.orange : Colors.orange.shade300;
+
+  /// Success color that adapts to the current theme brightness.
+  Color get success =>
+      brightness == Brightness.light ? Colors.green : Colors.green.shade300;
 }
 
 /// Builds status display widget based on event group status.
 class HttpStatusDisplay extends StatelessWidget {
-  const HttpStatusDisplay({required this.group, super.key});
+  const HttpStatusDisplay({
+    required this.group,
+    this.isSelected = false,
+    super.key,
+  });
 
   static const double _spinnerSize = 12;
   static const double _spinnerStroke = 2;
 
   final HttpEventGroup group;
 
+  /// Whether this display is in a selected tile.
+  final bool isSelected;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = _colorForStatus(group.status, theme.colorScheme);
+    final colorScheme = theme.colorScheme;
+    final color = isSelected
+        ? colorScheme.onPrimaryContainer
+        : _colorForStatus(group.status, colorScheme);
     final statusText = _buildStatusText();
 
     final child = group.hasSpinner
@@ -41,12 +55,12 @@ class HttpStatusDisplay extends StatelessWidget {
   Color _colorForStatus(HttpEventStatus status, ColorScheme colorScheme) {
     return switch (status) {
       HttpEventStatus.pending => colorScheme.onSurfaceVariant,
-      HttpEventStatus.success => colorScheme.tertiary,
+      HttpEventStatus.success => colorScheme.success,
       HttpEventStatus.clientError => colorScheme.warning,
       HttpEventStatus.serverError => colorScheme.error,
       HttpEventStatus.networkError => colorScheme.error,
       HttpEventStatus.streaming => colorScheme.secondary,
-      HttpEventStatus.streamComplete => colorScheme.tertiary,
+      HttpEventStatus.streamComplete => colorScheme.success,
       HttpEventStatus.streamError => colorScheme.error,
     };
   }

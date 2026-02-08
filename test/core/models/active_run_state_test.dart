@@ -12,7 +12,7 @@ void main() {
 
         expect(state.conversation.threadId, isEmpty);
         expect(state.conversation.messages, isEmpty);
-        expect(state.streaming, isA<NotStreaming>());
+        expect(state.streaming, isA<AwaitingText>());
       });
 
       test('messages returns empty list', () {
@@ -69,7 +69,7 @@ void main() {
 
         expect(state.roomId, 'room-1');
         expect(state.conversation, equals(conversation));
-        expect(state.streaming, isA<NotStreaming>());
+        expect(state.streaming, isA<AwaitingText>());
       });
 
       test('threadId delegates to conversation', () {
@@ -114,7 +114,7 @@ void main() {
         expect(state.isRunning, isTrue);
       });
 
-      test('isStreaming returns false when NotStreaming', () {
+      test('isStreaming returns false when AwaitingText', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'run-1'),
@@ -128,7 +128,7 @@ void main() {
         expect(state.isStreaming, isFalse);
       });
 
-      test('isStreaming returns true when Streaming', () {
+      test('isStreaming returns true when TextStreaming', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'run-1'),
@@ -137,7 +137,11 @@ void main() {
         const state = RunningState(
           roomId: 'room-1',
           conversation: conversation,
-          streaming: Streaming(messageId: 'msg-1', text: 'Hello'),
+          streaming: TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hello',
+          ),
         );
 
         expect(state.isStreaming, isTrue);
@@ -190,11 +194,15 @@ void main() {
         );
 
         final updated = original.copyWith(
-          streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
+          streaming: const TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hi',
+          ),
         );
 
-        expect(updated.streaming, isA<Streaming>());
-        expect(original.streaming, isA<NotStreaming>());
+        expect(updated.streaming, isA<TextStreaming>());
+        expect(original.streaming, isA<AwaitingText>());
         expect(updated.conversation, equals(conversation));
         expect(updated.roomId, 'room-1'); // roomId preserved
       });
@@ -255,7 +263,11 @@ void main() {
         const state3 = RunningState(
           roomId: 'room-1',
           conversation: conversation,
-          streaming: Streaming(messageId: 'msg-1', text: 'Hi'),
+          streaming: TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hi',
+          ),
         );
         const state4 = RunningState(
           roomId: 'room-2',
@@ -299,7 +311,7 @@ void main() {
         expect(state.roomId, 'room-1');
         expect(state.conversation, equals(conversation));
         expect(state.result, isA<Success>());
-        expect(state.streaming, isA<NotStreaming>());
+        expect(state.streaming, isA<AwaitingText>());
       });
 
       test('threadId delegates to conversation', () {
@@ -607,7 +619,11 @@ void main() {
       final state = RunningState(
         roomId: 'room-789',
         conversation: conversation,
-        streaming: const Streaming(messageId: 'msg-1', text: 'Hi'),
+        streaming: const TextStreaming(
+          messageId: 'msg-1',
+          user: ChatUser.assistant,
+          text: 'Hi',
+        ),
       );
 
       final str = state.toString();

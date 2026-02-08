@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Provider for fetching a quiz by room and quiz ID.
@@ -19,12 +20,13 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 /// - [AuthException]: 401/403 authentication errors
 /// - [ApiException]: Other server errors
 final quizProvider =
-    FutureProvider.family<Quiz, ({String roomId, String quizId})>(
-  (ref, params) async {
-    final api = ref.watch(apiProvider);
-    return api.getQuiz(params.roomId, params.quizId);
-  },
-);
+    FutureProvider.family<Quiz, ({String roomId, String quizId})>((
+  ref,
+  params,
+) async {
+  final api = ref.watch(apiProvider);
+  return api.getQuiz(params.roomId, params.quizId);
+});
 
 // ============================================================
 // QuizInput - user's answer input (null-free)
@@ -526,8 +528,11 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
 
       return result;
     } catch (e, stackTrace) {
-      debugPrint('Quiz submitAnswer failed: ${e.runtimeType} - $e');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submitAnswer failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
 
       // Re-read state after async gap
       final afterState = state;
@@ -585,8 +590,9 @@ class QuizSessionNotifier extends Notifier<QuizSession> {
     final quiz = switch (currentState) {
       QuizInProgress(:final quiz) => quiz,
       QuizCompleted(:final quiz) => quiz,
-      QuizNotStarted() =>
-        throw StateError('Cannot retake quiz that was never started'),
+      QuizNotStarted() => throw StateError(
+          'Cannot retake quiz that was never started',
+        ),
     };
 
     state = QuizInProgress(

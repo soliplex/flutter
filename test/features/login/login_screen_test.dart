@@ -11,6 +11,7 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -106,7 +107,12 @@ Widget _createAppWithRouter({
   );
 
   return UncontrolledProviderScope(
-    container: ProviderContainer(overrides: overrides.cast()),
+    container: ProviderContainer(
+      overrides: [
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
+        ...overrides.cast(),
+      ],
+    ),
     child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
 }
@@ -118,9 +124,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const LoginScreen(),
-            overrides: [
-              oidcIssuersProvider.overrideWith((ref) async => []),
-            ],
+            overrides: [oidcIssuersProvider.overrideWith((ref) async => [])],
           ),
         );
 
@@ -130,8 +134,9 @@ void main() {
     });
 
     group('Loading state', () {
-      testWidgets('shows loading indicator while fetching issuers',
-          (tester) async {
+      testWidgets('shows loading indicator while fetching issuers', (
+        tester,
+      ) async {
         // Use a completer to keep the provider in loading state
         final completer = Completer<List<OidcIssuer>>();
 
@@ -180,9 +185,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const LoginScreen(),
-            overrides: [
-              oidcIssuersProvider.overrideWith((ref) async => []),
-            ],
+            overrides: [oidcIssuersProvider.overrideWith((ref) async => [])],
           ),
         );
 
@@ -297,9 +300,7 @@ void main() {
         createTestApp(
           home: const LoginScreen(),
           overrides: [
-            oidcIssuersProvider.overrideWith(
-              (ref) async => [_createIssuer()],
-            ),
+            oidcIssuersProvider.overrideWith((ref) async => [_createIssuer()]),
           ],
         ),
       );
@@ -307,10 +308,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Change server'), findsOneWidget);
-      expect(
-        find.widgetWithText(TextButton, 'Change server'),
-        findsOneWidget,
-      );
+      expect(find.widgetWithText(TextButton, 'Change server'), findsOneWidget);
     });
 
     testWidgets('change backend server button navigates to home', (
@@ -331,6 +329,7 @@ void main() {
         UncontrolledProviderScope(
           container: ProviderContainer(
             overrides: [
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
               oidcIssuersProvider.overrideWith(
                 (ref) async => [_createIssuer()],
               ),

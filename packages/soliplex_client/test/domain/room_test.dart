@@ -11,9 +11,11 @@ void main() {
       expect(room.description, equals(''));
       expect(room.metadata, equals(const <String, dynamic>{}));
       expect(room.quizzes, equals(const <String, String>{}));
+      expect(room.suggestions, equals(const <String>[]));
       expect(room.quizIds, isEmpty);
       expect(room.hasDescription, isFalse);
       expect(room.hasQuizzes, isFalse);
+      expect(room.hasSuggestions, isFalse);
     });
 
     test('creates with all fields', () {
@@ -23,6 +25,7 @@ void main() {
         description: 'A test room',
         metadata: {'key': 'value'},
         quizzes: {'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'},
+        suggestions: ['How can I help?', 'Tell me more'],
       );
 
       expect(room.id, equals('room-1'));
@@ -33,9 +36,11 @@ void main() {
         room.quizzes,
         equals({'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'}),
       );
+      expect(room.suggestions, equals(['How can I help?', 'Tell me more']));
       expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));
       expect(room.hasDescription, isTrue);
       expect(room.hasQuizzes, isTrue);
+      expect(room.hasSuggestions, isTrue);
     });
 
     group('copyWith', () {
@@ -56,6 +61,7 @@ void main() {
           description: 'New description',
           metadata: {'new': 'data'},
           quizzes: {'quiz-1': 'Quiz One'},
+          suggestions: ['Suggestion 1', 'Suggestion 2'],
         );
 
         expect(modified.id, equals('room-2'));
@@ -64,6 +70,7 @@ void main() {
         expect(modified.metadata, equals({'new': 'data'}));
         expect(modified.quizzes, equals({'quiz-1': 'Quiz One'}));
         expect(modified.quizIds, equals(['quiz-1']));
+        expect(modified.suggestions, equals(['Suggestion 1', 'Suggestion 2']));
       });
 
       test('creates identical copy when no parameters passed', () {
@@ -73,6 +80,7 @@ void main() {
           description: 'A description',
           metadata: {'key': 'value'},
           quizzes: {'quiz-1': 'Quiz One'},
+          suggestions: ['Suggestion'],
         );
         final copy = room.copyWith();
 
@@ -82,6 +90,7 @@ void main() {
         expect(copy.metadata, equals(room.metadata));
         expect(copy.quizzes, equals(room.quizzes));
         expect(copy.quizIds, equals(room.quizIds));
+        expect(copy.suggestions, equals(room.suggestions));
       });
     });
 

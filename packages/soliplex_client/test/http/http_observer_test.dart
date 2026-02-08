@@ -37,6 +37,30 @@ void main() {
       expect(event.headers['Authorization'], equals('Bearer token'));
     });
 
+    test('creates event with body', () {
+      final body = {'username': 'john', 'action': 'login'};
+      final event = HttpRequestEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        method: 'POST',
+        uri: Uri.parse('https://example.com/api'),
+        body: body,
+      );
+
+      expect(event.body, equals(body));
+    });
+
+    test('body defaults to null', () {
+      final event = HttpRequestEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        method: 'GET',
+        uri: Uri.parse('https://example.com/api'),
+      );
+
+      expect(event.body, isNull);
+    });
+
     test('equality is based on requestId', () {
       final event1 = HttpRequestEvent(
         requestId: 'req-123',
@@ -135,6 +159,47 @@ void main() {
       );
 
       expect(event.reasonPhrase, equals('Created'));
+    });
+
+    test('creates event with body', () {
+      final body = {'data': 'response content'};
+      final event = HttpResponseEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        statusCode: 200,
+        duration: const Duration(milliseconds: 100),
+        bodySize: 512,
+        body: body,
+      );
+
+      expect(event.body, equals(body));
+    });
+
+    test('creates event with headers', () {
+      final headers = {'Content-Type': 'application/json', 'X-Request-Id': 'a'};
+      final event = HttpResponseEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        statusCode: 200,
+        duration: const Duration(milliseconds: 100),
+        bodySize: 512,
+        headers: headers,
+      );
+
+      expect(event.headers, equals(headers));
+    });
+
+    test('body and headers default to null', () {
+      final event = HttpResponseEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        statusCode: 200,
+        duration: Duration.zero,
+        bodySize: 0,
+      );
+
+      expect(event.body, isNull);
+      expect(event.headers, isNull);
     });
 
     test('isSuccess returns true for 2xx status codes', () {
@@ -431,6 +496,30 @@ void main() {
 
       expect(event.error, equals(error));
       expect(event.isSuccess, isFalse);
+    });
+
+    test('creates event with body (SSE buffer)', () {
+      const sseContent = 'event: message\ndata: {"text": "hello"}\n\n';
+      final event = HttpStreamEndEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        bytesReceived: sseContent.length,
+        duration: const Duration(seconds: 5),
+        body: sseContent,
+      );
+
+      expect(event.body, equals(sseContent));
+    });
+
+    test('body defaults to null', () {
+      final event = HttpStreamEndEvent(
+        requestId: 'req-123',
+        timestamp: DateTime.now(),
+        bytesReceived: 1000,
+        duration: const Duration(seconds: 1),
+      );
+
+      expect(event.body, isNull);
     });
 
     test('isSuccess returns true when error is null', () {

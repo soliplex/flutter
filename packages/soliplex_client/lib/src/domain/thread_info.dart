@@ -8,7 +8,6 @@ class ThreadInfo {
     required this.id,
     required this.roomId,
     required this.createdAt,
-    required this.updatedAt,
     this.initialRunId = '',
     this.name = '',
     this.description = '',
@@ -33,9 +32,6 @@ class ThreadInfo {
   /// When the thread was created.
   final DateTime createdAt;
 
-  /// When the thread was last updated.
-  final DateTime updatedAt;
-
   /// Metadata for the thread (empty map if not provided).
   final Map<String, dynamic> metadata;
 
@@ -56,7 +52,6 @@ class ThreadInfo {
     String? name,
     String? description,
     DateTime? createdAt,
-    DateTime? updatedAt,
     Map<String, dynamic>? metadata,
   }) {
     return ThreadInfo(
@@ -66,7 +61,6 @@ class ThreadInfo {
       name: name ?? this.name,
       description: description ?? this.description,
       createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
       metadata: metadata ?? this.metadata,
     );
   }

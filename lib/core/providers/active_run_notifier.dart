@@ -1,32 +1,15 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Cancelled, Completed, Conversation, Failed, Idle, Running;
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
-
-void _log(String message, {Object? error, StackTrace? stackTrace}) {
-  developer.log(
-    message,
-    name: 'ActiveRunNotifier',
-    error: error,
-    stackTrace: stackTrace,
-  );
-  // Also print to console for easier debugging
-  debugPrint('[ActiveRunNotifier] $message');
-  if (error != null) {
-    debugPrint('[ActiveRunNotifier] Error: $error');
-  }
-  if (stackTrace != null) {
-    debugPrint('[ActiveRunNotifier] StackTrace: $stackTrace');
-  }
-}
 
 /// Internal state representing the notifier's resource management.
 ///
@@ -46,13 +29,30 @@ class IdleInternalState extends NotifierInternalState {
 ///
 /// Not marked as @immutable because it holds mutable StreamSubscription.
 class RunningInternalState extends NotifierInternalState {
-  RunningInternalState({required this.cancelToken, required this.subscription});
+  RunningInternalState({
+    required this.runId,
+    required this.cancelToken,
+    required this.subscription,
+    required this.userMessageId,
+    required this.previousAguiState,
+  });
+
+  /// The ID of the active run.
+  final String runId;
 
   /// Token for cancelling the run.
   final CancelToken cancelToken;
 
   /// Subscription to the event stream.
   final StreamSubscription<BaseEvent> subscription;
+
+  /// The ID of the user message that triggered this run.
+  /// Used to correlate citations at run completion.
+  final String userMessageId;
+
+  /// AG-UI state snapshot from before the run started.
+  /// Used to detect new citations via length-based comparison.
+  final Map<String, dynamic> previousAguiState;
 
   /// Disposes of all resources.
   Future<void> dispose() async {
@@ -131,7 +131,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     }
 
     _isStarting = true;
+    Loggers.activeRun.debug(
+      'startRun called: room=$roomId, thread=$threadId',
+    );
     StreamSubscription<BaseEvent>? subscription;
+    String? runId;
 
     try {
       // Dispose any previous resources
@@ -143,7 +147,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final cancelToken = CancelToken();
 
       // Step 1: Get run_id (use existing or create new)
-      final String runId;
       if (existingRunId != null && existingRunId.isNotEmpty) {
         runId = existingRunId;
       } else {
@@ -161,7 +164,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         text: userMessage,
       );
 
-      // Read historical messages from cache.
+      // Read historical thread data from cache.
       // Cache is populated by allMessagesProvider when thread is selected.
       // If cache is empty (e.g., direct URL navigation + immediate send),
       // we proceed without history - backend still processes correctly.
@@ -170,17 +173,19 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // because normal UI flow ensures cache is populated before user can
       // send. Adding async fetch here would block UI for a rare edge case.
       // See issue #30 for details.
-      final cachedMessages =
-          ref.read(threadMessageCacheProvider)[threadId] ?? [];
+      final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+      final cachedMessages = cachedHistory?.messages ?? [];
+      final cachedAguiState = cachedHistory?.aguiState ?? const {};
 
       // Combine historical messages with new user message
       final allMessages = [...cachedMessages, userMessageObj];
 
-      // Create conversation with full history and Running status
+      // Create conversation with full history, AG-UI state, and Running status
       final conversation = domain.Conversation(
         threadId: threadId,
         messages: allMessages,
         status: domain.Running(runId: runId),
+        aguiState: cachedAguiState,
       );
 
       // Set running state
@@ -192,13 +197,21 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Convert all messages to AG-UI format for backend
       final aguiMessages = convertToAgui(allMessages);
 
+      // Merge accumulated AG-UI state with any client-provided initial state.
+      // Order: cached state first (backend-generated), then initial state
+      // (client-generated like filter_documents) so client can override.
+      final mergedState = <String, dynamic>{
+        ...cachedAguiState,
+        ...?initialState,
+      };
+
       // Create the input for the run with client-side tool definitions
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
         tools: _toolRegistry.definitions,
-        state: initialState,
+        state: mergedState,
       );
 
       // Start streaming
@@ -213,25 +226,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       subscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
-          _log(
-            'Stream error during run',
-            error: error,
-            stackTrace: stackTrace,
-          );
-          final currentState = state;
-          if (currentState is RunningState) {
-            final errorMsg = error.toString();
-            _log('Run failed with error: $errorMsg');
-            final completed = CompletedState(
-              roomId: currentState.roomId,
-              conversation: currentState.conversation.withStatus(
-                domain.Failed(error: errorMsg),
-              ),
-              result: FailedResult(errorMessage: errorMsg),
-            );
-            state = completed;
-            _updateCacheOnCompletion(completed);
-          }
+          // Use provided stackTrace, or capture current if empty.
+          final effectiveStack = stackTrace.toString().isNotEmpty
+              ? stackTrace
+              : StackTrace.current;
+          _handleRunFailure(error, effectiveStack);
         },
         onDone: () {
           // If stream ends without RUN_FINISHED or RUN_ERROR,
@@ -252,14 +251,21 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         cancelOnError: false,
       );
 
-      // Store running state
+      Loggers.activeRun.debug(
+        'Stream subscription established for run $runId',
+      );
+
+      // Store running state with correlation data
       _internalState = RunningInternalState(
+        runId: runId,
         cancelToken: cancelToken,
         subscription: subscription,
+        userMessageId: userMessageObj.id,
+        previousAguiState: cachedAguiState,
       );
-    } on CancellationError catch (e, stackTrace) {
+    } on CancellationError catch (e, st) {
       // User cancelled - clean up resources
-      _log('Run cancelled: ${e.message}', error: e, stackTrace: stackTrace);
+      Loggers.activeRun.info('Run cancelled', error: e, stackTrace: st);
       await subscription?.cancel();
       final completed = CompletedState(
         roomId: roomId,
@@ -273,7 +279,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       _internalState = const IdleInternalState();
     } catch (e, stackTrace) {
       // Clean up subscription on any error
-      _log('Run failed with exception', error: e, stackTrace: stackTrace);
+      Loggers.activeRun.error(
+        'Run failed with exception',
+        error: e,
+        stackTrace: stackTrace,
+      );
       await subscription?.cancel();
       final errorMsg = e.toString();
       final completed = CompletedState(
@@ -281,7 +291,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         conversation: state.conversation.withStatus(
           domain.Failed(error: errorMsg),
         ),
-        result: FailedResult(errorMessage: errorMsg),
+        result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       state = completed;
       _updateCacheOnCompletion(completed);
@@ -295,10 +305,12 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ///
   /// Preserves all completed messages but clears streaming state.
   Future<void> cancelRun() async {
+    Loggers.activeRun.debug('cancelRun called');
     final currentState = state;
+    final previousInternalState = _internalState;
 
-    if (_internalState is RunningInternalState) {
-      await (_internalState as RunningInternalState).dispose();
+    if (previousInternalState is RunningInternalState) {
+      await previousInternalState.dispose();
       _internalState = const IdleInternalState();
     }
 
@@ -321,6 +333,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// disposal of any active resources. Disposal errors are caught and logged
   /// to ensure fire-and-forget callers (like Riverpod listeners) are safe.
   Future<void> reset() async {
+    Loggers.activeRun.debug('reset called');
     final previousState = _internalState;
     _internalState = const IdleInternalState();
     state = const IdleState();
@@ -329,42 +342,118 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       try {
         await previousState.dispose();
       } on Exception catch (e, st) {
-        debugPrint('Disposal error during reset: $e\n$st');
+        Loggers.activeRun.error(
+          'Disposal error during reset',
+          error: e,
+          stackTrace: st,
+        );
       }
+    }
+  }
+
+  /// Handles run failures from both stream errors and processing exceptions.
+  ///
+  /// Logs the error, transitions to failed state, and cleans up resources.
+  void _handleRunFailure(Object error, StackTrace stackTrace) {
+    Loggers.activeRun.error(
+      'Run failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
+
+    final currentState = state;
+    if (currentState is RunningState) {
+      final errorMsg = error.toString();
+      final completed = CompletedState(
+        roomId: currentState.roomId,
+        conversation: currentState.conversation.withStatus(
+          domain.Failed(error: errorMsg),
+        ),
+        result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
+      );
+      state = completed;
+      _updateCacheOnCompletion(completed);
+    }
+
+    // Clean up internal state
+    final internalState = _internalState;
+    if (internalState is RunningInternalState) {
+      internalState.dispose();
+      _internalState = const IdleInternalState();
     }
   }
 
   /// Processes a single AG-UI event and updates state accordingly.
   void _processEvent(BaseEvent event) {
-    final currentState = state;
-    if (currentState is! RunningState) return;
+    try {
+      final currentState = state;
+      if (currentState is! RunningState) return;
 
-    // Log error events for debugging
-    if (event is RunErrorEvent) {
-      _log('Received RUN_ERROR event: ${event.message}');
-    }
+      // Log AG-UI events for debugging
+      _logEvent(event);
 
-    // Use application layer processor
-    final result = processEvent(
-      currentState.conversation,
-      currentState.streaming,
-      event,
-    );
+      // Use application layer processor
+      final result = processEvent(
+        currentState.conversation,
+        currentState.streaming,
+        event,
+      );
 
-    // Map result to frontend state
-    state = _mapResultToState(currentState, result);
+      // Map result to frontend state
+      state = _mapResultToState(currentState, result);
 
-    // Check for client-side tools ready to execute
-    // (only ToolCallStatus.pending AND registered in client tool registry)
-    if (state is RunningState) {
-      final runningState = state as RunningState;
-      final pendingClientTools = runningState.conversation.toolCalls
-          .where((tc) => tc.status == ToolCallStatus.pending)
-          .where((tc) => _toolRegistry.hasExecutor(tc.name))
-          .toList();
-      if (pendingClientTools.isNotEmpty) {
-        unawaited(_executeToolsAndContinue(runningState, pendingClientTools));
+      // Check for client-side tools ready to execute
+      // (only ToolCallStatus.pending AND registered in client tool registry)
+      if (state is RunningState) {
+        final runningState = state as RunningState;
+        final pendingClientTools = runningState.conversation.toolCalls
+            .where((tc) => tc.status == ToolCallStatus.pending)
+            .where((tc) => _toolRegistry.hasExecutor(tc.name))
+            .toList();
+        if (pendingClientTools.isNotEmpty) {
+          unawaited(
+            _executeToolsAndContinue(runningState, pendingClientTools),
+          );
+        }
       }
+    } catch (e, st) {
+      _handleRunFailure(e, st);
+    }
+  }
+
+  /// Logs AG-UI events at appropriate levels.
+  void _logEvent(BaseEvent event) {
+    switch (event) {
+      case RunStartedEvent():
+        Loggers.activeRun.debug('RUN_STARTED');
+      case RunFinishedEvent():
+        Loggers.activeRun.debug('RUN_FINISHED');
+      case RunErrorEvent(:final message):
+        Loggers.activeRun.error('RUN_ERROR: $message');
+      case ThinkingTextMessageStartEvent():
+        Loggers.activeRun.trace('THINKING_START');
+      case ThinkingTextMessageContentEvent():
+        Loggers.activeRun.trace('THINKING_CONTENT');
+      case ThinkingTextMessageEndEvent():
+        Loggers.activeRun.trace('THINKING_END');
+      case TextMessageStartEvent(:final messageId):
+        Loggers.activeRun.debug('TEXT_START: $messageId');
+      case TextMessageContentEvent(:final messageId):
+        Loggers.activeRun.trace('TEXT_CONTENT: $messageId');
+      case TextMessageEndEvent(:final messageId):
+        Loggers.activeRun.debug('TEXT_END: $messageId');
+      case ToolCallStartEvent(:final toolCallId, :final toolCallName):
+        Loggers.activeRun.debug('TOOL_START: $toolCallName ($toolCallId)');
+      case ToolCallArgsEvent(:final toolCallId):
+        Loggers.activeRun.trace('TOOL_ARGS: $toolCallId');
+      case ToolCallEndEvent(:final toolCallId):
+        Loggers.activeRun.debug('TOOL_END: $toolCallId');
+      case StateSnapshotEvent():
+        Loggers.activeRun.debug('STATE_SNAPSHOT');
+      case StateDeltaEvent():
+        Loggers.activeRun.debug('STATE_DELTA');
+      default:
+        Loggers.activeRun.trace('EVENT: ${event.runtimeType}');
     }
   }
 
@@ -376,30 +465,33 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     RunningState previousState,
     EventProcessingResult result,
   ) {
-    final newState = switch (result.conversation.status) {
+    // On completion, correlate citations with the user message
+    final conversation = _correlateMessageStateOnCompletion(result);
+
+    final newState = switch (conversation.status) {
       domain.Completed() => CompletedState(
           roomId: previousState.roomId,
-          conversation: result.conversation,
+          conversation: conversation,
           streaming: result.streaming,
           result: const Success(),
         ),
       domain.Failed(:final error) => () {
-          _log('Run completed with failure: $error');
+          Loggers.activeRun.error('Run completed with failure: $error');
           return CompletedState(
             roomId: previousState.roomId,
-            conversation: result.conversation,
+            conversation: conversation,
             streaming: result.streaming,
             result: FailedResult(errorMessage: error),
           );
         }(),
       domain.Cancelled(:final reason) => CompletedState(
           roomId: previousState.roomId,
-          conversation: result.conversation,
+          conversation: conversation,
           streaming: result.streaming,
           result: CancelledResult(reason: reason),
         ),
       domain.Running() => previousState.copyWith(
-          conversation: result.conversation,
+          conversation: conversation,
           streaming: result.streaming,
         ),
       domain.Idle() => throw StateError(
@@ -407,7 +499,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
     };
 
-    // Update cache when run completes via event (RUN_FINISHED, RUN_ERROR)
+    // Update cache when run completes via event
     if (newState is CompletedState) {
       _updateCacheOnCompletion(newState);
     }
@@ -415,13 +507,64 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     return newState;
   }
 
-  /// Updates the message cache when a run completes.
+  /// Correlates AG-UI state changes with the user message on run completion.
+  ///
+  /// Uses [CitationExtractor] to find new citations by comparing the
+  /// previous AG-UI state (captured at run start) with the current state.
+  /// Creates a [MessageState] and adds it to the conversation.
+  domain.Conversation _correlateMessageStateOnCompletion(
+    EventProcessingResult result,
+  ) {
+    final conversation = result.conversation;
+
+    // Only correlate on completion (Completed, Failed, Cancelled)
+    if (conversation.status is domain.Running) {
+      return conversation;
+    }
+
+    // Need internal state for correlation data
+    if (_internalState is! RunningInternalState) {
+      return conversation;
+    }
+
+    final runningState = _internalState as RunningInternalState;
+    final userMessageId = runningState.userMessageId;
+    final previousAguiState = runningState.previousAguiState;
+
+    // Extract new citations using the schema firewall
+    final extractor = CitationExtractor();
+    final sourceReferences = extractor.extractNew(
+      previousAguiState,
+      conversation.aguiState,
+    );
+
+    // Create MessageState and add to conversation
+    final messageState = MessageState(
+      userMessageId: userMessageId,
+      sourceReferences: sourceReferences,
+    );
+
+    return conversation.withMessageState(userMessageId, messageState);
+  }
+
+  /// Updates the history cache when a run completes.
   void _updateCacheOnCompletion(CompletedState completedState) {
     final threadId = completedState.threadId;
     if (threadId.isEmpty) return;
+
+    // Merge existing messageStates from cache with new ones from this run
+    final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+    final existingMessageStates = cachedHistory?.messageStates ?? const {};
+    final newMessageStates = completedState.conversation.messageStates;
+
+    final history = ThreadHistory(
+      messages: completedState.messages,
+      aguiState: completedState.conversation.aguiState,
+      messageStates: {...existingMessageStates, ...newMessageStates},
+    );
     ref
-        .read(threadMessageCacheProvider.notifier)
-        .updateMessages(threadId, completedState.messages);
+        .read(threadHistoryCacheProvider.notifier)
+        .updateHistory(threadId, history);
   }
 
   /// Executes pending tools and continues the run with results.
@@ -462,7 +605,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           ),
         );
       } catch (e) {
-        _log('Tool execution failed: ${tool.name}', error: e);
+        Loggers.activeRun
+            .error('Tool execution failed: ${tool.name}', error: e);
         results.add(
           tool.copyWith(
             status: ToolCallStatus.failed,
@@ -479,9 +623,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       toolCalls: results,
     );
 
-    // 4. Cancel current stream
+    // 4. Save correlation data and cancel current stream
+    var userMessageId = '';
+    var previousAguiState = const <String, dynamic>{};
     if (_internalState is RunningInternalState) {
-      await (_internalState as RunningInternalState).dispose();
+      final running = _internalState as RunningInternalState;
+      userMessageId = running.userMessageId;
+      previousAguiState = running.previousAguiState;
+      await running.dispose();
       _internalState = const IdleInternalState();
     }
 
@@ -493,7 +642,12 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     state = currentState.copyWith(conversation: updatedConversation);
 
     // 6. Continue with new run
-    await _continueWithToolResults(currentState.roomId, updatedConversation);
+    await _continueWithToolResults(
+      currentState.roomId,
+      updatedConversation,
+      userMessageId: userMessageId,
+      previousAguiState: previousAguiState,
+    );
   }
 
   /// Continues the run with tool results by starting a new run.
@@ -502,37 +656,28 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// The server receives the tool results in the messages to continue properly.
   Future<void> _continueWithToolResults(
     String roomId,
-    domain.Conversation conversation,
-  ) async {
+    domain.Conversation conversation, {
+    required String userMessageId,
+    required Map<String, dynamic> previousAguiState,
+  }) async {
     try {
-      // Get API and client
       final api = ref.read(apiProvider);
-
-      // Create run with existing thread (positional arguments)
-      // NOTE: createRun does NOT take a cancelToken parameter
       final runInfo = await api.createRun(roomId, conversation.threadId);
 
-      // Build the endpoint URL for streaming
       final endpoint =
           'rooms/$roomId/agui/${conversation.threadId}/${runInfo.id}';
 
-      // CRITICAL: Map the conversation messages to include tool results
-      // The server must receive the tool execution results to continue properly
-      // Use convertToAgui() function from agui_message_mapper.dart
       final mappedMessages = convertToAgui(conversation.messages);
 
-      // Create input for the continuation run WITH mapped messages and tools
       final input = SimpleRunAgentInput(
-        messages: mappedMessages, // Include tool results for server
+        messages: mappedMessages,
         tools: _toolRegistry.definitions,
         threadId: conversation.threadId,
         runId: runInfo.id,
       );
 
-      // Create a new cancel token for this run
       final cancelToken = CancelToken();
 
-      // Subscribe to continuation events using runAgent with correct signature
       final stream = _agUiClient.runAgent(
         endpoint,
         input,
@@ -546,32 +691,19 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       // Update internal state to track the new run
       _internalState = RunningInternalState(
+        runId: runInfo.id,
+        cancelToken: cancelToken,
+        userMessageId: userMessageId,
+        previousAguiState: previousAguiState,
         subscription: stream.listen(
           _processEvent,
           onError: (Object error, StackTrace stackTrace) {
-            _log(
-              'Stream error during continuation run',
-              error: error,
-              stackTrace: stackTrace,
-            );
-            final currentState = state;
-            if (currentState is RunningState) {
-              final errorMsg = error.toString();
-              _log('Continuation run failed with error: $errorMsg');
-              final completed = CompletedState(
-                roomId: currentState.roomId,
-                conversation: currentState.conversation.withStatus(
-                  domain.Failed(error: errorMsg),
-                ),
-                result: FailedResult(errorMessage: errorMsg),
-              );
-              state = completed;
-              _updateCacheOnCompletion(completed);
-            }
+            final effectiveStack = stackTrace.toString().isNotEmpty
+                ? stackTrace
+                : StackTrace.current;
+            _handleRunFailure(error, effectiveStack);
           },
           onDone: () {
-            // If stream ends without RUN_FINISHED or RUN_ERROR,
-            // mark as finished
             final currentState = state;
             if (currentState is RunningState) {
               final completed = CompletedState(
@@ -587,28 +719,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           },
           cancelOnError: false,
         ),
-        cancelToken: cancelToken,
       );
     } catch (e, stackTrace) {
-      _log(
+      Loggers.activeRun.error(
         'Failed to continue with tool results',
         error: e,
         stackTrace: stackTrace,
       );
-      final currentState = state;
-      if (currentState is RunningState) {
-        final errorMsg = e.toString();
-        final completed = CompletedState(
-          roomId: currentState.roomId,
-          conversation: currentState.conversation.withStatus(
-            domain.Failed(error: errorMsg),
-          ),
-          result: FailedResult(errorMessage: errorMsg),
-        );
-        state = completed;
-        _updateCacheOnCompletion(completed);
-      }
-      _internalState = const IdleInternalState();
+      _handleRunFailure(e, stackTrace);
     }
   }
 }

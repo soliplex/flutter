@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
@@ -21,8 +22,9 @@ class IsGridViewNotifier extends Notifier<bool> {
   void toggle() => state = !state;
 }
 
-final isGridViewProvider =
-    NotifierProvider<IsGridViewNotifier, bool>(IsGridViewNotifier.new);
+final isGridViewProvider = NotifierProvider<IsGridViewNotifier, bool>(
+  IsGridViewNotifier.new,
+);
 
 class RoomSearchQueryNotifier extends Notifier<String> {
   @override
@@ -77,9 +79,7 @@ class RoomsScreen extends ConsumerWidget {
         return Align(
           alignment: AlignmentDirectional.topCenter,
           child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: maxContentWidth,
-            ),
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
             child: Column(
               spacing: SoliplexSpacing.s4,
               children: [
@@ -95,6 +95,7 @@ class RoomsScreen extends ConsumerWidget {
                 Expanded(
                   child: roomsAsync.when(
                     data: (rooms) {
+                      Loggers.room.debug('Rooms loaded: ${rooms.length}');
                       if (rooms.isEmpty) {
                         return const EmptyState(
                           message: 'No rooms available',
@@ -103,6 +104,9 @@ class RoomsScreen extends ConsumerWidget {
                       }
 
                       void navigateToRoom(Room room) {
+                        Loggers.room.info(
+                          'Room selected: ${room.id} (${room.name})',
+                        );
                         ref.read(currentRoomIdProvider.notifier).set(room.id);
                         context.push('/rooms/${room.id}');
                       }
@@ -116,11 +120,8 @@ class RoomsScreen extends ConsumerWidget {
                             crossAxisSpacing: SoliplexSpacing.s2,
                             mainAxisSpacing: SoliplexSpacing.s2,
                           ),
-                          itemCount: rooms.length + 1,
+                          itemCount: rooms.length,
                           itemBuilder: (context, index) {
-                            if (index == rooms.length) {
-                              return RoomGridCard.ghost(context: context);
-                            }
                             final room = rooms[index];
                             return RoomGridCard(
                               room: room,
@@ -131,16 +132,8 @@ class RoomsScreen extends ConsumerWidget {
                       }
 
                       return ListView.builder(
-                        itemCount: rooms.length + 1,
+                        itemCount: rooms.length,
                         itemBuilder: (context, index) {
-                          if (index == rooms.length) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: SoliplexSpacing.s1,
-                              ),
-                              child: RoomListTile.ghost(context: context),
-                            );
-                          }
                           final room = rooms[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(
@@ -158,6 +151,7 @@ class RoomsScreen extends ConsumerWidget {
                         const LoadingIndicator(message: 'Loading rooms...'),
                     error: (error, stack) => ErrorDisplay(
                       error: error,
+                      stackTrace: stack,
                       onRetry: () => ref.invalidate(roomsProvider),
                     ),
                   ),

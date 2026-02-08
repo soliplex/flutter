@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:meta/meta.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 
 /// Notifier that stores HTTP events and implements [HttpObserver].
 ///
@@ -9,10 +11,18 @@ import 'package:soliplex_client/soliplex_client.dart';
 /// Events are stored in chronological order as they occur. Oldest events
 /// are dropped when [maxEvents] is exceeded to prevent unbounded memory growth.
 ///
+/// **Security**: All sensitive data (headers, URIs, bodies) is redacted by
+/// [ObservableHttpClient] before events reach this provider. Events stored
+/// here are already safe for display.
+///
 /// **Timing**: Events are processed asynchronously via [scheduleMicrotask].
 /// State updates may be delayed by one microtask tick after the HTTP event
 /// occurs. This avoids Riverpod build-time mutation errors when HTTP requests
 /// happen during provider initialization.
+///
+/// **Storage**: This provider's state MUST NOT be persisted to disk. HTTP logs
+/// may contain sensitive debugging information that should only exist in memory
+/// during the current session.
 ///
 /// Example:
 /// ```dart
@@ -22,6 +32,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 /// // Clear log
 /// ref.read(httpLogProvider.notifier).clear();
 /// ```
+@doNotStore
 class HttpLogNotifier extends Notifier<List<HttpEvent>>
     implements HttpObserver {
   /// Maximum number of events to retain.
@@ -29,22 +40,6 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
 
   @override
   List<HttpEvent> build() => [];
-
-  /// Headers that should have their values redacted for security.
-  static const _sensitiveHeaders = {'authorization', 'cookie', 'set-cookie'};
-
-  /// Query parameters that should have their values redacted for security.
-  static const _sensitiveParams = {
-    'token',
-    'access_token',
-    'refresh_token',
-    'id_token',
-    'code',
-    'client_secret',
-    'state',
-    'code_verifier',
-    'session_state',
-  };
 
   void _addEvent(HttpEvent event) {
     // Defer state update to avoid Riverpod errors when called during
@@ -58,73 +53,31 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
     });
   }
 
-  /// Redacts sensitive header values to prevent token leakage in logs.
-  Map<String, String> _redactHeaders(Map<String, String> headers) {
-    return headers.map((key, value) {
-      if (_sensitiveHeaders.contains(key.toLowerCase())) {
-        return MapEntry(key, '[REDACTED]');
-      }
-      return MapEntry(key, value);
-    });
-  }
-
-  /// Redacts sensitive query parameter values to prevent token leakage in logs.
-  Uri _redactUri(Uri uri) {
-    if (uri.queryParameters.isEmpty) return uri;
-
-    final hasSenitiveParams = uri.queryParameters.keys.any(
-      (key) => _sensitiveParams.contains(key.toLowerCase()),
-    );
-    if (!hasSenitiveParams) return uri;
-
-    final redactedParams = uri.queryParameters.map((key, value) {
-      if (_sensitiveParams.contains(key.toLowerCase())) {
-        return MapEntry(key, '[REDACTED]');
-      }
-      return MapEntry(key, value);
-    });
-
-    return uri.replace(queryParameters: redactedParams);
-  }
-
   @override
   void onRequest(HttpRequestEvent event) {
-    final redacted = HttpRequestEvent(
-      requestId: event.requestId,
-      timestamp: event.timestamp,
-      method: event.method,
-      uri: _redactUri(event.uri),
-      headers: _redactHeaders(event.headers),
-    );
-    _addEvent(redacted);
+    Loggers.http.debug('${event.method} ${event.uri}');
+    _addEvent(event);
   }
 
   @override
-  void onResponse(HttpResponseEvent event) => _addEvent(event);
+  void onResponse(HttpResponseEvent event) {
+    Loggers.http.debug('${event.statusCode} response');
+    _addEvent(event);
+  }
 
   @override
   void onError(HttpErrorEvent event) {
-    final redacted = HttpErrorEvent(
-      requestId: event.requestId,
-      timestamp: event.timestamp,
-      method: event.method,
-      uri: _redactUri(event.uri),
-      exception: event.exception,
-      duration: event.duration,
+    // Note: HttpErrorEvent does not carry a StackTrace from the call site.
+    // The stack trace is lost at the ObservableHttpClient boundary.
+    Loggers.http.error(
+      '${event.method} ${event.uri}',
+      error: event.exception,
     );
-    _addEvent(redacted);
+    _addEvent(event);
   }
 
   @override
-  void onStreamStart(HttpStreamStartEvent event) {
-    final redacted = HttpStreamStartEvent(
-      requestId: event.requestId,
-      timestamp: event.timestamp,
-      method: event.method,
-      uri: _redactUri(event.uri),
-    );
-    _addEvent(redacted);
-  }
+  void onStreamStart(HttpStreamStartEvent event) => _addEvent(event);
 
   @override
   void onStreamEnd(HttpStreamEndEvent event) => _addEvent(event);
@@ -139,6 +92,8 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
 ///
 /// The notifier implements [HttpObserver] and can be passed to
 /// [ObservableHttpClient] to capture all HTTP traffic.
+///
+/// **Do not persist**: This provider's state should never be saved to disk.
 final httpLogProvider = NotifierProvider<HttpLogNotifier, List<HttpEvent>>(
   HttpLogNotifier.new,
 );

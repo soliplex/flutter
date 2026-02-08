@@ -118,7 +118,6 @@ void main() {
                         roomId: 'room_1',
                         name: 'Test Thread',
                         createdAt: DateTime.now(),
-                        updatedAt: DateTime.now(),
                       ),
                     ],
                   ),

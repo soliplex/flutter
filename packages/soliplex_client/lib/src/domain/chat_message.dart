@@ -53,7 +53,6 @@ class TextMessage extends ChatMessage {
     required this.text,
     this.isStreaming = false,
     this.thinkingText = '',
-    this.isThinkingStreaming = false,
   });
 
   /// Creates a text message with the given ID and auto-generated timestamp.
@@ -62,12 +61,14 @@ class TextMessage extends ChatMessage {
     required ChatUser user,
     required String text,
     bool isStreaming = false,
+    String thinkingText = '',
   }) {
     return TextMessage(
       id: id,
       user: user,
       text: text,
       isStreaming: isStreaming,
+      thinkingText: thinkingText,
       createdAt: DateTime.now(),
     );
   }
@@ -81,9 +82,6 @@ class TextMessage extends ChatMessage {
   /// The thinking/reasoning text if available.
   final String thinkingText;
 
-  /// Whether thinking text is currently streaming.
-  final bool isThinkingStreaming;
-
   /// Whether this message has thinking text.
   bool get hasThinkingText => thinkingText.isNotEmpty;
 
@@ -95,7 +93,6 @@ class TextMessage extends ChatMessage {
     String? text,
     bool? isStreaming,
     String? thinkingText,
-    bool? isThinkingStreaming,
   }) {
     return TextMessage(
       id: id ?? this.id,
@@ -104,7 +101,6 @@ class TextMessage extends ChatMessage {
       text: text ?? this.text,
       isStreaming: isStreaming ?? this.isStreaming,
       thinkingText: thinkingText ?? this.thinkingText,
-      isThinkingStreaming: isThinkingStreaming ?? this.isThinkingStreaming,
     );
   }
 

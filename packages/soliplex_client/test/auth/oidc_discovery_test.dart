@@ -12,10 +12,7 @@ void main() {
       'https://idp.example.com/.well-known/openid-configuration';
   final discoveryUri = Uri.parse(discoveryUrl);
 
-  HttpResponse jsonResponse(
-    Map<String, dynamic> body, {
-    int statusCode = 200,
-  }) {
+  HttpResponse jsonResponse(Map<String, dynamic> body, {int statusCode = 200}) {
     return HttpResponse(
       statusCode: statusCode,
       bodyBytes: Uint8List.fromList(utf8.encode(jsonEncode(body))),
@@ -42,20 +39,22 @@ void main() {
         );
       });
 
-      test('returns document with null endSessionEndpoint when not present',
-          () {
-        final json = {
-          'token_endpoint': 'https://idp.example.com/oauth2/token',
-        };
+      test(
+        'returns document with null endSessionEndpoint when not present',
+        () {
+          final json = {
+            'token_endpoint': 'https://idp.example.com/oauth2/token',
+          };
 
-        final doc = OidcDiscoveryDocument.fromJson(json, discoveryUri);
+          final doc = OidcDiscoveryDocument.fromJson(json, discoveryUri);
 
-        expect(
-          doc.tokenEndpoint.toString(),
-          'https://idp.example.com/oauth2/token',
-        );
-        expect(doc.endSessionEndpoint, isNull);
-      });
+          expect(
+            doc.tokenEndpoint.toString(),
+            'https://idp.example.com/oauth2/token',
+          );
+          expect(doc.endSessionEndpoint, isNull);
+        },
+      );
 
       test('throws FormatException when token_endpoint is missing', () {
         final json = {

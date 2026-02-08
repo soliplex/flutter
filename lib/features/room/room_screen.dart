@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
@@ -61,6 +64,8 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     if (_initializedForRoomId == widget.roomId) return;
     _initializedForRoomId = widget.roomId;
 
+    Loggers.room.debug('Room screen initialized for ${widget.roomId}');
+
     // Sync global room ID for currentRoomProvider and currentThreadProvider
     ref.read(currentRoomIdProvider.notifier).set(widget.roomId);
 
@@ -75,6 +80,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     // 1. Query param (if valid)
     if (widget.initialThreadId != null &&
         threads.any((t) => t.id == widget.initialThreadId)) {
+      Loggers.room.debug(
+        'Thread selection: query param ${widget.initialThreadId}',
+      );
       _selectThread(widget.initialThreadId!);
       return;
     }
@@ -89,11 +97,15 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         case HasLastViewed(
           :final threadId,
         ) when threads.any((t) => t.id == threadId)) {
+      Loggers.room.debug('Thread selection: last viewed $threadId');
       ref.read(threadSelectionProvider.notifier).set(ThreadSelected(threadId));
       return;
     }
 
     // 3. First thread
+    Loggers.room.debug(
+      'Thread selection: first thread fallback ${threads.first.id}',
+    );
     _selectThread(threads.first.id);
   }
 
@@ -113,12 +125,15 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final currentRoom = ref.watch(currentRoomProvider);
     final quizzes = currentRoom?.quizzes ?? const <String, String>{};
 
+    final features = ref.watch(featuresProvider);
+
     return AppShell(
       config: ShellConfig(
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
         actions: [
           if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
+          if (features.enableSettings) _buildSettingsButton(),
         ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
@@ -145,6 +160,17 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           _showQuizPicker(quizzes);
         }
       },
+    );
+  }
+
+  Widget _buildSettingsButton() {
+    return Semantics(
+      label: 'Settings',
+      child: IconButton(
+        icon: const Icon(Icons.settings),
+        onPressed: () => context.push('/settings'),
+        tooltip: 'Open settings',
+      ),
     );
   }
 
@@ -191,19 +217,20 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         label: 'Room selector, current: ${currentRoom?.name ?? 'none'}',
         child: Tooltip(
           message: 'Switch to another room',
-          child: DropdownMenu<String>(
-            initialSelection: currentRoom?.id,
-            dropdownMenuEntries: rooms
-                .map(
-                  (r) => DropdownMenuEntry(
-                    value: r.id,
-                    label: trimRoomName(r.name),
+          child: InkWell(
+            onTap: () => _showRoomPicker(rooms),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    trimRoomName(currentRoom?.name ?? 'Select Room'),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                )
-                .toList(),
-            onSelected: (id) {
-              if (id != null) context.go('/rooms/$id');
-            },
+                ),
+                const Icon(Icons.arrow_drop_down),
+              ],
+            ),
           ),
         ),
       ),
@@ -216,8 +243,11 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         ),
       ),
       error: (error, stackTrace) {
-        debugPrint('Failed to load rooms: $error');
-        debugPrint(stackTrace.toString());
+        Loggers.room.error(
+          'Failed to load rooms',
+          error: error,
+          stackTrace: stackTrace,
+        );
         return Semantics(
           label: 'Error loading rooms',
           child: const Tooltip(
@@ -227,6 +257,41 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         );
       },
     );
+  }
+
+  Future<void> _showRoomPicker(List<Room> rooms) async {
+    final currentRoom = ref.read(currentRoomProvider);
+    final sortedRooms = [...rooms]..sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+
+    final selectedId = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('Switch Room'),
+        children: [
+          for (final room in sortedRooms)
+            SimpleDialogOption(
+              onPressed: () => Navigator.pop(context, room.id),
+              child: Row(
+                children: [
+                  Expanded(child: Text(room.name)),
+                  if (room.id == currentRoom?.id)
+                    Icon(
+                      Icons.check,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+
+    if (selectedId != null && mounted) {
+      Loggers.room.info('Room switched to $selectedId');
+      context.go('/rooms/$selectedId');
+    }
   }
 
   Widget _buildDesktopLayout(BuildContext context) {

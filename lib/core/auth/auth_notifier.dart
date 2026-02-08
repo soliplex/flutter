@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide AuthException;
 import 'package:soliplex_frontend/core/auth/auth_flow.dart'
@@ -7,6 +6,7 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
 /// Notifier for managing authentication state.
@@ -32,8 +32,6 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
   /// Get the current auth flow (picks up latest config URL).
   AuthFlow get _authFlow => ref.read(authFlowProvider);
 
-  void _log(String message) => debugPrint('AuthNotifier: $message');
-
   @override
   AuthState build() {
     _storage = ref.read(authStorageProvider);
@@ -45,7 +43,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     // Defense-in-depth: catch any unhandled errors and transition to
     // Unauthenticated to avoid being stuck in AuthLoading.
     _restoreSession().catchError((Object e) {
-      _log('Unhandled restore error: ${e.runtimeType}');
+      Loggers.auth.error('Unhandled restore error', error: e);
       state = const Unauthenticated();
     });
     return const AuthLoading();
@@ -58,7 +56,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     } on Exception catch (e) {
       // Storage unavailable (keychain locked, permissions, corruption)
       // Policy: treat as unauthenticated rather than stuck in loading
-      _log('Failed to restore session: ${e.runtimeType}');
+      Loggers.auth.warning('Failed to restore session', error: e);
       state = const Unauthenticated();
       return;
     }
@@ -70,7 +68,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
 
     // Check if tokens are expired - attempt refresh before clearing
     if (tokens.isExpired) {
-      _log('Stored tokens expired, attempting refresh');
+      Loggers.auth.info('Stored tokens expired, attempting refresh');
       final refreshed = await _tryRefreshStoredTokens(tokens);
       if (refreshed) {
         return;
@@ -79,7 +77,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       try {
         await _storage.clearTokens();
       } on Exception catch (e) {
-        _log('Failed to clear expired tokens: ${e.runtimeType}');
+        Loggers.auth.warning('Failed to clear expired tokens', error: e);
       }
       state = const Unauthenticated();
       return;
@@ -119,13 +117,13 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         clientId: tokens.clientId,
       );
     } on Exception catch (e) {
-      _log('Refresh during restore threw: ${e.runtimeType}');
+      Loggers.auth.warning('Refresh during restore threw', error: e);
       return false;
     }
 
     if (result is! TokenRefreshSuccess) {
       final failure = result as TokenRefreshFailure;
-      _log('Refresh during restore failed: ${failure.reason}');
+      Loggers.auth.warning('Refresh during restore failed: ${failure.reason}');
       return false;
     }
 
@@ -138,7 +136,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       endSessionEndpoint: tokens.endSessionEndpoint,
     );
 
-    _log('Session restored via token refresh');
+    Loggers.auth.info('Session restored via token refresh');
     return true;
   }
 
@@ -169,7 +167,11 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     try {
       await _storage.saveTokens(newState);
     } on Exception catch (e) {
-      _log('Failed to persist refreshed tokens: ${e.runtimeType}');
+      Loggers.auth.warning(
+        'Keychain unavailable (debug builds skip code signing) — '
+        'refreshed tokens will not persist across restarts',
+        error: e,
+      );
     }
 
     state = newState;
@@ -196,7 +198,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
           ),
         );
       } on Exception catch (e) {
-        _log('Failed to save pre-auth state: ${e.runtimeType}');
+        Loggers.auth.info('Failed to save pre-auth state: ${e.runtimeType}');
         throw const AuthException(
           'Unable to prepare sign in. Please try again.',
         );
@@ -218,7 +220,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       var expiresAt = result.expiresAt;
       if (expiresAt == null) {
         const fallback = TokenRefreshService.fallbackTokenLifetime;
-        _log(
+        Loggers.auth.info(
           'Token response missing expires_in; '
           'using ${fallback.inMinutes}min fallback',
         );
@@ -235,12 +237,19 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         idToken: idToken,
       );
 
-      // Save tokens to secure storage (may fail on unsigned macOS builds)
+      // Keychain requires code signing entitlements. In debug mode without a
+      // valid Apple developer signing key, writes fail with -34018. This is
+      // expected — auth works for the current session, tokens just won't
+      // persist across app restarts.
       try {
         await _storage.saveTokens(newState);
-      } on Exception catch (e) {
-        _log('Failed to persist tokens: ${e.runtimeType}');
-        // Continue - auth works, just won't persist across restarts
+      } on Exception catch (e, st) {
+        Loggers.auth.warning(
+          'Keychain unavailable (debug builds skip code signing) — '
+          'auth works, tokens will not persist across restarts',
+          error: e,
+          stackTrace: st,
+        );
       }
 
       state = newState;
@@ -272,7 +281,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     // Storage returns null if missing OR expired (expiry check is in storage).
     final preAuthState = await _storage.loadPreAuthState();
     if (preAuthState == null) {
-      _log('Pre-auth state missing or expired - invalid callback');
+      Loggers.auth.info('Pre-auth state missing or expired - invalid callback');
       throw const AuthException(
         'Authentication session expired. Please try signing in again.',
       );
@@ -282,7 +291,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     try {
       await _storage.clearPreAuthState();
     } on Exception catch (e) {
-      _log('Failed to clear pre-auth state: ${e.runtimeType}');
+      Loggers.auth.info('Failed to clear pre-auth state: ${e.runtimeType}');
     }
 
     // Fetch OIDC discovery to get end_session_endpoint for logout
@@ -312,7 +321,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     } on Exception catch (e) {
       // TODO(auth): Surface warning to user when persist fails - session works
       // but won't survive browser refresh.
-      _log('Failed to persist web auth tokens: ${e.runtimeType}');
+      Loggers.auth.info('Failed to persist web auth tokens: ${e.runtimeType}');
     }
 
     state = newState;
@@ -331,7 +340,9 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       );
       return discovery.endSessionEndpoint?.toString();
     } on Exception catch (e) {
-      _log('Failed to fetch end_session_endpoint: ${e.runtimeType}');
+      Loggers.auth.info(
+        'Failed to fetch end_session_endpoint: ${e.runtimeType}',
+      );
       return null;
     }
   }
@@ -348,10 +359,11 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     try {
       await _storage.clearTokens();
     } on Exception catch (e) {
-      _log('Failed to clear tokens on logout: ${e.runtimeType}');
+      Loggers.auth.info('Failed to clear tokens on logout: ${e.runtimeType}');
     }
-    state =
-        const Unauthenticated(reason: UnauthenticatedReason.explicitSignOut);
+    state = const Unauthenticated(
+      reason: UnauthenticatedReason.explicitSignOut,
+    );
 
     // Then end IdP session (may redirect on web)
     if (current is Authenticated) {
@@ -363,7 +375,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
           clientId: current.clientId,
         );
       } on Exception catch (e) {
-        _log('IdP session termination failed: ${e.runtimeType}');
+        Loggers.auth.info('IdP session termination failed: ${e.runtimeType}');
       }
     }
   }
@@ -379,7 +391,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
   /// However, calling this from [Authenticated] is harmless - it just
   /// transitions to a less privileged state without token cleanup.
   void exitNoAuthMode() {
-    _log('Exiting no-auth mode');
+    Loggers.auth.info('Exiting no-auth mode');
     state = const Unauthenticated(
       reason: UnauthenticatedReason.explicitSignOut,
     );
@@ -393,7 +405,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
   /// Clears any existing tokens since they're for a different backend.
   Future<void> enterNoAuthMode() async {
     if (state is Authenticated) {
-      _log('Clearing stale auth - switching to no-auth backend');
+      Loggers.auth.info('Clearing stale auth - switching to no-auth backend');
       try {
         await _storage.clearTokens();
       } on Exception catch (e) {
@@ -401,11 +413,13 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
         // tokens are harmless here. If user later switches back to an auth
         // backend, _restoreSession() will re-validate and clear invalid tokens.
         // This matches signOut() behavior which also catches storage failures.
-        _log('Warning: Failed to clear tokens (${e.runtimeType}) from '
-            'previous session. Proceeding to no-auth mode.');
+        Loggers.auth.warning(
+          'Failed to clear tokens (${e.runtimeType}) from '
+          'previous session. Proceeding to no-auth mode.',
+        );
       }
     }
-    _log('Entering no-auth mode');
+    Loggers.auth.info('Entering no-auth mode');
     state = const NoAuthRequired();
   }
 
@@ -432,7 +446,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     if (needsRefresh) {
       final success = await tryRefresh();
       if (!success) {
-        _log('Proactive refresh failed');
+        Loggers.auth.info('Proactive refresh failed');
       }
     }
   }
@@ -468,20 +482,20 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       case TokenRefreshFailure(
           reason: TokenRefreshFailureReason.noRefreshToken,
         ):
-        _log('No refresh token available');
+        Loggers.auth.info('No refresh token available');
         return false;
 
       case TokenRefreshFailure(reason: TokenRefreshFailureReason.invalidGrant):
-        _log('Refresh token expired, clearing auth state');
+        Loggers.auth.info('Refresh token expired, clearing auth state');
         await _clearAuthState();
         return false;
 
       case TokenRefreshFailure(reason: TokenRefreshFailureReason.networkError):
-        _log('Refresh failed due to network error');
+        Loggers.auth.info('Refresh failed due to network error');
         return false;
 
       case TokenRefreshFailure():
-        _log('Refresh failed');
+        Loggers.auth.info('Refresh failed');
         return false;
     }
   }
@@ -499,7 +513,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
       endSessionEndpoint: current.endSessionEndpoint,
     );
 
-    _log('Token refresh successful');
+    Loggers.auth.info('Token refresh successful');
     return true;
   }
 
@@ -507,7 +521,7 @@ class AuthNotifier extends Notifier<AuthState> implements TokenRefresher {
     try {
       await _storage.clearTokens();
     } on Exception catch (e) {
-      _log('Failed to clear tokens: ${e.runtimeType}');
+      Loggers.auth.info('Failed to clear tokens: ${e.runtimeType}');
     }
     state = const Unauthenticated();
   }

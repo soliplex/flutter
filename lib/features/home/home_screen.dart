@@ -3,9 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
-import 'package:soliplex_frontend/core/build_config.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/home/connection_flow.dart';
@@ -25,6 +26,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const _logoSize = 64.0;
+
   final _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isConnecting = false;
@@ -78,7 +81,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       final currentUrl = ref.read(configProvider).baseUrl;
       final isBackendChange = normalizeUrl(url) != normalizeUrl(currentUrl);
 
-      debugPrint('HomeScreen: Connecting to $url');
+      Loggers.ui.debug('HomeScreen: Connecting to $url');
 
       // Determine and execute pre-connect cleanup action.
       final preConnectAction = determinePreConnectAction(
@@ -105,12 +108,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       // Only persist URL after successful connection
       try {
         await ref.read(configProvider.notifier).setBaseUrl(url);
-        debugPrint(
+        Loggers.ui.debug(
           'HomeScreen: URL saved, config.baseUrl is now: '
           '${ref.read(configProvider).baseUrl}',
         );
       } on Exception catch (e) {
-        debugPrint('HomeScreen: Failed to persist URL: $e');
+        Loggers.ui.warning('HomeScreen: Failed to persist URL: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -128,13 +131,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         hasProviders: providers.isNotEmpty,
         currentAuthState: ref.read(authProvider),
       );
+      final landingRoute =
+          ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
       switch (result) {
         case EnterNoAuthModeResult():
           await ref.read(authProvider.notifier).enterNoAuthMode();
           if (!mounted) return;
-          context.go('/rooms');
+          context.go(landingRoute);
         case AlreadyAuthenticatedResult():
-          context.go('/rooms');
+          context.go(landingRoute);
         case RequireLoginResult(:final shouldExitNoAuthMode):
           if (shouldExitNoAuthMode) {
             ref.read(authProvider.notifier).exitNoAuthMode();
@@ -143,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           context.go('/login');
       }
     } on AuthException catch (e) {
-      debugPrint('HomeScreen: Auth error: ${e.message}');
+      Loggers.ui.error('HomeScreen: Auth error', error: e);
       final detail = e.statusCode == 401
           ? 'Authentication required. This server requires login credentials. '
               '(${e.statusCode})'
@@ -152,36 +157,52 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               '(${e.statusCode})';
       _setError(detail, serverDetail: e.serverMessage);
     } on NotFoundException catch (e) {
-      debugPrint('HomeScreen: Not found: ${e.message}');
+      Loggers.ui.error('HomeScreen: Not found', error: e);
       const detail = 'Server reached, but the expected API endpoint was not '
           'found. The server version may be incompatible. (404)';
       _setError(detail, serverDetail: e.serverMessage);
     } on CancelledException catch (e) {
-      debugPrint('HomeScreen: Request cancelled');
+      Loggers.ui.debug('HomeScreen: Request cancelled');
       final detail = e.reason != null
           ? 'Request cancelled: ${e.reason}'
           : 'Request cancelled.';
       _setError(detail);
     } on NetworkException catch (e) {
-      debugPrint('HomeScreen: Network error: ${e.message}');
+      Loggers.ui.error('HomeScreen: Network error', error: e);
       final detail = e.isTimeout
           ? 'Connection timed out. The server may be slow or unreachable.'
           : 'Cannot reach server. Check the URL and your network connection.';
       _setError(detail, serverDetail: e.isTimeout ? null : e.message);
     } on ApiException catch (e) {
-      debugPrint('HomeScreen: API error: ${e.statusCode} - ${e.message}');
+      Loggers.ui.error('HomeScreen: API error', error: e);
       final detail = e.statusCode >= 500
           ? 'Server error. Please try again later. (${e.statusCode})'
           : 'Unexpected response from server. (${e.statusCode})';
       _setError(detail, serverDetail: e.serverMessage);
     } on Exception catch (e) {
-      debugPrint('HomeScreen: Unexpected exception: ${e.runtimeType} - $e');
+      Loggers.ui.error('HomeScreen: Unexpected exception', error: e);
       _setError('Connection failed: $e');
     } finally {
       if (mounted) {
         setState(() => _isConnecting = false);
       }
     }
+  }
+
+  Widget _buildLogo(ThemeData theme) {
+    final config = ref.watch(shellConfigProvider);
+    return Image.asset(
+      config.logo.assetPath,
+      package: config.logo.package,
+      width: _logoSize,
+      height: _logoSize,
+      semanticLabel: '${config.appName} logo',
+      errorBuilder: (context, error, stack) => Icon(
+        Icons.dns_outlined,
+        size: _logoSize,
+        color: theme.colorScheme.primary,
+      ),
+    );
   }
 
   @override
@@ -199,14 +220,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // Header
-              Icon(
-                Icons.dns_outlined,
-                size: 64,
-                color: theme.colorScheme.primary,
-              ),
+              _buildLogo(theme),
               const SizedBox(height: 16),
               Text(
-                appName,
+                ref.watch(shellConfigProvider).appName,
                 style: theme.textTheme.headlineMedium,
                 textAlign: TextAlign.center,
               ),
@@ -256,9 +273,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.errorContainer,
-                    borderRadius: BorderRadius.circular(
-                      soliplexTheme.radii.sm,
-                    ),
+                    borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
                   ),
                   child: Row(
                     children: [

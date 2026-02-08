@@ -1,14 +1,16 @@
 name: soliplex_frontend
 description: Cross-platform Flutter frontend for Soliplex AI-powered RAG system
 publish_to: 'none'
-version: 0.50.8+15
+# To update version, run:
+# dart run tool/bump_version.dart <major|minor|patch|build>
+version: 0.57.2+6
 
 environment:
   sdk: '>=3.5.0 <4.0.0'
   flutter: '>=3.35.0'
 
 dependencies:
-  dashed_border: ^1.0.2
+  cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter
 
@@ -22,32 +24,36 @@ dependencies:
   intl: ^0.20.1
   markdown: ^7.0.0
   meta: ^1.15.0
-  package_info_plus: ^9.0.0
   shared_preferences: ^2.5.4
   soliplex_client:
     path: packages/soliplex_client
   soliplex_client_native:
     path: packages/soliplex_client_native
+  soliplex_logging:
+    path: packages/soliplex_logging
+  wakelock_plus: ^1.4.0
   web: ^1.1.1
 
 dev_dependencies:
-  # Icon generation
+  flutter_driver:
+    sdk: flutter
   flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
   flutter_test:
     sdk: flutter
   integration_test:
     sdk: flutter
 
-  # Testing
+
   mocktail: ^1.0.4
-
-  # Riverpod for testing (explicit version from transitive)
+  patrol: ^4.1.0
+  patrol_finders: ^3.0.0
   riverpod: 3.1.0
-
-  # Linting - Zero tolerance
-  very_good_analysis: ^10.0.0
+  very_good_analysis: ^10.1.0
 flutter:
   uses-material-design: true
+  assets:
+    - assets/branding/
 
 flutter_launcher_icons:
   android: true
@@ -57,4 +63,22 @@ flutter_launcher_icons:
   web:
     generate: true
   image_path: "assets/branding/app_icon_1024.png"
+  adaptive_icon_background: "#424242"
+  adaptive_icon_foreground: "assets/branding/logo_1024.png"
   web_favicon_path: "assets/branding/favicon_48.png"
+
+flutter_native_splash:
+  color: "#424242"
+  image: assets/branding/logo_1024.png
+
+  android_12:
+    image: assets/branding/logo_splash_android12.png
+    color: "#424242"
+
+  web: true
+
+patrol:
+  app_name: Soliplex
+  test_directory: integration_test
+  macos:
+    bundle_id: ai.soliplex.client

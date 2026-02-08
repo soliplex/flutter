@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 // Riverpod 3.0 doesn't export Override from a public location.
 // Using dynamic list + cast in createTestApp() avoids this import,
 // but helper functions need the type for signatures.
@@ -18,13 +17,23 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
+
+/// Standard test configuration for widget tests.
+const testSoliplexConfig = SoliplexConfig(
+  logo: LogoConfig.soliplex,
+  oauthRedirectScheme: 'test.soliplex.app',
+);
 
 /// Mock AuthFlow for testing.
 class MockAuthFlow extends Mock implements AuthFlow {}
@@ -88,6 +97,7 @@ void registerMocktailFallbacks() {
       authFlowProvider.overrideWithValue(authFlow),
       authStorageProvider.overrideWithValue(storage),
       tokenRefreshServiceProvider.overrideWithValue(refreshService),
+      shellConfigProvider.overrideWithValue(testSoliplexConfig),
     ],
     authFlow: authFlow,
     storage: storage,
@@ -137,12 +147,16 @@ class MockSoliplexApi extends Mock implements SoliplexApi {}
 /// Mock ActiveRunNotifier for testing.
 ///
 /// Allows overriding activeRunNotifierProvider with a fixed state.
+/// Tracks method calls for verification in tests.
 class MockActiveRunNotifier extends Notifier<ActiveRunState>
     implements ActiveRunNotifier {
   /// Creates a mock notifier with an initial state.
   MockActiveRunNotifier({required this.initialState});
 
   final ActiveRunState initialState;
+
+  /// Whether [cancelRun] was called.
+  bool cancelRunCalled = false;
 
   @override
   ActiveRunState build() => initialState;
@@ -157,7 +171,9 @@ class MockActiveRunNotifier extends Notifier<ActiveRunState>
   }) async {}
 
   @override
-  Future<void> cancelRun() async {}
+  Future<void> cancelRun() async {
+    cancelRunCalled = true;
+  }
 
   @override
   Future<void> reset() async {}
@@ -168,6 +184,23 @@ Override activeRunNotifierOverride(ActiveRunState mockState) {
   return activeRunNotifierProvider.overrideWith(
     () => MockActiveRunNotifier(initialState: mockState),
   );
+}
+
+/// Creates an override with a mock notifier and returns both for verification.
+///
+/// Use when you need to verify methods like [MockActiveRunNotifier.cancelRun]
+/// were called:
+/// ```dart
+/// final (override, mockNotifier) = activeRunNotifierOverrideWithMock(state);
+/// // ... tap stop button ...
+/// expect(mockNotifier.cancelRunCalled, isTrue);
+/// ```
+(Override, MockActiveRunNotifier) activeRunNotifierOverrideWithMock(
+  ActiveRunState mockState,
+) {
+  final mockNotifier = MockActiveRunNotifier(initialState: mockState);
+  final override = activeRunNotifierProvider.overrideWith(() => mockNotifier);
+  return (override, mockNotifier);
 }
 
 /// Mock ConfigNotifier for testing.
@@ -195,18 +228,11 @@ Override configProviderOverride(AppConfig config) {
   );
 }
 
-/// Default test PackageInfo for widget tests.
-final testPackageInfo = PackageInfo(
-  appName: 'Soliplex',
-  packageName: 'com.soliplex.frontend',
-  version: '1.0.0',
-  buildNumber: '1',
+/// Default test BackendVersionInfo for widget tests.
+const testBackendVersionInfo = BackendVersionInfo(
+  soliplexVersion: '0.36.dev0',
+  packageVersions: {'soliplex': '0.36.dev0'},
 );
-
-/// Creates an override for packageInfoProvider.
-Override packageInfoProviderOverride(PackageInfo info) {
-  return packageInfoProvider.overrideWithValue(info);
-}
 
 /// Mock CurrentRoomIdNotifier for testing.
 class MockCurrentRoomIdNotifier extends Notifier<String?>
@@ -247,6 +273,23 @@ class MockThreadSelectionNotifier extends Notifier<ThreadSelection>
 Override threadSelectionProviderOverride(ThreadSelection selection) {
   return threadSelectionProvider.overrideWith(
     () => MockThreadSelectionNotifier(initialSelection: selection),
+  );
+}
+
+/// Mock notifier that returns immediate data for documents.
+class MockDocumentsNotifier extends DocumentsNotifier {
+  MockDocumentsNotifier(super.roomId, this._documents);
+
+  final List<RagDocument> _documents;
+
+  @override
+  AsyncValue<List<RagDocument>> build() => AsyncValue.data(_documents);
+}
+
+/// Creates an override for documentsProvider with immediate data.
+Override documentsProviderOverride(String roomId, [List<RagDocument>? docs]) {
+  return documentsProvider(roomId).overrideWith(
+    () => MockDocumentsNotifier(roomId, docs ?? const []),
   );
 }
 
@@ -319,8 +362,14 @@ class TestData {
     String id = 'test-room',
     String name = 'Test Room',
     String description = '',
+    List<String> suggestions = const [],
   }) {
-    return Room(id: id, name: name, description: description);
+    return Room(
+      id: id,
+      name: name,
+      description: description,
+      suggestions: suggestions,
+    );
   }
 
   static ThreadInfo createThread({
@@ -328,15 +377,12 @@ class TestData {
     String roomId = 'test-room',
     String name = '',
     DateTime? createdAt,
-    DateTime? updatedAt,
   }) {
-    final now = DateTime.now();
     return ThreadInfo(
       id: id,
       roomId: roomId,
       name: name,
-      createdAt: createdAt ?? now,
-      updatedAt: updatedAt ?? now,
+      createdAt: createdAt ?? DateTime.now(),
     );
   }
 
@@ -352,6 +398,13 @@ class TestData {
       text: text,
       isStreaming: isStreaming,
     );
+  }
+
+  static RagDocument createDocument({
+    String id = 'test-doc',
+    String title = 'Test Document.pdf',
+  }) {
+    return RagDocument(id: id, title: title);
   }
 
   static HttpRequestEvent createRequestEvent({
@@ -412,12 +465,16 @@ class TestData {
     DateTime? timestamp,
     String method = 'GET',
     Uri? uri,
+    Map<String, String> headers = const {},
+    dynamic body,
   }) {
     return HttpStreamStartEvent(
       requestId: requestId,
       timestamp: _defaultTimestamp(timestamp),
       method: method,
       uri: uri ?? Uri.parse('http://localhost/api/v1/runs/run-1/stream'),
+      headers: headers,
+      body: body,
     );
   }
 
@@ -497,8 +554,12 @@ final testThemeData = soliplexLightTheme();
 /// Wraps the widget in a Scaffold since screens no longer provide their own.
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
-/// Automatically includes [packageInfoProvider] override with [testPackageInfo]
-/// since it must always be overridden (throws UnimplementedError by default).
+/// Automatically includes default overrides for:
+/// - [shellConfigProvider] with default [SoliplexConfig]
+/// - [backendVersionInfoProvider] with [testBackendVersionInfo]
+///
+/// Set [skipBackendVersionOverride] to true when providing a custom override
+/// for [backendVersionInfoProvider] in [overrides].
 ///
 /// [onContainerCreated] is called with the [ProviderContainer] after it's
 /// created, allowing tests to read provider state.
@@ -507,15 +568,24 @@ Widget createTestApp({
   // Using dynamic list since Override type is internal in Riverpod 3.0
   List<dynamic> overrides = const [],
   void Function(ProviderContainer)? onContainerCreated,
+  bool skipBackendVersionOverride = false,
 }) {
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        packageInfoProvider.overrideWithValue(testPackageInfo),
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
+        if (!skipBackendVersionOverride)
+          // Use AsyncValue.data for immediate value without pending Futures
+          backendVersionInfoProvider.overrideWithValue(
+            const AsyncValue.data(testBackendVersionInfo),
+          ),
         ...overrides.cast<Override>(),
       ],
     )..also(onContainerCreated),
-    child: MaterialApp(theme: testThemeData, home: Scaffold(body: home)),
+    child: MaterialApp(
+      theme: testThemeData,
+      home: Scaffold(body: home),
+    ),
   );
 }
 
