@@ -43,4 +43,7 @@ abstract final class Loggers {
 
   /// General UI events.
   static final ui = LogManager.instance.getLogger('UI');
+
+  /// Riverpod provider state transitions.
+  static final state = LogManager.instance.getLogger('State');
 }
