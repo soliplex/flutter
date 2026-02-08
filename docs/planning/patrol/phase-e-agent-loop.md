@@ -96,45 +96,16 @@ agent:
   template_id: "default_chat"
   system_prompt: "./prompt.txt"
 tools:
-  - tool_name: "soliplex.tools.patrol_run"
+  - tool_name: "soliplex.patrol_tools.patrol_run"
 ```
 
-**Native tool** (`soliplex/tools.py` or dedicated module):
+**Native tool** (`soliplex/patrol_tools.py`) — prototype implemented:
 
-```python
-async def patrol_run(
-    ctx: pydantic_ai.RunContext[AgentDependencies],
-    target: str,
-    backend_url: str = "http://localhost:8000",
-) -> str:
-    """Run a Patrol E2E test and return results.
-
-    Args:
-        target: Test file name (e.g., "settings_test.dart")
-        backend_url: Backend URL for the test app
-    """
-    cmd = [
-        "/Users/runyaga/.pub-cache/bin/patrol", "test",
-        "--device", "macos",
-        "--target", f"integration_test/{target}",
-    ]
-    if backend_url != "http://localhost:8000":
-        cmd.extend(["--dart-define", f"SOLIPLEX_BACKEND_URL={backend_url}"])
-
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT,
-        cwd="/Users/runyaga/dev/soliplex-flutter-patrol",
-    )
-    stdout, _ = await proc.communicate()
-    output = stdout.decode()
-
-    if proc.returncode == 0:
-        return f"All tests in {target} PASSED.\n\n{output[-500:]}"
-    else:
-        return f"FAILED (exit {proc.returncode}).\n\n{output[-1000:]}"
-```
+- Allowlist validation blocks shell injection via chat
+- Returns `ToolReturn` with `StateDeltaEvent` updating `state.patrol`
+- OIDC credentials from environment variables (room secrets)
+- `PATROL_CLI` and `FLUTTER_PROJECT` configurable via env vars
+- See `~/dev/soliplex/src/soliplex/patrol_tools.py` for implementation
 
 The agent receives the tool result and streams it to chat via AG-UI. The
 pydantic\_ai framework handles the `text_delta` streaming automatically —
@@ -255,17 +226,25 @@ tools:
 | **Scope guard** | Agent refuses to modify `lib/` without explicit approval |
 | **Green** | Agent fixes a finder error and re-runs to green |
 
-## Open Questions
+## Resolved Questions
 
-1. **dart-tools MCP stdio launch**: What is the exact command to start
-   the dart-tools MCP server in stdio mode? Need to verify the package
-   path and args for `mcp_client_toolsets`.
-2. **AG-UI image support**: Can AG-UI stream inline images from MCP
-   screenshots? Or must they be saved as files and linked?
-3. **Tool output streaming**: pydantic\_ai tools return strings after
-   completion. For long-running `patrol test` (30-60s), can we stream
-   partial output via AG-UI state deltas instead of waiting for the
-   full result?
-4. **OIDC room credentials**: How does the patrol room pass
-   `--dart-define SOLIPLEX_OIDC_USERNAME` securely? Use
-   `secret:PATROL_OIDC_USERNAME` from installation config.
+1. **dart-tools MCP stdio launch**: `dart mcp-server`. Room config:
+
+   ```yaml
+   mcp_client_toolsets:
+     dart_tools:
+       kind: "stdio"
+       command: "dart"
+       args: ["mcp-server"]
+   ```
+
+2. **AG-UI image support**: Yes — screenshots stream as inline images
+   via `STATE_DELTA` events from the server.
+3. **Tool output streaming**: Yes — use `STATE_DELTA` events to stream
+   partial stdout during long-running `patrol test` (30-60s) instead of
+   blocking until completion. **Prototype required** to validate the
+   pydantic\_ai tool → AG-UI state delta pipeline.
+4. **OIDC room credentials**: Environment variables. Soliplex rooms have
+   a mechanism to inject secrets into room config from the installation
+   environment. The `patrol_run` tool reads credentials from env vars
+   and passes them as `--dart-define` flags.
