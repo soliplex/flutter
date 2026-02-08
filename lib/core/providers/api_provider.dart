@@ -206,7 +206,9 @@ final httpClientProvider = Provider<http.Client>((ref) {
 /// This registry provides both tool definitions (sent to the server) and
 /// executors (run locally when tools are called).
 final toolRegistryProvider = Provider<ToolRegistry>((ref) {
-  return const ToolRegistry().register(getSecretTool, getSecretExecutor);
+  return const ToolRegistry()
+      .register(getSecretTool, getSecretExecutor)
+      .register(patrolRunTool, patrolRunExecutor);
 });
 
 /// Provider for the AG-UI client.

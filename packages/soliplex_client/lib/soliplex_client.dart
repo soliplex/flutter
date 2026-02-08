@@ -8,6 +8,7 @@ export 'src/api/api.dart';
 export 'src/application/application.dart';
 export 'src/application/tool_registry.dart';
 export 'src/application/tools/get_secret_tool.dart';
+export 'src/application/tools/patrol_run_tool.dart';
 export 'src/auth/auth.dart';
 export 'src/domain/domain.dart';
 export 'src/errors/errors.dart';
