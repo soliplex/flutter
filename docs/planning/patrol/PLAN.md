@@ -15,6 +15,7 @@ white-box observability, event-driven waits, and self-documenting failures.
 | **B** | [Live Chat](./phase-b-live-chat.md) | no-auth | Rooms load, chat send/receive with log-driven waits |
 | **C** | [OIDC + CI](./phase-c-oidc-ci.md) | oidc | Token-seeded auth via ROPC |
 | **D** | [Log Hardening](./phase-d-log-hardening.md) | both | Error sentinels, perf bounds, HTTP audit, negative assertions |
+| **E** | [Agent-in-Loop](./phase-e-agent-loop.md) | dev-mode | Interactive test runner, MCP inspection, self-healing tests |
 
 ## Dependency Graph
 
@@ -23,6 +24,7 @@ Phase A (Setup + Smoke + TestLogHarness)
 └── Phase B (Live Chat, log-driven waits)
     └── Phase C (OIDC auth via ROPC)
         └── Phase D (Log hardening: sentinels, perf, audit)
+            └── Phase E (Agent-in-Loop: test runner room)
 ```
 
 ## Progress
@@ -31,6 +33,7 @@ Phase A (Setup + Smoke + TestLogHarness)
 - [x] Phase B — Live Chat (no-auth)
 - [x] Phase C — OIDC auth via ROPC
 - [ ] Phase D — Log Hardening
+- [ ] Phase E — Agent-in-Loop
 
 ## Key Design Decisions
 
