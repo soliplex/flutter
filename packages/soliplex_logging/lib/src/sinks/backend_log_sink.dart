@@ -310,7 +310,13 @@ class BackendLogSink implements LogSink {
 
     for (final record in records) {
       final recordBytes = jsonEncode(record).length;
-      if (totalBytes + recordBytes > maxBatchBytes && result.isNotEmpty) {
+      if (totalBytes + recordBytes > maxBatchBytes) {
+        if (result.isEmpty) {
+          onError?.call(
+            'Log record dropped; size exceeds max batch size',
+            null,
+          );
+        }
         break;
       }
       result.add(record);
