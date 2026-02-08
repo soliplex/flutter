@@ -1,6 +1,10 @@
 import 'package:meta/meta.dart';
 import 'package:soliplex_logging/src/log_level.dart';
 
+/// Sentinel value to distinguish "not provided" from explicit `null` in
+/// [LogRecord.copyWith].
+const Object _sentinel = Object();
+
 /// Immutable log record containing all information about a log event.
 @immutable
 class LogRecord {
@@ -14,6 +18,7 @@ class LogRecord {
     this.stackTrace,
     this.spanId,
     this.traceId,
+    this.attributes = const {},
   });
 
   /// Severity level of this log.
@@ -40,6 +45,38 @@ class LogRecord {
   /// Trace ID for telemetry correlation.
   final String? traceId;
 
+  /// Structured key-value attributes for contextual metadata.
+  final Map<String, Object> attributes;
+
+  /// Returns a copy of this record with the given fields replaced.
+  ///
+  /// Nullable fields ([error], [stackTrace], [spanId], [traceId]) can be
+  /// explicitly cleared by passing `null`.
+  LogRecord copyWith({
+    LogLevel? level,
+    String? message,
+    DateTime? timestamp,
+    String? loggerName,
+    Object? error = _sentinel,
+    Object? stackTrace = _sentinel,
+    Object? spanId = _sentinel,
+    Object? traceId = _sentinel,
+    Map<String, Object>? attributes,
+  }) {
+    return LogRecord(
+      level: level ?? this.level,
+      message: message ?? this.message,
+      timestamp: timestamp ?? this.timestamp,
+      loggerName: loggerName ?? this.loggerName,
+      error: error == _sentinel ? this.error : error,
+      stackTrace:
+          stackTrace == _sentinel ? this.stackTrace : stackTrace as StackTrace?,
+      spanId: spanId == _sentinel ? this.spanId : spanId as String?,
+      traceId: traceId == _sentinel ? this.traceId : traceId as String?,
+      attributes: attributes ?? this.attributes,
+    );
+  }
+
   /// Whether this record has error or stack trace details.
   bool get hasDetails => error != null || stackTrace != null;
 
@@ -63,6 +100,10 @@ class LogRecord {
       if (spanId != null && traceId != null) buffer.write(', ');
       if (spanId != null) buffer.write('span=$spanId');
       buffer.write(')');
+    }
+
+    if (attributes.isNotEmpty) {
+      buffer.write(' $attributes');
     }
 
     if (error != null) {
