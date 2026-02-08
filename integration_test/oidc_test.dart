@@ -107,10 +107,13 @@ void main() {
       expect(find.byType(ChatMessageWidget), findsAtLeast(2));
 
       // White-box: AG-UI lifecycle with authenticated backend.
+      // Phase D: auth lifecycle + HTTP audit.
       harness
         ..expectLog('ActiveRun', 'RUN_STARTED')
         ..expectLog('ActiveRun', 'TEXT_START:')
-        ..expectLog('ActiveRun', 'RUN_FINISHED');
+        ..expectLog('ActiveRun', 'RUN_FINISHED')
+        ..expectNoLog('Auth', 'restore')
+        ..expectNoHttpErrors();
 
       // Pump extra frames so the rendered UI is visible in the macOS window.
       for (var i = 0; i < 5; i++) {
@@ -120,7 +123,9 @@ void main() {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 
@@ -168,7 +173,9 @@ void main() {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 }

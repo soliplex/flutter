@@ -61,7 +61,7 @@ class HttpLogNotifier extends Notifier<List<HttpEvent>>
 
   @override
   void onResponse(HttpResponseEvent event) {
-    Loggers.http.debug('${event.statusCode} response');
+    Loggers.http.debug('HTTP ${event.statusCode} response');
     _addEvent(event);
   }
 
