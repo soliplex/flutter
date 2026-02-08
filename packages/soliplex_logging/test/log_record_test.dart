@@ -60,17 +60,97 @@ void main() {
       expect(record.traceId, isNull);
     });
 
-    test('toString includes basic info', () {
+    group('hasDetails', () {
+      test('is false when no error and no stackTrace', () {
+        final record = LogRecord(
+          level: LogLevel.info,
+          message: 'msg',
+          timestamp: DateTime.now(),
+          loggerName: 'Test',
+        );
+        expect(record.hasDetails, isFalse);
+      });
+
+      test('is true when error is present', () {
+        final record = LogRecord(
+          level: LogLevel.error,
+          message: 'msg',
+          timestamp: DateTime.now(),
+          loggerName: 'Test',
+          error: Exception('err'),
+        );
+        expect(record.hasDetails, isTrue);
+      });
+
+      test('is true when stackTrace is present', () {
+        final record = LogRecord(
+          level: LogLevel.warning,
+          message: 'msg',
+          timestamp: DateTime.now(),
+          loggerName: 'Test',
+          stackTrace: StackTrace.current,
+        );
+        expect(record.hasDetails, isTrue);
+      });
+
+      test('is true when both error and stackTrace are present', () {
+        final record = LogRecord(
+          level: LogLevel.error,
+          message: 'msg',
+          timestamp: DateTime.now(),
+          loggerName: 'Test',
+          error: Exception('err'),
+          stackTrace: StackTrace.current,
+        );
+        expect(record.hasDetails, isTrue);
+      });
+    });
+
+    group('formattedTimestamp', () {
+      test('formats as HH:mm:ss.mmm', () {
+        final record = LogRecord(
+          level: LogLevel.info,
+          message: 'msg',
+          timestamp: DateTime(2025, 3, 15, 9, 5, 7, 42),
+          loggerName: 'Test',
+        );
+        expect(record.formattedTimestamp, '09:05:07.042');
+      });
+
+      test('pads single-digit components', () {
+        final record = LogRecord(
+          level: LogLevel.info,
+          message: 'msg',
+          timestamp: DateTime(2025, 1, 1, 1, 2, 3, 4),
+          loggerName: 'Test',
+        );
+        expect(record.formattedTimestamp, '01:02:03.004');
+      });
+
+      test('formats end of day', () {
+        final record = LogRecord(
+          level: LogLevel.info,
+          message: 'msg',
+          timestamp: DateTime(2025, 1, 1, 23, 59, 59, 999),
+          loggerName: 'Test',
+        );
+        expect(record.formattedTimestamp, '23:59:59.999');
+      });
+    });
+
+    test('toString includes timestamp and basic info', () {
       final record = LogRecord(
         level: LogLevel.info,
         message: 'Test message',
-        timestamp: DateTime.now(),
+        timestamp: DateTime(2025, 3, 15, 9, 5, 7, 42),
         loggerName: 'TestLogger',
       );
 
-      expect(record.toString(), contains('[INFO]'));
-      expect(record.toString(), contains('TestLogger'));
-      expect(record.toString(), contains('Test message'));
+      final str = record.toString();
+      expect(str, startsWith('09:05:07.042 '));
+      expect(str, contains('[INFO]'));
+      expect(str, contains('TestLogger'));
+      expect(str, contains('Test message'));
     });
 
     test('toString includes span context when present', () {

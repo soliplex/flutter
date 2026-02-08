@@ -40,10 +40,22 @@ class LogRecord {
   /// Trace ID for telemetry correlation.
   final String? traceId;
 
+  /// Whether this record has error or stack trace details.
+  bool get hasDetails => error != null || stackTrace != null;
+
+  /// Formats the timestamp as `HH:mm:ss.mmm`.
+  String get formattedTimestamp {
+    final h = timestamp.hour.toString().padLeft(2, '0');
+    final m = timestamp.minute.toString().padLeft(2, '0');
+    final s = timestamp.second.toString().padLeft(2, '0');
+    final ms = timestamp.millisecond.toString().padLeft(3, '0');
+    return '$h:$m:$s.$ms';
+  }
+
   @override
   String toString() {
     final buffer = StringBuffer()
-      ..write('[${level.label}] $loggerName: $message');
+      ..write('$formattedTimestamp [${level.label}] $loggerName: $message');
 
     if (spanId != null || traceId != null) {
       buffer.write(' (');
