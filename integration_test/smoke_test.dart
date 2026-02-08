@@ -30,7 +30,11 @@ void main() {
 
       // Verify the router ran (proves full boot sequence: binding → logging
       // → auth → router → screen). Log-based assertion from the harness.
-      harness.expectLog('Router', 'redirect called');
+      harness
+        ..expectLog('Router', 'redirect called')
+
+        // Phase D: verify app picked up the correct runtime configuration.
+        ..expectLog('Config', backendUrl);
 
       // Pump extra frames so the rendered UI is visible in the macOS window.
       for (var i = 0; i < 5; i++) {
@@ -40,7 +44,9 @@ void main() {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 }

@@ -68,7 +68,9 @@ void main() {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 
@@ -216,7 +218,9 @@ void main() {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 }

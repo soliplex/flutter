@@ -44,7 +44,9 @@ void main() {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 
@@ -115,13 +117,28 @@ void main() {
         ..expectLog('ActiveRun', 'TEXT_START:')
         ..expectLog('ActiveRun', 'RUN_FINISHED');
 
+      // Phase D: performance bounds — detect backend regressions.
+      final runDuration = harness.measureLogDelta(
+        'ActiveRun',
+        'RUN_STARTED',
+        'ActiveRun',
+        'RUN_FINISHED',
+      );
+      expect(
+        runDuration,
+        lessThan(const Duration(seconds: 30)),
+        reason: 'AG-UI run took ${runDuration.inSeconds}s (limit: 30s)',
+      );
+
       // Pump extra frames for macOS rendering.
       await $.tester.pump(const Duration(seconds: 1));
     } catch (e) {
       harness.dumpLogs(last: 50);
       rethrow;
     } finally {
-      harness.dispose();
+      harness
+        ..expectNoErrors()
+        ..dispose();
     }
   });
 }
