@@ -36,8 +36,10 @@ void main() {
         ..expectLog('HTTP', '/api/v1/rooms')
         ..expectLog('Room', 'Rooms loaded:');
 
-      // Pump extra frames for macOS rendering.
-      await $.tester.pump(const Duration(seconds: 1));
+      // Pump extra frames so the rendered UI is visible in the macOS window.
+      for (var i = 0; i < 5; i++) {
+        await $.tester.pump(const Duration(milliseconds: 200));
+      }
     } catch (e) {
       harness.dumpLogs(last: 50);
       rethrow;
