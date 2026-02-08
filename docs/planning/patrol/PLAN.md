@@ -100,7 +100,36 @@ Intentionally deferred until the core test suite is stable:
 | `runStep()` instrumentation | Add when >3 tests need timing |
 | Performance regression detection | Add when baseline established |
 
-## Review Process
+## Review Gates
 
-Each phase gets one Gemini critique (`mcp__gemini__read_files` with
-`gemini-3-pro-preview`). Maximum 3 review/revise cycles per phase.
+Each phase must pass its gates before the next phase begins.
+Maximum 3 review/revise cycles per gate.
+
+### Phase A Gates
+
+| Gate | Tool | What |
+|------|------|------|
+| **Automated** | CLI | `flutter pub get`, `flutter analyze` = 0, `patrol --version`, `patrol doctor`, `flutter test` passes, smoke test green |
+| **Logging** | Manual | TestLogHarness initializes MemorySink, failure dumps last N records to console |
+| **Gemini Critique** | `read_files` / `gemini-3-pro-preview` | Review pubspec, harness, smoke test, logging_provider against spec |
+
+### Phase B Gates
+
+| Gate | Tool | What |
+|------|------|------|
+| **Automated** | CLI | `flutter analyze` = 0, both patrol tests green, no `pumpAndSettle` anywhere |
+| **Logging** | Manual | `waitForLog()` for SSE completion, `expectLog()` verifies HTTP + ActiveRun, `dumpLogs()` on failure |
+| **Gemini Critique** | `read_files` / `gemini-3-pro-preview` | Review test file, harness, config, loggers.dart against spec |
+| **Codex Cross-Validation** | `mcp__codex__codex` / `read-only` | Architecture review: does TestLogHarness + log-driven waits hold up? Provider override strategy correct? Anything brittle before adding auth? |
+
+Phase B gets both Gemini AND Codex review because it is the architectural
+pivot point — the harness, provider overrides, and log-driven wait pattern
+established here carry forward into Phase C and all future tests.
+
+### Phase C Gates
+
+| Gate | Tool | What |
+|------|------|------|
+| **Automated** | CLI | `flutter analyze` = 0, authenticated test green, no-auth tests still green, CI YAML valid |
+| **Logging** | Manual | `testRunId` in all LogRecords, queryable in Logfire with `SOLIPLEX_SHIP_LOGS=true`, failure artifact bundle produced |
+| **Gemini Critique** | `read_files` / `gemini-3-pro-preview` | Review auth_notifier, harness, config, authenticated test, CI workflow, logging_provider against spec |
