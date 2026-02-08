@@ -1,215 +1,61 @@
-# Patrol E2E Integration - Milestone Overview
+# Patrol E2E Integration - Overview
 
-## Strategy
+## What
 
-This plan prioritizes **OIDC authentication early**. Patrol's native interaction
-capability (`$.native`) is the primary reason for adopting it — we need to drive
-Keycloak login popups via the system browser that `app_auth` opens. The plan
-supports two test modes: no-auth for fast local smoke tests, and OIDC for full
-integration against a Keycloak-protected backend.
+End-to-end integration tests for the Soliplex Flutter frontend using
+[Patrol](https://pub.dev/packages/patrol) by LeanCode. Tests run against a live
+backend (no mocks) and verify the full user flow from app launch through chat
+interaction.
 
-## Key Design Decisions
+## Why Patrol
 
-### Dual Auth Modes
+Standard `integration_test` cannot interact with native UI outside the Flutter
+widget tree. Patrol adds:
 
-Tests support two backend configurations:
+- **`$.native` API** — drives system dialogs, browser popups, permission prompts
+- **Custom finders** — cleaner syntax (`$('text')`) alongside standard finders
+- **CLI tooling** — `patrol test` with hot restart, device targeting, screenshots
+- **Future-proofing** — OIDC popups, location permissions, share sheets
 
-| Mode | Use Case | Backend Flag | Auth |
-|------|----------|-------------|------|
-| **no-auth** | Local smoke tests | `--no-auth-mode` | `_NoAuthNotifier` override |
-| **oidc** | Full integration | Standard | Patrol `$.native` drives Keycloak login |
+## Platform Support
 
-```dart
-// Mode selection via environment
-const authMode = String.fromEnvironment(
-  'SOLIPLEX_AUTH_MODE',
-  defaultValue: 'no-auth',
-);
-```
+| Platform | `patrol test` | `$.native` | Notes |
+|----------|:---:|:---:|-------|
+| **macOS** | yes | yes | Primary target. Uses Accessibility APIs. |
+| **iOS** | yes | yes | Uses XCUITest. Bundle ID already configured. |
+| **Web** | no | no | Patrol relies on native UI frameworks. Use `integration_test` + ChromeDriver for web E2E. |
 
-### Live Backend Testing (No Mocks)
+Initial scope: **macOS only**. iOS requires minimal additional config (same
+bundle ID `ai.soliplex.client`).
 
-All Patrol tests connect to a real backend. No-auth mode skips login; OIDC mode
-drives the full Keycloak flow via Patrol's native interaction.
+## Current State
 
-```dart
-// Backend URL from compile-time constant (--dart-define)
-const backendUrl = String.fromEnvironment(
-  'SOLIPLEX_BACKEND_URL',
-  defaultValue: 'http://localhost:8000',
-);
-```
+### Existing Infrastructure
 
-### Keycloak OIDC via Patrol Native
+- `integration_test/` directory does not exist yet
+- `integration_test` SDK dependency missing from `pubspec.yaml`
+- macOS bundle ID: `ai.soliplex.client`
+- macOS entitlements include `com.apple.security.network.client`
+- Test helpers in `test/helpers/test_helpers.dart` (mock factories, `pumpWithProviders`)
 
-Patrol's `$.native` API interacts with the system browser that `flutter_appauth`
-opens for Keycloak authentication:
+### API Endpoints (from soliplex_client)
 
-```dart
-// Patrol drives the Keycloak login form in the system browser
-await $.native.enterTextByIndex(username, index: 0);
-await $.native.enterTextByIndex(password, index: 1);
-await $.native.tap(Selector(text: 'Sign In'));
-```
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/v1/rooms` | GET | List rooms |
+| `/api/v1/rooms/{roomId}/agui` | GET | List threads |
+| `/api/v1/rooms/{roomId}/agui` | POST | Create thread |
+| `/api/v1/rooms/{roomId}/agui/{threadId}` | POST | Create run (starts SSE) |
+| `/api/login` | GET | Auth provider config (Keycloak) |
 
-### Streaming-Safe Pumping
+## Source Analysis
 
-`pumpAndSettle()` hangs on SSE streams. All tests use condition-based polling:
+Detailed analysis of Patrol requirements, test architecture recommendations,
+and code patterns: [patrol-analysis.md](../../patrol-analysis.md)
 
-```dart
-await waitForCondition(
-  tester,
-  condition: () => find.byType(ChatMessageWidget).evaluate().length > 1,
-  timeout: Duration(seconds: 30),
-);
-```
+## History
 
-### Dot-Separated Test IDs
-
-Test names use structured IDs for LLM-parseable test inventories:
-
-- `live.smoke.backend_reachable`
-- `live.oidc.keycloak_login`
-- `live.rooms.load`
-- `live.chat.send_receive`
-- `live.tools.client_execution`
-
-## Progress
-
-- [ ] 01-patrol-setup
-- [ ] 02-test-infrastructure
-- [ ] 03-oidc-auth-flow
-- [ ] 04-live-chat-tests
-- [ ] 05-live-tool-calling-tests
-- [ ] 06-ci-pipeline
-- [ ] 07-test-documentation
-
-## Review Process
-
-Each milestone must pass one review before completion:
-
-1. **Gemini Critique** - Use `mcp__gemini__read_files` with model
-   `gemini-3-pro-preview`, passing the milestone spec and all related files
-
-**Iteration Limit:** Maximum 3 review/revise cycles per milestone.
-**File Limit:** 15 files per Gemini call. Batch if needed.
-
-## Milestones
-
-### 01-patrol-setup
-
-- **Focus:** Dependencies & Configuration
-- **Objective:** Add Patrol packages, configure `pubspec.yaml` patrol section,
-  verify CLI installation.
-- **Outcome:** `patrol test` command is available and project compiles.
-- **File:** [01-patrol-setup.md](./01-patrol-setup.md)
-
----
-
-### 02-test-infrastructure
-
-- **Focus:** Shared Test Plumbing
-- **Depends on:** 01-patrol-setup
-- **Objective:** Create `patrol_test_base.dart` with backend preflight, streaming
-  helpers, screenshot-on-failure wrapper, dual-mode auth (no-auth + OIDC), and
-  macOS keyboard workaround.
-- **Outcome:** A reusable test harness that any Patrol test can import.
-- **File:** [02-test-infrastructure.md](./02-test-infrastructure.md)
-
----
-
-### 03-oidc-auth-flow
-
-- **Focus:** Keycloak Authentication via Patrol Native
-- **Depends on:** 02-test-infrastructure
-- **Objective:** Implement `live.oidc.keycloak_login` test that drives the
-  `flutter_appauth` / Keycloak login popup using Patrol's `$.native` API.
-- **Outcome:** Tests can authenticate against a Keycloak-protected backend.
-- **File:** [03-oidc-auth-flow.md](./03-oidc-auth-flow.md)
-
----
-
-### 04-live-chat-tests
-
-- **Focus:** Core User Flow (Authenticated)
-- **Depends on:** 03-oidc-auth-flow
-- **Objective:** Implement `live.rooms.load` and `live.chat.send_receive` tests
-  against a Keycloak-protected backend after OIDC login.
-- **Outcome:** Room listing and chat round-trip verified end-to-end with auth.
-- **File:** [04-live-chat-tests.md](./04-live-chat-tests.md)
-
----
-
-### 05-live-tool-calling-tests
-
-- **Focus:** AG-UI Tool Execution (Authenticated)
-- **Depends on:** 03-oidc-auth-flow
-- **Objective:** Implement `live.tools.client_execution` test verifying client-side
-  tool call processing and continuation runs.
-- **Outcome:** Tool call flow verified end-to-end with auth.
-- **File:** [05-live-tool-calling-tests.md](./05-live-tool-calling-tests.md)
-
----
-
-### 06-ci-pipeline
-
-- **Focus:** Automation
-- **Depends on:** 04-live-chat-tests, 05-live-tool-calling-tests
-- **Objective:** Create GitHub Actions workflow for Patrol tests on macOS with
-  OIDC test credentials, screenshot artifact upload on failure, and backend
-  health check.
-- **Outcome:** Integration tests run automatically on push/PR.
-- **File:** [06-ci-pipeline.md](./06-ci-pipeline.md)
-
----
-
-### 07-test-documentation
-
-- **Focus:** Developer Enablement
-- **Depends on:** 05-live-tool-calling-tests
-- **Objective:** Write `integration_test/README.md` with test inventory, run
-  instructions, OIDC setup, and environment variable guide.
-- **Outcome:** Any developer (or LLM) can discover and run tests.
-- **File:** [07-test-documentation.md](./07-test-documentation.md)
-
----
-
-## Dependency Graph
-
-```text
-01-patrol-setup
-└── 02-test-infrastructure
-    ├── (no-auth smoke test)
-    └── 03-oidc-auth-flow
-        ├── 04-live-chat-tests ──┐
-        │                        ├── 06-ci-pipeline
-        └── 05-live-tool-calling-tests
-            └── 07-test-documentation
-```
-
-## Platform Scope
-
-Initial target: **macOS** only (primary dev platform).
-
-| Test | macOS |
-|------|-------|
-| Patrol CLI runs | [ ] |
-| Backend preflight passes | [ ] |
-| Keycloak OIDC login via native | [ ] |
-| Room list loads (authenticated) | [ ] |
-| Chat send/receive works | [ ] |
-| Tool calling works | [ ] |
-| Screenshots captured on failure | [ ] |
-| CI pipeline passes | [ ] |
-
-Future: iOS, Android (requires bundle ID / package name config).
-
-## Notes
-
-- Started: 2026-02-06
-- Restructured: 2026-02-06 (OIDC moved early, Keycloak + app_auth)
-- Source analysis: [patrol-analysis.md](../../patrol-analysis.md)
-- OIDC provider: Keycloak (via `flutter_appauth` / `app_auth`)
-- Two auth modes: no-auth (local smoke) + OIDC (full integration)
-- No mock backends — all tests hit real API
-- Reuses existing provider override pattern from `integration_test/`
+- 2026-02-06 — Initial 7-milestone plan created
+- 2026-02-06 — 3x Gemini critique + 1x Codex review of original plan
+- 2026-02-07 — Simplified to 3 phases after Codex + Gemini cross-validation
+- 2026-02-07 — Scoped to `--no-auth-mode` first for fastest value
