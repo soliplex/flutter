@@ -52,6 +52,8 @@ void main() {
   BackendLogSink createSink({
     String? Function()? jwtProvider,
     bool Function()? networkChecker,
+    bool Function()? flushGate,
+    Duration maxFlushHoldDuration = const Duration(minutes: 5),
     SinkErrorCallback? onError,
     Duration flushInterval = const Duration(hours: 1),
   }) {
@@ -69,6 +71,8 @@ void main() {
       flushInterval: flushInterval,
       jwtProvider: jwtProvider,
       networkChecker: networkChecker,
+      flushGate: flushGate,
+      maxFlushHoldDuration: maxFlushHoldDuration,
       onError: onError,
     );
   }
@@ -898,6 +902,166 @@ void main() {
       expect(errorMessage, contains('Network error'));
       expect(errorMessage, contains('DNS failure'));
       await sink.close();
+    });
+
+    group('flushGate', () {
+      test('blocks flush when returning false', () async {
+        final sink = createSink(flushGate: () => false)..write(makeRecord());
+        await sink.flush();
+
+        expect(capturedRequests, isEmpty);
+        expect(await diskQueue.pendingCount, 1);
+        await sink.close();
+      });
+
+      test('allows flush when returning true', () async {
+        final sink = createSink(flushGate: () => true)..write(makeRecord());
+        await sink.flush();
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('null defaults to allow', () async {
+        final sink = createSink()..write(makeRecord());
+        await sink.flush();
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('safety valve flushes after maxFlushHoldDuration', () async {
+        final sink = createSink(
+          flushGate: () => false,
+          maxFlushHoldDuration: const Duration(milliseconds: 1),
+        )..write(makeRecord());
+
+        // First flush starts the gated timer.
+        await sink.flush();
+        expect(capturedRequests, isEmpty);
+
+        // Wait for the safety valve to expire.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+
+        // Second flush should proceed via safety valve.
+        await sink.flush();
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('force: true bypasses flushGate', () async {
+        final sink = createSink(flushGate: () => false)..write(makeRecord());
+        await sink.flush(force: true);
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('error-level logs bypass gate via force flush', () async {
+        final sink = createSink(flushGate: () => false)
+          ..write(
+            makeRecord(level: LogLevel.error, message: 'Error!'),
+          );
+
+        // Give the unawaited flush a moment.
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(capturedRequests, hasLength(1));
+        await sink.close();
+      });
+
+      test('gatedSince resets when gate opens', () async {
+        var gateOpen = false;
+        final sink = createSink(
+          flushGate: () => gateOpen,
+          maxFlushHoldDuration: const Duration(milliseconds: 1),
+        )..write(makeRecord(message: 'First'));
+
+        // Start gated.
+        await sink.flush();
+        expect(capturedRequests, isEmpty);
+
+        // Open gate — flush succeeds and resets gatedSince.
+        gateOpen = true;
+        await sink.flush();
+        expect(capturedRequests, hasLength(1));
+
+        // Close gate again with new record.
+        gateOpen = false;
+        sink.write(makeRecord(message: 'Second'));
+        await sink.flush();
+        // Gate just closed — gatedSince was reset so timer starts fresh.
+        expect(capturedRequests, hasLength(1));
+
+        // Wait for safety valve and try again.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await sink.flush();
+        expect(capturedRequests, hasLength(2));
+        await sink.close();
+      });
+
+      test('safety valve resets timer after flushing', () async {
+        final sink = createSink(
+          flushGate: () => false,
+          maxFlushHoldDuration: const Duration(milliseconds: 1),
+        )..write(makeRecord());
+
+        // Hold first flush.
+        await sink.flush();
+        expect(capturedRequests, isEmpty);
+
+        // Wait for safety valve, then flush.
+        await Future<void>.delayed(const Duration(milliseconds: 5));
+        await sink.flush();
+        expect(
+          capturedRequests,
+          hasLength(1),
+          reason: 'Should flush via safety valve',
+        );
+
+        // Write another record — timer should be fresh, so held again.
+        sink.write(makeRecord(message: 'Second'));
+        await sink.flush();
+        expect(
+          capturedRequests,
+          hasLength(1),
+          reason: 'Should be held by a fresh timer',
+        );
+        await sink.close();
+      });
+    });
+
+    group('activeRun context', () {
+      test('includes threadId and runId in payload when set', () async {
+        final sink = createSink()
+          ..threadId = 'thread-123'
+          ..runId = 'run-456'
+          ..write(makeRecord());
+        await sink.flush();
+        await sink.close();
+
+        final body =
+            jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+        final logs = body['logs']! as List<Object?>;
+        final record = logs.first! as Map<String, Object?>;
+        final activeRun = record['activeRun']! as Map<String, Object?>;
+
+        expect(activeRun['threadId'], 'thread-123');
+        expect(activeRun['runId'], 'run-456');
+      });
+
+      test('activeRun is null when threadId not set', () async {
+        final sink = createSink()..write(makeRecord());
+        await sink.flush();
+        await sink.close();
+
+        final body =
+            jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+        final logs = body['logs']! as List<Object?>;
+        final record = logs.first! as Map<String, Object?>;
+
+        expect(record['activeRun'], isNull);
+      });
     });
   });
 }

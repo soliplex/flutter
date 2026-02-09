@@ -9,6 +9,8 @@ class LogConfig {
     required this.minimumLevel,
     required this.consoleLoggingEnabled,
     required this.stdoutLoggingEnabled,
+    this.backendLoggingEnabled = false,
+    this.backendEndpoint = '/api/v1/logs',
   });
 
   /// Default configuration used before preferences are loaded.
@@ -33,17 +35,28 @@ class LogConfig {
   /// to dart:developer. On mobile and web, this setting has no effect.
   final bool stdoutLoggingEnabled;
 
+  /// Whether backend log shipping is enabled.
+  final bool backendLoggingEnabled;
+
+  /// Backend endpoint for log ingestion.
+  final String backendEndpoint;
+
   /// Creates a copy with the specified fields replaced.
   LogConfig copyWith({
     LogLevel? minimumLevel,
     bool? consoleLoggingEnabled,
     bool? stdoutLoggingEnabled,
+    bool? backendLoggingEnabled,
+    String? backendEndpoint,
   }) {
     return LogConfig(
       minimumLevel: minimumLevel ?? this.minimumLevel,
       consoleLoggingEnabled:
           consoleLoggingEnabled ?? this.consoleLoggingEnabled,
       stdoutLoggingEnabled: stdoutLoggingEnabled ?? this.stdoutLoggingEnabled,
+      backendLoggingEnabled:
+          backendLoggingEnabled ?? this.backendLoggingEnabled,
+      backendEndpoint: backendEndpoint ?? this.backendEndpoint,
     );
   }
 
@@ -54,14 +67,23 @@ class LogConfig {
           runtimeType == other.runtimeType &&
           minimumLevel == other.minimumLevel &&
           consoleLoggingEnabled == other.consoleLoggingEnabled &&
-          stdoutLoggingEnabled == other.stdoutLoggingEnabled;
+          stdoutLoggingEnabled == other.stdoutLoggingEnabled &&
+          backendLoggingEnabled == other.backendLoggingEnabled &&
+          backendEndpoint == other.backendEndpoint;
 
   @override
-  int get hashCode =>
-      Object.hash(minimumLevel, consoleLoggingEnabled, stdoutLoggingEnabled);
+  int get hashCode => Object.hash(
+        minimumLevel,
+        consoleLoggingEnabled,
+        stdoutLoggingEnabled,
+        backendLoggingEnabled,
+        backendEndpoint,
+      );
 
   @override
   String toString() => 'LogConfig(minimumLevel: $minimumLevel, '
       'consoleLoggingEnabled: $consoleLoggingEnabled, '
-      'stdoutLoggingEnabled: $stdoutLoggingEnabled)';
+      'stdoutLoggingEnabled: $stdoutLoggingEnabled, '
+      'backendLoggingEnabled: $backendLoggingEnabled, '
+      'backendEndpoint: $backendEndpoint)';
 }
