@@ -1,9 +1,11 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
+import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 void main() {
@@ -24,6 +26,9 @@ void main() {
     return ProviderContainer(
       overrides: [
         preloadedPrefsProvider.overrideWithValue(preloadedPrefs),
+        connectivityProvider.overrideWith(
+          (ref) => Stream.value([ConnectivityResult.wifi]),
+        ),
       ],
     );
   }

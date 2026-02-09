@@ -14,6 +14,7 @@ import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:uuid/uuid.dart';
 
@@ -213,27 +214,6 @@ final sessionIdProvider = Provider<String>((ref) {
   return const Uuid().v4();
 });
 
-/// Current network connectivity state.
-///
-/// Emits a `network_changed` log when connectivity changes.
-final connectivityProvider =
-    StreamProvider<List<ConnectivityResult>>((ref) async* {
-  ref.keepAlive();
-  final connectivity = Connectivity();
-
-  // Emit current state first.
-  yield await connectivity.checkConnectivity();
-
-  // Then listen for changes.
-  await for (final results in connectivity.onConnectivityChanged) {
-    Loggers.telemetry.info(
-      'network_changed',
-      attributes: {'connectivity': results.map((r) => r.name).join(', ')},
-    );
-    yield results;
-  }
-});
-
 /// Resource attributes gathered from device and package info.
 ///
 /// Resolved once asynchronously; cached for the lifetime of the container.
@@ -393,10 +373,25 @@ final logConfigControllerProvider = Provider<void>((ref) {
     }
   }
 
-  // Listen to config changes.
-  ref.listen(
-    logConfigProvider,
-    applyConfig,
-    fireImmediately: true,
-  );
+  // Listen to config changes and network connectivity.
+  ref
+    ..listen(
+      logConfigProvider,
+      applyConfig,
+      fireImmediately: true,
+    )
+    ..listen(
+      connectivityProvider,
+      (previous, next) {
+        if (previous == null || !previous.hasValue) return;
+        next.whenData((results) {
+          Loggers.telemetry.info(
+            'network_changed',
+            attributes: {
+              'connectivity': results.map((r) => r.name).join(', '),
+            },
+          );
+        });
+      },
+    );
 });

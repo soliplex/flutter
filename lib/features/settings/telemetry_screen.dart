@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
+import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 
 /// Telemetry settings screen for enabling/disabling backend log shipping.
 class TelemetryScreen extends ConsumerWidget {
