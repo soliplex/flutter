@@ -141,7 +141,7 @@ periodically POSTs them as JSON batches to the Soliplex backend.
 
 ### Data flow
 
-```
+```text
 LogRecord → write() → DiskQueue.append / appendSync
                             ↓
               Timer (30s) or ERROR/FATAL trigger
