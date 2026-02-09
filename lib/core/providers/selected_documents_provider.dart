@@ -1,14 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/document_selection.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
-/// Key for per-thread document selection.
-///
-/// Selections are stored indexed by both room ID and thread ID to ensure
-/// complete isolation between threads, even across different rooms.
-typedef ThreadKey = ({String roomId, String threadId});
+export 'package:soliplex_frontend/core/document_selection.dart' show ThreadKey;
 
 /// Notifier that stores document selections per thread.
 ///
@@ -25,13 +22,15 @@ typedef ThreadKey = ({String roomId, String threadId});
 /// final docs = ref.watch(currentSelectedDocumentsProvider);
 /// ```
 class SelectedDocumentsNotifier
-    extends Notifier<Map<ThreadKey, Set<RagDocument>>> {
+    extends Notifier<Map<ThreadKey, Set<RagDocument>>>
+    implements DocumentSelection {
   @override
   Map<ThreadKey, Set<RagDocument>> build() => {};
 
   /// Gets the selection for a specific thread.
   ///
   /// Returns an empty set if no documents are selected for the thread.
+  @override
   Set<RagDocument> getForThread(String roomId, String threadId) {
     return state[(roomId: roomId, threadId: threadId)] ?? {};
   }
@@ -39,6 +38,7 @@ class SelectedDocumentsNotifier
   /// Updates the selection for a specific thread.
   ///
   /// Replaces any existing selection for the thread.
+  @override
   void setForThread(
     String roomId,
     String threadId,
@@ -85,6 +85,12 @@ final selectedDocumentsNotifierProvider = NotifierProvider<
 /// // In a widget
 /// final selectedDocs = ref.watch(currentSelectedDocumentsProvider);
 /// ```
+
+/// Exposes the notifier as a [DocumentSelection] for dependency injection.
+final documentSelectionProvider = Provider<DocumentSelection>((ref) {
+  return ref.watch(selectedDocumentsNotifierProvider.notifier);
+});
+
 final currentSelectedDocumentsProvider = Provider<Set<RagDocument>>((ref) {
   final roomId = ref.watch(currentRoomIdProvider);
   final threadId = ref.watch(currentThreadIdProvider);

@@ -6,14 +6,12 @@ import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
-import 'package:soliplex_frontend/core/models/agui_features/filter_documents.dart';
-import 'package:soliplex_frontend/core/models/agui_features/filter_documents_ext.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
-import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/features/chat/send_message_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
 import 'package:soliplex_frontend/features/chat/widgets/status_indicator.dart';
@@ -187,120 +185,57 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     final thread = ref.read(currentThreadProvider);
     final selection = ref.read(threadSelectionProvider);
 
-    // Create new thread if needed
-    final ThreadInfo effectiveThread;
-    final isNewThread = thread == null || selection is NewThreadIntent;
-    if (isNewThread) {
-      Loggers.chat.debug('Thread creation initiated for room ${room.id}');
-      final result = await _withErrorHandling(
-        context,
-        () => ref.read(apiProvider).createThread(room.id),
-        'create thread',
-      );
-      switch (result) {
-        case Ok(:final value):
-          effectiveThread = value;
-          Loggers.chat.info('Thread created: ${effectiveThread.id}');
-        case Err():
-          return;
-      }
-
-      // Update selection to the new thread
-      ref
-          .read(threadSelectionProvider.notifier)
-          .set(ThreadSelected(effectiveThread.id));
-
-      // Transfer pending document selection to the new thread
-      if (_pendingDocuments.isNotEmpty) {
-        Loggers.chat.debug(
-          'Pending documents transferred to thread'
-          ' ${effectiveThread.id}: ${_pendingDocuments.length} docs',
-        );
-        ref
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(room.id, effectiveThread.id, _pendingDocuments);
-        _pendingDocuments = {};
-      }
-
-      // Persist last viewed and update URL
-      await setLastViewedThread(
-        roomId: room.id,
-        threadId: effectiveThread.id,
-        invalidate: invalidateLastViewed(ref),
-      );
-      if (context.mounted) {
-        context.go('/rooms/${room.id}?thread=${effectiveThread.id}');
-      }
-
-      // Refresh threads list
-      ref.invalidate(threadsProvider(room.id));
-    } else {
-      effectiveThread = thread;
-    }
-
-    // Get selected documents from provider (now that thread exists)
-    final selectedDocuments = ref
-        .read(selectedDocumentsNotifierProvider.notifier)
-        .getForThread(room.id, effectiveThread.id);
-
-    // Build initial state with filter_documents if documents are selected
-    Map<String, dynamic>? initialState;
-    if (selectedDocuments.isNotEmpty) {
-      initialState = FilterDocuments(
-        documentIds: selectedDocuments.map((d) => d.id).toList(),
-      ).toStateEntry();
-    }
-
-    // Start the run
-    if (!context.mounted) return;
-    Loggers.chat.debug(
-      'Message send initiated for thread ${effectiveThread.id}',
-    );
-    if (initialState != null) {
-      Loggers.chat.debug(
-        'Run started with document filter:'
-        ' ${selectedDocuments.length} docs selected',
-      );
-    }
-    await _withErrorHandling(
-      context,
-      () => ref.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: room.id,
-            threadId: effectiveThread.id,
-            userMessage: text,
-            existingRunId: effectiveThread.initialRunId,
-            initialState: initialState,
-          ),
-      'send message',
-    );
-  }
-
-  /// Executes an async action with standardized error handling.
-  ///
-  /// Shows appropriate SnackBar messages for errors.
-  /// Returns [Ok] with value on success, [Err] on error.
-  Future<Result<T>> _withErrorHandling<T>(
-    BuildContext context,
-    Future<T> Function() action,
-    String operation,
-  ) async {
     try {
-      return Ok(await action());
+      final result = await ref.read(sendMessageProvider).call(
+            roomId: room.id,
+            text: text,
+            pendingDocuments: _pendingDocuments,
+            currentThread: thread,
+            isNewThreadIntent: selection is NewThreadIntent,
+          );
+
+      if (result.isNewThread) {
+        // Update selection to the new thread
+        ref
+            .read(threadSelectionProvider.notifier)
+            .set(ThreadSelected(result.threadId));
+
+        // Clear pending documents now that they've been transferred
+        if (_pendingDocuments.isNotEmpty) {
+          setState(() {
+            _pendingDocuments = {};
+          });
+        }
+
+        // Persist last viewed and update URL
+        await setLastViewedThread(
+          roomId: room.id,
+          threadId: result.threadId,
+          invalidate: invalidateLastViewed(ref),
+        );
+        if (context.mounted) {
+          context.go('/rooms/${room.id}?thread=${result.threadId}');
+        }
+
+        // Refresh threads list
+        ref.invalidate(threadsProvider(room.id));
+      }
     } on NetworkException catch (e, stackTrace) {
       Loggers.chat.error(
-        'Failed to $operation: Network error',
+        'Failed to send message: Network error',
         error: e,
         stackTrace: stackTrace,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Network error: ${e.message}')));
+        ).showSnackBar(
+          SnackBar(content: Text('Network error: ${e.message}')),
+        );
       }
-      return Err('Network error: ${e.message}');
     } on AuthException catch (e, stackTrace) {
       Loggers.chat.error(
-        'Failed to $operation: Auth error',
+        'Failed to send message: Auth error',
         error: e,
         stackTrace: stackTrace,
       );
@@ -309,19 +244,17 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
           SnackBar(content: Text('Authentication error: ${e.message}')),
         );
       }
-      return Err('Authentication error: ${e.message}');
     } catch (e, stackTrace) {
       Loggers.chat.error(
-        'Failed to $operation',
+        'Failed to send message',
         error: e,
         stackTrace: stackTrace,
       );
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Failed to $operation: $e')));
+        ).showSnackBar(SnackBar(content: Text('Failed to send message: $e')));
       }
-      return Err('$e');
     }
   }
 
@@ -330,27 +263,3 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     await ref.read(activeRunNotifierProvider.notifier).reset();
   }
 }
-
-// ---------------------------------------------------------------------------
-// Result Type (private to this file)
-// ---------------------------------------------------------------------------
-
-/// Result type for operations that can succeed or fail.
-sealed class _Result<T> {
-  const _Result();
-}
-
-/// Successful result containing a value.
-class Ok<T> extends _Result<T> {
-  const Ok(this.value);
-  final T value;
-}
-
-/// Failed result containing an error message.
-class Err<T> extends _Result<T> {
-  const Err(this.message);
-  final String message;
-}
-
-/// Type alias for external pattern matching.
-typedef Result<T> = _Result<T>;
