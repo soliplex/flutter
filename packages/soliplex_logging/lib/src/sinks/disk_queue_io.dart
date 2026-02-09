@@ -152,12 +152,23 @@ class PlatformDiskQueue implements DiskQueue {
   // ---------------------------------------------------------------------------
 
   /// Merges fatal file contents into the main queue file by direct append.
+  ///
+  /// Renames the fatal file before reading so that concurrent [appendSync]
+  /// calls write to a fresh file and never race with the merge read.
   Future<void> _mergeFatalFile() async {
     if (!_fatalFile.existsSync()) return;
 
-    final content = _fatalFile.readAsStringSync();
+    // Rename to isolate from concurrent appendSync writes.
+    final mergeFile = File('${_directory.path}/.fatal_processing.tmp');
+    try {
+      _fatalFile.renameSync(mergeFile.path);
+    } on FileSystemException {
+      return;
+    }
+
+    final content = mergeFile.readAsStringSync();
     if (content.trim().isEmpty) {
-      _fatalFile.deleteSync();
+      mergeFile.deleteSync();
       return;
     }
 
@@ -168,7 +179,7 @@ class PlatformDiskQueue implements DiskQueue {
     final added = _countValidRecords(content);
     if (_total != _unknownTotal) _total += added;
 
-    _fatalFile.deleteSync();
+    mergeFile.deleteSync();
   }
 
   // ---------------------------------------------------------------------------
@@ -221,11 +232,14 @@ class PlatformDiskQueue implements DiskQueue {
     }
 
     await sink.close();
-    await tmpFile.rename(_file.path);
 
+    // Write meta BEFORE rename: if we crash between meta write and rename,
+    // we get duplicate records on restart (at-least-once) instead of data loss.
     _confirmed = 0;
     _total = kept;
     _writeMeta();
+
+    await tmpFile.rename(_file.path);
   }
 
   // ---------------------------------------------------------------------------
@@ -319,8 +333,19 @@ class PlatformDiskQueue implements DiskQueue {
     return count;
   }
 
-  /// Deletes old temp files from the previous implementation.
+  /// Recovers orphaned fatal processing file and deletes old temp files.
   void _migrateIfNeeded() {
+    // Recover orphaned fatal processing file from a crash during merge.
+    final orphanedMerge = File('${_directory.path}/.fatal_processing.tmp');
+    if (orphanedMerge.existsSync()) {
+      final content = orphanedMerge.readAsStringSync();
+      if (content.trim().isNotEmpty) {
+        _file.writeAsStringSync(content, mode: FileMode.append, flush: true);
+      }
+      orphanedMerge.deleteSync();
+    }
+
+    // Delete old temp files from previous implementations.
     for (final name in [
       '.log_queue_merge.tmp',
       '.log_queue_confirm.tmp',
