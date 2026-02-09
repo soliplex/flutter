@@ -9,9 +9,10 @@ The current frontend focuses on core chat functionality with essential features 
 | Area | Description |
 |------|-------------|
 | [Developer Setup](guides/developer-setup.md) | Environment setup and getting started |
-| [Codebase Analysis](CODEBASE_ANALYSIS.md) | Project structure and architecture |
 | [Flutter Rules](rules/flutter_rules.md) | Development conventions and best practices |
 | [Client Package](summary/client.md) | Pure Dart client library documentation |
+| [Logging Architecture](guides/logging.md) | Logging package internals and testing |
+| [Logging Quickstart](logging-quickstart.md) | Usage guide for the logging system |
 
 ---
 
@@ -20,10 +21,17 @@ The current frontend focuses on core chat functionality with essential features 
 ### Guides
 
 - [Developer Setup](guides/developer-setup.md) - Environment setup, dependencies, and build instructions
+- [Logging Quickstart](logging-quickstart.md) - How to use loggers, log levels, and troubleshooting
+- [Logging Architecture](guides/logging.md) - DiskQueue, BackendLogSink, and testing patterns
 
 ### Rules & Standards
 
 - [Flutter Rules](rules/flutter_rules.md) - Flutter development conventions and best practices
+
+### Architecture Decision Records
+
+- [ADR-001: White-Label Architecture](adr/001-whitelabel-architecture.md) - Configuration-based whitelabeling
+- [ADR-002: Backend Log Shipping](adr/002-backend-log-shipping.md) - Disk-backed log shipping via Logfire
 
 ### Package Documentation
 
@@ -57,13 +65,17 @@ flowchart TD
 |---------|------|--------|-------------|
 | `soliplex_client` | Pure Dart | Implemented | HTTP/AG-UI client, models, sessions |
 | `soliplex_client_native` | Flutter | Implemented | Native HTTP adapters (iOS/macOS via Cupertino) |
+| `soliplex_logging` | Pure Dart | Implemented | Logging primitives, DiskQueue, BackendLogSink |
 
 ### Implemented Features
 
-- Chat with streaming AI responses
+- Chat with streaming AI responses (AG-UI protocol)
 - Thread history with management
-- HTTP traffic inspector
-- OIDC authentication
 - Multi-room support
+- OIDC authentication (platform-specific flows)
+- HTTP traffic inspector (feature-flagged)
+- In-app log viewer with level filtering
 - Quiz feature
+- Settings screen
 - Responsive layout (desktop/mobile)
+- Backend log shipping with disk-backed queue

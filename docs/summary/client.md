@@ -7,31 +7,51 @@ used in any Dart environment (CLI, server, Flutter).
 
 ```text
 soliplex_client/lib/src/
-├── agui/              # AG-UI streaming protocol
-│   ├── agui_event.dart
-│   ├── text_message_buffer.dart
-│   ├── tool_call_buffer.dart
-│   ├── tool_registry.dart
-│   └── thread.dart
-├── api/               # REST API client
-│   └── soliplex_api.dart
-├── errors/            # Exception hierarchy
+├── api/                  # REST API client and AG-UI message mapping
+│   ├── soliplex_api.dart
+│   ├── agui_message_mapper.dart
+│   ├── fetch_auth_providers.dart
+│   └── mappers.dart
+├── application/          # High-level orchestration
+│   ├── agui_event_processor.dart
+│   ├── citation_extractor.dart
+│   ├── json_patch.dart
+│   └── streaming_state.dart
+├── auth/                 # Authentication types
+│   ├── oidc_discovery.dart
+│   └── token_refresh_service.dart
+├── domain/               # Domain models
+│   ├── chat_message.dart
+│   ├── room.dart
+│   ├── run_info.dart
+│   ├── thread_info.dart
+│   ├── thread_history.dart
+│   ├── conversation.dart
+│   ├── quiz.dart
+│   ├── rag_document.dart
+│   ├── source_reference.dart
+│   ├── chunk_visualization.dart
+│   ├── citation_formatting.dart
+│   ├── auth_provider_config.dart
+│   ├── backend_version_info.dart
+│   └── message_state.dart
+├── errors/               # Exception hierarchy
 │   └── exceptions.dart
-├── http/              # HTTP transport layer
+├── http/                 # HTTP transport layer
 │   ├── dart_http_client.dart
 │   ├── http_client_adapter.dart
 │   ├── http_observer.dart
 │   ├── http_response.dart
 │   ├── http_transport.dart
 │   ├── observable_http_client.dart
-│   └── soliplex_http_client.dart
-├── models/            # Data models
-│   ├── chat_message.dart
-│   ├── models.dart
-│   ├── room.dart
-│   ├── run_info.dart
-│   └── thread_info.dart
-└── utils/             # Utilities
+│   ├── soliplex_http_client.dart
+│   ├── authenticated_http_client.dart
+│   ├── refreshing_http_client.dart
+│   ├── http_redactor.dart
+│   └── token_refresher.dart
+├── schema/               # Generated schema (excluded from linting)
+│   └── agui_features/
+└── utils/                # Utilities
     ├── cancel_token.dart
     └── url_builder.dart
 ```

@@ -4,129 +4,69 @@ Cross-platform Flutter frontend for Soliplex AI-powered RAG system.
 
 ## Quick Reference
 
-Use Dart MCP server tools instead of shell commands:
-
-- **Run tests:** `mcp__dart__run_tests` (must pass)
-- **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
-- **Format:** `mcp__dart__dart_format`
-- **Install deps:** `mcp__dart__pub` with command `get`
-- **Run app:** `mcp__dart__launch_app` with device from `mcp__dart__list_devices`
-- **Lint markdown:** `npx markdownlint-cli "**/*.md"` (shell command)
+```bash
+flutter pub get                           # Install dependencies
+flutter run -d chrome --web-port 59001    # Run (web)
+flutter test                              # Run tests
+flutter test --coverage                   # Run tests with coverage
+dart format .                             # Format code
+flutter analyze --fatal-infos             # Analyze (must be 0 issues)
+npx markdownlint-cli "<file>"            # Lint markdown after editing .md files
+```
 
 ## Project Structure
 
 ```text
 lib/
-├── core/                    # Infrastructure layer
-│   ├── models/              # ActiveRunState, AppConfig
-│   ├── providers/           # Riverpod providers (7)
-│   └── router/              # GoRouter configuration
-├── features/                # Feature screens
-│   ├── chat/                # Message display and input
-│   ├── history/             # Thread list sidebar
-│   ├── thread/              # Main chat view (dual-panel)
-│   ├── room/                # Room threads view
-│   └── ...                  # home, rooms, settings, login
-├── shared/                  # Reusable widgets and utilities
-└── main.dart                # Entry point
-
+  core/           # auth/, logging/, models/, providers/ (17), router/
+  design/         # Color, theme, tokens (design system)
+  features/       # auth, chat, history, home, inspector, log_viewer,
+                  # login, quiz, room, rooms, settings
+  shared/         # Reusable widgets and utilities
 packages/
-├── soliplex_client/         # Pure Dart: REST API, AG-UI protocol
-└── soliplex_client_native/  # Platform HTTP adapters (Cupertino)
-
-docs/                        # Documentation (see index.md)
+  soliplex_client/        # Pure Dart: REST API, AG-UI, domain models
+  soliplex_client_native/ # Platform HTTP adapters (Cupertino)
+  soliplex_logging/       # Pure Dart: logging, DiskQueue, BackendLogSink
+docs/                     # Documentation (see docs/index.md)
 ```
 
 ## Architecture
 
-**Three Layers:**
-
-1. UI Components - Feature screens and widgets
-2. Core Frontend - Riverpod providers, navigation, AG-UI processing
-3. soliplex_client - Pure Dart package (no Flutter dependency)
-
-**Patterns:**
-
-- Repository: SoliplexApi for backend communication
-- Factory: createPlatformClient() for HTTP clients
-- Observer: HttpObserver for request/response monitoring
-- Buffer: TextMessageBuffer, ToolCallBuffer for streaming
-
-**State Management:**
-
-- Riverpod (manual providers, no codegen)
-- ActiveRunNotifier orchestrates AG-UI streaming
-- RunContext persists thread/run state
-
-**UI Component Scopes:**
-
-- History → Room scope (thread list, auto-selection)
-- Chat → Thread scope (messages, streaming, input)
-- HttpInspector → Request/response traffic monitoring
+Three layers: UI (features/) -> Core (providers, auth, logging) -> soliplex_client (pure Dart).
+State management: Riverpod (manual providers, no codegen).
+Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
 
 ## Development Rules
 
 - KISS, YAGNI, SOLID - simple solutions over clever ones
-- Edit existing files; don't create new ones without need
+- Edit existing files; do not create new ones without need
 - Match surrounding code style exactly
-- Prefer editing over rewriting implementations
-- Fix broken things immediately when found
+- Always refer to and abide by `docs/rules/flutter_rules.md`
+- Never use `// ignore:` directives - restructure code instead
+- Keep `soliplex_client` and `soliplex_logging` pure Dart (no Flutter imports)
+- Platform-specific code goes in `soliplex_client_native`
 
 ## Code Quality
 
-**After any code modification, run these checks:**
+After any code modification, run in order:
 
-1. **Format:** `mcp__dart__dart_format` (formats files in place)
-2. **Analyze:** `mcp__dart__analyze_files` (must be 0 issues)
-3. **Test:** `mcp__dart__run_tests` (targeted tests during dev, full suite before commit)
-4. **Coverage:** Verify coverage is at least 85%
-
-Warnings indicate real bugs. Fix all errors, warnings, AND hints immediately.
-
-**Never use `// ignore:` directives.** Restructure code to eliminate the warning instead
-of suppressing it. If a warning seems unavoidable, it usually means the code design
-needs rethinking.
-
-**Coverage target:** 85%+
+1. `dart format .` (must produce no changes)
+2. `flutter analyze --fatal-infos` (must be 0 errors, warnings, and hints)
+3. `flutter test` (must pass; targeted tests during dev, full suite before commit)
+4. Coverage target: 85%+
 
 ## Testing
 
-**Context-aware test running:**
-
-- **Targeted tests:** Run directly for files you modified (e.g., specific test file paths)
-- **Full test suite:** Ask the user to run it and report results back to preserve context
-
-The full test suite output is verbose and consumes significant context. When you need
-to verify all tests pass (e.g., before commit), prompt:
-
-> "Please run the full test suite and let me know if there are any failures."
-
-**Helpers** (test/helpers/test_helpers.dart):
-
-- `MockSoliplexApi` - API mock for widget tests
-- `TestData` - Factory for test fixtures
-- `pumpWithProviders()` - Wraps widgets with required providers
-
-**Patterns:**
-
 - Mirror lib/ structure in test/
-- Unit tests for models and providers
-- Widget tests for UI components
+- Unit tests for models and providers; widget tests for UI components
+- Helpers in test/helpers/test_helpers.dart: `MockSoliplexApi`, `TestData`, `pumpWithProviders()`
+- Use `mocktail` for mocking (not mockito)
 
-## Configuration
+## Documentation
 
-- `pubspec.yaml` - Dependencies
-- `analysis_options.yaml` - Dart analyzer (very_good_analysis)
-- `.markdownlint.json` - Markdown linting rules
-
-## Critical Rules
-
-1. Always refer to, and abide by `docs/rules/flutter_rules.md`
-2. Run `mcp__dart__dart_format` then verify with `dart format --set-exit-if-changed .`
-3. `mcp__dart__analyze_files` MUST report 0 errors AND 0 warnings
-4. `mcp__dart__run_tests` must pass before changes are complete
-5. Keep `soliplex_client` pure Dart (no Flutter imports)
-6. Platform-specific code goes in `soliplex_client_native`
-7. New Flutter/Dart packages need a `.gitignore` (see <https://github.com/flutter/flutter/blob/master/.gitignore>)
-8. Keep all dependencies up to date: check `pubspec.yaml` in the main app AND each package in `packages/` against <https://pub.dev>
-9. After editing any `.md` file, run `npx markdownlint-cli <file>` and fix all errors before considering the edit complete
+- [docs/index.md](docs/index.md) - Documentation index
+- [docs/rules/flutter_rules.md](docs/rules/flutter_rules.md) - Development conventions
+- [docs/guides/developer-setup.md](docs/guides/developer-setup.md) - Environment setup
+- [docs/logging-quickstart.md](docs/logging-quickstart.md) - Logging usage guide
+- [docs/guides/logging.md](docs/guides/logging.md) - Logging architecture
+- [docs/summary/client.md](docs/summary/client.md) - soliplex_client package

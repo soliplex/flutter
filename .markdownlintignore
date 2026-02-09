@@ -1,0 +1,5 @@
+ios/Pods/
+macos/Pods/
+.dart_tool/
+build/
+node_modules/

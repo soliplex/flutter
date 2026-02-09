@@ -112,6 +112,38 @@ void main() {
       expect(sink.records.first.traceId, 'trace-456');
     });
 
+    test('passes attributes to record', () {
+      final attrs = {'user_id': 'u-1', 'view_name': 'settings'};
+      LogManager.instance.getLogger('Test').info(
+            'Navigated',
+            attributes: attrs,
+          );
+
+      expect(sink.records.first.attributes, attrs);
+    });
+
+    test('attributes are defensively copied from caller', () {
+      final attrs = <String, Object>{'key': 'original'};
+      LogManager.instance.getLogger('Test').info(
+            'Test',
+            attributes: attrs,
+          );
+
+      // Mutate the caller's map after logging.
+      attrs['key'] = 'mutated';
+      attrs['new_key'] = 'added';
+
+      // The logged record should retain the original values.
+      expect(sink.records.first.attributes['key'], 'original');
+      expect(sink.records.first.attributes.containsKey('new_key'), false);
+    });
+
+    test('attributes default to empty when not provided', () {
+      LogManager.instance.getLogger('Test').info('No attrs');
+
+      expect(sink.records.first.attributes, isEmpty);
+    });
+
     test('sets correct logger name on records', () {
       LogManager.instance.getLogger('MyLogger').info('Test');
 

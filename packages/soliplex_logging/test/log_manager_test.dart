@@ -23,6 +23,17 @@ class TestSink implements LogSink {
   }
 }
 
+class _ThrowingSink implements LogSink {
+  @override
+  void write(LogRecord record) => throw Exception('Boom');
+
+  @override
+  Future<void> flush() async {}
+
+  @override
+  Future<void> close() async {}
+}
+
 void main() {
   setUp(LogManager.instance.reset);
 
@@ -131,6 +142,48 @@ void main() {
       final logger = LogManager.instance.getLogger('MyLogger');
 
       expect(logger.name, 'MyLogger');
+    });
+
+    test('emit during close does not write to closing sinks', () async {
+      final sink = TestSink();
+      LogManager.instance.addSink(sink);
+
+      // Start closing — sinks list is cleared immediately.
+      final closeFuture = LogManager.instance.close();
+
+      // Emit after close() has cleared the list.
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'During close',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+      );
+      LogManager.instance.emit(record);
+
+      await closeFuture;
+
+      // Sink should be closed, and the record emitted during close
+      // should NOT have reached it.
+      expect(sink.closed, isTrue);
+      expect(sink.records, isEmpty);
+    });
+
+    test('failing sink does not prevent other sinks from receiving', () {
+      final badSink = _ThrowingSink();
+      final goodSink = TestSink();
+      LogManager.instance
+        ..addSink(badSink)
+        ..addSink(goodSink);
+
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'Test',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+      );
+      LogManager.instance.emit(record);
+
+      expect(goodSink.records, hasLength(1));
     });
 
     test('sinks list is unmodifiable', () {
