@@ -28,7 +28,7 @@ class PlatformDiskQueue implements DiskQueue {
   @override
   Future<void> append(Map<String, Object?> json) {
     final completer = Completer<void>();
-    _writeLock = _writeLock.then((_) async {
+    _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
         await _rotateIfNeeded();
         final line = '${jsonEncode(json)}\n';
@@ -54,7 +54,7 @@ class PlatformDiskQueue implements DiskQueue {
   @override
   Future<List<Map<String, Object?>>> drain(int count) {
     final completer = Completer<List<Map<String, Object?>>>();
-    _writeLock = _writeLock.then((_) async {
+    _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
         completer.complete(await _drainUnsafe(count));
       } on Object catch (e, s) {
@@ -101,7 +101,7 @@ class PlatformDiskQueue implements DiskQueue {
   @override
   Future<void> confirm(int count) {
     final completer = Completer<void>();
-    _writeLock = _writeLock.then((_) async {
+    _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
         await _confirmUnsafe(count);
         completer.complete();
@@ -112,36 +112,52 @@ class PlatformDiskQueue implements DiskQueue {
     return completer.future;
   }
 
-  // C5 fix: stream-based confirm — reads lines via stream rather than
-  // loading the entire file into memory.
+  /// Removes the first [count] valid records from the queue file.
+  ///
+  /// Parses each line as JSON and only counts valid `Map` entries,
+  /// matching [_drainUnsafe] semantics. Corrupted or non-Map lines
+  /// are discarded without counting toward [count].
+  /// Writes to a temp file and atomically renames for crash safety.
   Future<void> _confirmUnsafe(int count) async {
     if (!_file.existsSync()) return;
 
-    final lines = await _readLinesStream().toList();
-
-    // Skip the first `count` non-empty lines.
+    final tmpFile = File('${_directory.path}/.log_queue_confirm.tmp');
+    final sink = tmpFile.openWrite();
     var removed = 0;
-    var lineIndex = 0;
-    while (lineIndex < lines.length && removed < count) {
-      if (lines[lineIndex].trim().isNotEmpty) {
-        removed++;
+
+    await for (final line in _readLinesStream()) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+
+      if (removed < count) {
+        // Parse to match drain semantics: only valid Maps count.
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map<String, Object?>) {
+            removed++;
+            continue; // drop this record
+          }
+        } on FormatException {
+          // Corrupted line — drop without counting.
+          continue;
+        }
+        // Non-Map JSON — drop without counting.
+        continue;
       }
-      lineIndex++;
+
+      sink.writeln(trimmed);
     }
 
-    final remaining = lines.sublist(lineIndex).join('\n');
-    if (remaining.trim().isEmpty) {
-      await _file.writeAsString('');
-    } else {
-      await _file.writeAsString('$remaining\n');
-    }
+    await sink.close();
+    await tmpFile.rename(_file.path);
   }
 
   @override
   Future<int> get pendingCount {
     final completer = Completer<int>();
-    _writeLock = _writeLock.then((_) async {
+    _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
+        await _mergeFatalFile();
         if (!_file.existsSync()) {
           completer.complete(0);
         } else {
@@ -213,11 +229,32 @@ class PlatformDiskQueue implements DiskQueue {
   }
 
   /// Drops the oldest half of records when file exceeds size limit.
+  ///
+  /// Counts total lines, then streams a second pass keeping only the
+  /// newest half. Writes to a temp file and atomically renames.
   Future<void> _dropOldest() async {
-    final lines = await _readLinesStream().toList();
-    final nonEmpty = lines.where((l) => l.trim().isNotEmpty).toList();
-    final keepFrom = nonEmpty.length ~/ 2;
-    final kept = nonEmpty.sublist(keepFrom).join('\n');
-    await _file.writeAsString('$kept\n');
+    // First pass: count non-empty lines.
+    var totalLines = 0;
+    await for (final line in _readLinesStream()) {
+      if (line.trim().isNotEmpty) totalLines++;
+    }
+    if (totalLines == 0) return;
+
+    final dropCount = totalLines ~/ 2;
+    var seen = 0;
+
+    // Second pass: write kept lines to temp file.
+    final tmpFile = File('${_directory.path}/.log_queue_rotate.tmp');
+    final sink = tmpFile.openWrite();
+    await for (final line in _readLinesStream()) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      seen++;
+      if (seen > dropCount) {
+        sink.writeln(trimmed);
+      }
+    }
+    await sink.close();
+    await tmpFile.rename(_file.path);
   }
 }

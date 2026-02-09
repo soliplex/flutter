@@ -149,5 +149,50 @@ void main() {
       final records = await queue.drain(20);
       expect(records, hasLength(20));
     });
+
+    test('queue recovers after I/O error', () async {
+      await queue.append({'msg': 'before-error'});
+
+      // Delete directory to cause next append to fail.
+      tempDir.deleteSync(recursive: true);
+      try {
+        await queue.append({'msg': 'will-fail'});
+      } on Object {
+        // Expected.
+      }
+
+      // Recreate directory — queue should still work.
+      tempDir.createSync(recursive: true);
+      await queue.append({'msg': 'after-error'});
+
+      final records = await queue.drain(10);
+      expect(records, hasLength(1));
+      expect(records[0]['msg'], 'after-error');
+    });
+
+    test('confirm skips corrupted lines at head', () async {
+      final file = File('${tempDir.path}/log_queue.jsonl');
+      await file.writeAsString(
+        'this is not json\n'
+        '{"msg":"first"}\n'
+        '{"msg":"second"}\n',
+      );
+
+      // Confirm 1 record — should skip the corrupted line
+      // and remove "first", leaving only "second".
+      await queue.confirm(1);
+
+      final records = await queue.drain(10);
+      expect(records, hasLength(1));
+      expect(records[0]['msg'], 'second');
+    });
+
+    test('pendingCount includes fatal records', () async {
+      queue.appendSync({'msg': 'fatal'});
+      expect(await queue.pendingCount, 1);
+
+      await queue.append({'msg': 'normal'});
+      expect(await queue.pendingCount, 2);
+    });
   });
 }
