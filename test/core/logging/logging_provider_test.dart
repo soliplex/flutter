@@ -1,9 +1,11 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
+import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 void main() {
@@ -24,6 +26,9 @@ void main() {
     return ProviderContainer(
       overrides: [
         preloadedPrefsProvider.overrideWithValue(preloadedPrefs),
+        connectivityProvider.overrideWith(
+          (ref) => Stream.value([ConnectivityResult.wifi]),
+        ),
       ],
     );
   }
@@ -100,6 +105,52 @@ void main() {
       expect(prefs.getBool('console_logging'), isFalse);
     });
 
+    test('loads saved backend logging state from preferences', () async {
+      SharedPreferences.setMockInitialValues({
+        'backend_logging': true,
+        'backend_endpoint': '/custom/logs',
+      });
+      prefs = await SharedPreferences.getInstance();
+
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final config = container.read(logConfigProvider);
+
+      expect(config.backendLoggingEnabled, isTrue);
+      expect(config.backendEndpoint, '/custom/logs');
+    });
+
+    test('setBackendLoggingEnabled updates state and persists', () async {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(logConfigProvider.notifier);
+
+      await notifier.setBackendLoggingEnabled(enabled: true);
+
+      final config = container.read(logConfigProvider);
+      expect(config.backendLoggingEnabled, isTrue);
+
+      // Verify persistence.
+      expect(prefs.getBool('backend_logging'), isTrue);
+    });
+
+    test('setBackendEndpoint updates state and persists', () async {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(logConfigProvider.notifier);
+
+      await notifier.setBackendEndpoint('/v2/logs');
+
+      final config = container.read(logConfigProvider);
+      expect(config.backendEndpoint, '/v2/logs');
+
+      // Verify persistence.
+      expect(prefs.getString('backend_endpoint'), '/v2/logs');
+    });
+
     test('throws when prefs provider not overridden', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
@@ -109,6 +160,63 @@ void main() {
         () => container.read(logConfigProvider),
         throwsA(anything),
       );
+    });
+  });
+
+  group('installIdProvider', () {
+    test('generates and persists install ID', () {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final id = container.read(installIdProvider);
+
+      expect(id, isNotEmpty);
+      // Verify it's persisted.
+      expect(prefs.getString('install_id'), id);
+    });
+
+    test('returns same ID across reads', () {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final id1 = container.read(installIdProvider);
+      final id2 = container.read(installIdProvider);
+
+      expect(id1, equals(id2));
+    });
+
+    test('returns existing ID from prefs', () async {
+      SharedPreferences.setMockInitialValues({
+        'install_id': 'existing-uuid',
+      });
+      prefs = await SharedPreferences.getInstance();
+
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final id = container.read(installIdProvider);
+      expect(id, 'existing-uuid');
+    });
+  });
+
+  group('sessionIdProvider', () {
+    test('generates a non-empty session ID', () {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final id = container.read(sessionIdProvider);
+
+      expect(id, isNotEmpty);
+    });
+
+    test('returns same ID within same container', () {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final id1 = container.read(sessionIdProvider);
+      final id2 = container.read(sessionIdProvider);
+
+      expect(id1, equals(id2));
     });
   });
 

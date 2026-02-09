@@ -9,12 +9,15 @@ import 'package:mocktail/mocktail.dart';
 // ignore: implementation_imports, depend_on_referenced_packages
 import 'package:riverpod/src/framework.dart' show Override;
 // Hide ag_ui's CancelToken - HttpTransport uses our local one.
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide CancelToken;
 import 'package:soliplex_client/src/utils/cancel_token.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/auth_storage.dart';
+import 'package:soliplex_frontend/core/logging/log_config.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/models/logo_config.dart';
@@ -551,26 +554,43 @@ final testThemeData = soliplexLightTheme();
 /// Wraps the widget in a Scaffold since screens no longer provide their own.
 /// The AppShell wrapper in the real app provides the Scaffold.
 ///
+/// Initializes mock [SharedPreferences] for test use.
+///
+/// Returns a cached instance. Must be awaited before using
+/// [createTestApp] if tests rely on prefs state.
+Future<SharedPreferences> initTestPrefs([
+  Map<String, Object> values = const {},
+]) async {
+  SharedPreferences.setMockInitialValues(values);
+  return SharedPreferences.getInstance();
+}
+
+/// Creates a test app widget wrapped in providers.
+///
 /// Automatically includes default overrides for:
-/// - [shellConfigProvider] with default [SoliplexConfig]
-/// - [backendVersionInfoProvider] with [testBackendVersionInfo]
+/// - `shellConfigProvider` with default `SoliplexConfig`
+/// - `logConfigProvider` with default `LogConfig`
+/// - `backendVersionInfoProvider` with `testBackendVersionInfo`
 ///
-/// Set [skipBackendVersionOverride] to true when providing a custom override
-/// for [backendVersionInfoProvider] in [overrides].
-///
-/// [onContainerCreated] is called with the [ProviderContainer] after it's
-/// created, allowing tests to read provider state.
+/// Set [skipBackendVersionOverride] to true when providing a custom
+/// override for `backendVersionInfoProvider` in [overrides].
 Widget createTestApp({
   required Widget home,
   // Using dynamic list since Override type is internal in Riverpod 3.0
   List<dynamic> overrides = const [],
   void Function(ProviderContainer)? onContainerCreated,
   bool skipBackendVersionOverride = false,
+  SharedPreferences? sharedPreferences,
 }) {
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
         shellConfigProvider.overrideWithValue(testSoliplexConfig),
+        if (sharedPreferences != null)
+          preloadedPrefsProvider.overrideWithValue(sharedPreferences),
+        // Provide default LogConfig so widgets that watch logConfigProvider
+        // don't require SharedPreferences to be initialized.
+        logConfigProvider.overrideWith(_TestLogConfigNotifier.new),
         if (!skipBackendVersionOverride)
           // Use AsyncValue.data for immediate value without pending Futures
           backendVersionInfoProvider.overrideWithValue(
@@ -584,6 +604,12 @@ Widget createTestApp({
       home: Scaffold(body: home),
     ),
   );
+}
+
+/// Test-only LogConfigNotifier that returns defaults without SharedPreferences.
+class _TestLogConfigNotifier extends LogConfigNotifier {
+  @override
+  LogConfig build() => LogConfig.defaultConfig;
 }
 
 extension _Also<T> on T {
