@@ -70,9 +70,9 @@ class _RoomListTileState extends State<RoomListTile> {
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                       ],
@@ -80,9 +80,9 @@ class _RoomListTileState extends State<RoomListTile> {
                   ),
                   Icon(
                     Icons.chevron_right,
-                    color: Theme.of(context).iconTheme.color?.withAlpha(
-                          (0.6 * 255).toInt(),
-                        ),
+                    color: Theme.of(
+                      context,
+                    ).iconTheme.color?.withAlpha((0.6 * 255).toInt()),
                   ),
                 ],
               ),

@@ -7,9 +7,11 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
+import 'package:soliplex_frontend/version.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -27,9 +29,8 @@ Widget _createAppWithRouter({
         routes: [
           GoRoute(
             path: 'backend-versions',
-            builder: (_, __) => const Scaffold(
-              body: Text('Backend Versions Screen'),
-            ),
+            builder: (_, __) =>
+                const Scaffold(body: Text('Backend Versions Screen')),
           ),
         ],
       ),
@@ -39,7 +40,7 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        packageInfoProvider.overrideWithValue(testPackageInfo),
+        shellConfigProvider.overrideWithValue(testSoliplexConfig),
         backendVersionInfoProvider.overrideWithValue(
           const AsyncValue.data(testBackendVersionInfo),
         ),
@@ -104,16 +105,24 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
 
 void main() {
   group('SettingsScreen', () {
-    testWidgets('displays app version from packageInfoProvider',
-        (tester) async {
+    testWidgets('displays frontend version', (tester) async {
       await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
 
-      expect(find.text('App Version'), findsOneWidget);
-      expect(find.text('1.0.0+1'), findsOneWidget);
+      expect(find.text('Frontend Version'), findsOneWidget);
+      expect(find.text(soliplexVersion), findsOneWidget);
     });
 
     testWidgets('displays backend URL', (tester) async {
-      await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
+      await tester.pumpWidget(
+        createTestApp(
+          home: const SettingsScreen(),
+          overrides: [
+            configProviderOverride(
+              const AppConfig(baseUrl: 'http://localhost:8000'),
+            ),
+          ],
+        ),
+      );
 
       expect(find.text('Backend URL'), findsOneWidget);
       expect(find.text('http://localhost:8000'), findsOneWidget);
@@ -131,8 +140,9 @@ void main() {
       expect(find.text('Not signed in'), findsOneWidget);
     });
 
-    testWidgets('shows Disconnect option in NoAuthRequired state',
-        (tester) async {
+    testWidgets('shows Disconnect option in NoAuthRequired state', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const SettingsScreen(),
@@ -235,10 +245,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Dialog should be dismissed
-        expect(
-          find.text('Are you sure you want to sign out?'),
-          findsNothing,
-        );
+        expect(find.text('Are you sure you want to sign out?'), findsNothing);
       });
 
       testWidgets('calls signOut on confirm', (tester) async {
@@ -301,9 +308,7 @@ void main() {
     group('Backend version', () {
       testWidgets('displays backend version when loaded', (tester) async {
         // Uses default testBackendVersionInfo from createTestApp
-        await tester.pumpWidget(
-          createTestApp(home: const SettingsScreen()),
-        );
+        await tester.pumpWidget(createTestApp(home: const SettingsScreen()));
         // Just pump once - the value is immediately available via AsyncValue
         await tester.pump();
 
@@ -366,8 +371,9 @@ void main() {
         );
       });
 
-      testWidgets('View All navigates to backend-versions screen',
-          (tester) async {
+      testWidgets('View All navigates to backend-versions screen', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           _createAppWithRouter(
             home: const SettingsScreen(),

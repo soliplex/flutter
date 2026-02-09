@@ -1,6 +1,8 @@
+import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
 import 'package:soliplex_client/src/domain/chat_message.dart';
+import 'package:soliplex_client/src/domain/message_state.dart';
 
 /// Status of a conversation.
 ///
@@ -134,6 +136,8 @@ class Conversation {
     this.messages = const [],
     this.toolCalls = const [],
     this.status = const Idle(),
+    this.aguiState = const {},
+    this.messageStates = const {},
   });
 
   /// Creates an empty conversation for the given thread.
@@ -153,6 +157,19 @@ class Conversation {
   /// Current status of the conversation.
   final ConversationStatus status;
 
+  /// AG-UI state from STATE_SNAPSHOT and STATE_DELTA events.
+  ///
+  /// Contains application-specific state like citation history from RAG
+  /// queries.
+  final Map<String, dynamic> aguiState;
+
+  /// Per-message state keyed by user message ID.
+  ///
+  /// Each entry contains source references (citations) associated with the
+  /// assistant's response to that user message. Populated at run completion
+  /// by correlating AG-UI state changes.
+  final Map<String, MessageState> messageStates;
+
   /// Whether a run is currently active.
   bool get isRunning => status is Running;
 
@@ -171,28 +188,55 @@ class Conversation {
     return copyWith(status: newStatus);
   }
 
+  /// Returns a new conversation with the given message state added.
+  Conversation withMessageState(String userMessageId, MessageState state) {
+    return copyWith(messageStates: {...messageStates, userMessageId: state});
+  }
+
   /// Creates a copy with the given fields replaced.
   Conversation copyWith({
     String? threadId,
     List<ChatMessage>? messages,
     List<ToolCallInfo>? toolCalls,
     ConversationStatus? status,
+    Map<String, dynamic>? aguiState,
+    Map<String, MessageState>? messageStates,
   }) {
     return Conversation(
       threadId: threadId ?? this.threadId,
       messages: messages ?? this.messages,
       toolCalls: toolCalls ?? this.toolCalls,
       status: status ?? this.status,
+      aguiState: aguiState ?? this.aguiState,
+      messageStates: messageStates ?? this.messageStates,
     );
   }
 
   @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is Conversation && threadId == other.threadId;
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! Conversation) return false;
+    const listEquals = ListEquality<ChatMessage>();
+    const toolCallListEquals = ListEquality<ToolCallInfo>();
+    const mapEquals = DeepCollectionEquality();
+    const messageStateMapEquals = MapEquality<String, MessageState>();
+    return threadId == other.threadId &&
+        listEquals.equals(messages, other.messages) &&
+        toolCallListEquals.equals(toolCalls, other.toolCalls) &&
+        status == other.status &&
+        mapEquals.equals(aguiState, other.aguiState) &&
+        messageStateMapEquals.equals(messageStates, other.messageStates);
+  }
 
   @override
-  int get hashCode => threadId.hashCode;
+  int get hashCode => Object.hash(
+        threadId,
+        const ListEquality<ChatMessage>().hash(messages),
+        const ListEquality<ToolCallInfo>().hash(toolCalls),
+        status,
+        const DeepCollectionEquality().hash(aguiState),
+        const MapEquality<String, MessageState>().hash(messageStates),
+      );
 
   @override
   String toString() => 'Conversation(threadId: $threadId, '

@@ -9,8 +9,9 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('AsyncValueHandler', () {
-    testWidgets('shows LoadingIndicator when loading and no custom widget',
-        (tester) async {
+    testWidgets('shows LoadingIndicator when loading and no custom widget', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: AsyncValueHandler<String>(
@@ -64,8 +65,9 @@ void main() {
       expect(find.byType(ErrorDisplay), findsOneWidget);
     });
 
-    testWidgets('ErrorDisplay shows retry button when onRetry provided',
-        (tester) async {
+    testWidgets('ErrorDisplay shows retry button when onRetry provided', (
+      tester,
+    ) async {
       var retried = false;
 
       await tester.pumpWidget(

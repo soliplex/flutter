@@ -121,15 +121,15 @@ void main() {
     });
 
     group('Header', () {
-      testWidgets('displays title', (tester) async {
+      testWidgets('displays title with count', (tester) async {
         await tester.pumpWidget(
           createTestApp(home: const Scaffold(body: HttpInspectorPanel())),
         );
 
-        expect(find.text('HTTP Inspector'), findsOneWidget);
+        expect(find.text('Requests (0)'), findsOneWidget);
       });
 
-      testWidgets('displays request count', (tester) async {
+      testWidgets('displays request count in title', (tester) async {
         final events = [
           TestData.createRequestEvent(),
           TestData.createResponseEvent(),
@@ -147,11 +147,11 @@ void main() {
           ),
         );
 
-        // Shows group count (2 requests: req-1 and req-2)
-        expect(find.text('2 requests'), findsOneWidget);
+        // Shows group count in title (2 requests: req-1 and req-2)
+        expect(find.text('Requests (2)'), findsOneWidget);
       });
 
-      testWidgets('uses singular for single request', (tester) async {
+      testWidgets('displays single request count', (tester) async {
         final events = [TestData.createRequestEvent()];
 
         await tester.pumpWidget(
@@ -165,7 +165,7 @@ void main() {
           ),
         );
 
-        expect(find.text('1 request'), findsOneWidget);
+        expect(find.text('Requests (1)'), findsOneWidget);
       });
     });
   });

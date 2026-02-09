@@ -11,8 +11,10 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
+import 'package:soliplex_frontend/core/models/logo_config.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/package_info_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -78,7 +80,10 @@ Widget _createAppWithRouter({
   final router = GoRouter(
     initialLocation: '/',
     routes: [
-      GoRoute(path: '/', builder: (_, __) => Scaffold(body: home)),
+      GoRoute(
+        path: '/',
+        builder: (_, __) => Scaffold(body: home),
+      ),
       GoRoute(
         path: '/rooms',
         builder: (_, __) => const Scaffold(body: Text('Rooms Screen')),
@@ -93,7 +98,11 @@ Widget _createAppWithRouter({
   return UncontrolledProviderScope(
     container: ProviderContainer(
       overrides: [
-        packageInfoProvider.overrideWithValue(testPackageInfo),
+        // Default localhost:8000 matches test URLs so connecting is not
+        // treated as a backend change (which triggers signOut).
+        shellConfigProvider.overrideWithValue(
+          const SoliplexConfig(logo: LogoConfig.soliplex),
+        ),
         ...overrides.cast(),
       ],
     ),
@@ -118,6 +127,40 @@ void main() {
         );
         expect(find.text('Backend URL'), findsOneWidget);
         expect(find.text('Connect'), findsOneWidget);
+      });
+
+      testWidgets('displays logo from config', (tester) async {
+        const customLogo = LogoConfig(
+          assetPath: 'assets/custom_logo.png',
+          package: 'test_package',
+        );
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: ProviderContainer(
+              overrides: [
+                shellConfigProvider.overrideWithValue(
+                  const SoliplexConfig(
+                    oauthRedirectScheme: 'test.app',
+                    logo: customLogo,
+                  ),
+                ),
+              ],
+            ),
+            child: MaterialApp(
+              theme: testThemeData,
+              home: const Scaffold(body: HomeScreen()),
+            ),
+          ),
+        );
+
+        // Find the Image widget and verify its configuration
+        final imageFinder = find.byType(Image);
+        expect(imageFinder, findsOneWidget);
+
+        final image = tester.widget<Image>(imageFinder);
+        final assetImage = image.image as AssetImage;
+        expect(assetImage.assetName, equals('assets/custom_logo.png'));
+        expect(assetImage.package, equals('test_package'));
       });
 
       testWidgets('loads initial URL from config', (tester) async {
@@ -201,8 +244,9 @@ void main() {
     });
 
     group('connection errors', () {
-      testWidgets('shows timeout error for NetworkException with timeout',
-          (tester) async {
+      testWidgets('shows timeout error for NetworkException with timeout', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -221,9 +265,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -257,9 +299,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -277,45 +317,46 @@ void main() {
         );
       });
 
-      testWidgets('shows server error for ApiException without server message',
-          (tester) async {
-        final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(
-          const ApiException(statusCode: 500, message: 'HTTP 500'),
-        );
+      testWidgets(
+        'shows server error for ApiException without server message',
+        (tester) async {
+          final mockTransport = MockHttpTransport();
+          when(
+            () => mockTransport.request<Map<String, dynamic>>(
+              any(),
+              any(),
+              body: any(named: 'body'),
+              headers: any(named: 'headers'),
+              timeout: any(named: 'timeout'),
+              cancelToken: any(named: 'cancelToken'),
+              fromJson: any(named: 'fromJson'),
+            ),
+          ).thenThrow(const ApiException(statusCode: 500, message: 'HTTP 500'));
 
-        await tester.pumpWidget(
-          createTestApp(
-            home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
-          ),
-        );
+          await tester.pumpWidget(
+            createTestApp(
+              home: const HomeScreen(),
+              overrides: [
+                httpTransportProvider.overrideWithValue(mockTransport),
+              ],
+            ),
+          );
 
-        final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
-        await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+          final urlField = find.byType(TextFormField);
+          await tester.enterText(urlField, 'http://localhost:8000');
+          await tester.tap(find.text('Connect'));
+          await tester.pumpAndSettle();
 
-        expect(
-          find.text('Server error. Please try again later. (500)'),
-          findsOneWidget,
-        );
-      });
+          expect(
+            find.text('Server error. Please try again later. (500)'),
+            findsOneWidget,
+          );
+        },
+      );
 
-      testWidgets('shows server error for ApiException with server message',
-          (tester) async {
+      testWidgets('shows server error for ApiException with server message', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -338,9 +379,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -375,9 +414,7 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: const HomeScreen(),
-            overrides: [
-              httpTransportProvider.overrideWithValue(mockTransport),
-            ],
+            overrides: [httpTransportProvider.overrideWithValue(mockTransport)],
           ),
         );
 
@@ -474,8 +511,9 @@ void main() {
         expect(find.text('Login Screen'), findsOneWidget);
       });
 
-      testWidgets('navigates to rooms when already authenticated',
-          (tester) async {
+      testWidgets('navigates to rooms when already authenticated', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(
@@ -520,8 +558,9 @@ void main() {
         expect(find.text('Rooms Screen'), findsOneWidget);
       });
 
-      testWidgets('exits no-auth mode and navigates to login when switching',
-          (tester) async {
+      testWidgets('exits no-auth mode and navigates to login when switching', (
+        tester,
+      ) async {
         final mockTransport = MockHttpTransport();
         when(
           () => mockTransport.request<Map<String, dynamic>>(

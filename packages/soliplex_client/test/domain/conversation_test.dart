@@ -163,7 +163,7 @@ void main() {
     });
 
     group('equality', () {
-      test('conversations with same threadId are equal', () {
+      test('conversations with same state are equal', () {
         final other = Conversation.empty(threadId: 'thread-1');
         expect(conversation, equals(other));
       });
@@ -171,6 +171,102 @@ void main() {
       test('conversations with different threadId are not equal', () {
         final other = Conversation.empty(threadId: 'thread-2');
         expect(conversation, isNot(equals(other)));
+      });
+
+      test('conversations with different aguiState are not equal', () {
+        const conv1 = Conversation(
+          threadId: 'thread-1',
+          aguiState: {'key': 'value1'},
+        );
+        const conv2 = Conversation(
+          threadId: 'thread-1',
+          aguiState: {'key': 'value2'},
+        );
+        expect(conv1, isNot(equals(conv2)));
+      });
+
+      test('conversations with different messages are not equal', () {
+        final conv1 = Conversation.empty(threadId: 'thread-1');
+        final conv2 = conv1.withAppendedMessage(
+          TextMessage.create(id: 'msg-1', user: ChatUser.user, text: 'Hi'),
+        );
+        expect(conv1, isNot(equals(conv2)));
+      });
+
+      test('conversations with different status are not equal', () {
+        final conv1 = Conversation.empty(threadId: 'thread-1');
+        final conv2 = conv1.withStatus(const Running(runId: 'run-1'));
+        expect(conv1, isNot(equals(conv2)));
+      });
+
+      test('conversations with different messageStates are not equal', () {
+        final conv1 = Conversation.empty(threadId: 'thread-1');
+        final conv2 = conv1.withMessageState(
+          'user-1',
+          MessageState(
+            userMessageId: 'user-1',
+            sourceReferences: const [],
+          ),
+        );
+        expect(conv1, isNot(equals(conv2)));
+      });
+    });
+
+    group('messageStates', () {
+      test('defaults to empty map', () {
+        expect(conversation.messageStates, isEmpty);
+      });
+
+      test('withMessageState adds new entry', () {
+        const refs = [
+          SourceReference(
+            documentId: 'doc-1',
+            documentUri: 'https://example.com/doc.pdf',
+            content: 'Content',
+            chunkId: 'chunk-1',
+          ),
+        ];
+        final state = MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: refs,
+        );
+
+        final updated = conversation.withMessageState('user-1', state);
+
+        expect(updated.messageStates, hasLength(1));
+        expect(updated.messageStates['user-1'], state);
+      });
+
+      test('withMessageState preserves existing entries', () {
+        final state1 = MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: const [],
+        );
+        final state2 = MessageState(
+          userMessageId: 'user-2',
+          sourceReferences: const [],
+        );
+
+        final updated = conversation
+            .withMessageState('user-1', state1)
+            .withMessageState('user-2', state2);
+
+        expect(updated.messageStates, hasLength(2));
+        expect(updated.messageStates['user-1'], state1);
+        expect(updated.messageStates['user-2'], state2);
+      });
+
+      test('copyWith messageStates', () {
+        final state = MessageState(
+          userMessageId: 'user-1',
+          sourceReferences: const [],
+        );
+
+        final updated = conversation.copyWith(
+          messageStates: {'user-1': state},
+        );
+
+        expect(updated.messageStates, hasLength(1));
       });
     });
   });

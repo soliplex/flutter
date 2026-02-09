@@ -6,7 +6,7 @@ import 'package:soliplex_frontend/shared/utils/date_formatter.dart';
 ///
 /// Shows:
 /// - Thread name (or "Thread {shortId}" if no name)
-/// - Relative timestamp of last update
+/// - Relative timestamp of creation
 /// - Highlight if selected
 /// - Activity indicator if run is active on this thread
 ///
@@ -49,7 +49,7 @@ class ThreadListItem extends StatelessWidget {
   }
 
   String _getSubtitle() {
-    return formatRelativeTime(thread.updatedAt);
+    return formatRelativeTime(thread.createdAt);
   }
 
   @override

@@ -33,7 +33,7 @@ sealed class ActiveRunState {
   /// The conversation (domain state). IdleState returns an empty sentinel.
   Conversation get conversation;
 
-  /// The streaming state (application layer). IdleState returns NotStreaming.
+  /// The streaming state (application layer).
   StreamingState get streaming;
 
   /// All messages from the conversation.
@@ -60,7 +60,7 @@ class IdleState extends ActiveRunState {
   Conversation get conversation => Conversation.empty(threadId: '');
 
   @override
-  StreamingState get streaming => const NotStreaming();
+  StreamingState get streaming => const AwaitingText();
 
   @override
   bool operator ==(Object other) =>
@@ -82,7 +82,7 @@ class RunningState extends ActiveRunState {
   /// Creates a running state.
   const RunningState({
     required this.conversation,
-    this.streaming = const NotStreaming(),
+    this.streaming = const AwaitingText(),
   });
 
   @override
@@ -101,7 +101,7 @@ class RunningState extends ActiveRunState {
       };
 
   /// Whether text is actively streaming.
-  bool get isStreaming => streaming is Streaming;
+  bool get isStreaming => streaming is TextStreaming;
 
   /// Creates a copy with the given fields replaced.
   RunningState copyWith({
@@ -148,7 +148,7 @@ class CompletedState extends ActiveRunState {
   const CompletedState({
     required this.conversation,
     required this.result,
-    this.streaming = const NotStreaming(),
+    this.streaming = const AwaitingText(),
   });
 
   @override
@@ -215,18 +215,23 @@ class Success extends CompletionResult {
 /// The run failed with an error.
 @immutable
 class FailedResult extends CompletionResult {
-  const FailedResult({required this.errorMessage});
+  const FailedResult({required this.errorMessage, this.stackTrace});
 
   /// The error message describing what went wrong.
   final String errorMessage;
 
+  /// The stack trace at the point of failure, if available.
+  final StackTrace? stackTrace;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is FailedResult && errorMessage == other.errorMessage;
+      other is FailedResult &&
+          errorMessage == other.errorMessage &&
+          stackTrace == other.stackTrace;
 
   @override
-  int get hashCode => Object.hash(runtimeType, errorMessage);
+  int get hashCode => Object.hash(runtimeType, errorMessage, stackTrace);
 
   @override
   String toString() => 'FailedResult(errorMessage: $errorMessage)';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 
 /// Standard error display widget with retry button.
@@ -19,19 +19,21 @@ import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 class ErrorDisplay extends StatelessWidget {
   const ErrorDisplay({
     required this.error,
+    required this.stackTrace,
     this.onRetry,
     this.retryLabel = 'Retry',
     super.key,
   });
 
   final Object error;
+  final StackTrace stackTrace;
   final VoidCallback? onRetry;
   final String retryLabel;
 
   /// Unwraps wrapper exceptions to get the underlying cause.
   Object _unwrapError() {
-    if (error is MessageFetchException) {
-      return (error as MessageFetchException).cause;
+    if (error is HistoryFetchException) {
+      return (error as HistoryFetchException).cause;
     }
     return error;
   }
@@ -126,7 +128,7 @@ class ErrorDisplay extends StatelessWidget {
               style: Theme.of(context).textTheme.bodyLarge,
             ),
             const SizedBox(height: 8),
-            _TechnicalDetails(error: error),
+            _TechnicalDetails(error: error, stackTrace: stackTrace),
             if (onRetry != null && _canRetry()) ...[
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -144,9 +146,10 @@ class ErrorDisplay extends StatelessWidget {
 
 /// Collapsible technical details section.
 class _TechnicalDetails extends StatefulWidget {
-  const _TechnicalDetails({required this.error});
+  const _TechnicalDetails({required this.error, required this.stackTrace});
 
   final Object error;
+  final StackTrace stackTrace;
 
   @override
   State<_TechnicalDetails> createState() => _TechnicalDetailsState();
@@ -156,8 +159,8 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
   bool _expanded = false;
 
   Object _unwrapError() {
-    if (widget.error is MessageFetchException) {
-      return (widget.error as MessageFetchException).cause;
+    if (widget.error is HistoryFetchException) {
+      return (widget.error as HistoryFetchException).cause;
     }
     return widget.error;
   }
@@ -194,25 +197,37 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
       details['Error'] = unwrapped.toString();
     }
 
-    if (widget.error is MessageFetchException) {
-      final wrapper = widget.error as MessageFetchException;
+    if (widget.error is HistoryFetchException) {
+      final wrapper = widget.error as HistoryFetchException;
       details['Thread ID'] = wrapper.threadId;
     }
 
     return details;
   }
 
-  String _getStackTrace() {
-    final unwrapped = _unwrapError();
-    if (unwrapped is SoliplexException && unwrapped.stackTrace != null) {
-      final lines = unwrapped.stackTrace.toString().split('\n');
-      final truncated = lines.take(10).join('\n');
-      if (lines.length > 10) {
-        return '$truncated\n... (${lines.length - 10} more lines)';
+  String _resolveStackTrace() {
+    var stackTrace = widget.stackTrace;
+    if (stackTrace == StackTrace.empty) {
+      final unwrapped = _unwrapError();
+      if (unwrapped is SoliplexException && unwrapped.stackTrace != null) {
+        stackTrace = unwrapped.stackTrace!;
+      } else {
+        return '';
       }
-      return truncated;
     }
-    return '';
+    return stackTrace.toString();
+  }
+
+  String _getDisplayStackTrace() {
+    final full = _resolveStackTrace();
+    if (full.isEmpty) return '';
+    final lines = full.split('\n');
+    if (lines.length > 10) {
+      final truncated = lines.take(10).join('\n');
+      final remaining = lines.length - 10;
+      return '$truncated\n... ($remaining more lines)';
+    }
+    return full;
   }
 
   String _formatAllDetails() {
@@ -220,7 +235,7 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
     for (final entry in _buildDetails().entries) {
       buffer.writeln('${entry.key}: ${entry.value}');
     }
-    final stackTrace = _getStackTrace();
+    final stackTrace = _resolveStackTrace();
     if (stackTrace.isNotEmpty) {
       buffer
         ..writeln()
@@ -264,7 +279,7 @@ class _TechnicalDetailsState extends State<_TechnicalDetails> {
         if (_expanded)
           _DetailsPanel(
             details: _buildDetails(),
-            stackTrace: _getStackTrace(),
+            stackTrace: _getDisplayStackTrace(),
             formattedDetails: _formatAllDetails(),
           ),
       ],
@@ -294,9 +309,7 @@ class _DetailsPanel extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(
-          soliplexTheme.radii.sm,
-        ),
+        borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,9 +340,7 @@ class _DetailsPanel extends StatelessWidget {
           Center(
             child: TextButton.icon(
               onPressed: () async {
-                await Clipboard.setData(
-                  ClipboardData(text: formattedDetails),
-                );
+                await Clipboard.setData(ClipboardData(text: formattedDetails));
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -374,9 +385,7 @@ class _DetailRow extends StatelessWidget {
         Expanded(
           child: SelectableText(
             value,
-            style: theme.textTheme.bodySmall?.copyWith(
-              fontFamily: 'monospace',
-            ),
+            style: theme.textTheme.bodySmall?.copyWith(fontFamily: 'monospace'),
           ),
         ),
       ],

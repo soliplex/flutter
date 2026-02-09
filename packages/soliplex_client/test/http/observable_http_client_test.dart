@@ -112,7 +112,8 @@ void main() {
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
         expect(requestEvent.method, equals('GET'));
         expect(requestEvent.uri.toString(), equals('https://example.com/api'));
-        expect(requestEvent.headers['Authorization'], equals('Bearer token'));
+        // Headers are now redacted by ObservableHttpClient
+        expect(requestEvent.headers['Authorization'], equals('[REDACTED]'));
 
         final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
         expect(responseEvent.requestId, equals(requestEvent.requestId));
@@ -906,6 +907,577 @@ void main() {
         );
 
         clientNoObservers.close();
+      });
+    });
+
+    group('body and header capture', () {
+      test('captures and redacts request body', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
+        );
+
+        await observableClient.request(
+          'POST',
+          Uri.parse('https://example.com/api'),
+          body: {'username': 'john', 'password': 'secret123'},
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(requestEvent.body, isNotNull);
+        final body = requestEvent.body as Map<String, dynamic>;
+        expect(body['username'], equals('john'));
+        expect(body['password'], equals('[REDACTED]'));
+      });
+
+      test('captures and redacts request headers', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+          headers: {
+            'Authorization': 'Bearer secret-token',
+            'Content-Type': 'application/json',
+          },
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(requestEvent.headers['Authorization'], equals('[REDACTED]'));
+        expect(
+          requestEvent.headers['Content-Type'],
+          equals('application/json'),
+        );
+      });
+
+      test('redacts sensitive query parameters in URI', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api?token=secret&page=1'),
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(
+          requestEvent.uri.queryParameters['token'],
+          equals('[REDACTED]'),
+        );
+        expect(requestEvent.uri.queryParameters['page'], equals('1'));
+      });
+
+      test('captures and redacts response body', () async {
+        const responseBody = '{"user": "john", "token": "secret-jwt"}';
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List.fromList(responseBody.codeUnits),
+            headers: const {'content-type': 'application/json'},
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+        expect(responseEvent.body, isNotNull);
+        final body = responseEvent.body as Map<String, dynamic>;
+        expect(body['user'], equals('john'));
+        expect(body['token'], equals('[REDACTED]'));
+      });
+
+      test('captures and redacts response headers', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List(0),
+            headers: const {
+              'set-cookie': 'session=abc123',
+              'content-type': 'application/json',
+            },
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+        expect(responseEvent.headers, isNotNull);
+        expect(responseEvent.headers!['set-cookie'], equals('[REDACTED]'));
+        expect(
+          responseEvent.headers!['content-type'],
+          equals('application/json'),
+        );
+      });
+
+      test('redacts entire body for auth endpoints', () async {
+        const responseBody = '{"access_token": "jwt", "expires_in": 3600}';
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List.fromList(responseBody.codeUnits),
+            headers: const {'content-type': 'application/json'},
+          ),
+        );
+
+        await observableClient.request(
+          'POST',
+          Uri.parse('https://example.com/oauth/token'),
+          body: {'grant_type': 'password', 'username': 'user'},
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+
+        expect(requestEvent.body, equals('[REDACTED - Auth Endpoint]'));
+        expect(responseEvent.body, equals('[REDACTED - Auth Endpoint]'));
+      });
+
+      test('handles non-JSON response body as string', () async {
+        const textBody = 'Plain text response';
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List.fromList(textBody.codeUnits),
+            headers: const {'content-type': 'text/plain'},
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+        expect(responseEvent.body, equals(textBody));
+      });
+
+      test('handles empty response body', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 204,
+            bodyBytes: Uint8List(0),
+          ),
+        );
+
+        await observableClient.request(
+          'DELETE',
+          Uri.parse('https://example.com/api/resource'),
+        );
+
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+        expect(responseEvent.body, equals(''));
+      });
+
+      test('handles null request body for GET requests', () async {
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(statusCode: 200, bodyBytes: Uint8List(0)),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
+        expect(requestEvent.body, isNull);
+      });
+
+      test('redacts sensitive data in non-JSON/non-text response body',
+          () async {
+        // e.g., application/octet-stream or unknown content type
+        const body = 'token=secret123&data=value';
+        when(
+          () => mockClient.request(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => HttpResponse(
+            statusCode: 200,
+            bodyBytes: Uint8List.fromList(body.codeUnits),
+            headers: const {'content-type': 'application/octet-stream'},
+          ),
+        );
+
+        await observableClient.request(
+          'GET',
+          Uri.parse('https://example.com/api'),
+        );
+
+        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
+        // Should redact sensitive form fields even in unknown content types
+        expect(responseEvent.body, contains('data=value'));
+        expect(responseEvent.body, isNot(contains('secret123')));
+      });
+    });
+
+    group('SSE stream request data', () {
+      test('captures redacted headers in stream start event', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/api/runs'),
+          headers: {
+            'Authorization': 'Bearer secret-token',
+            'Accept': 'text/event-stream',
+          },
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(startEvent.headers['Authorization'], equals('[REDACTED]'));
+        expect(startEvent.headers['Accept'], equals('text/event-stream'));
+      });
+
+      test('captures redacted body in stream start event', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/api/runs'),
+          body: {'thread_id': 't1', 'password': 'secret123'},
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(startEvent.body, isNotNull);
+        final body = startEvent.body as Map<String, dynamic>;
+        expect(body['thread_id'], equals('t1'));
+        expect(body['password'], equals('[REDACTED]'));
+      });
+
+      test('handles List<int> body in stream request', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        const jsonBody = '{"thread_id": "t1", "token": "secret"}';
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/api/runs'),
+          body: jsonBody.codeUnits,
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        await controller.close();
+        await completer.future;
+
+        final startEvent = recorder.eventsOfType<HttpStreamStartEvent>().first;
+        expect(startEvent.body, isNotNull);
+        final body = startEvent.body as Map<String, dynamic>;
+        expect(body['thread_id'], equals('t1'));
+        expect(body['token'], equals('[REDACTED]'));
+      });
+    });
+
+    group('SSE stream response body redaction', () {
+      test('redacts sensitive fields in SSE stream body', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/events'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event =
+            'event: message\ndata: {"text": "hello", "token": "secret123"}\n\n';
+        controller.add(event.codeUnits);
+        await controller.close();
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, contains('hello'));
+        expect(endEvent.body, isNot(contains('secret123')));
+      });
+
+      test('fully redacts SSE body for auth endpoints', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'POST',
+          Uri.parse('https://example.com/oauth/token'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event = 'data: {"access_token": "secret-jwt"}\n\n';
+        controller.add(event.codeUnits);
+        await controller.close();
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, equals('[REDACTED - Auth Endpoint]'));
+      });
+
+      test('redacts SSE body on stream error', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/events'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen(
+          (_) {},
+          onError: (_) => completer.complete(),
+          onDone: () {
+            if (!completer.isCompleted) completer.complete();
+          },
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event = 'data: {"message": "test", "password": "secret"}\n\n';
+        controller
+          ..add(event.codeUnits)
+          ..addError(const NetworkException(message: 'Connection lost'));
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, contains('test'));
+        expect(endEvent.body, isNot(contains('secret')));
+
+        await controller.close();
+      });
+    });
+
+    group('SSE stream buffering', () {
+      test('buffers SSE content in stream end event', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/events'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        const event1 = 'event: message\ndata: {"text": "hello"}\n\n';
+        const event2 = 'event: message\ndata: {"text": "world"}\n\n';
+        controller
+          ..add(event1.codeUnits)
+          ..add(event2.codeUnits);
+        await controller.close();
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, isNotNull);
+        expect(endEvent.body, contains('hello'));
+        expect(endEvent.body, contains('world'));
+      });
+
+      test('truncates buffer when exceeding max size', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/events'),
+        );
+
+        final completer = Completer<void>();
+        stream.listen((_) {}, onDone: completer.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        // Send more than 500KB of data
+        final largeChunk = List.filled(100 * 1024, 65); // 100KB of 'A's
+        for (var i = 0; i < 6; i++) {
+          controller.add(largeChunk);
+          await Future<void>.delayed(const Duration(milliseconds: 1));
+        }
+        await controller.close();
+
+        await completer.future;
+
+        final endEvent = recorder.eventsOfType<HttpStreamEndEvent>().first;
+        expect(endEvent.body, isNotNull);
+        // Buffer should be capped and contain truncation indicator
+        expect(endEvent.body!.length, lessThanOrEqualTo(500 * 1024 + 100));
       });
     });
 

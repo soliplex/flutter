@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client_native/soliplex_client_native.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 
@@ -43,16 +43,22 @@ class _NonClosingHttpClient extends http.BaseClient {
 /// - Any other calls that should be observable but not authenticated
 final baseHttpClientProvider = Provider<SoliplexHttpClient>((ref) {
   final baseClient = createPlatformClient();
+  Loggers.http.debug('Platform HTTP client created');
   final observer = ref.watch(httpLogProvider.notifier);
   final observable = ObservableHttpClient(
     client: baseClient,
     observers: [observer],
   );
+  Loggers.http.debug('Observable client created with 1 observer');
   ref.onDispose(() {
     try {
       observable.close();
     } catch (e, stack) {
-      debugPrint('Error disposing observable client: $e\n$stack');
+      Loggers.http.error(
+        'Error disposing observable client',
+        error: e,
+        stackTrace: stack,
+      );
     }
   });
   return observable;
@@ -86,6 +92,7 @@ final authenticatedClientProvider = Provider<SoliplexHttpClient>((ref) {
   );
 
   // Outer client: handles proactive refresh + 401 retry
+  Loggers.http.debug('Authenticated client created');
   return RefreshingHttpClient(inner: authClient, refresher: authNotifier);
 });
 
@@ -119,6 +126,7 @@ final httpTransportProvider = Provider<HttpTransport>((ref) {
 /// API endpoint URLs.
 final urlBuilderProvider = Provider<UrlBuilder>((ref) {
   final config = ref.watch(configProvider);
+  Loggers.http.debug('URL builder created: ${config.baseUrl}/api/v1');
   return UrlBuilder('${config.baseUrl}/api/v1');
 });
 
@@ -162,7 +170,12 @@ final apiProvider = Provider<SoliplexApi>((ref) {
   // would close the shared transport. The transport is managed by
   // httpTransportProvider, and the underlying client is managed by
   // baseHttpClientProvider.
-  return SoliplexApi(transport: transport, urlBuilder: urlBuilder);
+  Loggers.http.debug('API client created');
+  return SoliplexApi(
+    transport: transport,
+    urlBuilder: urlBuilder,
+    onWarning: Loggers.http.warning,
+  );
 });
 
 /// Provider for the Soliplex HTTP client.
@@ -206,8 +219,13 @@ final agUiClientProvider = Provider<AgUiClient>((ref) {
   // but won't close the underlying shared HTTP client.
   final protectedClient = _NonClosingHttpClient(httpClient);
 
+  Loggers.http.debug('AG-UI client created (timeout: 600s)');
   final client = AgUiClient(
-    config: AgUiClientConfig(baseUrl: '${config.baseUrl}/api/v1'),
+    config: AgUiClientConfig(
+      baseUrl: '${config.baseUrl}/api/v1',
+      requestTimeout: const Duration(seconds: 600),
+      connectionTimeout: const Duration(seconds: 600),
+    ),
     httpClient: protectedClient,
   );
 

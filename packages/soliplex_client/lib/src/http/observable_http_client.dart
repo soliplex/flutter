@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_observer.dart';
+import 'package:soliplex_client/src/http/http_redactor.dart';
 import 'package:soliplex_client/src/http/http_response.dart';
 import 'package:soliplex_client/src/http/soliplex_http_client.dart';
 
@@ -9,6 +11,10 @@ import 'package:soliplex_client/src/http/soliplex_http_client.dart';
 ///
 /// Wraps any [SoliplexHttpClient] implementation and notifies registered
 /// [HttpObserver]s on requests, responses, errors, and streaming events.
+///
+/// All sensitive data (headers, URIs, bodies) is redacted via [HttpRedactor]
+/// before being emitted to observers. Sensitive data never crosses the
+/// observer boundary.
 ///
 /// Observers that throw exceptions are caught and ignored to prevent
 /// disrupting the request flow.
@@ -49,6 +55,9 @@ class ObservableHttpClient implements SoliplexHttpClient {
   /// Counter for request ID generation.
   static int _requestCounter = 0;
 
+  /// Maximum buffer size for SSE streams (500KB).
+  static const _maxStreamBufferSize = 500 * 1024;
+
   /// Default request ID generator using timestamp and counter.
   static String _defaultRequestIdGenerator() {
     return '${DateTime.now().millisecondsSinceEpoch}-${_requestCounter++}';
@@ -65,6 +74,11 @@ class ObservableHttpClient implements SoliplexHttpClient {
     final requestId = _generateRequestId();
     final startTime = DateTime.now();
 
+    // Redact sensitive data before emitting to observers
+    final redactedUri = HttpRedactor.redactUri(uri);
+    final redactedHeaders = HttpRedactor.redactHeaders(headers ?? const {});
+    final redactedBody = _redactRequestBody(body, uri);
+
     // Notify request start
     _notifyObservers((observer) {
       observer.onRequest(
@@ -72,8 +86,9 @@ class ObservableHttpClient implements SoliplexHttpClient {
           requestId: requestId,
           timestamp: startTime,
           method: method,
-          uri: uri,
-          headers: headers ?? const {},
+          uri: redactedUri,
+          headers: redactedHeaders,
+          body: redactedBody,
         ),
       );
     });
@@ -90,6 +105,11 @@ class ObservableHttpClient implements SoliplexHttpClient {
       final endTime = DateTime.now();
       final duration = endTime.difference(startTime);
 
+      // Capture and redact response
+      final redactedResponseBody = _redactResponseBody(response, uri);
+      final redactedResponseHeaders =
+          HttpRedactor.redactHeaders(response.headers);
+
       // Notify successful response
       _notifyObservers((observer) {
         observer.onResponse(
@@ -100,6 +120,8 @@ class ObservableHttpClient implements SoliplexHttpClient {
             duration: duration,
             bodySize: response.bodyBytes.length,
             reasonPhrase: response.reasonPhrase,
+            body: redactedResponseBody,
+            headers: redactedResponseHeaders,
           ),
         );
       });
@@ -109,14 +131,14 @@ class ObservableHttpClient implements SoliplexHttpClient {
       final endTime = DateTime.now();
       final duration = endTime.difference(startTime);
 
-      // Notify error
+      // Notify error (URI already redacted)
       _notifyObservers((observer) {
         observer.onError(
           HttpErrorEvent(
             requestId: requestId,
             timestamp: endTime,
             method: method,
-            uri: uri,
+            uri: redactedUri,
             exception: e,
             duration: duration,
           ),
@@ -138,6 +160,14 @@ class ObservableHttpClient implements SoliplexHttpClient {
     final startTime = DateTime.now();
     var bytesReceived = 0;
 
+    // SSE buffer with rolling truncation
+    final streamBuffer = _StreamBuffer(_maxStreamBufferSize);
+
+    // Redact sensitive data before emitting to observers
+    final redactedUri = HttpRedactor.redactUri(uri);
+    final redactedHeaders = HttpRedactor.redactHeaders(headers ?? const {});
+    final redactedBody = _redactRequestBody(body, uri);
+
     // Notify stream start
     _notifyObservers((observer) {
       observer.onStreamStart(
@@ -145,7 +175,9 @@ class ObservableHttpClient implements SoliplexHttpClient {
           requestId: requestId,
           timestamp: startTime,
           method: method,
-          uri: uri,
+          uri: redactedUri,
+          headers: redactedHeaders,
+          body: redactedBody,
         ),
       );
     });
@@ -163,6 +195,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
       StreamTransformer<List<int>, List<int>>.fromHandlers(
         handleData: (data, sink) {
           bytesReceived += data.length;
+          streamBuffer.add(data);
           sink.add(data);
         },
         handleError: (error, stackTrace, sink) {
@@ -186,6 +219,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
                 bytesReceived: bytesReceived,
                 duration: duration,
                 error: soliplexError,
+                body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
               ),
             );
           });
@@ -203,6 +237,7 @@ class ObservableHttpClient implements SoliplexHttpClient {
                 timestamp: endTime,
                 bytesReceived: bytesReceived,
                 duration: duration,
+                body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
               ),
             );
           });
@@ -216,6 +251,61 @@ class ObservableHttpClient implements SoliplexHttpClient {
   @override
   void close() {
     _client.close();
+  }
+
+  /// Redacts the request body based on content type and URI.
+  dynamic _redactRequestBody(Object? body, Uri uri) {
+    if (body == null) return null;
+
+    // If body is raw bytes, decode to string first
+    if (body is List<int>) {
+      final decoded = utf8.decode(body, allowMalformed: true);
+      return _redactRequestBody(decoded, uri);
+    }
+
+    // If body is already a map (JSON-like), redact it directly
+    // Note: List<int> is handled above, so this is only for decoded JSON lists
+    if (body is Map || (body is List && body is! List<int>)) {
+      return HttpRedactor.redactJsonBody(body, uri);
+    }
+
+    // If body is a string, check if it's JSON
+    if (body is String) {
+      try {
+        final parsed = jsonDecode(body);
+        return HttpRedactor.redactJsonBody(parsed, uri);
+      } catch (_) {
+        // Not JSON - redact as string for auth endpoints
+        return HttpRedactor.redactString(body, uri);
+      }
+    }
+
+    // For other types, just return a string representation
+    return body.toString();
+  }
+
+  /// Redacts the response body based on content type and URI.
+  dynamic _redactResponseBody(HttpResponse response, Uri uri) {
+    final contentType = response.headers['content-type'] ?? '';
+
+    // Check if it's JSON content
+    if (contentType.contains('application/json')) {
+      try {
+        final parsed = jsonDecode(response.body);
+        return HttpRedactor.redactJsonBody(parsed, uri);
+      } catch (_) {
+        // JSON parse failed - redact as string for auth endpoints
+        return HttpRedactor.redactString(response.body, uri);
+      }
+    }
+
+    // For text content, return as string (redact for auth endpoints)
+    if (contentType.contains('text/')) {
+      return HttpRedactor.redactString(response.body, uri);
+    }
+
+    // For other content types, apply string redaction as fallback
+    return HttpRedactor.redactString(response.body, uri);
   }
 
   /// Safely notifies all observers, catching and ignoring any exceptions.
@@ -243,5 +333,47 @@ class ObservableHttpClient implements SoliplexHttpClient {
         );
       }
     }
+  }
+}
+
+/// Rolling buffer for SSE stream content with size limit.
+///
+/// When content exceeds [maxSize], oldest content is dropped and a
+/// truncation indicator is prepended.
+class _StreamBuffer {
+  _StreamBuffer(this.maxSize);
+
+  final int maxSize;
+  final _chunks = <List<int>>[];
+  int _totalSize = 0;
+
+  /// Adds data to the buffer, truncating if necessary.
+  void add(List<int> data) {
+    _chunks.add(data);
+    _totalSize += data.length;
+
+    // Truncate oldest chunks if over limit
+    while (_totalSize > maxSize && _chunks.length > 1) {
+      final removed = _chunks.removeAt(0);
+      _totalSize -= removed.length;
+    }
+  }
+
+  /// Returns the buffered content as a string.
+  ///
+  /// If truncation occurred, prepends "[EARLIER CONTENT DROPPED]".
+  String get content {
+    if (_chunks.isEmpty) return '';
+
+    final bytes = _chunks.expand((c) => c).toList();
+    final text = utf8.decode(bytes, allowMalformed: true);
+
+    // Check if we've been truncating (total received was more than current)
+    if (_totalSize < maxSize) {
+      return text;
+    }
+
+    // If we're at or near the max, content was likely truncated
+    return '[EARLIER CONTENT DROPPED]\n$text';
   }
 }

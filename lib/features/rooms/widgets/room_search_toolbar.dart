@@ -83,9 +83,7 @@ class _RoomSearchToolbarState extends State<RoomSearchToolbar> {
           ),
           if (widget.showViewToggle)
             IconButton.filledTonal(
-              icon: Icon(
-                widget.isGridView ? Icons.view_list : Icons.grid_view,
-              ),
+              icon: Icon(widget.isGridView ? Icons.view_list : Icons.grid_view),
               onPressed: widget.onToggleView,
               tooltip: widget.isGridView ? 'Show as list' : 'Show as grid',
             ),

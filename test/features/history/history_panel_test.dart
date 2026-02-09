@@ -206,9 +206,9 @@ void main() {
           createTestApp(
             home: const HistoryPanel(roomId: 'room-1'),
             overrides: [
-              threadsProvider('room-1').overrideWith(
-                (ref) => throw Exception('Network error'),
-              ),
+              threadsProvider(
+                'room-1',
+              ).overrideWith((ref) => throw Exception('Network error')),
               activeRunNotifierOverride(const IdleState()),
             ],
           ),

@@ -2,9 +2,33 @@ import 'dart:developer' as developer;
 
 import 'package:soliplex_client/src/domain/backend_version_info.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
+import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
+
+// ============================================================
+// Timestamp helpers
+// ============================================================
+
+/// Parses a UTC timestamp from the backend.
+///
+/// Backend sends ISO 8601 timestamps without 'Z' suffix. This normalizes
+/// the format and ensures UTC parsing.
+///
+/// Throws [FormatException] if [raw] is malformed.
+DateTime parseTimestamp(String raw) {
+  final normalized = raw.endsWith('Z') ? raw : '${raw}Z';
+  return DateTime.parse(normalized).toUtc();
+}
+
+/// Formats a [DateTime] for the backend.
+///
+/// Outputs ISO 8601 without 'Z' suffix to match backend format.
+String formatTimestamp(DateTime dt) {
+  final iso = dt.toUtc().toIso8601String();
+  return iso.endsWith('Z') ? iso.substring(0, iso.length - 1) : iso;
+}
 
 // ============================================================
 // BackendVersionInfo mappers
@@ -52,12 +76,29 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
+  final suggestionsRaw = json['suggestions'] as List<dynamic>?;
+  final suggestions = <String>[];
+  if (suggestionsRaw != null) {
+    for (final item in suggestionsRaw) {
+      if (item is String) {
+        suggestions.add(item);
+      } else {
+        developer.log(
+          'Non-string suggestion ignored: $item (${item.runtimeType})',
+          name: 'soliplex_client.room',
+          level: 900, // Warning level
+        );
+      }
+    }
+  }
+
   return Room(
     id: json['id'] as String,
     name: json['name'] as String,
     description: (json['description'] as String?) ?? '',
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
     quizzes: quizzes,
+    suggestions: suggestions,
   );
 }
 
@@ -72,27 +113,51 @@ Map<String, dynamic> roomToJson(Room room) {
 }
 
 // ============================================================
+// RagDocument mappers
+// ============================================================
+
+/// Creates a [RagDocument] from JSON.
+RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
+  // title can be null - fall back to uri, then 'Untitled'
+  final title =
+      (json['title'] as String?) ?? (json['uri'] as String?) ?? 'Untitled';
+  return RagDocument(id: json['id'] as String, title: title);
+}
+
+/// Converts a [RagDocument] to JSON.
+Map<String, dynamic> ragDocumentToJson(RagDocument doc) {
+  return {'id': doc.id, 'title': doc.title};
+}
+
+// ============================================================
 // ThreadInfo mappers
 // ============================================================
 
 /// Creates a [ThreadInfo] from JSON.
 ///
-/// Throws [FormatException] if date fields contain malformed values.
+/// Throws [FormatException] if required fields are missing or malformed.
 ThreadInfo threadInfoFromJson(Map<String, dynamic> json) {
-  final createdAt = json['created_at'] != null
-      ? DateTime.parse(json['created_at'] as String)
-      : DateTime.now();
+  final createdRaw = json['created'] as String?;
+  if (createdRaw == null) {
+    throw FormatException('Thread ${json['id']} missing required "created"');
+  }
+  final createdAt = parseTimestamp(createdRaw);
+
+  // Name/description may be at top level or nested in metadata
+  final metadata = (json['metadata'] as Map<String, dynamic>?) ?? const {};
+  final name = (json['name'] as String?) ?? (metadata['name'] as String?) ?? '';
+  final description = (json['description'] as String?) ??
+      (metadata['description'] as String?) ??
+      '';
+
   return ThreadInfo(
     id: json['id'] as String? ?? json['thread_id'] as String,
     roomId: json['room_id'] as String? ?? '',
     initialRunId: (json['initial_run_id'] as String?) ?? '',
-    name: (json['name'] as String?) ?? '',
-    description: (json['description'] as String?) ?? '',
+    name: name,
+    description: description,
     createdAt: createdAt,
-    updatedAt: json['updated_at'] != null
-        ? DateTime.parse(json['updated_at'] as String)
-        : createdAt,
-    metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    metadata: metadata,
   );
 }
 
@@ -104,8 +169,7 @@ Map<String, dynamic> threadInfoToJson(ThreadInfo thread) {
     if (thread.initialRunId.isNotEmpty) 'initial_run_id': thread.initialRunId,
     if (thread.name.isNotEmpty) 'name': thread.name,
     if (thread.description.isNotEmpty) 'description': thread.description,
-    'created_at': thread.createdAt.toIso8601String(),
-    'updated_at': thread.updatedAt.toIso8601String(),
+    'created': formatTimestamp(thread.createdAt),
     if (thread.metadata.isNotEmpty) 'metadata': thread.metadata,
   };
 }
@@ -116,17 +180,20 @@ Map<String, dynamic> threadInfoToJson(ThreadInfo thread) {
 
 /// Creates a [RunInfo] from JSON.
 ///
-/// Throws [FormatException] if date fields contain malformed values.
+/// Throws [FormatException] if required fields are missing or malformed.
 RunInfo runInfoFromJson(Map<String, dynamic> json) {
+  final createdRaw = json['created'] as String?;
+  if (createdRaw == null) {
+    throw FormatException('Run ${json['id']} missing required "created"');
+  }
+
   return RunInfo(
     id: json['id'] as String? ?? json['run_id'] as String,
     threadId: json['thread_id'] as String? ?? '',
     label: (json['label'] as String?) ?? '',
-    createdAt: json['created_at'] != null
-        ? DateTime.parse(json['created_at'] as String)
-        : DateTime.now(),
+    createdAt: parseTimestamp(createdRaw),
     completion: json['completed_at'] != null
-        ? CompletedAt(DateTime.parse(json['completed_at'] as String))
+        ? CompletedAt(parseTimestamp(json['completed_at'] as String))
         : const NotCompleted(),
     status: runStatusFromString(json['status'] as String?),
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
@@ -139,9 +206,9 @@ Map<String, dynamic> runInfoToJson(RunInfo run) {
     'id': run.id,
     'thread_id': run.threadId,
     if (run.label.isNotEmpty) 'label': run.label,
-    'created_at': run.createdAt.toIso8601String(),
+    'created': formatTimestamp(run.createdAt),
     if (run.completion case CompletedAt(:final time))
-      'completed_at': time.toIso8601String(),
+      'completed_at': formatTimestamp(time),
     'status': run.status.name,
     if (run.metadata.isNotEmpty) 'metadata': run.metadata,
   };

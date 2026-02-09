@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:web/web.dart' as web;
 
 /// Abstraction for URL navigation to enable testing.
@@ -27,7 +28,12 @@ class WindowUrlNavigator implements UrlNavigator {
 ///
 /// [backendBaseUrl] is the backend server URL for BFF endpoints.
 /// Defaults to same origin (production: frontend served by backend).
-AuthFlow createAuthFlow({String? backendBaseUrl, UrlNavigator? navigator}) =>
+/// [redirectScheme] is ignored on web (uses origin-based redirect via BFF).
+AuthFlow createAuthFlow({
+  String? backendBaseUrl,
+  String? redirectScheme,
+  UrlNavigator? navigator,
+}) =>
     WebAuthFlow(backendBaseUrl: backendBaseUrl, navigator: navigator);
 
 /// Web implementation of OIDC authentication using BFF pattern.
@@ -65,7 +71,7 @@ class WebAuthFlow implements AuthFlow {
     // Backend handles PKCE, token exchange, and redirects back with tokens
     final loginUrl = '$backendUrl/api/login/${issuer.id}?return_to=$returnTo';
 
-    debugPrint('Web auth: Redirecting to $loginUrl');
+    Loggers.auth.info('Web auth: Redirecting to $loginUrl');
     _navigator.navigateTo(loginUrl);
 
     // Browser navigates away; throw to make the type system honest.
@@ -81,7 +87,8 @@ class WebAuthFlow implements AuthFlow {
     required String clientId,
   }) async {
     if (endSessionEndpoint == null) {
-      debugPrint('Web auth: No end_session_endpoint, local logout only');
+      Loggers.auth
+          .debug('Web auth: No end_session_endpoint, local logout only');
       return;
     }
 
@@ -94,7 +101,7 @@ class WebAuthFlow implements AuthFlow {
       },
     );
 
-    debugPrint('Web auth: Redirecting to IdP logout: $logoutUri');
+    Loggers.auth.info('Web auth: Redirecting to IdP logout: $logoutUri');
     _navigator.navigateTo(logoutUri.toString());
   }
 }

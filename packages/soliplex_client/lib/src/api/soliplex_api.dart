@@ -1,13 +1,17 @@
 import 'package:ag_ui/ag_ui.dart' hide CancelToken;
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/application/agui_event_processor.dart';
+import 'package:soliplex_client/src/application/citation_extractor.dart';
 import 'package:soliplex_client/src/application/streaming_state.dart';
 import 'package:soliplex_client/src/domain/backend_version_info.dart';
-import 'package:soliplex_client/src/domain/chat_message.dart';
+import 'package:soliplex_client/src/domain/chunk_visualization.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
+import 'package:soliplex_client/src/domain/message_state.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
+import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
+import 'package:soliplex_client/src/domain/thread_history.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_transport.dart';
@@ -41,14 +45,50 @@ class SoliplexApi {
   /// Parameters:
   /// - [transport]: HTTP transport for making requests
   /// - [urlBuilder]: URL builder configured with the API base URL
+  /// - [onWarning]: Optional callback for warning messages (e.g., partial
+  ///   failures during history loading). If not provided, warnings are silent.
   SoliplexApi({
     required HttpTransport transport,
     required UrlBuilder urlBuilder,
+    void Function(String message)? onWarning,
   })  : _transport = transport,
-        _urlBuilder = urlBuilder;
+        _urlBuilder = urlBuilder,
+        _onWarning = onWarning;
 
   final HttpTransport _transport;
   final UrlBuilder _urlBuilder;
+  final void Function(String message)? _onWarning;
+
+  /// Maximum number of runs to cache. Covers ~5-10 threads of history.
+  static const _maxCacheSize = 100;
+
+  /// LRU cache for run events. Completed runs are immutable, so safe to cache.
+  /// Uses insertion order - oldest entries are at the front.
+  final _runEventsCache = <String, List<Map<String, dynamic>>>{};
+
+  String _runCacheKey(String threadId, String runId) => '$threadId:$runId';
+
+  /// Adds to cache with LRU eviction.
+  void _cacheRunEvents(String key, List<Map<String, dynamic>> events) {
+    // Remove if exists (to update position for LRU)
+    _runEventsCache.remove(key);
+
+    // Evict oldest entries if at capacity
+    while (_runEventsCache.length >= _maxCacheSize) {
+      _runEventsCache.remove(_runEventsCache.keys.first);
+    }
+
+    _runEventsCache[key] = events;
+  }
+
+  /// Gets from cache and updates LRU position.
+  List<Map<String, dynamic>>? _getCachedRunEvents(String key) {
+    final events = _runEventsCache.remove(key);
+    if (events != null) {
+      _runEventsCache[key] = events; // Re-add to move to end (most recent)
+    }
+    return events;
+  }
 
   // ============================================================
   // Rooms
@@ -102,6 +142,42 @@ class SoliplexApi {
       cancelToken: cancelToken,
       fromJson: roomFromJson,
     );
+  }
+
+  /// Gets documents available for narrowing RAG in a room.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  ///
+  /// Returns a list of [RagDocument] objects for the room.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if [roomId] is empty
+  /// - [NotFoundException] if room not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<List<RagDocument>> getDocuments(
+    String roomId, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+
+    final response = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['rooms', roomId, 'documents']),
+      cancelToken: cancelToken,
+    );
+
+    // Backend returns {"document_set": {id: {...}, ...}} - map keyed by doc ID
+    final documentSet = response['document_set'] as Map<String, dynamic>?;
+    if (documentSet == null || documentSet.isEmpty) {
+      return [];
+    }
+    return documentSet.values
+        .map((e) => ragDocumentFromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   // ============================================================
@@ -211,13 +287,11 @@ class SoliplexApi {
     }
 
     // Normalize response: backend returns thread_id, we use id
-    final now = DateTime.now();
     return ThreadInfo(
       id: response['thread_id'] as String,
       roomId: roomId,
       initialRunId: initialRunId ?? '',
-      createdAt: now,
-      updatedAt: now,
+      createdAt: DateTime.now(),
     );
   }
 
@@ -337,13 +411,13 @@ class SoliplexApi {
   /// - [roomId]: The room ID (must not be empty)
   /// - [threadId]: The thread ID (must not be empty)
   ///
-  /// Returns a list of [ChatMessage] reconstructed from stored AG-UI events.
-  /// Messages are ordered chronologically (oldest first) based on run creation
-  /// time.
+  /// Returns [ThreadHistory] containing messages and AG-UI state reconstructed
+  /// from stored events. Messages are ordered chronologically (oldest first)
+  /// based on run creation time.
   ///
-  /// This method fetches all runs for a thread, sorts them by creation time,
-  /// and replays their events to reconstruct the message history. Use this
-  /// when loading a thread that already has conversation history.
+  /// This method fetches events from individual run endpoints in parallel,
+  /// caches them (completed runs are immutable), and replays them to
+  /// reconstruct the thread history including citations and other AG-UI state.
   ///
   /// Throws:
   /// - [ArgumentError] if [roomId] or [threadId] is empty
@@ -352,7 +426,7 @@ class SoliplexApi {
   /// - [NetworkException] if connection fails
   /// - [ApiException] for other server errors
   /// - [CancelledException] if cancelled via [cancelToken]
-  Future<List<ChatMessage>> getThreadMessages(
+  Future<ThreadHistory> getThreadHistory(
     String roomId,
     String threadId, {
     CancelToken? cancelToken,
@@ -360,6 +434,7 @@ class SoliplexApi {
     _requireNonEmpty(roomId, 'roomId');
     _requireNonEmpty(threadId, 'threadId');
 
+    // 1. Get thread to list runs
     final response = await _transport.request<Map<String, dynamic>>(
       'GET',
       _urlBuilder.build(pathSegments: ['rooms', roomId, 'agui', threadId]),
@@ -367,65 +442,198 @@ class SoliplexApi {
     );
 
     final runs = response['runs'] as Map<String, dynamic>? ?? {};
-    return _extractMessagesFromRuns(runs, threadId);
-  }
+    if (runs.isEmpty) return ThreadHistory(messages: const []);
 
-  /// Extracts messages from runs by replaying events in chronological order.
-  List<ChatMessage> _extractMessagesFromRuns(
-    Map<String, dynamic> runs,
-    String threadId,
-  ) {
-    if (runs.isEmpty) {
-      return [];
+    // 2. Get completed run IDs sorted by creation time
+    final completedRunIds = _sortRunsByCreationTime(runs)
+        .where((e) => (e.value as Map<String, dynamic>)['finished'] != null)
+        .map((e) => (e.value as Map<String, dynamic>)['run_id'] as String)
+        .toList();
+
+    if (completedRunIds.isEmpty) return ThreadHistory(messages: const []);
+
+    // 3. Fetch all run events in parallel (cache handles duplicates)
+    final eventFutures = completedRunIds.map((runId) {
+      return _fetchRunEvents(
+        roomId,
+        threadId,
+        runId,
+        cancelToken: cancelToken,
+      ).then((events) => (runId: runId, events: events)).catchError(
+        (Object e) {
+          // Log transient failure but continue with other runs
+          _onWarning?.call('Failed to fetch events for run $runId: $e');
+          return (runId: runId, events: <Map<String, dynamic>>[]);
+        },
+        // Only catch transient errors - show partial results for batch ops:
+        // - NetworkException: network blip, retry might succeed
+        // - NotFoundException: run deleted between list and fetch (race)
+        // Let ApiException propagate - systemic problem (500, 429, 400)
+        test: (e) => e is NetworkException || e is NotFoundException,
+      );
+    });
+
+    final results = await Future.wait(eventFutures);
+
+    // 4. Collect events in run order (results may arrive out of order)
+    final runIdToEvents = {for (final r in results) r.runId: r.events};
+    final eventsPerRun = <List<Map<String, dynamic>>>[];
+    for (final runId in completedRunIds) {
+      final runEvents = runIdToEvents[runId] ?? [];
+      if (runEvents.isNotEmpty) {
+        eventsPerRun.add(runEvents);
+      }
     }
 
-    // Sort runs by creation time
-    final sortedRuns = _sortRunsByCreationTime(runs);
+    // 5. Replay events to reconstruct history (messages + AG-UI state)
+    return _replayEventsToHistory(eventsPerRun, threadId);
+  }
 
-    // Replay events to reconstruct messages
+  /// Fetches events for a single run, using cache for completed runs.
+  ///
+  /// Returns events including synthetic user message events extracted from
+  /// run_input.messages. The backend stores user input separately from
+  /// streamed events, so we synthesize TEXT_MESSAGE events for them.
+  Future<List<Map<String, dynamic>>> _fetchRunEvents(
+    String roomId,
+    String threadId,
+    String runId, {
+    CancelToken? cancelToken,
+  }) async {
+    final cacheKey = _runCacheKey(threadId, runId);
+    final cached = _getCachedRunEvents(cacheKey);
+    if (cached != null) return cached;
+
+    final rawRun = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(
+        pathSegments: ['rooms', roomId, 'agui', threadId, runId],
+      ),
+      cancelToken: cancelToken,
+    );
+
+    // Extract user messages from run_input and create synthetic events
+    final userMessageEvents = _extractUserMessageEvents(rawRun);
+
+    final events =
+        (rawRun['events'] as List<dynamic>? ?? []).cast<Map<String, dynamic>>();
+
+    // Combine: user message events first, then actual streamed events
+    final allEvents = [...userMessageEvents, ...events];
+    _cacheRunEvents(cacheKey, allEvents);
+    return allEvents;
+  }
+
+  /// Extracts user messages from run_input and creates synthetic events.
+  List<Map<String, dynamic>> _extractUserMessageEvents(
+    Map<String, dynamic> rawRun,
+  ) {
+    final runInput = rawRun['run_input'] as Map<String, dynamic>?;
+    if (runInput == null) return [];
+
+    final messages = runInput['messages'] as List<dynamic>? ?? [];
+    final syntheticEvents = <Map<String, dynamic>>[];
+
+    for (var i = 0; i < messages.length; i++) {
+      final raw = messages[i];
+      if (raw is! Map<String, dynamic>) continue; // Skip malformed entries
+      final msgMap = raw;
+      final role = msgMap['role'] as String? ?? 'user';
+
+      // Only process user messages - assistant messages come from events
+      if (role != 'user') continue;
+
+      final id = msgMap['id'] as String? ?? 'user-$i';
+      final content = msgMap['content'] as String? ?? '';
+
+      // Create synthetic TEXT_MESSAGE events (START, CONTENT, END)
+      syntheticEvents
+        ..add({'type': 'TEXT_MESSAGE_START', 'messageId': id, 'role': role})
+        ..add({
+          'type': 'TEXT_MESSAGE_CONTENT',
+          'messageId': id,
+          'delta': content,
+        })
+        ..add({'type': 'TEXT_MESSAGE_END', 'messageId': id});
+    }
+
+    return syntheticEvents;
+  }
+
+  /// Replays events to reconstruct thread history (messages + AG-UI state).
+  ///
+  /// Processes events per-run to properly correlate citations with user
+  /// messages. Each run's citations are keyed by the user message ID that
+  /// initiated that run.
+  ThreadHistory _replayEventsToHistory(
+    List<List<Map<String, dynamic>>> eventsPerRun,
+    String threadId,
+  ) {
+    if (eventsPerRun.isEmpty) return ThreadHistory(messages: const []);
+
     var conversation = Conversation.empty(threadId: threadId);
-    var streaming = const NotStreaming() as StreamingState;
+    var streaming = const AwaitingText() as StreamingState;
     const decoder = EventDecoder();
+    final extractor = CitationExtractor();
+    final messageStates = <String, MessageState>{};
     var skippedEventCount = 0;
 
-    for (final runEntry in sortedRuns) {
-      final runData = runEntry.value as Map<String, dynamic>;
-      final events = runData['events'] as List<dynamic>? ?? [];
+    for (final runEvents in eventsPerRun) {
+      // Capture AG-UI state before processing this run
+      final previousAguiState = conversation.aguiState;
 
-      for (final eventJson in events) {
+      // Find user message ID from LAST TEXT_MESSAGE_START with role=user.
+      // The run_input.messages contains ALL conversation messages, but the
+      // LAST user message is the one that initiated THIS run.
+      String? userMessageId;
+      for (final eventJson in runEvents) {
+        final type = eventJson['type'] as String?;
+        if (type == 'TEXT_MESSAGE_START') {
+          final role = eventJson['role'] as String?;
+          if (role == 'user') {
+            userMessageId = eventJson['messageId'] as String?;
+            // Don't break - keep iterating to find the last one
+          }
+        }
+      }
+
+      // Process all events in this run
+      for (final eventJson in runEvents) {
         try {
-          final event = decoder.decodeJson(eventJson as Map<String, dynamic>);
+          final event = decoder.decodeJson(eventJson);
           final result = processEvent(conversation, streaming, event);
           conversation = result.conversation;
           streaming = result.streaming;
-        } catch (e) {
-          // Skip malformed events - don't fail entire history for one bad
-          // event. This can happen if the backend stores events from a newer
-          // protocol version or if data corruption occurs.
+        } on DecodeError {
           skippedEventCount++;
-          assert(
-            () {
-              // ignore: avoid_print
-              print('Skipped malformed event during replay: $e');
-              return true;
-            }(),
-            'Debug logging for malformed events',
-          );
         }
+      }
+
+      // Extract new citations by comparing state before/after this run
+      if (userMessageId != null) {
+        final sourceReferences = extractor.extractNew(
+          previousAguiState,
+          conversation.aguiState,
+        );
+        messageStates[userMessageId] = MessageState(
+          userMessageId: userMessageId,
+          sourceReferences: sourceReferences,
+        );
       }
     }
 
     if (skippedEventCount > 0) {
-      // Log skipped events for observability. Uses print() since
-      // soliplex_client is pure Dart without logging dependencies.
-      // ignore: avoid_print
-      print(
-        'Warning: Skipped $skippedEventCount malformed event(s) '
+      _onWarning?.call(
+        'Skipped $skippedEventCount malformed event(s) '
         'while loading thread $threadId',
       );
     }
 
-    return conversation.messages;
+    return ThreadHistory(
+      messages: conversation.messages,
+      aguiState: conversation.aguiState,
+      messageStates: messageStates,
+    );
   }
 
   /// Sorts runs by creation time (oldest first).
@@ -443,7 +651,11 @@ class SoliplexApi {
         if (aCreated == null) return 1;
         if (bCreated == null) return -1;
 
-        return DateTime.parse(aCreated).compareTo(DateTime.parse(bCreated));
+        // Use tryParse to handle malformed timestamps gracefully
+        final epoch = DateTime.fromMillisecondsSinceEpoch(0);
+        final aTime = DateTime.tryParse(aCreated) ?? epoch;
+        final bTime = DateTime.tryParse(bCreated) ?? epoch;
+        return aTime.compareTo(bTime);
       });
   }
 
@@ -522,6 +734,41 @@ class SoliplexApi {
   }
 
   // ============================================================
+  // Chunk Visualization
+  // ============================================================
+
+  /// Gets page images for a chunk with highlighted text.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  /// - [chunkId]: The chunk ID (must not be empty)
+  ///
+  /// Returns [ChunkVisualization] containing base64-encoded page images.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if [roomId] or [chunkId] is empty
+  /// - [NotFoundException] if chunk not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<ChunkVisualization> getChunkVisualization(
+    String roomId,
+    String chunkId, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+    _requireNonEmpty(chunkId, 'chunkId');
+
+    return _transport.request<ChunkVisualization>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['rooms', roomId, 'chunk', chunkId]),
+      cancelToken: cancelToken,
+      fromJson: ChunkVisualization.fromJson,
+    );
+  }
+
+  // ============================================================
   // Installation Info
   // ============================================================
 
@@ -554,6 +801,7 @@ class SoliplexApi {
   ///
   /// After calling this method, no further requests should be made.
   void close() {
+    _runEventsCache.clear();
     _transport.close();
   }
 

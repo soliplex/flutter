@@ -1,5 +1,6 @@
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
+import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -125,6 +126,53 @@ void main() {
 
         expect(room.metadata, equals(const <String, dynamic>{}));
       });
+
+      test('parses suggestions correctly', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'suggestions': ['How can I help?', 'Tell me more'],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, equals(['How can I help?', 'Tell me more']));
+        expect(room.hasSuggestions, isTrue);
+      });
+
+      test('handles missing suggestions field', () {
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, isEmpty);
+        expect(room.hasSuggestions, isFalse);
+      });
+
+      test('handles null suggestions', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'suggestions': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, isEmpty);
+        expect(room.hasSuggestions, isFalse);
+      });
+
+      test('filters out non-string suggestions', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'suggestions': ['Valid', 123, null, 'Also valid', true],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.suggestions, equals(['Valid', 'Also valid']));
+      });
     });
 
     group('roomToJson', () {
@@ -174,6 +222,72 @@ void main() {
     });
   });
 
+  group('RagDocument mappers', () {
+    group('ragDocumentFromJson', () {
+      test('parses correctly with all fields', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': 'User Manual.pdf',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.id, equals('doc-uuid-123'));
+        expect(doc.title, equals('User Manual.pdf'));
+      });
+
+      test('falls back to uri when title is null', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': null,
+          'uri': 'file:///docs/manual.pdf',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.id, equals('doc-uuid-123'));
+        expect(doc.title, equals('file:///docs/manual.pdf'));
+      });
+
+      test('falls back to Untitled when title and uri are null', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': null,
+          'uri': null,
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.id, equals('doc-uuid-123'));
+        expect(doc.title, equals('Untitled'));
+      });
+    });
+
+    group('ragDocumentToJson', () {
+      test('serializes correctly', () {
+        const doc = RagDocument(id: 'doc-uuid-123', title: 'User Manual.pdf');
+
+        final json = ragDocumentToJson(doc);
+
+        expect(json['id'], equals('doc-uuid-123'));
+        expect(json['title'], equals('User Manual.pdf'));
+      });
+    });
+
+    test('roundtrip serialization', () {
+      const original = RagDocument(
+        id: 'doc-uuid-123',
+        title: 'User Manual.pdf',
+      );
+
+      final json = ragDocumentToJson(original);
+      final restored = ragDocumentFromJson(json);
+
+      expect(restored.id, equals(original.id));
+      expect(restored.title, equals(original.title));
+    });
+  });
+
   group('ThreadInfo mappers', () {
     group('threadInfoFromJson', () {
       test('parses correctly with all fields', () {
@@ -183,8 +297,7 @@ void main() {
           'initial_run_id': 'run-1',
           'name': 'Test Thread',
           'description': 'A test thread',
-          'created_at': '2025-01-01T00:00:00.000Z',
-          'updated_at': '2025-01-02T00:00:00.000Z',
+          'created': '2025-01-01T00:00:00.000',
           'metadata': {'key': 'value'},
         };
 
@@ -195,13 +308,16 @@ void main() {
         expect(thread.initialRunId, equals('run-1'));
         expect(thread.name, equals('Test Thread'));
         expect(thread.description, equals('A test thread'));
-        expect(thread.createdAt, isNotNull);
-        expect(thread.updatedAt, isNotNull);
+        expect(thread.createdAt, equals(DateTime.utc(2025)));
         expect(thread.metadata, equals({'key': 'value'}));
       });
 
       test('parses correctly with only required fields', () {
-        final json = <String, dynamic>{'id': 'thread-1', 'room_id': 'room-1'};
+        final json = <String, dynamic>{
+          'id': 'thread-1',
+          'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
+        };
 
         final thread = threadInfoFromJson(json);
 
@@ -210,15 +326,21 @@ void main() {
         expect(thread.initialRunId, equals(''));
         expect(thread.name, equals(''));
         expect(thread.description, equals(''));
-        expect(thread.createdAt, isNotNull);
-        expect(thread.updatedAt, isNotNull);
+        expect(thread.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
         expect(thread.metadata, equals(const <String, dynamic>{}));
+      });
+
+      test('throws FormatException when created is missing', () {
+        final json = <String, dynamic>{'id': 'thread-1', 'room_id': 'room-1'};
+
+        expect(() => threadInfoFromJson(json), throwsFormatException);
       });
 
       test('handles thread_id field', () {
         final json = <String, dynamic>{
           'thread_id': 'thread-1',
           'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
         };
 
         final thread = threadInfoFromJson(json);
@@ -227,43 +349,31 @@ void main() {
       });
 
       test('handles missing room_id', () {
-        final json = <String, dynamic>{'id': 'thread-1'};
+        final json = <String, dynamic>{
+          'id': 'thread-1',
+          'created': '2025-01-15T10:30:00.000',
+        };
 
         final thread = threadInfoFromJson(json);
 
         expect(thread.roomId, equals(''));
       });
 
-      test('handles invalid created_at DateTime', () {
+      test('throws FormatException for invalid created DateTime', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
-          'created_at': 'invalid-date',
+          'created': 'invalid-date',
         };
 
-        final thread = threadInfoFromJson(json);
-
-        expect(thread.createdAt, isNotNull);
-      });
-
-      test('handles invalid updated_at DateTime', () {
-        final json = <String, dynamic>{
-          'id': 'thread-1',
-          'room_id': 'room-1',
-          'created_at': '2025-01-01T00:00:00.000Z',
-          'updated_at': 'invalid-date',
-        };
-
-        final thread = threadInfoFromJson(json);
-
-        expect(thread.updatedAt, isNotNull);
-        expect(thread.updatedAt, equals(thread.createdAt));
+        expect(() => threadInfoFromJson(json), throwsFormatException);
       });
 
       test('handles null optional fields', () {
         final json = <String, dynamic>{
           'id': 'thread-1',
           'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
           'initial_run_id': null,
           'name': null,
           'description': null,
@@ -277,12 +387,61 @@ void main() {
         expect(thread.description, equals(''));
         expect(thread.metadata, equals(const <String, dynamic>{}));
       });
+
+      test('parses created timestamp', () {
+        final json = <String, dynamic>{
+          'thread_id': 'thread-1',
+          'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
+        };
+
+        final thread = threadInfoFromJson(json);
+
+        expect(thread.id, equals('thread-1'));
+        expect(thread.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
+      });
+
+      test('extracts name and description from metadata when not at top level',
+          () {
+        final json = <String, dynamic>{
+          'thread_id': 'thread-1',
+          'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
+          'metadata': {
+            'name': 'Thread from metadata',
+            'description': 'Description from metadata',
+          },
+        };
+
+        final thread = threadInfoFromJson(json);
+
+        expect(thread.name, equals('Thread from metadata'));
+        expect(thread.description, equals('Description from metadata'));
+      });
+
+      test('prefers top-level name/description over metadata', () {
+        final json = <String, dynamic>{
+          'id': 'thread-1',
+          'room_id': 'room-1',
+          'created': '2025-01-15T10:30:00.000',
+          'name': 'Top level name',
+          'description': 'Top level description',
+          'metadata': {
+            'name': 'Metadata name',
+            'description': 'Metadata description',
+          },
+        };
+
+        final thread = threadInfoFromJson(json);
+
+        expect(thread.name, equals('Top level name'));
+        expect(thread.description, equals('Top level description'));
+      });
     });
 
     group('threadInfoToJson', () {
       test('serializes correctly with all fields', () {
         final createdAt = DateTime.utc(2025);
-        final updatedAt = DateTime.utc(2025, 1, 2);
         final thread = ThreadInfo(
           id: 'thread-1',
           roomId: 'room-1',
@@ -290,7 +449,6 @@ void main() {
           name: 'Test Thread',
           description: 'A test thread',
           createdAt: createdAt,
-          updatedAt: updatedAt,
           metadata: const {'key': 'value'},
         );
 
@@ -301,8 +459,7 @@ void main() {
         expect(json['initial_run_id'], equals('run-1'));
         expect(json['name'], equals('Test Thread'));
         expect(json['description'], equals('A test thread'));
-        expect(json['created_at'], equals('2025-01-01T00:00:00.000Z'));
-        expect(json['updated_at'], equals('2025-01-02T00:00:00.000Z'));
+        expect(json['created'], equals('2025-01-01T00:00:00.000'));
         expect(json['metadata'], equals({'key': 'value'}));
       });
 
@@ -311,15 +468,13 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime.utc(2025),
-          updatedAt: DateTime.utc(2025),
         );
 
         final json = threadInfoToJson(thread);
 
         expect(json.containsKey('id'), isTrue);
         expect(json.containsKey('room_id'), isTrue);
-        expect(json.containsKey('created_at'), isTrue);
-        expect(json.containsKey('updated_at'), isTrue);
+        expect(json.containsKey('created'), isTrue);
         expect(json.containsKey('initial_run_id'), isFalse);
         expect(json.containsKey('name'), isFalse);
         expect(json.containsKey('description'), isFalse);
@@ -329,7 +484,6 @@ void main() {
 
     test('roundtrip serialization', () {
       final createdAt = DateTime.utc(2025);
-      final updatedAt = DateTime.utc(2025, 1, 2);
       final original = ThreadInfo(
         id: 'thread-1',
         roomId: 'room-1',
@@ -337,7 +491,6 @@ void main() {
         name: 'Test Thread',
         description: 'A test thread',
         createdAt: createdAt,
-        updatedAt: updatedAt,
         metadata: const {'key': 'value'},
       );
 
@@ -350,7 +503,6 @@ void main() {
       expect(restored.name, equals(original.name));
       expect(restored.description, equals(original.description));
       expect(restored.createdAt, equals(original.createdAt));
-      expect(restored.updatedAt, equals(original.updatedAt));
       expect(restored.metadata, equals(original.metadata));
     });
   });
@@ -362,8 +514,8 @@ void main() {
           'id': 'run-1',
           'thread_id': 'thread-1',
           'label': 'Test Run',
-          'created_at': '2025-01-01T00:00:00.000Z',
-          'completed_at': '2025-01-02T00:00:00.000Z',
+          'created': '2025-01-01T00:00:00.000',
+          'completed_at': '2025-01-02T00:00:00.000',
           'status': 'completed',
           'metadata': {'key': 'value'},
         };
@@ -373,30 +525,41 @@ void main() {
         expect(run.id, equals('run-1'));
         expect(run.threadId, equals('thread-1'));
         expect(run.label, equals('Test Run'));
-        expect(run.createdAt, isNotNull);
+        expect(run.createdAt, equals(DateTime.utc(2025)));
         expect(run.completion, isA<CompletedAt>());
         expect(run.status, equals(RunStatus.completed));
         expect(run.metadata, equals({'key': 'value'}));
       });
 
       test('parses correctly with only required fields', () {
-        final json = <String, dynamic>{'id': 'run-1', 'thread_id': 'thread-1'};
+        final json = <String, dynamic>{
+          'id': 'run-1',
+          'thread_id': 'thread-1',
+          'created': '2025-01-15T10:30:00.000',
+        };
 
         final run = runInfoFromJson(json);
 
         expect(run.id, equals('run-1'));
         expect(run.threadId, equals('thread-1'));
         expect(run.label, equals(''));
-        expect(run.createdAt, isNotNull);
+        expect(run.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
         expect(run.completion, isA<NotCompleted>());
         expect(run.status, equals(RunStatus.pending));
         expect(run.metadata, equals(const <String, dynamic>{}));
+      });
+
+      test('throws FormatException when created is missing', () {
+        final json = <String, dynamic>{'id': 'run-1', 'thread_id': 'thread-1'};
+
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
       test('handles run_id field', () {
         final json = <String, dynamic>{
           'run_id': 'run-1',
           'thread_id': 'thread-1',
+          'created': '2025-01-15T10:30:00.000',
         };
 
         final run = runInfoFromJson(json);
@@ -405,42 +568,42 @@ void main() {
       });
 
       test('handles missing thread_id', () {
-        final json = <String, dynamic>{'id': 'run-1'};
+        final json = <String, dynamic>{
+          'id': 'run-1',
+          'created': '2025-01-15T10:30:00.000',
+        };
 
         final run = runInfoFromJson(json);
 
         expect(run.threadId, equals(''));
       });
 
-      test('handles invalid completed_at DateTime', () {
+      test('throws FormatException for invalid completed_at DateTime', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
+          'created': '2025-01-15T10:30:00.000',
           'completed_at': 'invalid-date',
         };
 
-        final run = runInfoFromJson(json);
-
-        expect(run.completion, isA<CompletedAt>());
-        expect((run.completion as CompletedAt).time, isNotNull);
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
-      test('handles invalid created_at DateTime', () {
+      test('throws FormatException for invalid created DateTime', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
-          'created_at': 'invalid-date',
+          'created': 'invalid-date',
         };
 
-        final run = runInfoFromJson(json);
-
-        expect(run.createdAt, isNotNull);
+        expect(() => runInfoFromJson(json), throwsFormatException);
       });
 
       test('handles null label', () {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
+          'created': '2025-01-15T10:30:00.000',
           'label': null,
         };
 
@@ -453,6 +616,7 @@ void main() {
         final json = <String, dynamic>{
           'id': 'run-1',
           'thread_id': 'thread-1',
+          'created': '2025-01-15T10:30:00.000',
           'metadata': null,
         };
 
@@ -481,8 +645,8 @@ void main() {
         expect(json['id'], equals('run-1'));
         expect(json['thread_id'], equals('thread-1'));
         expect(json['label'], equals('Test Run'));
-        expect(json['created_at'], equals('2025-01-01T00:00:00.000Z'));
-        expect(json['completed_at'], equals('2025-01-02T00:00:00.000Z'));
+        expect(json['created'], equals('2025-01-01T00:00:00.000'));
+        expect(json['completed_at'], equals('2025-01-02T00:00:00.000'));
         expect(json['status'], equals('completed'));
         expect(json['metadata'], equals({'key': 'value'}));
       });
@@ -498,7 +662,7 @@ void main() {
 
         expect(json.containsKey('id'), isTrue);
         expect(json.containsKey('thread_id'), isTrue);
-        expect(json.containsKey('created_at'), isTrue);
+        expect(json.containsKey('created'), isTrue);
         expect(json.containsKey('status'), isTrue);
         expect(json.containsKey('label'), isFalse);
         expect(json.containsKey('completed_at'), isFalse);
@@ -551,9 +715,12 @@ void main() {
       expect(runStatusFromString(null), equals(RunStatus.pending));
     });
 
-    test('returns pending for unknown status', () {
-      expect(runStatusFromString('unknown'), equals(RunStatus.pending));
-      expect(runStatusFromString('invalid'), equals(RunStatus.pending));
+    test('returns unknown for unrecognized status', () {
+      // 'unknown' is now a valid enum value, so it maps to itself
+      expect(runStatusFromString('unknown'), equals(RunStatus.unknown));
+      // Truly unrecognized values also map to unknown
+      expect(runStatusFromString('invalid'), equals(RunStatus.unknown));
+      expect(runStatusFromString('foobar'), equals(RunStatus.unknown));
     });
   });
 
@@ -573,10 +740,7 @@ void main() {
       });
 
       test('parses fill-blank', () {
-        final json = <String, dynamic>{
-          'type': 'fill-blank',
-          'uuid': 'q-1',
-        };
+        final json = <String, dynamic>{'type': 'fill-blank', 'uuid': 'q-1'};
 
         final type = questionTypeFromJson(json);
 
@@ -584,10 +748,7 @@ void main() {
       });
 
       test('parses qa as FreeForm', () {
-        final json = <String, dynamic>{
-          'type': 'qa',
-          'uuid': 'q-1',
-        };
+        final json = <String, dynamic>{'type': 'qa', 'uuid': 'q-1'};
 
         final type = questionTypeFromJson(json);
 
@@ -595,10 +756,7 @@ void main() {
       });
 
       test('defaults unknown type to FreeForm', () {
-        final json = <String, dynamic>{
-          'type': 'unknown-type',
-          'uuid': 'q-1',
-        };
+        final json = <String, dynamic>{'type': 'unknown-type', 'uuid': 'q-1'};
 
         final type = questionTypeFromJson(json);
 
@@ -632,10 +790,7 @@ void main() {
         final json = <String, dynamic>{
           'inputs': 'The sky is ____.',
           'expected_output': 'blue',
-          'metadata': {
-            'type': 'fill-blank',
-            'uuid': 'q-456',
-          },
+          'metadata': {'type': 'fill-blank', 'uuid': 'q-456'},
         };
 
         final question = quizQuestionFromJson(json);
@@ -649,10 +804,7 @@ void main() {
         final json = <String, dynamic>{
           'inputs': 'Explain photosynthesis.',
           'expected_output': 'Process by which plants convert sunlight.',
-          'metadata': {
-            'type': 'qa',
-            'uuid': 'q-789',
-          },
+          'metadata': {'type': 'qa', 'uuid': 'q-789'},
         };
 
         final question = quizQuestionFromJson(json);
@@ -698,10 +850,7 @@ void main() {
             {
               'inputs': 'The largest ocean is ____.',
               'expected_output': 'Pacific',
-              'metadata': {
-                'type': 'fill-blank',
-                'uuid': 'q-2',
-              },
+              'metadata': {'type': 'fill-blank', 'uuid': 'q-2'},
             },
           ],
         };
@@ -778,9 +927,7 @@ void main() {
       });
 
       test('handles missing expected_output for incorrect answer', () {
-        final json = <String, dynamic>{
-          'correct': 'false',
-        };
+        final json = <String, dynamic>{'correct': 'false'};
 
         final result = quizAnswerResultFromJson(json);
 
@@ -822,10 +969,7 @@ void main() {
       });
 
       test('handles missing quizzes field', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 

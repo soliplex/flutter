@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/quiz_provider.dart';
+import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
@@ -14,11 +16,7 @@ import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 /// Displays questions one at a time, collects answers, and shows results.
 /// Uses [quizSessionProvider] to manage quiz state with sealed classes.
 class QuizScreen extends ConsumerStatefulWidget {
-  const QuizScreen({
-    required this.roomId,
-    required this.quizId,
-    super.key,
-  });
+  const QuizScreen({required this.roomId, required this.quizId, super.key});
 
   final String roomId;
   final String quizId;
@@ -48,6 +46,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final quizAsync = ref.watch(quizProvider(_sessionKey));
+    final features = ref.watch(featuresProvider);
 
     return AppShell(
       config: ShellConfig(
@@ -56,9 +55,18 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           tooltip: 'Back to room',
           onPressed: _handleBack,
         ),
-        title: quizAsync.whenOrNull(
-          data: (quiz) => Text(quiz.title),
-        ),
+        title: quizAsync.whenOrNull(data: (quiz) => Text(quiz.title)),
+        actions: [
+          if (features.enableSettings)
+            Semantics(
+              label: 'Settings',
+              child: IconButton(
+                icon: const Icon(Icons.settings),
+                onPressed: () => context.push('/settings'),
+                tooltip: 'Open settings',
+              ),
+            ),
+        ],
       ),
       body: quizAsync.when(
         data: (quiz) => _buildQuizContent(context, quiz),
@@ -66,11 +74,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         error: (error, stack) => switch (error) {
           NotFoundException() => ErrorDisplay(
               error: error,
+              stackTrace: stack,
               onRetry: _handleBack,
               retryLabel: 'Back to Room',
             ),
           _ => ErrorDisplay(
               error: error,
+              stackTrace: stack,
               onRetry: () => ref.invalidate(quizProvider(_sessionKey)),
             ),
         },
@@ -139,8 +149,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         // Progress bar
         LinearProgressIndicator(
           value: session.progress,
-          backgroundColor:
-              Theme.of(context).colorScheme.surfaceContainerHighest,
+          backgroundColor: Theme.of(
+            context,
+          ).colorScheme.surfaceContainerHighest,
         ),
 
         // Question content
@@ -368,10 +379,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       ),
       child: Row(
         children: [
-          Icon(
-            isCorrect ? Icons.check_circle : Icons.cancel,
-            color: iconColor,
-          ),
+          Icon(isCorrect ? Icons.check_circle : Icons.cancel, color: iconColor),
           const SizedBox(width: SoliplexSpacing.s2),
           Expanded(
             child: Column(
@@ -418,9 +426,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ),
       Answered() => FilledButton(
           onPressed: _nextQuestion,
-          child: Text(
-            session.isLastQuestion ? 'See Results' : 'Next Question',
-          ),
+          child: Text(session.isLastQuestion ? 'See Results' : 'Next Question'),
         ),
     };
   }
@@ -443,11 +449,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                scoreIcon,
-                size: 64,
-                color: scoreColor,
-              ),
+              Icon(scoreIcon, size: 64, color: scoreColor),
               const SizedBox(height: SoliplexSpacing.s4),
               Text(
                 'Quiz Complete!',
@@ -497,6 +499,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _startQuiz(Quiz quiz) {
+    Loggers.quiz.info(
+      'Quiz started: ${widget.quizId}'
+      ' (${quiz.questionCount} questions)',
+    );
     ref.read(quizSessionProvider(_sessionKey).notifier).start(quiz);
   }
 
@@ -507,25 +513,29 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   Future<void> _submitAnswer() async {
+    Loggers.quiz.debug('Answer submitted for quiz ${widget.quizId}');
     try {
       await ref.read(quizSessionProvider(_sessionKey).notifier).submitAnswer();
     } on NetworkException catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: Network error - ${e.message}');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: Network error - ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Network error: ${e.message}'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: _submitAnswer,
-            ),
+            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
           ),
         );
       }
     } on AuthException catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: Auth error - ${e.message}');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: Auth error - ${e.message}',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -534,8 +544,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         );
       }
     } on SoliplexException catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: $e');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -544,16 +557,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         );
       }
     } catch (e, stackTrace) {
-      debugPrint('Quiz submit failed: $e');
-      debugPrint(stackTrace.toString());
+      Loggers.quiz.error(
+        'Quiz submit failed: $e',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Unexpected error: $e'),
-            action: SnackBarAction(
-              label: 'Retry',
-              onPressed: _submitAnswer,
-            ),
+            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
           ),
         );
       }
@@ -561,11 +574,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _nextQuestion() {
+    final session = ref.read(quizSessionProvider(_sessionKey));
+    if (session is QuizInProgress && session.isLastQuestion) {
+      Loggers.quiz.info('Quiz completed: ${widget.quizId}');
+    }
     _answerController.clear();
     ref.read(quizSessionProvider(_sessionKey).notifier).nextQuestion();
   }
 
   void _retakeQuiz() {
+    Loggers.quiz.info('Quiz retaken: ${widget.quizId}');
     _answerController.clear();
     ref.read(quizSessionProvider(_sessionKey).notifier).retake();
   }

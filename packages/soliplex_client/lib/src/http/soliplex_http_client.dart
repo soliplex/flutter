@@ -1,5 +1,12 @@
 import 'package:soliplex_client/src/http/http_response.dart';
 
+/// Default timeout for HTTP requests (10 minutes).
+///
+/// This timeout applies to both regular requests and streaming connections.
+/// For SSE connections on iOS/macOS, this controls the maximum time between
+/// data chunks before the connection is considered dead.
+const defaultHttpTimeout = Duration(seconds: 600);
+
 /// Abstract interface for Soliplex HTTP clients.
 ///
 /// Implementations wrap platform-specific HTTP clients to provide a unified

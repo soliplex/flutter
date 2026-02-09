@@ -28,9 +28,7 @@ void main() {
           QuizQuestion(id: 'q1', text: 'Question 1', type: FreeForm()),
         ],
       );
-      when(
-        () => mockApi.getQuiz(roomId, quizId),
-      ).thenAnswer((_) async => quiz);
+      when(() => mockApi.getQuiz(roomId, quizId)).thenAnswer((_) async => quiz);
 
       final container = ProviderContainer(
         overrides: [apiProvider.overrideWithValue(mockApi)],
@@ -234,44 +232,44 @@ void main() {
         expect(halfAnswered.progress, 0.5);
       });
 
-      test('equality based on quiz, currentIndex, results, and questionState',
-          () {
-        final quiz = Quiz(
-          id: 'quiz-1',
-          title: 'Test',
-          questions: const [
-            QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
-          ],
-        );
-        final a = QuizInProgress(
-          quiz: quiz,
-          currentIndex: 0,
-          results: const {},
-          questionState: const AwaitingInput(),
-        );
-        final b = QuizInProgress(
-          quiz: quiz,
-          currentIndex: 0,
-          results: const {},
-          questionState: const AwaitingInput(),
-        );
-        final c = QuizInProgress(
-          quiz: quiz,
-          currentIndex: 0,
-          results: const {
-            'q1': CorrectAnswer(),
-          },
-          questionState: const AwaitingInput(),
-        );
+      test(
+        'equality based on quiz, currentIndex, results, and questionState',
+        () {
+          final quiz = Quiz(
+            id: 'quiz-1',
+            title: 'Test',
+            questions: const [
+              QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
+            ],
+          );
+          final a = QuizInProgress(
+            quiz: quiz,
+            currentIndex: 0,
+            results: const {},
+            questionState: const AwaitingInput(),
+          );
+          final b = QuizInProgress(
+            quiz: quiz,
+            currentIndex: 0,
+            results: const {},
+            questionState: const AwaitingInput(),
+          );
+          final c = QuizInProgress(
+            quiz: quiz,
+            currentIndex: 0,
+            results: const {'q1': CorrectAnswer()},
+            questionState: const AwaitingInput(),
+          );
 
-        expect(a, equals(b));
-        expect(a.hashCode, equals(b.hashCode));
-        expect(
-          a,
-          isNot(equals(c)),
-          reason: 'Different results should be unequal',
-        );
-      });
+          expect(a, equals(b));
+          expect(a.hashCode, equals(b.hashCode));
+          expect(
+            a,
+            isNot(equals(c)),
+            reason: 'Different results should be unequal',
+          );
+        },
+      );
 
       test('equality detects different currentIndex', () {
         final quiz = Quiz(
@@ -324,9 +322,7 @@ void main() {
         final quiz = Quiz(id: 'quiz-1', title: 'Test', questions: const []);
         final session = QuizCompleted(
           quiz: quiz,
-          results: const {
-            'q1': CorrectAnswer(),
-          },
+          results: const {'q1': CorrectAnswer()},
         );
 
         expect(session.quiz.id, 'quiz-1');
@@ -352,10 +348,7 @@ void main() {
         final quiz = Quiz(id: 'quiz-1', title: 'Test', questions: const []);
         final allCorrect = QuizCompleted(
           quiz: quiz,
-          results: const {
-            'q1': CorrectAnswer(),
-            'q2': CorrectAnswer(),
-          },
+          results: const {'q1': CorrectAnswer(), 'q2': CorrectAnswer()},
         );
         final halfCorrect = QuizCompleted(
           quiz: quiz,
@@ -379,18 +372,12 @@ void main() {
         final c = QuizCompleted(quiz: quiz2, results: const {});
         final d = QuizCompleted(
           quiz: quiz1,
-          results: const {
-            'q1': CorrectAnswer(),
-          },
+          results: const {'q1': CorrectAnswer()},
         );
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
-        expect(
-          a,
-          isNot(equals(c)),
-          reason: 'Different quiz should be unequal',
-        );
+        expect(a, isNot(equals(c)), reason: 'Different quiz should be unequal');
         expect(
           a,
           isNot(equals(d)),
@@ -1025,9 +1012,7 @@ void main() {
       test('ignores input updates when already answered', () async {
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
-        ).thenAnswer(
-          (_) async => const CorrectAnswer(),
-        );
+        ).thenAnswer((_) async => const CorrectAnswer());
 
         final container = ProviderContainer(
           overrides: [apiProvider.overrideWithValue(mockApi)],
@@ -1147,17 +1132,13 @@ void main() {
         expect(session.questionState, isA<Submitting>());
 
         // Cleanup
-        completer.complete(
-          const CorrectAnswer(),
-        );
+        completer.complete(const CorrectAnswer());
       });
 
       test('no-op when in Answered state', () async {
         when(
           () => mockApi.submitQuizAnswer(any(), any(), any(), any()),
-        ).thenAnswer(
-          (_) async => const CorrectAnswer(),
-        );
+        ).thenAnswer((_) async => const CorrectAnswer());
 
         final container = ProviderContainer(
           overrides: [apiProvider.overrideWithValue(mockApi)],
@@ -1247,9 +1228,7 @@ void main() {
         );
 
         // Complete the API call
-        completer.complete(
-          const CorrectAnswer(),
-        );
+        completer.complete(const CorrectAnswer());
 
         // Await should complete without throwing
         final result = await submitFuture;
@@ -1281,16 +1260,12 @@ void main() {
       final quiz1 = Quiz(
         id: 'quiz-1',
         title: 'Quiz 1',
-        questions: const [
-          QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm()),
-        ],
+        questions: const [QuizQuestion(id: 'q1', text: 'Q1', type: FreeForm())],
       );
       final quiz2 = Quiz(
         id: 'quiz-2',
         title: 'Quiz 2',
-        questions: const [
-          QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm()),
-        ],
+        questions: const [QuizQuestion(id: 'q2', text: 'Q2', type: FreeForm())],
       );
 
       // Start quiz 1
@@ -1316,14 +1291,8 @@ void main() {
       container.read(quizSessionProvider(key1).notifier).nextQuestion();
 
       // Quiz 1 completed, quiz 2 still in progress
-      expect(
-        container.read(quizSessionProvider(key1)),
-        isA<QuizCompleted>(),
-      );
-      expect(
-        container.read(quizSessionProvider(key2)),
-        isA<QuizInProgress>(),
-      );
+      expect(container.read(quizSessionProvider(key1)), isA<QuizCompleted>());
+      expect(container.read(quizSessionProvider(key2)), isA<QuizInProgress>());
     });
   });
 }

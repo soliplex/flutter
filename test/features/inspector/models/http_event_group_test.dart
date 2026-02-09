@@ -663,6 +663,286 @@ void main() {
       });
     });
 
+    group('formatBody', () {
+      test('returns empty string for null', () {
+        expect(HttpEventGroup.formatBody(null), '');
+      });
+
+      test('returns string as-is when not JSON', () {
+        expect(HttpEventGroup.formatBody('plain text'), 'plain text');
+      });
+
+      test('pretty prints JSON string', () {
+        const json = '{"name":"test","value":123}';
+        final result = HttpEventGroup.formatBody(json);
+        expect(result, contains('"name": "test"'));
+        expect(result, contains('"value": 123'));
+      });
+
+      test('pretty prints Map', () {
+        final map = {'name': 'test', 'value': 123};
+        final result = HttpEventGroup.formatBody(map);
+        expect(result, contains('"name": "test"'));
+        expect(result, contains('"value": 123'));
+      });
+
+      test('pretty prints List', () {
+        final list = [1, 2, 3];
+        final result = HttpEventGroup.formatBody(list);
+        expect(result, '[\n  1,\n  2,\n  3\n]');
+      });
+
+      test('handles nested structures', () {
+        final nested = {
+          'user': {'name': 'Alice', 'age': 30},
+        };
+        final result = HttpEventGroup.formatBody(nested);
+        expect(result, contains('"user"'));
+        expect(result, contains('"name": "Alice"'));
+      });
+
+      test('returns toString for non-JSON-encodable objects', () {
+        final obj = DateTime(2024);
+        final result = HttpEventGroup.formatBody(obj);
+        expect(result, obj.toString());
+      });
+    });
+
+    group('requestHeaders', () {
+      test('returns headers from request event', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: TestData.createRequestEvent(
+            headers: const {'Content-Type': 'application/json'},
+          ),
+        );
+        expect(group.requestHeaders, {'Content-Type': 'application/json'});
+      });
+
+      test('returns headers from streamStart when no request', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          streamStart: TestData.createStreamStartEvent(
+            headers: const {'Accept': 'text/event-stream'},
+          ),
+        );
+        expect(group.requestHeaders, {'Accept': 'text/event-stream'});
+      });
+
+      test('prefers request over streamStart', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: TestData.createRequestEvent(
+            headers: const {'From': 'request'},
+          ),
+          streamStart: TestData.createStreamStartEvent(
+            headers: const {'From': 'streamStart'},
+          ),
+        );
+        expect(group.requestHeaders, {'From': 'request'});
+      });
+
+      test('returns empty map when no headers available', () {
+        final group = HttpEventGroup(requestId: 'req-1');
+        expect(group.requestHeaders, isEmpty);
+      });
+    });
+
+    group('requestBody', () {
+      test('returns body from request event', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            body: const {'message': 'hello'},
+          ),
+        );
+        expect(group.requestBody, {'message': 'hello'});
+      });
+
+      test('returns body from streamStart when no request', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          streamStart: TestData.createStreamStartEvent(
+            body: const {'thread_id': 't1'},
+          ),
+        );
+        expect(group.requestBody, {'thread_id': 't1'});
+      });
+
+      test('prefers request over streamStart', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            body: 'from request',
+          ),
+          streamStart: TestData.createStreamStartEvent(body: 'from stream'),
+        );
+        expect(group.requestBody, 'from request');
+      });
+
+      test('returns null when no body available', () {
+        final group = HttpEventGroup(requestId: 'req-1');
+        expect(group.requestBody, isNull);
+      });
+    });
+
+    group('toCurl', () {
+      test('returns null when no request or streamStart', () {
+        final group = HttpEventGroup(requestId: 'req-1');
+        expect(group.toCurl(), isNull);
+      });
+
+      test('returns null for response-only group', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          response: TestData.createResponseEvent(),
+        );
+        expect(group.toCurl(), isNull);
+      });
+
+      test('generates basic GET request', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: TestData.createRequestEvent(
+            uri: Uri.parse('http://example.com/api'),
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains("'http://example.com/api'"));
+        expect(curl, isNot(contains('-X GET'))); // GET is default
+      });
+
+      test('includes method for non-GET requests', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains('-X POST'));
+      });
+
+      test('includes headers', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'GET',
+            uri: Uri.parse('http://example.com/api'),
+            headers: const {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains("-H 'Content-Type: application/json'"));
+        expect(curl, contains("-H 'Accept: application/json'"));
+      });
+
+      test('includes body for POST requests', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            body: const {'name': 'test'},
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains('-d'));
+        expect(curl, contains('"name":"test"'));
+      });
+
+      test('escapes single quotes in values', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            body: "it's a test",
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains(r"it'\''s a test"));
+      });
+
+      test('URL is last', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: HttpRequestEvent(
+            requestId: 'req-1',
+            timestamp: DateTime.now(),
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api'),
+            headers: const {'X-Custom': 'value'},
+            body: 'data',
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl.trim().endsWith("'http://example.com/api'"), isTrue);
+      });
+
+      test('generates curl for SSE stream start', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          streamStart: TestData.createStreamStartEvent(
+            method: 'POST',
+            uri: Uri.parse('http://example.com/api/runs'),
+            headers: const {'Accept': 'text/event-stream'},
+            body: const {'thread_id': 'thread-1'},
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains('curl'));
+        expect(curl, contains('-X POST'));
+        expect(curl, contains("-H 'Accept: text/event-stream'"));
+        expect(curl, contains('"thread_id":"thread-1"'));
+        expect(curl, contains("'http://example.com/api/runs'"));
+      });
+
+      test('SSE curl with string body', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          streamStart: TestData.createStreamStartEvent(
+            method: 'POST',
+            body: 'raw string body',
+          ),
+        );
+        final curl = group.toCurl()!;
+        expect(curl, contains("-d 'raw string body'"));
+      });
+
+      test('escapes single quotes in URL', () {
+        final group = HttpEventGroup(
+          requestId: 'req-1',
+          request: TestData.createRequestEvent(
+            uri: Uri.parse("http://example.com/api?q=it's"),
+          ),
+        );
+        final curl = group.toCurl()!;
+        // URL should be escaped: it's -> it'\''s
+        expect(curl, contains(r"it'\''s"));
+      });
+    });
+
     group('copyWith', () {
       test('preserves requestId', () {
         final group = HttpEventGroup(requestId: 'req-1');

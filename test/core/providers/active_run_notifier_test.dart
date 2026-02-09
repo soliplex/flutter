@@ -10,7 +10,7 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -34,7 +34,9 @@ void main() {
 
     setUp(() {
       container = ProviderContainer(
-        overrides: [agUiClientProvider.overrideWithValue(mockAgUiClient)],
+        overrides: [
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
       );
     });
 
@@ -304,24 +306,28 @@ void main() {
         expect(state.activeToolCalls, [toolCall]);
       });
 
-      test('streaming defaults to NotStreaming', () {
+      test('streaming defaults to AwaitingText', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'r'),
         );
         const state = RunningState(conversation: conversation);
 
-        expect(state.streaming, isA<NotStreaming>());
+        expect(state.streaming, isA<AwaitingText>());
       });
 
-      test('isStreaming returns true when Streaming', () {
+      test('isStreaming returns true when TextStreaming', () {
         const conversation = domain.Conversation(
           threadId: 'thread-1',
           status: domain.Running(runId: 'r'),
         );
         const state = RunningState(
           conversation: conversation,
-          streaming: Streaming(messageId: 'msg-1', text: 'Hello'),
+          streaming: TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Hello',
+          ),
         );
 
         expect(state.isStreaming, isTrue);
@@ -340,11 +346,15 @@ void main() {
       final controller = StreamController<BaseEvent>();
 
       final state = RunningInternalState(
+        runId: 'test-run-id',
         cancelToken: cancelToken,
         subscription: controller.stream.listen((_) {}),
+        userMessageId: 'user_123',
+        previousAguiState: const <String, dynamic>{},
       );
 
       expect(state, isA<NotifierInternalState>());
+      expect(state.runId, equals('test-run-id'));
       expect(state.cancelToken, equals(cancelToken));
 
       // Cleanup
@@ -803,7 +813,7 @@ void main() {
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
       // Cache should be empty initially
-      final cacheBefore = container.read(threadMessageCacheProvider);
+      final cacheBefore = container.read(threadHistoryCacheProvider);
       expect(cacheBefore['thread-1'], isNull);
 
       // Send RUN_FINISHED event
@@ -818,10 +828,13 @@ void main() {
       expect(container.read(activeRunNotifierProvider), isA<CompletedState>());
 
       // Cache should now contain the messages
-      final cacheAfter = container.read(threadMessageCacheProvider);
+      final cacheAfter = container.read(threadHistoryCacheProvider);
       expect(cacheAfter['thread-1'], isNotNull);
-      expect(cacheAfter['thread-1'], hasLength(1));
-      expect((cacheAfter['thread-1']!.first as TextMessage).text, 'Hello');
+      expect(cacheAfter['thread-1']!.messages, hasLength(1));
+      expect(
+        (cacheAfter['thread-1']!.messages.first as TextMessage).text,
+        'Hello',
+      );
     });
 
     test('updates cache when RUN_ERROR event is received', () async {
@@ -842,7 +855,7 @@ void main() {
           );
 
       // Cache should be empty initially
-      final cacheBefore = container.read(threadMessageCacheProvider);
+      final cacheBefore = container.read(threadHistoryCacheProvider);
       expect(cacheBefore['thread-1'], isNull);
 
       // Send RUN_ERROR event
@@ -857,9 +870,9 @@ void main() {
       expect((state as CompletedState).result, isA<FailedResult>());
 
       // Cache should still contain the messages (even on error)
-      final cacheAfter = container.read(threadMessageCacheProvider);
+      final cacheAfter = container.read(threadHistoryCacheProvider);
       expect(cacheAfter['thread-1'], isNotNull);
-      expect(cacheAfter['thread-1'], hasLength(1));
+      expect(cacheAfter['thread-1']!.messages, hasLength(1));
     });
   });
 
@@ -970,44 +983,46 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify cache was updated despite error
-      final cache = container.read(threadMessageCacheProvider);
+      final cache = container.read(threadHistoryCacheProvider);
       expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.length, greaterThan(0));
+      expect(cache['thread-1']!.messages.length, greaterThan(0));
     });
 
-    test('stream onDone without RUN_FINISHED transitions to Completed',
-        () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-        ],
-      );
+    test(
+      'stream onDone without RUN_FINISHED transitions to Completed',
+      () async {
+        final container = ProviderContainer(
+          overrides: [
+            apiProvider.overrideWithValue(mockApi),
+            agUiClientProvider.overrideWithValue(mockAgUiClient),
+          ],
+        );
 
-      addTearDown(container.dispose);
+        addTearDown(container.dispose);
 
-      // Start a run
-      await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        // Start a run
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+              roomId: 'room-1',
+              threadId: 'thread-1',
+              userMessage: 'Hello',
+            );
 
-      // Verify running
-      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+        // Verify running
+        expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
-      // Close stream without sending RUN_FINISHED
-      await eventStreamController.close();
+        // Close stream without sending RUN_FINISHED
+        await eventStreamController.close();
 
-      // Allow onDone to be processed
-      await Future<void>.delayed(Duration.zero);
+        // Allow onDone to be processed
+        await Future<void>.delayed(Duration.zero);
 
-      // Verify state is CompletedState with Success
-      final state = container.read(activeRunNotifierProvider);
-      expect(state, isA<CompletedState>());
-      final completedState = state as CompletedState;
-      expect(completedState.result, isA<Success>());
-    });
+        // Verify state is CompletedState with Success
+        final state = container.read(activeRunNotifierProvider);
+        expect(state, isA<CompletedState>());
+        final completedState = state as CompletedState;
+        expect(completedState.result, isA<Success>());
+      },
+    );
 
     test('stream onDone updates cache with messages', () async {
       final container = ProviderContainer(
@@ -1042,9 +1057,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify cache was updated
-      final cache = container.read(threadMessageCacheProvider);
+      final cache = container.read(threadHistoryCacheProvider);
       expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.length, greaterThan(0));
+      expect(cache['thread-1']!.messages.length, greaterThan(0));
     });
   });
 
@@ -1154,10 +1169,7 @@ void main() {
 
       // Send more events (race condition)
       eventStreamController.add(
-        const TextMessageContentEvent(
-          messageId: 'msg-2',
-          delta: 'Late event',
-        ),
+        const TextMessageContentEvent(messageId: 'msg-2', delta: 'Late event'),
       );
       await Future<void>.delayed(Duration.zero);
 
@@ -1288,9 +1300,9 @@ void main() {
           );
 
       // Cache should be updated
-      final cache = container.read(threadMessageCacheProvider);
+      final cache = container.read(threadHistoryCacheProvider);
       expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1'], hasLength(1));
+      expect(cache['thread-1']!.messages, hasLength(1));
     });
   });
 
@@ -1429,9 +1441,10 @@ void main() {
             text: 'First answer',
           ),
         ];
-        container
-            .read(threadMessageCacheProvider.notifier)
-            .updateMessages('thread-1', historicalMessages);
+        container.read(threadHistoryCacheProvider.notifier).updateHistory(
+              'thread-1',
+              ThreadHistory(messages: historicalMessages),
+            );
 
         // Start a new run
         await container.read(activeRunNotifierProvider.notifier).startRun(
@@ -1472,9 +1485,10 @@ void main() {
           text: 'First answer',
         ),
       ];
-      container
-          .read(threadMessageCacheProvider.notifier)
-          .updateMessages('thread-1', historicalMessages);
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'thread-1',
+            ThreadHistory(messages: historicalMessages),
+          );
 
       // Start a new run
       await container.read(activeRunNotifierProvider.notifier).startRun(
@@ -1561,6 +1575,81 @@ void main() {
       expect((state.messages[0] as TextMessage).text, 'First message');
       expect((state.messages[1] as TextMessage).text, 'First response');
       expect((state.messages[2] as TextMessage).text, 'Second message');
+    });
+
+    test('sends accumulated AG-UI state merged with initial state', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Pre-populate cache with AG-UI state from previous runs
+      final cachedAguiState = <String, dynamic>{
+        'ask_history': {
+          'questions': [
+            {
+              'question': 'Previous question',
+              'response': 'Previous answer',
+              'citations': <Map<String, dynamic>>[],
+            },
+          ],
+        },
+        'haiku.rag.chat': {
+          'qa_history': [
+            {'question': 'Q1', 'answer': 'A1'},
+          ],
+        },
+      };
+
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'thread-1',
+            ThreadHistory(messages: const [], aguiState: cachedAguiState),
+          );
+
+      // Start a run with initial state (filter_documents)
+      final initialState = <String, dynamic>{
+        'filter_documents': {
+          'document_ids': ['doc-1', 'doc-2'],
+        },
+      };
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'New question',
+            initialState: initialState,
+          );
+
+      // Capture the input sent to the backend
+      final captured = verify(
+        () => mockAgUiClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured.single as SimpleRunAgentInput;
+
+      // Verify state contains BOTH cached AG-UI state AND initial state
+      final sentState = captured.state as Map<String, dynamic>;
+
+      // Cached state should be preserved
+      expect(sentState['ask_history'], isNotNull);
+      expect(
+        (sentState['ask_history'] as Map)['questions'],
+        hasLength(1),
+      );
+      expect(sentState['haiku.rag.chat'], isNotNull);
+
+      // Initial state (filter_documents) should be included
+      expect(sentState['filter_documents'], isNotNull);
+      expect(
+        (sentState['filter_documents'] as Map)['document_ids'],
+        ['doc-1', 'doc-2'],
+      );
     });
   });
 }

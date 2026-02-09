@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart' hide State;
-import 'package:soliplex_frontend/core/providers/thread_message_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -13,6 +13,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: NetworkException(message: 'Connection failed'),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -27,6 +28,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: AuthException(message: 'Unauthorized', statusCode: 401),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -38,12 +40,14 @@ void main() {
       expect(find.byIcon(Icons.lock_outline), findsOneWidget);
     });
 
-    testWidgets('displays permission denied for 403 auth error',
-        (tester) async {
+    testWidgets('displays permission denied for 403 auth error', (
+      tester,
+    ) async {
       await tester.pumpWidget(
         createTestApp(
           home: const ErrorDisplay(
             error: AuthException(message: 'Forbidden', statusCode: 403),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -63,6 +67,7 @@ void main() {
               message: 'does not exist',
               resource: 'Thread',
             ),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -76,6 +81,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: NotFoundException(message: 'Resource not found'),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -88,6 +94,7 @@ void main() {
         createTestApp(
           home: const ErrorDisplay(
             error: ApiException(statusCode: 500, message: 'Database error'),
+            stackTrace: StackTrace.empty,
           ),
         ),
       );
@@ -101,7 +108,12 @@ void main() {
 
     testWidgets('displays generic error message', (tester) async {
       await tester.pumpWidget(
-        createTestApp(home: ErrorDisplay(error: Exception('Unknown error'))),
+        createTestApp(
+          home: ErrorDisplay(
+            error: Exception('Unknown error'),
+            stackTrace: StackTrace.empty,
+          ),
+        ),
       );
 
       expect(find.text('An unexpected error occurred.'), findsOneWidget);
@@ -114,6 +126,7 @@ void main() {
         createTestApp(
           home: ErrorDisplay(
             error: const NetworkException(message: 'Failed'),
+            stackTrace: StackTrace.empty,
             onRetry: () => retryPressed = true,
           ),
         ),
@@ -132,7 +145,10 @@ void main() {
     ) async {
       await tester.pumpWidget(
         createTestApp(
-          home: const ErrorDisplay(error: NetworkException(message: 'Failed')),
+          home: const ErrorDisplay(
+            error: NetworkException(message: 'Failed'),
+            stackTrace: StackTrace.empty,
+          ),
         ),
       );
 
@@ -145,6 +161,7 @@ void main() {
           createTestApp(
             home: const ErrorDisplay(
               error: NetworkException(message: 'Connection failed'),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -162,6 +179,7 @@ void main() {
                 message: 'Server error',
                 body: '{"error": "internal"}',
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -181,6 +199,7 @@ void main() {
           createTestApp(
             home: const ErrorDisplay(
               error: NetworkException(message: 'Failed'),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -198,17 +217,18 @@ void main() {
       });
     });
 
-    group('MessageFetchException unwrapping', () {
-      testWidgets('unwraps NetworkException from MessageFetchException', (
+    group('HistoryFetchException unwrapping', () {
+      testWidgets('unwraps NetworkException from HistoryFetchException', (
         tester,
       ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Connection failed'),
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -217,19 +237,20 @@ void main() {
         expect(find.byIcon(Icons.wifi_off), findsOneWidget);
       });
 
-      testWidgets('unwraps ApiException from MessageFetchException', (
+      testWidgets('unwraps ApiException from HistoryFetchException', (
         tester,
       ) async {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const ApiException(
                   statusCode: 500,
                   message: 'Internal Server Error',
                 ),
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -244,10 +265,11 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Failed'),
               ),
+              stackTrace: StackTrace.empty,
             ),
           ),
         );
@@ -267,10 +289,11 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const NetworkException(message: 'Failed'),
               ),
+              stackTrace: StackTrace.empty,
               onRetry: () => retryPressed = true,
             ),
           ),
@@ -290,10 +313,11 @@ void main() {
         await tester.pumpWidget(
           createTestApp(
             home: ErrorDisplay(
-              error: MessageFetchException(
+              error: HistoryFetchException(
                 threadId: 'thread-123',
                 cause: const AuthException(message: 'Unauthorized'),
               ),
+              stackTrace: StackTrace.empty,
               onRetry: () {},
             ),
           ),

@@ -288,7 +288,8 @@ void main() {
       expect(RunStatus.values, contains(RunStatus.completed));
       expect(RunStatus.values, contains(RunStatus.failed));
       expect(RunStatus.values, contains(RunStatus.cancelled));
-      expect(RunStatus.values, hasLength(5));
+      expect(RunStatus.values, contains(RunStatus.unknown));
+      expect(RunStatus.values, hasLength(6));
     });
   });
 }

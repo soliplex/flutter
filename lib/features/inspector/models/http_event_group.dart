@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:soliplex_client/soliplex_client.dart';
 
 /// Status of an HTTP event group.
@@ -87,6 +89,26 @@ class HttpEventGroup {
     return path;
   }
 
+  /// Returns request headers from the first available event.
+  ///
+  /// Works for both regular requests and SSE streams.
+  /// Returns empty map if no headers available.
+  Map<String, String> get requestHeaders {
+    if (request case HttpRequestEvent(:final headers)) return headers;
+    if (streamStart case HttpStreamStartEvent(:final headers)) return headers;
+    return const {};
+  }
+
+  /// Returns request body from the first available event.
+  ///
+  /// Works for both regular requests and SSE streams.
+  /// Returns null if no body available.
+  dynamic get requestBody {
+    if (request case HttpRequestEvent(:final body)) return body;
+    if (streamStart case HttpStreamStartEvent(:final body)) return body;
+    return null;
+  }
+
   /// Returns the timestamp from the first available event.
   ///
   /// Throws [StateError] if no event contains timestamp information.
@@ -166,5 +188,77 @@ class HttpEventGroup {
   String get semanticLabel {
     final methodText = isStream ? 'SSE stream' : '$method request';
     return '$methodText to $pathWithQuery, $statusDescription';
+  }
+
+  /// Formats a body value as pretty-printed JSON if possible.
+  ///
+  /// Returns the original value as a string if JSON encoding fails.
+  static String formatBody(dynamic body) {
+    if (body == null) return '';
+    if (body is String) {
+      // Try to parse and re-format JSON strings
+      try {
+        final parsed = jsonDecode(body);
+        return _jsonEncoder.convert(parsed);
+      } on FormatException {
+        return body;
+      }
+    }
+    // Already parsed JSON (Map/List) - encode directly, fallback to toString
+    // for non-JSON-encodable objects
+    try {
+      return _jsonEncoder.convert(body);
+    } on Object {
+      return body.toString();
+    }
+  }
+
+  static const _jsonEncoder = JsonEncoder.withIndent('  ');
+
+  /// Generates a curl command that reproduces this request.
+  ///
+  /// The command includes method, headers, body (if present), and URL.
+  /// Values are properly escaped for shell execution.
+  ///
+  /// Works for both regular requests and SSE streams.
+  /// Returns null if no request data is available.
+  String? toCurl() {
+    // Need at least method and URI to generate curl
+    if (!hasEvents) return null;
+    if (request == null && streamStart == null) return null;
+
+    final parts = <String>['curl'];
+
+    // Method (skip for GET since it's the default)
+    if (method != 'GET') {
+      parts.add('-X $method');
+    }
+
+    // Headers (using unified accessor)
+    for (final entry in requestHeaders.entries) {
+      final escapedValue = _shellEscape(entry.value);
+      parts.add("-H '${entry.key}: $escapedValue'");
+    }
+
+    // Body (using unified accessor)
+    final body = requestBody;
+    if (body != null) {
+      final bodyString = body is String ? body : jsonEncode(body);
+      final escapedBody = _shellEscape(bodyString);
+      parts.add("-d '$escapedBody'");
+    }
+
+    // URL (must be last)
+    parts.add("'${_shellEscape(uri.toString())}'");
+
+    return parts.join(' \\\n  ');
+  }
+
+  /// Escapes a string for safe use in single-quoted shell arguments.
+  ///
+  /// In single quotes, only single quotes need escaping.
+  /// The pattern 'foo'\''bar' ends the quote, adds escaped quote, resumes.
+  static String _shellEscape(String value) {
+    return value.replaceAll("'", r"'\''");
   }
 }

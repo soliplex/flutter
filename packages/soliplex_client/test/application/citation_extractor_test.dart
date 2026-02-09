@@ -1,0 +1,402 @@
+import 'package:soliplex_client/src/application/citation_extractor.dart';
+import 'package:test/test.dart';
+
+void main() {
+  group('CitationExtractor', () {
+    late CitationExtractor extractor;
+
+    setUp(() {
+      extractor = CitationExtractor();
+    });
+
+    group('extractNew with haiku.rag.chat', () {
+      Map<String, dynamic> createState({
+        List<Map<String, dynamic>> qaHistory = const [],
+      }) {
+        return {
+          'haiku.rag.chat': {
+            'qa_history': qaHistory,
+            'citations': <Map<String, dynamic>>[],
+            'citation_registry': <String, int>{},
+          },
+        };
+      }
+
+      Map<String, dynamic> createQaEntry({
+        required String question,
+        required String answer,
+        List<Map<String, dynamic>> citations = const [],
+      }) {
+        return {
+          'question': question,
+          'answer': answer,
+          'citations': citations,
+        };
+      }
+
+      Map<String, dynamic> createCitation({
+        required String chunkId,
+        String content = 'test content',
+        String documentId = 'doc-1',
+        String documentUri = 'https://example.com/doc.pdf',
+        String? documentTitle,
+        List<String>? headings,
+        List<int>? pageNumbers,
+        int? index,
+      }) {
+        return {
+          'chunk_id': chunkId,
+          'content': content,
+          'document_id': documentId,
+          'document_uri': documentUri,
+          if (documentTitle != null) 'document_title': documentTitle,
+          if (headings != null) 'headings': headings,
+          if (pageNumbers != null) 'page_numbers': pageNumbers,
+          if (index != null) 'index': index,
+        };
+      }
+
+      test('returns empty when no state change', () {
+        final state = createState(
+          qaHistory: [
+            createQaEntry(
+              question: 'Q1',
+              answer: 'A1',
+              citations: [createCitation(chunkId: 'c1')],
+            ),
+          ],
+        );
+
+        final refs = extractor.extractNew(state, state);
+
+        expect(refs, isEmpty);
+      });
+
+      test('returns empty when previous state is empty', () {
+        final previous = createState();
+        final current = createState();
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, isEmpty);
+      });
+
+      test('extracts citations from new qa_history entry', () {
+        final previous = createState();
+        final current = createState(
+          qaHistory: [
+            createQaEntry(
+              question: 'Q1',
+              answer: 'A1',
+              citations: [
+                createCitation(
+                  chunkId: 'chunk-1',
+                  content: 'Citation content',
+                  documentTitle: 'Test Doc',
+                  headings: ['Chapter 1'],
+                  pageNumbers: [1, 2],
+                  index: 1,
+                ),
+              ],
+            ),
+          ],
+        );
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'chunk-1');
+        expect(refs[0].content, 'Citation content');
+        expect(refs[0].documentId, 'doc-1');
+        expect(refs[0].documentUri, 'https://example.com/doc.pdf');
+        expect(refs[0].documentTitle, 'Test Doc');
+        expect(refs[0].headings, ['Chapter 1']);
+        expect(refs[0].pageNumbers, [1, 2]);
+        expect(refs[0].index, 1);
+      });
+
+      test('extracts only new entries when qa_history grows', () {
+        final previous = createState(
+          qaHistory: [
+            createQaEntry(
+              question: 'Q1',
+              answer: 'A1',
+              citations: [createCitation(chunkId: 'old-chunk')],
+            ),
+          ],
+        );
+        final current = createState(
+          qaHistory: [
+            createQaEntry(
+              question: 'Q1',
+              answer: 'A1',
+              citations: [createCitation(chunkId: 'old-chunk')],
+            ),
+            createQaEntry(
+              question: 'Q2',
+              answer: 'A2',
+              citations: [createCitation(chunkId: 'new-chunk')],
+            ),
+          ],
+        );
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'new-chunk');
+      });
+
+      test('extracts multiple citations from single new entry', () {
+        final previous = createState();
+        final current = createState(
+          qaHistory: [
+            createQaEntry(
+              question: 'Q1',
+              answer: 'A1',
+              citations: [
+                createCitation(chunkId: 'chunk-1'),
+                createCitation(chunkId: 'chunk-2'),
+                createCitation(chunkId: 'chunk-3'),
+              ],
+            ),
+          ],
+        );
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(3));
+        expect(refs.map((r) => r.chunkId), ['chunk-1', 'chunk-2', 'chunk-3']);
+      });
+
+      test('handles entry with no citations', () {
+        final previous = createState();
+        final current = createState(
+          qaHistory: [
+            createQaEntry(question: 'Q1', answer: 'A1'),
+          ],
+        );
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, isEmpty);
+      });
+
+      test('extracts citations from STATE_DELTA without citation_registry', () {
+        final previous = createState();
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              createQaEntry(
+                question: 'Q1',
+                answer: 'A1',
+                citations: [createCitation(chunkId: 'c1')],
+              ),
+            ],
+          },
+        };
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'c1');
+      });
+    });
+
+    group('extractNew with ask_history', () {
+      Map<String, dynamic> createState({
+        List<Map<String, dynamic>> questions = const [],
+      }) {
+        return {
+          'ask_history': {
+            'questions': questions,
+          },
+        };
+      }
+
+      Map<String, dynamic> createQuestion({
+        required String question,
+        required String response,
+        List<Map<String, dynamic>> citations = const [],
+      }) {
+        return {
+          'question': question,
+          'response': response,
+          'citations': citations,
+        };
+      }
+
+      Map<String, dynamic> createCitation({
+        required String chunkId,
+        String content = 'test content',
+        String documentId = 'doc-1',
+        String documentUri = 'https://example.com/doc.pdf',
+      }) {
+        return {
+          'chunk_id': chunkId,
+          'content': content,
+          'document_id': documentId,
+          'document_uri': documentUri,
+        };
+      }
+
+      test('extracts citations from new ask_history entry', () {
+        final previous = createState();
+        final current = createState(
+          questions: [
+            createQuestion(
+              question: 'Q1',
+              response: 'R1',
+              citations: [createCitation(chunkId: 'ask-chunk-1')],
+            ),
+          ],
+        );
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'ask-chunk-1');
+      });
+
+      test('extracts only new entries from ask_history', () {
+        final previous = createState(
+          questions: [
+            createQuestion(
+              question: 'Q1',
+              response: 'R1',
+              citations: [createCitation(chunkId: 'old')],
+            ),
+          ],
+        );
+        final current = createState(
+          questions: [
+            createQuestion(
+              question: 'Q1',
+              response: 'R1',
+              citations: [createCitation(chunkId: 'old')],
+            ),
+            createQuestion(
+              question: 'Q2',
+              response: 'R2',
+              citations: [createCitation(chunkId: 'new')],
+            ),
+          ],
+        );
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'new');
+      });
+    });
+
+    group('edge cases', () {
+      test('returns empty for unknown state format', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{'unknown_key': <String, dynamic>{}};
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, isEmpty);
+      });
+
+      test('returns empty when current has fewer entries than previous', () {
+        // This can happen with FIFO rotation
+        final previous = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              {
+                'question': 'Q1',
+                'answer': 'A1',
+                'citations': <Map<String, dynamic>>[],
+              },
+              {
+                'question': 'Q2',
+                'answer': 'A2',
+                'citations': <Map<String, dynamic>>[],
+              },
+            ],
+            'citation_registry': <String, int>{},
+          },
+        };
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              {
+                'question': 'Q2',
+                'answer': 'A2',
+                'citations': <Map<String, dynamic>>[],
+              },
+            ],
+            'citation_registry': <String, int>{},
+          },
+        };
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, isEmpty);
+      });
+
+      test('returns citations when citation_registry is absent', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              {
+                'question': 'Q1',
+                'answer': 'A1',
+                'citations': <Map<String, dynamic>>[],
+              },
+            ],
+          },
+        };
+
+        final refs = extractor.extractNew(previous, current);
+        expect(refs, isEmpty);
+      });
+
+      test('prefers haiku.rag.chat over ask_history when both present', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{
+          'haiku.rag.chat': {
+            'qa_history': [
+              {
+                'question': 'Q1',
+                'answer': 'A1',
+                'citations': [
+                  {
+                    'chunk_id': 'haiku-chunk',
+                    'content': 'content',
+                    'document_id': 'doc-1',
+                    'document_uri': 'https://example.com',
+                  },
+                ],
+              },
+            ],
+            'citation_registry': <String, int>{},
+          },
+          'ask_history': {
+            'questions': [
+              {
+                'question': 'Q1',
+                'response': 'R1',
+                'citations': [
+                  {
+                    'chunk_id': 'ask-chunk',
+                    'content': 'content',
+                    'document_id': 'doc-1',
+                    'document_uri': 'https://example.com',
+                  },
+                ],
+              },
+            ],
+          },
+        };
+
+        final refs = extractor.extractNew(previous, current);
+
+        expect(refs, hasLength(1));
+        expect(refs[0].chunkId, 'haiku-chunk');
+      });
+    });
+  });
+}

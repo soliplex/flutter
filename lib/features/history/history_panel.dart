@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
@@ -53,14 +54,11 @@ class HistoryPanel extends ConsumerWidget {
     return AsyncValueHandler(
       value: threadsAsync,
       data: (threads) {
+        Loggers.room.debug('Threads loaded: ${threads.length}');
         // Empty state - no threads yet
         if (threads.isEmpty) {
           return Padding(
-            padding: const EdgeInsets.only(
-              left: 8,
-              right: 8,
-              top: 8,
-            ),
+            padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
             child: Column(
               spacing: SoliplexSpacing.s2,
               children: [
@@ -88,11 +86,7 @@ class HistoryPanel extends ConsumerWidget {
         final currentThreadId = ref.watch(currentThreadIdProvider);
 
         return Padding(
-          padding: const EdgeInsets.only(
-            left: 8,
-            right: 8,
-            top: 8,
-          ),
+          padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
           child: Column(
             spacing: SoliplexSpacing.s2,
             children: [
@@ -103,6 +97,7 @@ class HistoryPanel extends ConsumerWidget {
               Expanded(
                 child: RefreshIndicator(
                   onRefresh: () async {
+                    Loggers.room.debug('Thread list refreshed for $roomId');
                     ref.invalidate(threadsProvider(roomId));
                     // Wait for the provider to reload
                     await ref.read(threadsProvider(roomId).future);
@@ -145,6 +140,7 @@ class HistoryPanel extends ConsumerWidget {
     String roomId,
     String threadId,
   ) {
+    Loggers.room.trace('Thread selected from list: $threadId');
     selectThread(
       ref: ref,
       roomId: roomId,
@@ -158,6 +154,7 @@ class HistoryPanel extends ConsumerWidget {
   /// Sets the selection to [NewThreadIntent], signaling that the next
   /// message should create a new thread.
   void _handleNewConversation(WidgetRef ref) {
+    Loggers.room.debug('New conversation initiated');
     ref.read(threadSelectionProvider.notifier).set(const NewThreadIntent());
   }
 }

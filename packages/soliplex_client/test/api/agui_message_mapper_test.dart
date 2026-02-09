@@ -167,25 +167,27 @@ void main() {
     });
 
     group('GenUiMessage conversion', () {
-      test('converts GenUiMessage to AssistantMessage with descriptive content',
-          () {
-        final chatMessages = [
-          GenUiMessage(
-            id: 'msg-5',
-            createdAt: DateTime.now(),
-            widgetName: 'WeatherCard',
-            data: const {'temperature': 72, 'condition': 'sunny'},
-          ),
-        ];
+      test(
+        'converts GenUiMessage to AssistantMessage with descriptive content',
+        () {
+          final chatMessages = [
+            GenUiMessage(
+              id: 'msg-5',
+              createdAt: DateTime.now(),
+              widgetName: 'WeatherCard',
+              data: const {'temperature': 72, 'condition': 'sunny'},
+            ),
+          ];
 
-        final aguiMessages = convertToAgui(chatMessages);
+          final aguiMessages = convertToAgui(chatMessages);
 
-        expect(aguiMessages, hasLength(1));
-        expect(aguiMessages[0], isA<AssistantMessage>());
-        final assistantMsg = aguiMessages[0] as AssistantMessage;
-        expect(assistantMsg.id, equals('msg-5'));
-        expect(assistantMsg.content, contains('WeatherCard'));
-      });
+          expect(aguiMessages, hasLength(1));
+          expect(aguiMessages[0], isA<AssistantMessage>());
+          final assistantMsg = aguiMessages[0] as AssistantMessage;
+          expect(assistantMsg.id, equals('msg-5'));
+          expect(assistantMsg.content, contains('WeatherCard'));
+        },
+      );
     });
 
     group('skipped message types', () {

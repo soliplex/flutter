@@ -5,12 +5,10 @@ void main() {
   group('ThreadInfo', () {
     test('creates with required fields', () {
       final createdAt = DateTime(2025);
-      final updatedAt = DateTime(2025, 1, 2);
       final thread = ThreadInfo(
         id: 'thread-1',
         roomId: 'room-1',
         createdAt: createdAt,
-        updatedAt: updatedAt,
       );
 
       expect(thread.id, equals('thread-1'));
@@ -19,7 +17,6 @@ void main() {
       expect(thread.name, equals(''));
       expect(thread.description, equals(''));
       expect(thread.createdAt, equals(createdAt));
-      expect(thread.updatedAt, equals(updatedAt));
       expect(thread.metadata, equals(const <String, dynamic>{}));
       expect(thread.hasInitialRun, isFalse);
       expect(thread.hasName, isFalse);
@@ -28,7 +25,6 @@ void main() {
 
     test('creates with all fields', () {
       final createdAt = DateTime(2025);
-      final updatedAt = DateTime(2025, 1, 2);
       final thread = ThreadInfo(
         id: 'thread-1',
         roomId: 'room-1',
@@ -36,7 +32,6 @@ void main() {
         name: 'Test Thread',
         description: 'A test thread',
         createdAt: createdAt,
-        updatedAt: updatedAt,
         metadata: const {'key': 'value'},
       );
 
@@ -46,7 +41,6 @@ void main() {
       expect(thread.name, equals('Test Thread'));
       expect(thread.description, equals('A test thread'));
       expect(thread.createdAt, equals(createdAt));
-      expect(thread.updatedAt, equals(updatedAt));
       expect(thread.metadata, equals({'key': 'value'}));
       expect(thread.hasInitialRun, isTrue);
       expect(thread.hasName, isTrue);
@@ -59,7 +53,6 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
         final modified = thread.copyWith(name: 'New Name');
 
@@ -74,10 +67,8 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
         final newCreated = DateTime(2025, 6);
-        final newUpdated = DateTime(2025, 6, 2);
         final modified = thread.copyWith(
           id: 'thread-2',
           roomId: 'room-2',
@@ -85,7 +76,6 @@ void main() {
           name: 'New Name',
           description: 'New description',
           createdAt: newCreated,
-          updatedAt: newUpdated,
           metadata: {'new': 'data'},
         );
 
@@ -95,13 +85,11 @@ void main() {
         expect(modified.name, equals('New Name'));
         expect(modified.description, equals('New description'));
         expect(modified.createdAt, equals(newCreated));
-        expect(modified.updatedAt, equals(newUpdated));
         expect(modified.metadata, equals({'new': 'data'}));
       });
 
       test('creates identical copy when no parameters passed', () {
         final createdAt = DateTime(2025);
-        final updatedAt = DateTime(2025, 1, 2);
         final thread = ThreadInfo(
           id: 'thread-1',
           roomId: 'room-1',
@@ -109,7 +97,6 @@ void main() {
           name: 'Test Thread',
           description: 'A test thread',
           createdAt: createdAt,
-          updatedAt: updatedAt,
           metadata: const {'key': 'value'},
         );
 
@@ -121,7 +108,6 @@ void main() {
         expect(copy.name, equals(thread.name));
         expect(copy.description, equals(thread.description));
         expect(copy.createdAt, equals(thread.createdAt));
-        expect(copy.updatedAt, equals(thread.updatedAt));
         expect(copy.metadata, equals(thread.metadata));
       });
     });
@@ -133,28 +119,24 @@ void main() {
           roomId: 'room-1',
           name: 'Thread 1',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
         final thread2 = ThreadInfo(
           id: 'thread-1',
           roomId: 'room-1',
           name: 'Thread 2',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
         final thread3 = ThreadInfo(
           id: 'thread-1',
           roomId: 'room-2',
           name: 'Thread 1',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
         final thread4 = ThreadInfo(
           id: 'thread-2',
           roomId: 'room-1',
           name: 'Thread 1',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
 
         expect(thread1, equals(thread2));
@@ -167,7 +149,6 @@ void main() {
           id: 'thread-1',
           roomId: 'room-1',
           createdAt: DateTime(2025),
-          updatedAt: DateTime(2025),
         );
         expect(thread == thread, isTrue);
       });
@@ -179,14 +160,12 @@ void main() {
         roomId: 'room-1',
         name: 'Thread 1',
         createdAt: DateTime(2025),
-        updatedAt: DateTime(2025),
       );
       final thread2 = ThreadInfo(
         id: 'thread-1',
         roomId: 'room-2',
         name: 'Thread 2',
         createdAt: DateTime(2025),
-        updatedAt: DateTime(2025),
       );
 
       expect(thread1.hashCode, equals(thread2.hashCode));
@@ -198,7 +177,6 @@ void main() {
         roomId: 'room-1',
         name: 'Test Thread',
         createdAt: DateTime(2025),
-        updatedAt: DateTime(2025),
       );
 
       final str = thread.toString();
