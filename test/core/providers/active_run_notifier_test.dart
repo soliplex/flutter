@@ -1698,4 +1698,158 @@ void main() {
       );
     });
   });
+
+  group('run registry integration', () {
+    late MockAgUiClient mockAgUiClient;
+    late MockSoliplexApi mockApi;
+    late StreamController<BaseEvent> eventStreamController;
+
+    setUp(() {
+      mockAgUiClient = MockAgUiClient();
+      mockApi = MockSoliplexApi();
+      eventStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-1',
+          threadId: 'thread-1',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => eventStreamController.stream);
+    });
+
+    tearDown(() {
+      eventStreamController.close();
+    });
+
+    test('startRun registers handle with registry', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      expect(registry.hasActiveRun('room-1', 'thread-1'), isTrue);
+
+      final handle = registry.getHandle('room-1', 'thread-1');
+      expect(handle, isNotNull);
+      expect(handle!.state, isA<RunningState>());
+    });
+
+    test('handle state updates on RUN_FINISHED', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      final handle = registry.getHandle('room-1', 'thread-1')!;
+
+      eventStreamController.add(
+        const RunFinishedEvent(threadId: 'thread-1', runId: 'run-1'),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(handle.state, isA<CompletedState>());
+    });
+
+    test('handle state updates on cancel', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      final handle = registry.getHandle('room-1', 'thread-1')!;
+
+      await container.read(activeRunNotifierProvider.notifier).cancelRun();
+
+      expect(handle.state, isA<CompletedState>());
+      final completed = handle.state as CompletedState;
+      expect(completed.result, isA<CancelledResult>());
+    });
+
+    test('handle state updates during text streaming', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      final handle = registry.getHandle('room-1', 'thread-1')!;
+
+      eventStreamController
+        ..add(const TextMessageStartEvent(messageId: 'msg-1'))
+        ..add(
+          const TextMessageContentEvent(
+            messageId: 'msg-1',
+            delta: 'Response',
+          ),
+        );
+      await Future<void>.delayed(Duration.zero);
+
+      // Handle stays in sync: still running with streaming state
+      expect(handle.state, isA<RunningState>());
+      final runningState = handle.state as RunningState;
+      expect(runningState.isStreaming, isTrue);
+    });
+  });
 }
