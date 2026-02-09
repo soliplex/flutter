@@ -97,8 +97,7 @@ For now, these fields are optional and can be omitted.
 
 ## Changing Log Level
 
-The log level can be changed via the Settings screen (coming in M04) or
-programmatically:
+The log level can be changed programmatically:
 
 ```dart
 // Via provider

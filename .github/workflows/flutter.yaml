@@ -3,16 +3,34 @@ name: Flutter CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".markdownlint.json"
+      - "LICENSE"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**.md"
+      - ".markdownlint.json"
+      - "LICENSE"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
+
 jobs:
-  analyze-and-test:
+  lint:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
 
@@ -37,27 +55,108 @@ jobs:
         run: |
           find . -name "*.dart" \
             -not -path "./packages/soliplex_client/lib/src/schema/*" \
-            | xargs dart format --set-exit-if-changed
+            -print0 | xargs -0 dart format --set-exit-if-changed
 
       - name: Analyze code
         run: flutter analyze --fatal-infos
 
-      - name: Run tests with coverage
-        run: flutter test --coverage
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Lint markdown
+        run: npx markdownlint-cli "**/*.md"
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - name: app
+            path: "."
+            runner: flutter
+          - name: soliplex_client
+            path: packages/soliplex_client
+            runner: dart
+          - name: soliplex_client_native
+            path: packages/soliplex_client_native
+            runner: flutter
+          - name: soliplex_logging
+            path: packages/soliplex_logging
+            runner: dart
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        working-directory: ${{ matrix.target.path }}
+        run: |
+          if [ "${{ matrix.target.runner }}" = "flutter" ]; then
+            flutter pub get
+          else
+            dart pub get
+          fi
+
+      - name: Generate random seed
+        id: seed
+        run: echo "value=$RANDOM" >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        working-directory: ${{ matrix.target.path }}
+        run: |
+          SEED="${{ steps.seed.outputs.value }}"
+          echo "::notice::Test ordering seed: $SEED"
+          if [ "${{ matrix.target.runner }}" = "flutter" ]; then
+            flutter test --test-randomize-ordering-seed="$SEED" \
+              ${{ matrix.target.name == 'app' && '--coverage' || '' }}
+          else
+            dart test --test-randomize-ordering-seed="$SEED"
+          fi
+
+      - name: Report seed on failure
+        if: failure()
+        run: |
+          SEED="${{ steps.seed.outputs.value }}"
+          echo "::error::Tests failed with ordering seed: $SEED"
+          echo "Reproduce with: --test-randomize-ordering-seed=$SEED"
 
       - name: Check coverage threshold
+        if: matrix.target.name == 'app'
         run: |
-          sudo apt-get install -y lcov
-          COVERAGE=$(lcov --summary coverage/lcov.info 2>&1 | grep "lines" | sed 's/.*: \([0-9.]*\)%.*/\1/')
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lcov
+          COVERAGE=$(lcov --summary coverage/lcov.info 2>&1 \
+            | grep "lines" | sed 's/.*: \([0-9.]*\)%.*/\1/')
           echo "Coverage: ${COVERAGE}%"
+          if [ -z "$COVERAGE" ]; then
+            echo "::error::Could not parse coverage from lcov.info"
+            exit 1
+          fi
           COVERAGE_INT=${COVERAGE%.*}
-          if [ "$COVERAGE_INT" -lt 70 ]; then
-            echo "::error::Coverage ${COVERAGE}% is below minimum 70%"
+          if [ "$COVERAGE_INT" -lt 78 ]; then
+            echo "::error::Coverage ${COVERAGE}% is below minimum 78%"
             exit 1
           fi
           echo "::notice::Coverage check passed with ${COVERAGE}%"
 
       - name: Upload coverage artifact
+        if: matrix.target.name == 'app'
         uses: actions/upload-artifact@v6
         with:
           name: coverage-report
@@ -65,22 +164,19 @@ jobs:
           retention-days: 7
 
       - name: Notify Slack on failure
-        if: failure()
+        if: failure() && env.SLACK_NOTIFY_URL != ''
         env:
-          GITHUB_REF: ${{ github.ref }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          curl -X POST \
+          curl -sf -X POST \
             --data-urlencode \
-            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Flutter CI failed on $GITHUB_REF:\n$COMMIT_MSG\n$RUN_URL\", \"icon_emoji\": \":flutter:\"}" \
+            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Tests failed for ${{ matrix.target.name }} on ${{ github.ref }}:\n${COMMIT_MSG}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\", \"icon_emoji\": \":flutter:\"}" \
             "$SLACK_NOTIFY_URL"
 
   build-web:
+    needs: [lint, test]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
     steps:
       - uses: actions/checkout@v6
 
@@ -112,13 +208,11 @@ jobs:
           retention-days: 7
 
       - name: Notify Slack on failure
-        if: failure()
+        if: failure() && env.SLACK_NOTIFY_URL != ''
         env:
-          GITHUB_REF: ${{ github.ref }}
           COMMIT_MSG: ${{ github.event.head_commit.message }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          curl -X POST \
+          curl -sf -X POST \
             --data-urlencode \
-            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Web build failed on $GITHUB_REF:\n$COMMIT_MSG\n$RUN_URL\", \"icon_emoji\": \":flutter:\"}" \
+            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Web build failed on ${{ github.ref }}:\n${COMMIT_MSG}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\", \"icon_emoji\": \":flutter:\"}" \
             "$SLACK_NOTIFY_URL"
