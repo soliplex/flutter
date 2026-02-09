@@ -213,11 +213,17 @@ class PlatformDiskQueue implements DiskQueue {
   }
 
   /// Drops the oldest half of records when file exceeds size limit.
+  ///
+  /// Writes to a temp file and atomically renames to prevent data loss
+  /// if the process crashes mid-write.
   Future<void> _dropOldest() async {
     final lines = await _readLinesStream().toList();
     final nonEmpty = lines.where((l) => l.trim().isNotEmpty).toList();
     final keepFrom = nonEmpty.length ~/ 2;
     final kept = nonEmpty.sublist(keepFrom).join('\n');
-    await _file.writeAsString('$kept\n');
+
+    final tmpFile = File('${_directory.path}/.log_queue_rotate.tmp');
+    await tmpFile.writeAsString('$kept\n', flush: true);
+    await tmpFile.rename(_file.path);
   }
 }
