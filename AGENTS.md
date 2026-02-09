@@ -56,7 +56,8 @@ npx markdownlint-cli "<file>"
 
 All three checks (format, analyze, test) must pass before any change is
 considered complete. Coverage target is 85%+. The CI pipeline enforces a
-minimum of 70%.
+minimum of 78%. CI also runs tests for each package independently with
+randomized ordering.
 
 ## Architecture
 
@@ -135,7 +136,7 @@ docs/                     # Project documentation
 ## PR Guidelines
 
 - Branch from `main`; PRs target `main`
-- CI must pass: format, analyze, test, coverage >= 70%
+- CI must pass: lint (format, analyze, markdown), test (all packages), coverage >= 78%
 - Keep `soliplex_client` and `soliplex_logging` as pure Dart packages
 - Run `npx markdownlint-cli` on any modified markdown files
 
