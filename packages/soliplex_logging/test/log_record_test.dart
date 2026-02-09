@@ -179,6 +179,27 @@ void main() {
       expect(record.attributes, {'user_id': 'u-42', 'http_status': 200});
     });
 
+    test('attributes are unmodifiable after construction', () {
+      final mutable = {'key': 'original'};
+      final record = LogRecord(
+        level: LogLevel.info,
+        message: 'Test',
+        timestamp: DateTime.now(),
+        loggerName: 'Test',
+        attributes: mutable,
+      );
+
+      // Mutating the source map must not affect the record.
+      mutable['key'] = 'mutated';
+      expect(record.attributes['key'], 'original');
+
+      // Direct mutation of record.attributes must throw.
+      expect(
+        () => record.attributes['new'] = 'value',
+        throwsUnsupportedError,
+      );
+    });
+
     test('attributes default to empty map', () {
       final record = LogRecord(
         level: LogLevel.info,
