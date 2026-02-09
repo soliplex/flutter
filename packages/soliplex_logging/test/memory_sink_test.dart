@@ -201,6 +201,39 @@ void main() {
       expect(tinySink.records.first.message, 'second');
     });
 
+    test('records view stays consistent after new writes', () {
+      sink
+        ..write(_record('1'))
+        ..write(_record('2'));
+
+      // Hold reference to the view.
+      final view = sink.records;
+      expect(view[0].message, '1');
+      expect(view.length, 2);
+
+      // Write more records (triggers wrap-around with maxRecords=5).
+      for (var i = 3; i <= 7; i++) {
+        sink.write(_record('$i'));
+      }
+
+      // View should reflect live state — oldest is now '3'.
+      expect(view.length, 5);
+      expect(view[0].message, '3');
+      expect(view[4].message, '7');
+    });
+
+    test('records view reflects clear', () {
+      sink
+        ..write(_record('a'))
+        ..write(_record('b'));
+
+      final view = sink.records;
+      expect(view.length, 2);
+
+      sink.clear();
+      expect(view.length, 0);
+    });
+
     test('rejects maxRecords of zero', () {
       expect(
         () => MemorySink(maxRecords: 0),
