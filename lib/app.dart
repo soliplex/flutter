@@ -49,10 +49,12 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
   }
 
   void _flushBackendLogs() {
-    final sink = ref.read(backendLogSinkProvider).asData?.value;
-    if (sink != null) {
-      unawaited(sink.flush());
-    }
+    unawaited(
+      ref
+          .read(backendLogSinkProvider.future)
+          .then((sink) => sink?.flush())
+          .catchError((_) {}),
+    );
   }
 
   Future<void> _enableWakelock() async {

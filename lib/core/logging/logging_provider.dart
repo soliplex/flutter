@@ -271,7 +271,10 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
             (_) => <String, Object>{},
           );
 
-  // Build disk queue directory (web gets in-memory fallback).
+  // DiskQueue uses conditional imports: on web the factory returns an
+  // in-memory implementation that ignores directoryPath. The kIsWeb guard
+  // here avoids calling getApplicationSupportDirectory() which requires
+  // dart:io and is unavailable on web.
   late final DiskQueue diskQueue;
   if (kIsWeb) {
     diskQueue = DiskQueue(directoryPath: '');
