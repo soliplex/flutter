@@ -755,5 +755,66 @@ void main() {
         expect(log['message']! as String, contains('exceeded'));
       },
     );
+
+    test('close bypasses backoff for best-effort final flush', () async {
+      httpStatus = 500;
+      final sink = createSink()..write(makeRecord());
+      await sink.flush();
+
+      // Sink is now in backoff.
+      expect(sink.backoffUntil, isNotNull);
+
+      // Switch to success and close — should bypass backoff and send.
+      httpStatus = 200;
+      capturedRequests.clear();
+      await sink.close();
+
+      expect(capturedRequests, hasLength(1));
+    });
+
+    test('UTF-8 truncation preserves char at exact boundary', () async {
+      // 'é' is 2 bytes (C3 A9). Build a string where 'é' ends exactly
+      // at the 1024-byte boundary: 1022 ASCII bytes + 'é' = 1024 bytes.
+      final prefix = 'a' * 1022;
+      final boundary = '$prefix\u00E9'; // exactly 1024 bytes in UTF-8
+      final padding = 'x' * 99000;
+      final message = '$boundary$padding';
+
+      final sink = createSink()..write(makeRecord(message: message));
+      await sink.flush();
+      await sink.close();
+
+      expect(capturedRequests, hasLength(1));
+      final body =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final logs = body['logs']! as List;
+      final sentMessage =
+          (logs[0] as Map<String, Object?>)['message']! as String;
+      // The 'é' at byte 1023-1024 should be preserved, not dropped.
+      expect(sentMessage, startsWith(boundary));
+      expect(sentMessage, contains('[truncated]'));
+    });
+
+    test('UTF-8 truncation drops char that splits at boundary', () async {
+      // 'é' is 2 bytes (C3 A9). Build a string where 'é' straddles the
+      // 1024-byte boundary: 1023 ASCII bytes + 'é' = 1025 bytes.
+      final prefix = 'a' * 1023;
+      final message = '$prefix\u00E9${'x' * 99000}';
+
+      final sink = createSink()..write(makeRecord(message: message));
+      await sink.flush();
+      await sink.close();
+
+      expect(capturedRequests, hasLength(1));
+      final body =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final logs = body['logs']! as List;
+      final sentMessage =
+          (logs[0] as Map<String, Object?>)['message']! as String;
+      // The 'é' doesn't fit — message should end with the ASCII prefix.
+      expect(sentMessage, startsWith(prefix));
+      expect(sentMessage, isNot(contains('\u00E9')));
+      expect(sentMessage, contains('[truncated]'));
+    });
   });
 }

@@ -83,6 +83,7 @@ class BackendLogSink implements LogSink {
   final List<Future<void>> _pendingWrites = [];
 
   bool _closed = false;
+  bool _closing = false;
   bool _disabled = false;
   bool _permanentlyDisabled = false;
 
@@ -174,8 +175,10 @@ class BackendLogSink implements LogSink {
     // Respect network check.
     if (networkChecker != null && !networkChecker!()) return;
 
-    // Respect backoff timer.
-    if (backoffUntil != null && DateTime.now().isBefore(backoffUntil!)) {
+    // Respect backoff timer (bypassed during close for best-effort drain).
+    if (!_closing &&
+        backoffUntil != null &&
+        DateTime.now().isBefore(backoffUntil!)) {
       return;
     }
 
@@ -261,11 +264,13 @@ class BackendLogSink implements LogSink {
   Future<void> close() async {
     if (_closed) return;
     _closed = true;
+    _closing = true;
     _timer.cancel();
     // Await any in-flight flush before the final one.
     await _activeFlush;
-    // Run one final flush directly (bypasses _closed guard).
+    // Run one final flush directly (bypasses _closed and backoff guards).
     await _runFlush();
+    _closing = false;
     await _diskQueue.close();
   }
 
@@ -379,15 +384,28 @@ class BackendLogSink implements LogSink {
     final encoded = utf8.encode(input);
     if (encoded.length <= maxBytes) return input;
 
-    var end = min(maxBytes, encoded.length);
-    // Backtrack past any continuation bytes (0b10xxxxxx) so we don't
-    // split a multi-byte character sequence.
-    while (end > 0 && (encoded[end - 1] & 0xC0) == 0x80) {
+    var end = maxBytes;
+    // If we landed in the middle of a multi-byte sequence, backtrack to
+    // the lead byte to find the sequence start.
+    while (end > 0 && (encoded[end] & 0xC0) == 0x80) {
       end--;
     }
-    // If we landed on a lead byte, drop it too (its sequence was split).
-    if (end > 0 && encoded[end - 1] >= 0xC0) {
-      end--;
+    // Now encoded[end] is either ASCII or a lead byte.
+    // If it's a lead byte, check whether the full sequence fits.
+    if (end < encoded.length && encoded[end] >= 0xC0) {
+      int seqLen;
+      final lead = encoded[end];
+      if ((lead & 0xE0) == 0xC0) {
+        seqLen = 2;
+      } else if ((lead & 0xF0) == 0xE0) {
+        seqLen = 3;
+      } else {
+        seqLen = 4;
+      }
+      // Keep the character only if the entire sequence fits within maxBytes.
+      if (end + seqLen <= maxBytes) {
+        end += seqLen;
+      }
     }
     return '${utf8.decode(encoded.sublist(0, end))}…[truncated]';
   }
