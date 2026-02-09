@@ -157,7 +157,7 @@ LogRecord → write() → DiskQueue.append / appendSync
                       401/403 → disable (re-enable on new JWT)
                           404 → disable permanently
                     429/5xx → exponential backoff + jitter
-                  3 failures → poison pill (discard batch)
+                 50 failures → poison pill (discard batch)
 ```
 
 ### Construction
@@ -186,8 +186,10 @@ When `jwtProvider` is set but returns `null`, `flush()` is a no-op. Records
 accumulate in `DiskQueue` on disk. Once `jwtProvider` returns a token, the
 next flush ships all buffered pre-login logs together.
 
-If the sink is disabled (401/403) and a **new** JWT appears (different from
-the previous one), the sink re-enables itself automatically.
+If the sink is disabled by an auth error (401/403) and a **new** JWT appears
+(different from the previous one), the sink re-enables itself automatically.
+A 404 (endpoint not found) disables the sink permanently — no JWT change
+will re-enable it.
 
 ### Record serialization
 
@@ -226,7 +228,7 @@ the sink enters exponential backoff:
 
 - Base delay: 1s, 2s, 4s, 8s, ... capped at 60s
 - Jitter: +0–1000ms random per attempt (decorrelates retries)
-- **Poison pill**: after 3 consecutive failures, the batch is discarded via
+- **Poison pill**: after 50 consecutive failures, the batch is discarded via
   `onError` to prevent a single bad batch from blocking the queue forever
 
 ### Severity-triggered flush
@@ -293,7 +295,7 @@ setUp(() {
 | pre-auth: flush skips when jwtProvider returns null | Buffering before login |
 | post-auth: buffered pre-login logs drain on first flush | Pre-auth drain |
 | networkChecker false skips flush | Offline handling |
-| poison pill: batch discarded after 3 failures | Queue unblocking |
+| poison pill: batch discarded after 50 failures | Queue unblocking |
 | attribute value safety: non-primitive coerced to string | Type coercion |
 | fatal records use appendSync | Sync write path |
 | close attempts final flush | Graceful shutdown |
@@ -314,16 +316,15 @@ To test backoff behavior, clear `backoffUntil` between flushes to simulate
 time passing:
 
 ```dart
-test('poison pill after 3 failures', () async {
+test('poison pill after 50 failures', () async {
   httpStatus = 500;
   final sink = createSink(onError: (msg, _) => errorMessage = msg)
     ..write(makeRecord());
 
-  await sink.flush();
-  sink.backoffUntil = null; // simulate time passing
-  await sink.flush();
-  sink.backoffUntil = null;
-  await sink.flush();
+  for (var i = 0; i < 50; i++) {
+    sink.backoffUntil = null; // simulate time passing
+    await sink.flush();
+  }
 
   expect(errorMessage, contains('poison pill'));
   expect(await diskQueue.pendingCount, 0);

@@ -84,6 +84,7 @@ class BackendLogSink implements LogSink {
 
   bool _closed = false;
   bool _disabled = false;
+  bool _permanentlyDisabled = false;
 
   // C2 fix: guard against concurrent flush calls.
   bool _isFlushing = false;
@@ -153,8 +154,9 @@ class BackendLogSink implements LogSink {
     final jwt = jwtProvider?.call();
     if (jwtProvider != null && jwt == null) return;
 
-    // Re-enable if we got a new JWT after auth failure.
-    if (_disabled && jwt != null && jwt != _lastJwt) {
+    // Re-enable if we got a new JWT after auth failure (401/403).
+    // 404 sets _permanentlyDisabled and cannot be recovered.
+    if (_disabled && !_permanentlyDisabled && jwt != null && jwt != _lastJwt) {
       _disabled = false;
       _retryCount = 0;
       _consecutiveFailures = 0;
@@ -175,14 +177,22 @@ class BackendLogSink implements LogSink {
     final records = await _diskQueue.drain(batchSize);
     if (records.isEmpty) return;
 
-    // Apply byte-based cap.
-    final batch = _capByBytes(records);
-    if (batch.isEmpty) return;
+    // Apply byte-based cap — returns records to send and total to confirm
+    // (includes oversized records that were skipped/discarded).
+    final (batch, confirmCount) = _capByBytes(records);
 
-    // Use byte-accurate size for the payload.
+    // Confirm any leading oversized records even if batch is empty.
+    if (batch.isEmpty) {
+      if (confirmCount > 0) await _diskQueue.confirm(confirmCount);
+      return;
+    }
+
+    // Coerce resource attributes for safe JSON encoding.
+    final safeResource = _safeAttributes(resourceAttributes);
+
     final payload = jsonEncode({
       'logs': batch,
-      'resource': resourceAttributes,
+      'resource': safeResource,
     });
 
     try {
@@ -196,7 +206,13 @@ class BackendLogSink implements LogSink {
       );
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        await _diskQueue.confirm(batch.length);
+        try {
+          await _diskQueue.confirm(confirmCount);
+        } on Object catch (e) {
+          // Records were sent successfully but local confirm failed.
+          // Log and continue — duplicates are preferable to data loss.
+          onError?.call('Confirm failed after successful send: $e', e);
+        }
         _retryCount = 0;
         _consecutiveFailures = 0;
         backoffUntil = null;
@@ -208,17 +224,18 @@ class BackendLogSink implements LogSink {
         );
       } else if (response.statusCode == 404) {
         _disabled = true;
+        _permanentlyDisabled = true;
         onError?.call(
-          'Endpoint not found (404), disabling export',
+          'Endpoint not found (404), disabling export permanently',
           null,
         );
       } else {
         // 429, 5xx — retry with backoff.
-        await _handleRetryableError(batch.length);
+        await _handleRetryableError(confirmCount);
       }
     } on Object catch (e) {
       // Network error — retry with backoff.
-      await _handleRetryableError(batch.length);
+      await _handleRetryableError(confirmCount);
       developer.log('Flush failed: $e', name: 'BackendLogSink');
     }
   }
@@ -226,11 +243,12 @@ class BackendLogSink implements LogSink {
   @override
   Future<void> close() async {
     if (_closed) return;
+    _closed = true;
     _timer.cancel();
     // Await any in-flight flush before the final one.
     await _activeFlush;
-    await flush();
-    _closed = true;
+    // Run one final flush directly (bypasses _closed guard).
+    await _runFlush();
     await _diskQueue.close();
   }
 
@@ -238,12 +256,15 @@ class BackendLogSink implements LogSink {
     _consecutiveFailures++;
     _retryCount++;
 
-    // Poison pill: discard batch after 3 consecutive failures.
-    if (_consecutiveFailures >= 3) {
+    // Poison pill: discard batch after 50 consecutive failures to prevent
+    // a permanently stuck queue. At ~60s max backoff this covers ~50 minutes
+    // of sustained outage before dropping a batch.
+    if (_consecutiveFailures >= 50) {
       await _diskQueue.confirm(batchLength);
       _consecutiveFailures = 0;
+      _retryCount = 0;
       onError?.call(
-        'Batch discarded after 3 consecutive failures (poison pill)',
+        'Batch discarded after 50 consecutive failures (poison pill)',
         null,
       );
       return;
@@ -328,10 +349,14 @@ class BackendLogSink implements LogSink {
     final encoded = utf8.encode(input);
     if (encoded.length <= maxBytes) return input;
 
-    // C3 fix: bounds check — clamp end to last valid index before checking
-    // continuation bytes, preventing index-past-end access.
-    var end = min(maxBytes, encoded.length - 1);
-    while (end > 0 && (encoded[end] & 0xC0) == 0x80) {
+    var end = min(maxBytes, encoded.length);
+    // Backtrack past any continuation bytes (0b10xxxxxx) so we don't
+    // split a multi-byte character sequence.
+    while (end > 0 && (encoded[end - 1] & 0xC0) == 0x80) {
+      end--;
+    }
+    // If we landed on a lead byte, drop it too (its sequence was split).
+    if (end > 0 && encoded[end - 1] >= 0xC0) {
       end--;
     }
     return '${utf8.decode(encoded.sublist(0, end))}…[truncated]';
@@ -339,36 +364,44 @@ class BackendLogSink implements LogSink {
 
   /// Caps records by byte size.
   ///
-  /// Uses UTF-8 byte length for accurate size checks.
-  List<Map<String, Object?>> _capByBytes(List<Map<String, Object?>> records) {
+  /// Returns a tuple of (batch to send, total records to confirm).
+  /// The confirm count includes oversized records that were discarded.
+  (List<Map<String, Object?>>, int) _capByBytes(
+    List<Map<String, Object?>> records,
+  ) {
     final result = <Map<String, Object?>>[];
     var totalBytes = 0;
+    var scanned = 0;
     final envelopeOverhead = utf8
         .encode(
-          jsonEncode({'logs': <Object>[], 'resource': resourceAttributes}),
+          jsonEncode({
+            'logs': <Object>[],
+            'resource': _safeAttributes(resourceAttributes),
+          }),
         )
         .length;
     totalBytes += envelopeOverhead;
 
     for (final record in records) {
       final recordBytes = utf8.encode(jsonEncode(record)).length;
-      if (totalBytes + recordBytes > maxBatchBytes) {
-        // C1 fix: if the first record exceeds the limit, confirm (discard)
-        // it from the queue and report the error instead of returning an
-        // empty batch that blocks the queue forever.
-        if (result.isEmpty) {
-          unawaited(_diskQueue.confirm(1));
-          onError?.call(
-            'Log record dropped; size ${recordBytes}B exceeds max batch '
-            'size ${maxBatchBytes}B',
-            null,
-          );
-        }
-        break;
+
+      // Discard any individual record that exceeds the batch limit,
+      // regardless of its position, to prevent head-of-line blocking.
+      if (recordBytes > maxBatchBytes - envelopeOverhead) {
+        scanned++;
+        onError?.call(
+          'Log record dropped; size ${recordBytes}B exceeds max batch '
+          'size ${maxBatchBytes}B',
+          null,
+        );
+        continue;
       }
+
+      if (totalBytes + recordBytes > maxBatchBytes) break;
       result.add(record);
       totalBytes += recordBytes;
+      scanned++;
     }
-    return result;
+    return (result, scanned);
   }
 }

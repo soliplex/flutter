@@ -150,7 +150,7 @@ void main() {
       await sink.close();
     });
 
-    test('HTTP 404 disables export and calls onError', () async {
+    test('HTTP 404 disables export permanently', () async {
       httpStatus = 404;
       String? errorMessage;
       final sink = createSink(
@@ -159,6 +159,7 @@ void main() {
       await sink.flush();
 
       expect(errorMessage, contains('404'));
+      expect(errorMessage, contains('permanently'));
       await sink.close();
     });
 
@@ -204,7 +205,7 @@ void main() {
     });
 
     test(
-      'poison pill: batch discarded after 3 consecutive failures',
+      'poison pill: batch discarded after 50 consecutive failures',
       () async {
         httpStatus = 500;
         String? errorMessage;
@@ -212,11 +213,10 @@ void main() {
           onError: (msg, _) => errorMessage = msg,
         )..write(makeRecord());
 
-        await sink.flush();
-        sink.backoffUntil = null;
-        await sink.flush();
-        sink.backoffUntil = null;
-        await sink.flush();
+        for (var i = 0; i < 50; i++) {
+          sink.backoffUntil = null;
+          await sink.flush();
+        }
 
         expect(errorMessage, contains('poison pill'));
         expect(await diskQueue.pendingCount, 0);
@@ -257,11 +257,22 @@ void main() {
     });
 
     test('severity-triggered flush on ERROR', () async {
-      final sink = createSink()
-        ..write(makeRecord(level: LogLevel.error, message: 'Error!'));
+      final completer = Completer<void>();
+      final flushClient = http_testing.MockClient((request) async {
+        capturedRequests.add(request);
+        completer.complete();
+        return http.Response('', 200);
+      });
+      final sink = BackendLogSink(
+        endpoint: 'https://api.example.com/logs',
+        client: flushClient,
+        installId: 'i',
+        sessionId: 's',
+        diskQueue: diskQueue,
+        flushInterval: const Duration(hours: 1),
+      )..write(makeRecord(level: LogLevel.error, message: 'Error!'));
 
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-
+      await completer.future;
       expect(capturedRequests, hasLength(1));
       await sink.close();
     });
@@ -480,6 +491,170 @@ void main() {
 
       // Recreate dir for tearDown cleanup.
       tempDir.createSync();
+    });
+
+    test('write after close is silently ignored', () async {
+      final sink = createSink();
+      await sink.close();
+
+      // Should not throw or enqueue.
+      sink.write(makeRecord(message: 'After close'));
+      expect(capturedRequests, isEmpty);
+    });
+
+    test('oversized record in middle of batch is skipped', () async {
+      String? errorMessage;
+      // Small batch limit so the big record exceeds it but small ones fit.
+      final sink = BackendLogSink(
+        endpoint: 'https://api.example.com/logs',
+        client: mockClient,
+        installId: 'i',
+        sessionId: 's',
+        diskQueue: diskQueue,
+        maxBatchBytes: 1024,
+        flushInterval: const Duration(hours: 1),
+        onError: (msg, _) => errorMessage = msg,
+      )
+        ..write(makeRecord(message: 'small-1'))
+        ..write(makeRecord(message: 'x' * 2000)) // oversized
+        ..write(makeRecord(message: 'small-2'));
+      await sink.flush();
+
+      // The oversized record should be dropped with an error.
+      expect(errorMessage, contains('dropped'));
+
+      // The small records should have been sent.
+      expect(capturedRequests, isNotEmpty);
+      final body =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final logs = body['logs']! as List;
+      final messages =
+          logs.map((l) => (l as Map<String, Object?>)['message']).toList();
+      expect(messages, contains('small-1'));
+      expect(messages, contains('small-2'));
+      await sink.close();
+    });
+
+    test('backoff prevents flush until timer expires', () async {
+      httpStatus = 500;
+      final sink = createSink()..write(makeRecord());
+      await sink.flush();
+
+      // After a 5xx, backoffUntil is set.
+      expect(sink.backoffUntil, isNotNull);
+
+      // A second flush during backoff should not make an HTTP call.
+      capturedRequests.clear();
+      await sink.flush();
+      expect(capturedRequests, isEmpty);
+
+      // Clear backoff and retry.
+      sink.backoffUntil = null;
+      httpStatus = 200;
+      await sink.flush();
+      expect(capturedRequests, hasLength(1));
+      await sink.close();
+    });
+
+    test('HTTP 403 disables export same as 401', () async {
+      httpStatus = 403;
+      String? errorMessage;
+      final sink = createSink(
+        onError: (msg, _) => errorMessage = msg,
+      )..write(makeRecord());
+      await sink.flush();
+
+      expect(errorMessage, contains('Auth failure'));
+      expect(errorMessage, contains('403'));
+      await sink.close();
+    });
+
+    test('empty JWT string does not send Authorization header', () async {
+      // An empty string JWT should not be sent.
+      final sink = createSink(jwtProvider: () => '')..write(makeRecord());
+      await sink.flush();
+      await sink.close();
+
+      expect(
+        capturedRequests.first.headers.containsKey('Authorization'),
+        isFalse,
+      );
+    });
+
+    test('no jwtProvider sends request without Authorization', () async {
+      final sink = createSink()..write(makeRecord());
+      await sink.flush();
+      await sink.close();
+
+      expect(
+        capturedRequests.first.headers.containsKey('Authorization'),
+        isFalse,
+      );
+    });
+
+    test('HTTP 404 stays disabled even after new JWT', () async {
+      var jwt = 'old-jwt';
+      httpStatus = 404;
+      final sink = createSink(jwtProvider: () => jwt)
+        ..write(makeRecord(message: 'First'));
+      await sink.flush();
+      expect(capturedRequests, hasLength(1));
+
+      // New JWT should NOT re-enable after 404.
+      jwt = 'new-jwt';
+      httpStatus = 200;
+      capturedRequests.clear();
+      sink.write(makeRecord(message: 'Second'));
+      await sink.flush();
+
+      expect(capturedRequests, isEmpty);
+      await sink.close();
+    });
+
+    test('same invalid JWT after 401 stays disabled', () async {
+      const jwt = 'bad-jwt';
+      httpStatus = 401;
+      final sink = createSink(jwtProvider: () => jwt)
+        ..write(makeRecord(message: 'First'));
+      await sink.flush();
+      expect(capturedRequests, hasLength(1));
+
+      // Same JWT — should remain disabled.
+      capturedRequests.clear();
+      sink.write(makeRecord(message: 'Second'));
+      await sink.flush();
+
+      expect(capturedRequests, isEmpty);
+      await sink.close();
+    });
+
+    test('write during close is ignored', () async {
+      final slowClient = http_testing.MockClient((request) async {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        capturedRequests.add(request);
+        return http.Response('', 200);
+      });
+      final sink = BackendLogSink(
+        endpoint: 'https://api.example.com/logs',
+        client: slowClient,
+        installId: 'i',
+        sessionId: 's',
+        diskQueue: diskQueue,
+        flushInterval: const Duration(hours: 1),
+      )..write(makeRecord(message: 'Before close'));
+
+      // Start close, then try to write during the close flush.
+      final closeFuture = sink.close();
+      sink.write(makeRecord(message: 'During close'));
+      await closeFuture;
+
+      // The "During close" write should have been silently dropped.
+      final sentMessages = capturedRequests
+          .map((r) => jsonDecode(r.body) as Map<String, Object?>)
+          .expand((b) => b['logs']! as List)
+          .map((l) => (l as Map<String, Object?>)['message'])
+          .toList();
+      expect(sentMessages, isNot(contains('During close')));
     });
   });
 }
