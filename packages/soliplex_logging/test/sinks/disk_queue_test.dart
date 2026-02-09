@@ -360,19 +360,23 @@ void main() {
       expect(records[3]['msg'], 'r-4');
     });
 
-    test('fatal merge is direct append — no temp files', () async {
+    test('fatal merge is direct append — no temp files after drain', () async {
       await queue.append({'msg': 'existing'});
       queue.appendSync({'msg': 'fatal'});
 
       await queue.drain(10);
 
-      // Verify no temp files exist.
+      // Verify no temp files remain after merge.
       final files = tempDir.listSync().map((e) => e.path).toList();
       expect(files, isNot(contains(endsWith('.log_queue_merge.tmp'))));
       expect(files, isNot(contains(endsWith('.fatal_merge.jsonl'))));
+      expect(files, isNot(contains(endsWith('.fatal_processing.tmp'))));
 
       // Fatal file should be deleted after merge.
-      expect(File('${tempDir.path}/log_queue_fatal.jsonl').existsSync(), false);
+      expect(
+        File('${tempDir.path}/log_queue_fatal.jsonl').existsSync(),
+        false,
+      );
     });
 
     test('old temp file cleanup on construction', () async {
@@ -402,6 +406,50 @@ void main() {
           reason: '$name should be deleted',
         );
       }
+      await newQueue.close();
+    });
+
+    test('orphaned fatal processing file recovered on construction', () async {
+      await queue.append({'msg': 'existing'});
+      await queue.close();
+
+      // Simulate crash during fatal merge: .fatal_processing.tmp left behind.
+      File('${tempDir.path}/.fatal_processing.tmp')
+          .writeAsStringSync('${jsonEncode({'msg': 'orphaned-fatal'})}\n');
+
+      final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
+      expect(
+        File('${tempDir.path}/.fatal_processing.tmp').existsSync(),
+        false,
+      );
+      final records = await newQueue.drain(10);
+      expect(records, hasLength(2));
+      final messages = records.map((r) => r['msg']).toSet();
+      expect(messages, containsAll(['existing', 'orphaned-fatal']));
+      await newQueue.close();
+    });
+
+    test('compaction crash safety — stale meta causes duplicates not loss',
+        () async {
+      // Simulate state after compaction crash: meta says confirmed=0
+      // but file still has all records (rename didn't happen).
+      await queue.close();
+
+      final file = File('${tempDir.path}/log_queue.jsonl');
+      final sink = file.openWrite();
+      for (var i = 0; i < 10; i++) {
+        sink.writeln(jsonEncode({'msg': 'r-$i'}));
+      }
+      await sink.close();
+
+      // Meta reset to 0 (as if compaction wrote meta but didn't rename).
+      File('${tempDir.path}/.queue_meta')
+          .writeAsStringSync(jsonEncode({'confirmed': 0}));
+
+      final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
+      // All 10 records should be available (duplicates, not loss).
+      final records = await newQueue.drain(20);
+      expect(records, hasLength(10));
       await newQueue.close();
     });
 
