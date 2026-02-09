@@ -15,10 +15,10 @@ screen-sharing or reading console output. This approach fails when:
 - The app crashes (logs lost with the process)
 - The user is offline or on a flaky connection (logs never seen)
 - Support engineers need historical context across sessions and devices
-- Deployments require audit trails
+- Government deployments require audit trails
 
 We needed centralized, persistent log shipping that works within our
-self-hosted environment.
+self-hosted DoD-compliant environment (no commercial SaaS).
 
 ## Decisions
 
