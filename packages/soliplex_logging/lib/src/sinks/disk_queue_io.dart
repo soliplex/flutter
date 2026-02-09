@@ -117,10 +117,7 @@ class PlatformDiskQueue implements DiskQueue {
   Future<void> _confirmUnsafe(int count) async {
     if (!_file.existsSync()) return;
 
-    final lines = <String>[];
-    await for (final line in _readLinesStream()) {
-      lines.add(line);
-    }
+    final lines = await _readLinesStream().toList();
 
     // Skip the first `count` non-empty lines.
     var removed = 0;
@@ -217,10 +214,7 @@ class PlatformDiskQueue implements DiskQueue {
 
   /// Drops the oldest half of records when file exceeds size limit.
   Future<void> _dropOldest() async {
-    final lines = <String>[];
-    await for (final line in _readLinesStream()) {
-      lines.add(line);
-    }
+    final lines = await _readLinesStream().toList();
     final nonEmpty = lines.where((l) => l.trim().isNotEmpty).toList();
     final keepFrom = nonEmpty.length ~/ 2;
     final kept = nonEmpty.sublist(keepFrom).join('\n');
