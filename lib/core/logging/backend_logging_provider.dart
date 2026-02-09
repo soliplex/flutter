@@ -9,7 +9,10 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
+import 'package:soliplex_frontend/core/logging/device_alias.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
+import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
@@ -37,6 +40,16 @@ final sessionIdProvider = Provider<String>((ref) {
   return const Uuid().v4();
 });
 
+/// Human-readable session alias derived deterministically from install ID.
+///
+/// Persistent across app restarts (e.g., "calm-falcon-ridge"). Displayed in
+/// the telemetry UI so users can identify their device to support staff.
+final deviceAliasProvider = Provider<String>((ref) {
+  ref.keepAlive();
+  final installId = ref.read(installIdProvider);
+  return generateDeviceAlias(installId);
+});
+
 /// Resource attributes gathered from device and package info.
 ///
 /// Resolved once asynchronously; cached for the lifetime of the container.
@@ -44,11 +57,13 @@ final resourceAttributesProvider =
     FutureProvider<Map<String, Object>>((ref) async {
   ref.keepAlive();
 
+  final deviceAlias = ref.read(deviceAliasProvider);
   final packageInfo = await PackageInfo.fromPlatform();
   final attributes = <String, Object>{
     'app.version': packageInfo.version,
     'app.build': packageInfo.buildNumber,
     'app.package': packageInfo.packageName,
+    'device.alias': deviceAlias,
   };
 
   if (!kIsWeb) {
@@ -126,6 +141,14 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
       // Empty string is non-null (skips pre-auth buffer) but omitted
       // from the Authorization header by BackendLogSink.
       return '';
+    },
+    flushGate: () {
+      try {
+        final runState = ref.read(activeRunNotifierProvider);
+        return runState is! RunningState;
+      } catch (_) {
+        return true;
+      }
     },
     networkChecker: () {
       final connectivity = ref.read(connectivityProvider);

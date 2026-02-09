@@ -59,6 +59,7 @@ Widget _createTelemetryApp({
     container: ProviderContainer(
       overrides: [
         shellConfigProvider.overrideWithValue(testSoliplexConfig),
+        deviceAliasProvider.overrideWithValue('calm-falcon-ridge'),
         logConfigProvider.overrideWith(() {
           final notifier = _TestLogConfigNotifier(initial: config);
           onNotifierCreated?.call(notifier);
