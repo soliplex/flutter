@@ -17,14 +17,14 @@ dependencies:
   flutter_appauth: ^11.0.0
   flutter_riverpod: ^3.1.0
   flutter_secure_storage: ^10.0.0
+  go_router: ^17.1.0
+  http: ^1.2.0
+  intl: ^0.20.1
   markdown_widget:
     git:
       url: https://github.com/soliplex/markdown_widget
       ref: main
       commit: 8136ad36647d5705190b03727898ee264a84f392
-  go_router: ^17.1.0
-  http: ^1.2.0
-  intl: ^0.20.1
   meta: ^1.15.0
   shared_preferences: ^2.5.4
   soliplex_client:
@@ -53,6 +53,9 @@ dev_dependencies:
 
   # Linting - Zero tolerance
   very_good_analysis: ^10.1.0
+
+  # VisibilityDetector (transitive from markdown_widget, needed in tests)
+  visibility_detector: ^0.4.0+2
 flutter:
   uses-material-design: true
   assets:

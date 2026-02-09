@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:markdown_widget/markdown_widget.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -11,6 +12,9 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    // Prevent VisibilityDetector debounce timers from leaking in tests
+    VisibilityDetectorController.instance.updateInterval = Duration.zero;
+
     // Mock clipboard for tests
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (message) async {
@@ -213,8 +217,8 @@ void main() {
           ),
         );
 
-        // Assert - should use MarkdownBody for assistant messages
-        expect(find.byType(MarkdownBody), findsOneWidget);
+        // Assert - should use MarkdownWidget for assistant messages
+        expect(find.byType(MarkdownWidget), findsOneWidget);
       });
 
       testWidgets('does not render markdown for user messages', (tester) async {
@@ -230,8 +234,8 @@ void main() {
           ),
         );
 
-        // Assert - should use Text for user messages, not MarkdownBody
-        expect(find.byType(MarkdownBody), findsNothing);
+        // Assert - should use Text for user messages, not MarkdownWidget
+        expect(find.byType(MarkdownWidget), findsNothing);
         expect(find.text('**bold** and *italic* text'), findsOneWidget);
       });
 
@@ -251,8 +255,8 @@ void main() {
           ),
         );
 
-        // Assert - MarkdownBody should render code blocks
-        expect(find.byType(MarkdownBody), findsOneWidget);
+        // Assert - MarkdownWidget should render code blocks
+        expect(find.byType(MarkdownWidget), findsOneWidget);
         // The code block should be rendered (implementation detail - just
         // verify it doesn't crash)
         await tester.pumpAndSettle();

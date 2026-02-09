@@ -115,6 +115,7 @@ class ChatMessageWidget extends StatelessWidget {
                     // each widget separately.
                     MarkdownWidget(
                       data: text,
+                      shrinkWrap: true,
                     ),
                   // Only show streaming indicator when there's actual text
                   // being streamed. When text is empty, the status indicator
