@@ -34,7 +34,7 @@ class BackendLogSink implements LogSink {
     required this.sessionId,
     required DiskQueue diskQueue,
     this.userId,
-    this.resourceAttributes = const {},
+    Map<String, Object> resourceAttributes = const {},
     this.maxBatchBytes = _defaultMaxBatchBytes,
     this.batchSize = 100,
     Duration flushInterval = const Duration(seconds: 30),
@@ -42,7 +42,8 @@ class BackendLogSink implements LogSink {
     this.jwtProvider,
     this.onError,
   })  : _client = client,
-        _diskQueue = diskQueue {
+        _diskQueue = diskQueue,
+        resourceAttributes = Map.unmodifiable(resourceAttributes) {
     _timer = Timer.periodic(flushInterval, (_) => flush());
   }
 
@@ -256,6 +257,7 @@ class BackendLogSink implements LogSink {
     } on Object catch (e) {
       // Network error — retry with backoff.
       await _handleRetryableError(confirmCount);
+      onError?.call('Network error: $e', e);
       developer.log('Flush failed: $e', name: 'BackendLogSink');
     }
   }
@@ -445,9 +447,11 @@ class BackendLogSink implements LogSink {
         continue;
       }
 
-      if (totalBytes + recordBytes > maxBatchBytes) break;
+      // Account for the comma separator between JSON array elements.
+      final separatorBytes = result.isEmpty ? 0 : 1;
+      if (totalBytes + separatorBytes + recordBytes > maxBatchBytes) break;
       result.add(record);
-      totalBytes += recordBytes;
+      totalBytes += separatorBytes + recordBytes;
       scanned++;
     }
     return (result, scanned);

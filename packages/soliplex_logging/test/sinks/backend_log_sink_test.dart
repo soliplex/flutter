@@ -816,5 +816,88 @@ void main() {
       expect(sentMessage, isNot(contains('\u00E9')));
       expect(sentMessage, contains('[truncated]'));
     });
+
+    test('batch cap accounts for JSON comma separators', () async {
+      // Compute envelope overhead (empty logs array).
+      final envelope = utf8
+          .encode(
+            jsonEncode({
+              'logs': <Object>[],
+              'resource': {
+                'service.name': 'test',
+                'service.version': '1.0.0',
+              },
+            }),
+          )
+          .length;
+
+      // Probe: send one record to measure exact serialized size.
+      final probeSink = createSink()..write(makeRecord(message: 'msg'));
+      await probeSink.flush();
+      final probeBody =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final probeLog = (probeBody['logs']! as List)[0];
+      final recordBytes = utf8.encode(jsonEncode(probeLog)).length;
+      await probeSink.close();
+      capturedRequests.clear();
+
+      // Need a fresh DiskQueue for the real test since probeSink closed ours.
+      final tempDir2 =
+          Directory.systemTemp.createTempSync('backend_sink_comma_');
+      final diskQueue2 = PlatformDiskQueue(directoryPath: tempDir2.path);
+
+      // Set limit so 2 records fit without comma but not with:
+      // envelope + record + comma + record > limit
+      // envelope + record + record == limit
+      final limit = envelope + recordBytes * 2;
+
+      final sink = BackendLogSink(
+        endpoint: 'https://api.example.com/logs',
+        client: mockClient,
+        installId: 'install-001',
+        sessionId: 'session-001',
+        diskQueue: diskQueue2,
+        userId: 'user-001',
+        resourceAttributes: const {
+          'service.name': 'test',
+          'service.version': '1.0.0',
+        },
+        maxBatchBytes: limit,
+        flushInterval: const Duration(hours: 1),
+      )
+        ..write(makeRecord(message: 'msg'))
+        ..write(makeRecord(message: 'msg'));
+      await sink.flush();
+
+      final body =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final logs = body['logs']! as List;
+      // With comma accounting, only 1 record should fit.
+      expect(logs, hasLength(1));
+      await sink.close();
+      await diskQueue2.close();
+      tempDir2.deleteSync(recursive: true);
+    });
+
+    test('network error reports via onError', () async {
+      String? errorMessage;
+      final errorClient = http_testing.MockClient(
+        (_) => throw Exception('DNS failure'),
+      );
+      final sink = BackendLogSink(
+        endpoint: 'https://api.example.com/logs',
+        client: errorClient,
+        installId: 'i',
+        sessionId: 's',
+        diskQueue: diskQueue,
+        flushInterval: const Duration(hours: 1),
+        onError: (msg, _) => errorMessage = msg,
+      )..write(makeRecord());
+      await sink.flush();
+
+      expect(errorMessage, contains('Network error'));
+      expect(errorMessage, contains('DNS failure'));
+      await sink.close();
+    });
   });
 }
