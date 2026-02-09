@@ -87,6 +87,7 @@ class BackendLogSink implements LogSink {
 
   // C2 fix: guard against concurrent flush calls.
   bool _isFlushing = false;
+  Future<void>? _activeFlush;
 
   int _retryCount = 0;
   int _consecutiveFailures = 0;
@@ -108,7 +109,9 @@ class BackendLogSink implements LogSink {
     } else {
       final future = _diskQueue.append(truncated);
       _pendingWrites.add(future);
-      unawaited(future.whenComplete(() => _pendingWrites.remove(future)));
+      // Error is handled by Future.wait in _flushImpl; silence the
+      // unhandled rejection from this cleanup chain.
+      future.whenComplete(() => _pendingWrites.remove(future)).ignore();
     }
 
     if (record.level >= LogLevel.error) {
@@ -117,17 +120,26 @@ class BackendLogSink implements LogSink {
   }
 
   @override
-  Future<void> flush() async {
-    if (_closed) return;
+  Future<void> flush() {
+    if (_closed) return Future.value();
 
     // C2 fix: prevent concurrent timer + error-triggered flush from
     // causing duplicate sends.
-    if (_isFlushing) return;
+    if (_isFlushing) return _activeFlush ?? Future.value();
     _isFlushing = true;
+    _activeFlush = _runFlush();
+    return _activeFlush!;
+  }
+
+  Future<void> _runFlush() async {
     try {
       await _flushImpl();
+    } on Object catch (e) {
+      onError?.call('Flush error: $e', e);
+      developer.log('Flush error: $e', name: 'BackendLogSink');
     } finally {
       _isFlushing = false;
+      _activeFlush = null;
     }
   }
 
@@ -183,7 +195,7 @@ class BackendLogSink implements LogSink {
         body: payload,
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         await _diskQueue.confirm(batch.length);
         _retryCount = 0;
         _consecutiveFailures = 0;
@@ -215,8 +227,8 @@ class BackendLogSink implements LogSink {
   Future<void> close() async {
     if (_closed) return;
     _timer.cancel();
-    // Reset flushing guard so the final flush can proceed.
-    _isFlushing = false;
+    // Await any in-flight flush before the final one.
+    await _activeFlush;
     await flush();
     _closed = true;
     await _diskQueue.close();
@@ -345,7 +357,7 @@ class BackendLogSink implements LogSink {
         // it from the queue and report the error instead of returning an
         // empty batch that blocks the queue forever.
         if (result.isEmpty) {
-          _diskQueue.confirm(1);
+          unawaited(_diskQueue.confirm(1));
           onError?.call(
             'Log record dropped; size ${recordBytes}B exceeds max batch '
             'size ${maxBatchBytes}B',

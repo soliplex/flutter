@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -417,6 +418,68 @@ void main() {
       final body =
           jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
       expect(body['logs'], isNotEmpty);
+    });
+
+    test('HTTP 201 confirms records (2xx success)', () async {
+      httpStatus = 201;
+      final sink = createSink()..write(makeRecord());
+      await sink.flush();
+
+      expect(await diskQueue.pendingCount, 0);
+      await sink.close();
+    });
+
+    test('HTTP 204 confirms records (2xx success)', () async {
+      httpStatus = 204;
+      final sink = createSink()..write(makeRecord());
+      await sink.flush();
+
+      expect(await diskQueue.pendingCount, 0);
+      await sink.close();
+    });
+
+    test('close awaits active flush without duplicating', () async {
+      // Use a slow mock client to simulate an in-flight flush.
+      final slowClient = http_testing.MockClient((request) async {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        capturedRequests.add(request);
+        return http.Response('', 200);
+      });
+      final sink = BackendLogSink(
+        endpoint: 'https://api.example.com/logs',
+        client: slowClient,
+        installId: 'i',
+        sessionId: 's',
+        diskQueue: diskQueue,
+        flushInterval: const Duration(hours: 1),
+      )..write(makeRecord());
+
+      // Start a flush, then immediately close
+      // (which should await, not restart).
+      unawaited(sink.flush());
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await sink.close();
+
+      // Only one HTTP request should have been made.
+      expect(capturedRequests, hasLength(1));
+    });
+
+    test('flush catches pendingWrite errors and reports via onError', () async {
+      String? errorMessage;
+      final sink = createSink(
+        onError: (msg, _) => errorMessage = msg,
+      );
+
+      // Delete the queue directory so the next append fails.
+      tempDir.deleteSync(recursive: true);
+      sink.write(makeRecord());
+
+      // flush should not throw — error reported via onError.
+      await sink.flush();
+      expect(errorMessage, contains('Flush error'));
+
+      // Recreate dir for tearDown cleanup.
+      tempDir.createSync();
     });
   });
 }
