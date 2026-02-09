@@ -1,14 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:soliplex_logging/src/sinks/disk_queue.dart';
 
-/// Maximum queue file size before rotation (10 MB).
+/// Maximum queue file size before compaction (10 MB).
 const int _maxFileBytes = 10 * 1024 * 1024;
 
+/// Number of confirmed records before triggering compaction.
+const int _compactThreshold = 500;
+
+/// Sentinel value meaning `_total` has not been computed yet.
+const int _unknownTotal = -1;
+
 /// Native (io) implementation of [DiskQueue] using JSONL files.
+///
+/// Uses an offset-based architecture: the main file is append-only,
+/// a small metadata file tracks how many records have been confirmed,
+/// and compaction (the only file rewrite) runs rarely.
 class PlatformDiskQueue implements DiskQueue {
   /// Creates a disk queue that stores records in [directoryPath].
   PlatformDiskQueue({required String directoryPath})
@@ -16,11 +25,21 @@ class PlatformDiskQueue implements DiskQueue {
     _directory.createSync(recursive: true);
     _file = File('${_directory.path}/log_queue.jsonl');
     _fatalFile = File('${_directory.path}/log_queue_fatal.jsonl');
+    _metaFile = File('${_directory.path}/.queue_meta');
+    _migrateIfNeeded();
+    _loadMeta();
   }
 
   final Directory _directory;
   late final File _file;
   late final File _fatalFile;
+  late final File _metaFile;
+
+  /// Number of confirmed (consumed) records at the head of the file.
+  int _confirmed = 0;
+
+  /// Total number of valid records in the file. -1 means unknown.
+  int _total = _unknownTotal;
 
   /// Serializes async writes to prevent file corruption.
   Future<void> _writeLock = Future.value();
@@ -30,9 +49,10 @@ class PlatformDiskQueue implements DiskQueue {
     final completer = Completer<void>();
     _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
-        await _rotateIfNeeded();
+        await _compactIfNeeded();
         final line = '${jsonEncode(json)}\n';
         await _file.writeAsString(line, mode: FileMode.append, flush: true);
+        if (_total != _unknownTotal) _total++;
         completer.complete();
       } on Object catch (e, s) {
         completer.completeError(e, s);
@@ -41,10 +61,6 @@ class PlatformDiskQueue implements DiskQueue {
     return completer.future;
   }
 
-  // C4 fix: appendSync is serialized with _mergeFatalFile by writing to a
-  // separate fatal file that is atomically renamed during merge. The rename
-  // in _mergeFatalFile creates a new path so concurrent appendSync calls
-  // write to a fresh _fatalFile and never race with the merge read.
   @override
   void appendSync(Map<String, Object?> json) {
     final line = '${jsonEncode(json)}\n';
@@ -68,9 +84,10 @@ class PlatformDiskQueue implements DiskQueue {
     await _mergeFatalFile();
     if (!_file.existsSync()) return const [];
 
-    // C5 fix: stream-based line reading instead of readAsString.
+    await _ensureTotal();
+
     final results = <Map<String, Object?>>[];
-    var skipped = 0;
+    var validSeen = 0;
 
     await for (final line in _readLinesStream()) {
       final trimmed = line.trim();
@@ -78,21 +95,14 @@ class PlatformDiskQueue implements DiskQueue {
       try {
         final decoded = jsonDecode(trimmed);
         if (decoded is Map<String, Object?>) {
+          validSeen++;
+          if (validSeen <= _confirmed) continue; // skip confirmed
           results.add(decoded);
           if (results.length >= count) break;
-        } else {
-          skipped++;
         }
       } on FormatException {
-        skipped++;
+        // Skip corrupted lines.
       }
-    }
-
-    if (skipped > 0) {
-      developer.log(
-        'Skipped $skipped corrupted lines during drain',
-        name: 'DiskQueue',
-      );
     }
 
     return results;
@@ -103,7 +113,11 @@ class PlatformDiskQueue implements DiskQueue {
     final completer = Completer<void>();
     _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
-        await _confirmUnsafe(count);
+        _confirmed += count;
+        if (_total != _unknownTotal && _confirmed > _total) {
+          _confirmed = _total;
+        }
+        _writeMeta();
         completer.complete();
       } on Object catch (e, s) {
         completer.completeError(e, s);
@@ -112,61 +126,15 @@ class PlatformDiskQueue implements DiskQueue {
     return completer.future;
   }
 
-  /// Removes the first [count] valid records from the queue file.
-  ///
-  /// Parses each line as JSON and only counts valid `Map` entries,
-  /// matching [_drainUnsafe] semantics. Corrupted or non-Map lines
-  /// are discarded without counting toward [count].
-  /// Writes to a temp file and atomically renames for crash safety.
-  Future<void> _confirmUnsafe(int count) async {
-    if (!_file.existsSync()) return;
-
-    final tmpFile = File('${_directory.path}/.log_queue_confirm.tmp');
-    final sink = tmpFile.openWrite();
-    var removed = 0;
-
-    await for (final line in _readLinesStream()) {
-      final trimmed = line.trim();
-      if (trimmed.isEmpty) continue;
-
-      if (removed < count) {
-        // Parse to match drain semantics: only valid Maps count.
-        try {
-          final decoded = jsonDecode(trimmed);
-          if (decoded is Map<String, Object?>) {
-            removed++;
-            continue; // drop this record
-          }
-        } on FormatException {
-          // Corrupted line — drop without counting.
-          continue;
-        }
-        // Non-Map JSON — drop without counting.
-        continue;
-      }
-
-      sink.writeln(trimmed);
-    }
-
-    await sink.close();
-    await tmpFile.rename(_file.path);
-  }
-
   @override
   Future<int> get pendingCount {
     final completer = Completer<int>();
     _writeLock = _writeLock.catchError((_) {}).then((_) async {
       try {
         await _mergeFatalFile();
-        if (!_file.existsSync()) {
-          completer.complete(0);
-        } else {
-          var count = 0;
-          await for (final line in _readLinesStream()) {
-            if (line.trim().isNotEmpty) count++;
-          }
-          completer.complete(count);
-        }
+        await _ensureTotal();
+        final pending = _total - _confirmed;
+        completer.complete(pending < 0 ? 0 : pending);
       } on Object catch (e, s) {
         completer.completeError(e, s);
       }
@@ -176,85 +144,191 @@ class PlatformDiskQueue implements DiskQueue {
 
   @override
   Future<void> close() async {
-    // No resources to release for file-based queue.
+    await _writeLock.catchError((_) {});
   }
 
-  /// Merges fatal file contents into the main queue file (under lock).
-  ///
-  /// Uses atomic rename so that concurrent [appendSync] calls write to a
-  /// fresh file and never race with the merge read/truncate.
+  // ---------------------------------------------------------------------------
+  // Fatal merge
+  // ---------------------------------------------------------------------------
+
+  /// Merges fatal file contents into the main queue file by direct append.
   Future<void> _mergeFatalFile() async {
-    final mergePath = '${_directory.path}/.fatal_merge.jsonl';
-    final mergeFile = File(mergePath);
-
-    // Recover leftover merge file from a previous crash.
-    await _appendAndDelete(mergeFile);
-
     if (!_fatalFile.existsSync()) return;
 
-    // Atomic rename: after this, appendSync creates a new _fatalFile.
-    try {
-      _fatalFile.renameSync(mergePath);
-    } on FileSystemException {
+    final content = _fatalFile.readAsStringSync();
+    if (content.trim().isEmpty) {
+      _fatalFile.deleteSync();
       return;
     }
 
-    await _appendAndDelete(mergeFile);
+    // Direct append — O(fatal_size), not O(file_size).
+    await _file.writeAsString(content, mode: FileMode.append, flush: true);
+
+    // Count valid records added.
+    final added = _countValidRecords(content);
+    if (_total != _unknownTotal) _total += added;
+
+    _fatalFile.deleteSync();
   }
 
-  /// Appends [source] contents to the main queue file, then deletes it.
-  Future<void> _appendAndDelete(File source) async {
-    if (!source.existsSync()) return;
-    final content = source.readAsStringSync();
-    if (content.trim().isNotEmpty) {
-      await _file.writeAsString(content, mode: FileMode.append, flush: true);
+  // ---------------------------------------------------------------------------
+  // Compaction
+  // ---------------------------------------------------------------------------
+
+  /// Triggers compaction when confirmed count or file size is too large.
+  Future<void> _compactIfNeeded() async {
+    if (_confirmed >= _compactThreshold) {
+      await _compact(_confirmed);
+      return;
     }
-    source.deleteSync();
+    if (_file.existsSync() && _file.statSync().size > _maxFileBytes) {
+      // Rotation: drop confirmed + half of pending.
+      await _ensureTotal();
+      final pending = _total - _confirmed;
+      final toDrop = _confirmed + (pending > 0 ? pending ~/ 2 : 0);
+      await _compact(toDrop);
+    }
   }
+
+  /// Drops the first [recordsToDrop] valid records from the file.
+  ///
+  /// Writes survivors to a temp file, atomically renames, then resets meta.
+  Future<void> _compact(int recordsToDrop) async {
+    if (!_file.existsSync()) return;
+
+    final tmpFile = File('${_directory.path}/.log_queue_compact.tmp');
+    final sink = tmpFile.openWrite();
+    var dropped = 0;
+    var kept = 0;
+
+    await for (final line in _readLinesStream()) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, Object?>) {
+          if (dropped < recordsToDrop) {
+            dropped++;
+            continue;
+          }
+          sink.writeln(trimmed);
+          kept++;
+        }
+        // Non-Map JSON — discard silently.
+      } on FormatException {
+        // Corrupted line — discard silently.
+      }
+    }
+
+    await sink.close();
+    await tmpFile.rename(_file.path);
+
+    _confirmed = 0;
+    _total = kept;
+    _writeMeta();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Meta file
+  // ---------------------------------------------------------------------------
+
+  /// Loads confirmed count from `.queue_meta`. Defaults to 0 on error.
+  void _loadMeta() {
+    if (!_metaFile.existsSync()) return;
+    try {
+      final content = _metaFile.readAsStringSync();
+      final decoded = jsonDecode(content);
+      if (decoded is Map<String, Object?>) {
+        final c = decoded['confirmed'];
+        if (c is int && c >= 0) _confirmed = c;
+      }
+    } on Object {
+      // Corrupt meta — treat all records as unconfirmed.
+      _confirmed = 0;
+    }
+  }
+
+  /// Persists confirmed count to `.queue_meta`.
+  void _writeMeta() {
+    _metaFile.writeAsStringSync(
+      jsonEncode({'confirmed': _confirmed}),
+      flush: true,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Total tracking
+  // ---------------------------------------------------------------------------
+
+  /// Ensures `_total` is computed. Clamps `_confirmed` if needed.
+  Future<void> _ensureTotal() async {
+    if (_total != _unknownTotal) return;
+    if (!_file.existsSync()) {
+      _total = 0;
+      if (_confirmed > 0) {
+        _confirmed = 0;
+        _writeMeta();
+      }
+      return;
+    }
+
+    var count = 0;
+    await for (final line in _readLinesStream()) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) continue;
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, Object?>) count++;
+      } on FormatException {
+        // skip
+      }
+    }
+
+    _total = count;
+    if (_confirmed > _total) {
+      _confirmed = _total;
+      _writeMeta();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
 
   /// Streams lines from the queue file without loading it all into memory.
   Stream<String> _readLinesStream() {
     return _file
         .openRead()
-        .transform(utf8.decoder)
+        .transform(const Utf8Decoder(allowMalformed: true))
         .transform(const LineSplitter());
   }
 
-  Future<void> _rotateIfNeeded() async {
-    if (!_file.existsSync()) return;
-    final stat = _file.statSync();
-    if (stat.size > _maxFileBytes) {
-      await _dropOldest();
-    }
-  }
-
-  /// Drops the oldest half of records when file exceeds size limit.
-  ///
-  /// Counts total lines, then streams a second pass keeping only the
-  /// newest half. Writes to a temp file and atomically renames.
-  Future<void> _dropOldest() async {
-    // First pass: count non-empty lines.
-    var totalLines = 0;
-    await for (final line in _readLinesStream()) {
-      if (line.trim().isNotEmpty) totalLines++;
-    }
-    if (totalLines == 0) return;
-
-    final dropCount = totalLines ~/ 2;
-    var seen = 0;
-
-    // Second pass: write kept lines to temp file.
-    final tmpFile = File('${_directory.path}/.log_queue_rotate.tmp');
-    final sink = tmpFile.openWrite();
-    await for (final line in _readLinesStream()) {
+  /// Counts valid Map records in a string of JSONL content.
+  int _countValidRecords(String content) {
+    var count = 0;
+    for (final line in const LineSplitter().convert(content)) {
       final trimmed = line.trim();
       if (trimmed.isEmpty) continue;
-      seen++;
-      if (seen > dropCount) {
-        sink.writeln(trimmed);
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is Map<String, Object?>) count++;
+      } on FormatException {
+        // skip
       }
     }
-    await sink.close();
-    await tmpFile.rename(_file.path);
+    return count;
+  }
+
+  /// Deletes old temp files from the previous implementation.
+  void _migrateIfNeeded() {
+    for (final name in [
+      '.log_queue_merge.tmp',
+      '.log_queue_confirm.tmp',
+      '.log_queue_rotate.tmp',
+      '.fatal_merge.jsonl',
+    ]) {
+      final f = File('${_directory.path}/$name');
+      if (f.existsSync()) f.deleteSync();
+    }
   }
 }
