@@ -9,6 +9,7 @@ The current frontend focuses on core chat functionality with essential features 
 | Area | Description |
 |------|-------------|
 | [Developer Setup](guides/developer-setup.md) | Environment setup and getting started |
+| [Testing Guide](guides/testing.md) | Test runner config, randomization, singletons |
 | [Codebase Analysis](CODEBASE_ANALYSIS.md) | Project structure and architecture |
 | [Flutter Rules](rules/flutter_rules.md) | Development conventions and best practices |
 | [Client Package](summary/client.md) | Pure Dart client library documentation |
@@ -20,6 +21,7 @@ The current frontend focuses on core chat functionality with essential features 
 ### Guides
 
 - [Developer Setup](guides/developer-setup.md) - Environment setup, dependencies, and build instructions
+- [Testing Guide](guides/testing.md) - Test runner configuration, randomization, and singleton patterns
 
 ### Rules & Standards
 
