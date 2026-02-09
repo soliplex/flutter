@@ -1,0 +1,9 @@
+# Test runner configuration for the Flutter app.
+#
+# Randomization: enabled by default. Activate with:
+#   flutter test --test-randomize-ordering-seed=random
+#
+# To reproduce a failure with a specific seed:
+#   flutter test --test-randomize-ordering-seed=<seed>
+
+allow_test_randomization: true

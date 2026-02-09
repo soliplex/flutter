@@ -1,3 +1,6 @@
+@Tags(['singleton'])
+library;
+
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 

@@ -1,0 +1,10 @@
+# Test runner configuration for soliplex_client (pure Dart).
+#
+# Randomization: enabled by default. Activate with:
+#   dart test --test-randomize-ordering-seed=random
+#
+# To reproduce a failure with a specific seed:
+#   dart test --test-randomize-ordering-seed=<seed>
+
+allow_test_randomization: true
+concurrency: 4
