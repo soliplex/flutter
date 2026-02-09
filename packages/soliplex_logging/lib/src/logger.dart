@@ -152,7 +152,7 @@ class Logger {
       stackTrace: stackTrace,
       spanId: spanId,
       traceId: traceId,
-      attributes: attributes ?? const {},
+      attributes: attributes != null ? Map.of(attributes) : const {},
     );
 
     _manager.emit(record);

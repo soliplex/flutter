@@ -3,10 +3,10 @@ repos:
     rev: v6.0.0 # Use the latest stable version
     hooks:
       - id: no-commit-to-branch
-        args: ["--branch", "main", "--branch", "master"]      
+        args: ["--branch", "main", "--branch", "master"]
       - id: check-merge-conflict
       - id: check-toml
-      - id: check-yaml      
+      - id: check-yaml
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.2
     hooks:
@@ -22,5 +22,10 @@ repos:
       - id: flutter-analyze
         name: flutter analyze
         entry: flutter analyze --fatal-infos
+        language: system
+        pass_filenames: false
+      - id: dart-analyze-packages
+        name: dart analyze packages
+        entry: python3 tool/analyze_packages.py
         language: system
         pass_filenames: false

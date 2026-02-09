@@ -108,13 +108,11 @@ class _LogViewerScreenState extends ConsumerState<LogViewerScreen> {
 
   Widget _buildList(List<LogRecord> records) {
     return ListView.separated(
-      // reverse: true renders newest (last in list) at the top, and allows
-      // O(1) appends via List.add() instead of O(N) insert(0).
-      reverse: true,
       padding: const EdgeInsets.symmetric(vertical: SoliplexSpacing.s2),
       itemCount: records.length,
       separatorBuilder: (_, __) => const Divider(height: 1),
-      itemBuilder: (_, index) => LogRecordTile(record: records[index]),
+      itemBuilder: (_, index) =>
+          LogRecordTile(record: records[records.length - 1 - index]),
     );
   }
 }
