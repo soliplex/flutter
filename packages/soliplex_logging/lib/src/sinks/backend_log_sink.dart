@@ -9,6 +9,7 @@ import 'package:soliplex_logging/src/log_level.dart';
 import 'package:soliplex_logging/src/log_record.dart';
 import 'package:soliplex_logging/src/log_sink.dart';
 import 'package:soliplex_logging/src/sinks/disk_queue.dart';
+import 'package:soliplex_logging/src/sinks/memory_sink.dart';
 
 /// Maximum record size in bytes before truncation (64 KB).
 const int _maxRecordBytes = 64 * 1024;
@@ -34,12 +35,16 @@ class BackendLogSink implements LogSink {
     required this.sessionId,
     required DiskQueue diskQueue,
     this.userId,
+    this.memorySink,
+    this.maxBreadcrumbs = 20,
     Map<String, Object> resourceAttributes = const {},
     this.maxBatchBytes = _defaultMaxBatchBytes,
     this.batchSize = 100,
     Duration flushInterval = const Duration(seconds: 30),
     this.networkChecker,
     this.jwtProvider,
+    this.flushGate,
+    this.maxFlushHoldDuration = const Duration(minutes: 5),
     this.onError,
   })  : _client = client,
         _diskQueue = diskQueue,
@@ -59,6 +64,18 @@ class BackendLogSink implements LogSink {
   /// Current user ID (null before auth).
   String? userId;
 
+  /// Current active run thread ID (null when idle).
+  String? threadId;
+
+  /// Current active run ID (null when idle).
+  String? runId;
+
+  /// Optional memory sink for breadcrumb retrieval on error/fatal.
+  final MemorySink? memorySink;
+
+  /// Maximum number of breadcrumb records to attach on error/fatal.
+  final int maxBreadcrumbs;
+
   /// Resource attributes for the payload envelope.
   final Map<String, Object> resourceAttributes;
 
@@ -74,6 +91,16 @@ class BackendLogSink implements LogSink {
   /// Returns the current JWT or null if not yet authenticated.
   final String? Function()? jwtProvider;
 
+  /// Returns `true` when flushing is allowed.
+  ///
+  /// When non-null and returning `false`, periodic flushes are held until
+  /// the gate opens or [maxFlushHoldDuration] elapses (safety valve).
+  /// `flush(force: true)` bypasses this gate entirely.
+  final bool Function()? flushGate;
+
+  /// Maximum time to hold flushes when [flushGate] returns `false`.
+  final Duration maxFlushHoldDuration;
+
   /// Callback for error reporting.
   final SinkErrorCallback? onError;
 
@@ -87,6 +114,7 @@ class BackendLogSink implements LogSink {
   bool _closing = false;
   bool _disabled = false;
   bool _permanentlyDisabled = false;
+  DateTime? _gatedSince;
 
   // C2 fix: guard against concurrent flush calls.
   bool _isFlushing = false;
@@ -105,6 +133,11 @@ class BackendLogSink implements LogSink {
     if (_closed) return;
 
     final json = _recordToJson(record);
+
+    if (record.level >= LogLevel.error && memorySink != null) {
+      json['breadcrumbs'] = _collectBreadcrumbs();
+    }
+
     final truncated = _truncateRecord(json);
 
     if (record.level == LogLevel.fatal) {
@@ -118,25 +151,25 @@ class BackendLogSink implements LogSink {
     }
 
     if (record.level >= LogLevel.error) {
-      unawaited(flush());
+      unawaited(flush(force: true));
     }
   }
 
   @override
-  Future<void> flush() {
+  Future<void> flush({bool force = false}) {
     if (_closed) return Future.value();
 
     // C2 fix: prevent concurrent timer + error-triggered flush from
     // causing duplicate sends.
     if (_isFlushing) return _activeFlush ?? Future.value();
     _isFlushing = true;
-    _activeFlush = _runFlush();
+    _activeFlush = _runFlush(force: force);
     return _activeFlush!;
   }
 
-  Future<void> _runFlush() async {
+  Future<void> _runFlush({bool force = false}) async {
     try {
-      await _flushImpl();
+      await _flushImpl(force: force);
     } on Object catch (e) {
       onError?.call('Flush error: $e', e);
       developer.log('Flush error: $e', name: 'BackendLogSink');
@@ -146,7 +179,7 @@ class BackendLogSink implements LogSink {
     }
   }
 
-  Future<void> _flushImpl() async {
+  Future<void> _flushImpl({bool force = false}) async {
     // Wait for any pending async writes to complete.
     // Errors here should not prevent flushing already-persisted records.
     if (_pendingWrites.isNotEmpty) {
@@ -181,6 +214,21 @@ class BackendLogSink implements LogSink {
         backoffUntil != null &&
         DateTime.now().isBefore(backoffUntil!)) {
       return;
+    }
+
+    // Respect flush gate (e.g., active run in progress).
+    // force: true bypasses the gate (used for error/fatal and run completion).
+    if (!force && flushGate != null) {
+      if (!flushGate!()) {
+        _gatedSince ??= DateTime.now();
+        if (DateTime.now().difference(_gatedSince!) < maxFlushHoldDuration) {
+          return;
+        }
+        // Safety valve triggered — reset timer and proceed.
+        _gatedSince = null;
+      } else {
+        _gatedSince = null;
+      }
     }
 
     final records = await _diskQueue.drain(batchSize);
@@ -317,6 +365,8 @@ class BackendLogSink implements LogSink {
       'installId': installId,
       'sessionId': sessionId,
       'userId': userId,
+      'activeRun':
+          threadId != null ? {'threadId': threadId, 'runId': runId} : null,
     };
   }
 
@@ -412,6 +462,28 @@ class BackendLogSink implements LogSink {
     return '${utf8.decode(encoded.sublist(0, end))}…[truncated]';
   }
 
+  /// Reads the last [maxBreadcrumbs] records from [memorySink].
+  List<Map<String, Object?>> _collectBreadcrumbs() {
+    if (maxBreadcrumbs <= 0) return [];
+    final records = memorySink!.records;
+    final start =
+        records.length > maxBreadcrumbs ? records.length - maxBreadcrumbs : 0;
+    return [
+      for (var i = start; i < records.length; i++)
+        _breadcrumbFromRecord(records[i]),
+    ];
+  }
+
+  Map<String, Object?> _breadcrumbFromRecord(LogRecord record) {
+    return {
+      'timestamp': record.timestamp.toUtc().toIso8601String(),
+      'level': record.level.name,
+      'logger': record.loggerName,
+      'message': record.message,
+      'category': deriveBreadcrumbCategory(record),
+    };
+  }
+
   /// Caps records by byte size.
   ///
   /// Returns a tuple of (batch to send, total records to confirm).
@@ -456,4 +528,38 @@ class BackendLogSink implements LogSink {
     }
     return (result, scanned);
   }
+}
+
+/// Logger name prefixes that map to breadcrumb categories.
+const _loggerCategoryPrefixes = {
+  'Router': 'ui',
+  'Navigation': 'ui',
+  'UI': 'ui',
+  'Http': 'network',
+  'Network': 'network',
+  'Connectivity': 'network',
+  'Lifecycle': 'system',
+  'Permission': 'system',
+  'Auth': 'user',
+  'Login': 'user',
+  'User': 'user',
+};
+
+/// Derives a breadcrumb category from a [LogRecord].
+///
+/// If the record has an explicit `breadcrumb_category` attribute, that
+/// value is used. Otherwise, the category is inferred from the
+/// [LogRecord.loggerName] prefix (e.g. `Router.Home` -> `ui`).
+/// Falls back to `system` if no match is found.
+String deriveBreadcrumbCategory(LogRecord record) {
+  final explicit = record.attributes['breadcrumb_category'];
+  if (explicit is String) return explicit;
+
+  final name = record.loggerName;
+  for (final entry in _loggerCategoryPrefixes.entries) {
+    if (name == entry.key || name.startsWith('${entry.key}.')) {
+      return entry.value;
+    }
+  }
+  return 'system';
 }

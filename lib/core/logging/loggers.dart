@@ -43,4 +43,7 @@ abstract final class Loggers {
 
   /// General UI events.
   static final ui = LogManager.instance.getLogger('UI');
+
+  /// Telemetry and backend log shipping events.
+  static final telemetry = LogManager.instance.getLogger('Telemetry');
 }

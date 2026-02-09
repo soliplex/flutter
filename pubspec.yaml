@@ -10,7 +10,9 @@ environment:
   flutter: '>=3.35.0'
 
 dependencies:
+  connectivity_plus: ^6.1.4
   cupertino_icons: ^1.0.8
+  device_info_plus: ^11.3.3
   flutter:
     sdk: flutter
 
@@ -26,6 +28,8 @@ dependencies:
       ref: main
       commit: 8136ad36647d5705190b03727898ee264a84f392
   meta: ^1.15.0
+  package_info_plus: ^9.0.0
+  path_provider: ^2.1.5
   shared_preferences: ^2.5.4
   soliplex_client:
     path: packages/soliplex_client
@@ -33,6 +37,7 @@ dependencies:
     path: packages/soliplex_client_native
   soliplex_logging:
     path: packages/soliplex_logging
+  uuid: ^4.5.1
   wakelock_plus: ^1.4.0
   web: ^1.1.1
 
