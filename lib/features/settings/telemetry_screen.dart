@@ -142,8 +142,10 @@ class TelemetryScreen extends ConsumerWidget {
       ),
     );
 
-    if (result != null && result.isNotEmpty && context.mounted) {
-      await ref.read(logConfigProvider.notifier).setBackendEndpoint(result);
+    if (result != null && context.mounted) {
+      final trimmed = result.trim();
+      if (trimmed.isEmpty || !trimmed.startsWith('/')) return;
+      await ref.read(logConfigProvider.notifier).setBackendEndpoint(trimmed);
     }
   }
 }

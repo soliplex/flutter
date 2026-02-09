@@ -309,12 +309,14 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
     resourceAttributes: resourceAttrs,
     jwtProvider: () {
       final authState = ref.read(authProvider);
-      // No-auth mode doesn't require JWT — return empty string to
-      // signal "proceed without auth" (non-null skips pre-auth buffer).
-      if (authState is NoAuthRequired) return '';
-      // Pre-auth: return null to buffer logs until authenticated.
-      if (authState is! Authenticated) return null;
-      return authState.accessToken;
+      // AuthLoading: return null to buffer logs until auth resolves.
+      if (authState is AuthLoading) return null;
+      // Authenticated: send with JWT.
+      if (authState is Authenticated) return authState.accessToken;
+      // NoAuthRequired / Unauthenticated: send without auth header.
+      // Empty string is non-null (skips pre-auth buffer) but omitted
+      // from the Authorization header by BackendLogSink.
+      return '';
     },
     networkChecker: () {
       final connectivity = ref.read(connectivityProvider);
