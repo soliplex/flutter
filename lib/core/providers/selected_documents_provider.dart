@@ -5,8 +5,6 @@ import 'package:soliplex_frontend/core/document_selection.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
-export 'package:soliplex_frontend/core/document_selection.dart' show ThreadKey;
-
 /// Notifier that stores document selections per thread.
 ///
 /// Selections persist in memory across runs within the same thread.
