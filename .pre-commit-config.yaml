@@ -15,14 +15,14 @@ repos:
     hooks:
       - id: dart-format
         name: dart format
-        entry: scripts/dart-format.sh --set-exit-if-changed
-        language: script
+        entry: python3 scripts/dart_format.py --set-exit-if-changed
+        language: system
         types: [dart]
         exclude: ^packages/soliplex_client/lib/src/schema/
       - id: flutter-analyze
         name: flutter analyze
-        entry: scripts/flutter-analyze.sh --fatal-infos
-        language: script
+        entry: python3 scripts/flutter_analyze.py --fatal-infos
+        language: system
         types: [dart]
         pass_filenames: false
       - id: dart-analyze-packages
