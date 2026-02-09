@@ -186,12 +186,12 @@ void main() {
     });
   });
 
-  group('invalidateLastViewed', () {
+  group('invalidation callback', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
     });
 
-    testWidgets('creates working callback from WidgetRef', (tester) async {
+    testWidgets('inline callback invalidates provider', (tester) async {
       // Track invalidation calls
       final invalidateCalls = <String>[];
 
@@ -202,16 +202,12 @@ void main() {
               builder: (context, ref, _) {
                 return ElevatedButton(
                   onPressed: () async {
-                    // Use the actual invalidateLastViewed helper
-                    final invalidate = invalidateLastViewed(ref);
-
-                    // Call setLastViewedThread with the helper
                     await setLastViewedThread(
                       roomId: 'room-1',
                       threadId: 'thread-widget-test',
                       invalidate: (roomId) {
                         invalidateCalls.add(roomId);
-                        invalidate(roomId);
+                        ref.invalidate(lastViewedThreadProvider(roomId));
                       },
                     );
                   },
@@ -251,7 +247,9 @@ void main() {
                         await setLastViewedThread(
                           roomId: 'room-2',
                           threadId: 'thread-new',
-                          invalidate: invalidateLastViewed(ref),
+                          invalidate: (roomId) => ref.invalidate(
+                            lastViewedThreadProvider(roomId),
+                          ),
                         );
                       },
                       child: const Text('Write'),
