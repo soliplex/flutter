@@ -4,7 +4,7 @@ How the `soliplex_logging` package persists and ships log records.
 
 ## Package Structure
 
-```
+```text
 packages/soliplex_logging/
 ├── lib/
 │   ├── soliplex_logging.dart          # barrel exports
@@ -72,7 +72,7 @@ await queue.close();
 
 ### On-disk layout
 
-```
+```text
 <directoryPath>/
 ├── log_queue.jsonl           # main queue (one JSON object per line)
 ├── log_queue_fatal.jsonl     # fatal-only writes (appendSync)
@@ -97,7 +97,7 @@ from concurrent writes without requiring a mutex.
 the async lock. The fatal file is merged into the main queue via atomic
 rename during `drain`:
 
-```
+```text
 appendSync → _fatalFile
                 ↓ (rename to .fatal_merge.jsonl)
 drain → _mergeFatalFile → append to _file → delete merge file
