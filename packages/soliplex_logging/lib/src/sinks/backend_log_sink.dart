@@ -146,8 +146,13 @@ class BackendLogSink implements LogSink {
 
   Future<void> _flushImpl() async {
     // Wait for any pending async writes to complete.
+    // Errors here should not prevent flushing already-persisted records.
     if (_pendingWrites.isNotEmpty) {
-      await Future.wait(List.of(_pendingWrites));
+      try {
+        await Future.wait(List.of(_pendingWrites));
+      } on Object catch (e) {
+        onError?.call('Pending write error (proceeding with flush): $e', e);
+      }
     }
 
     // Check JWT availability (pre-auth buffering).
@@ -229,9 +234,21 @@ class BackendLogSink implements LogSink {
           'Endpoint not found (404), disabling export permanently',
           null,
         );
-      } else {
+      } else if (response.statusCode == 429 || response.statusCode >= 500) {
         // 429, 5xx — retry with backoff.
         await _handleRetryableError(confirmCount);
+      } else {
+        // Other 4xx (400, 413, 422, etc.) — non-retryable data error.
+        // Discard batch immediately to prevent blocking the queue.
+        try {
+          await _diskQueue.confirm(confirmCount);
+        } on Object catch (e) {
+          onError?.call('Confirm failed after batch rejection: $e', e);
+        }
+        onError?.call(
+          'Batch rejected by server (${response.statusCode}), discarding',
+          null,
+        );
       }
     } on Object catch (e) {
       // Network error — retry with backoff.
@@ -339,6 +356,19 @@ class BackendLogSink implements LogSink {
 
     if (result['attributes'] is Map) {
       result['attributes'] = const <String, Object?>{};
+    }
+
+    // Final safety net: if still oversized, return a minimal placeholder.
+    if (utf8.encode(jsonEncode(result)).length > _maxRecordBytes) {
+      return {
+        'timestamp': result['timestamp'],
+        'level': result['level'],
+        'logger': result['logger'],
+        'message': '[record exceeded ${_maxRecordBytes}B after truncation]',
+        'installId': result['installId'],
+        'sessionId': result['sessionId'],
+        'userId': result['userId'],
+      };
     }
 
     return result;
