@@ -30,6 +30,7 @@ import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/services/run_registry.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
 
 /// Standard test configuration for widget tests.
@@ -180,6 +181,11 @@ class MockActiveRunNotifier extends Notifier<ActiveRunState>
 
   @override
   Future<void> reset() async {}
+
+  final RunRegistry _registry = RunRegistry();
+
+  @override
+  RunRegistry get registry => _registry;
 }
 
 /// Creates an override for activeRunNotifierProvider with a mock state.

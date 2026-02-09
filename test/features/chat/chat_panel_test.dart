@@ -14,6 +14,7 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/services/run_registry.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
@@ -58,6 +59,11 @@ class _TrackingActiveRunNotifier extends Notifier<ActiveRunState>
   Future<void> reset() async {
     resetCalled = true;
   }
+
+  final RunRegistry _registry = RunRegistry();
+
+  @override
+  RunRegistry get registry => _registry;
 }
 
 /// Mock that tracks thread selection changes.
