@@ -221,5 +221,123 @@ void main() {
         expect(find.text('wifi, vpn'), findsOneWidget);
       });
     });
+
+    group('Test Exception button', () {
+      testWidgets('fires test exception and shows snackbar', (tester) async {
+        // Ensure LogManager has a sink so logging doesn't fail.
+        final sink = MemorySink();
+        LogManager.instance.addSink(sink);
+        addTearDown(() {
+          LogManager.instance.removeSink(sink);
+          sink.close();
+        });
+
+        await tester.pumpWidget(_createTelemetryApp());
+        await tester.pump();
+
+        await tester.tap(find.text('Fire'));
+        await tester.pump();
+
+        expect(find.text('Error logged — check Logfire'), findsOneWidget);
+        expect(
+          sink.records.any((r) => r.message == 'Test exception fired'),
+          isTrue,
+        );
+      });
+    });
+
+    group('Endpoint dialog', () {
+      testWidgets('opens dialog and cancels without saving', (tester) async {
+        late _TestLogConfigNotifier notifier;
+
+        await tester.pumpWidget(
+          _createTelemetryApp(
+            onNotifierCreated: (n) => notifier = n,
+          ),
+        );
+        await tester.pump();
+
+        // Tap the edit icon next to endpoint.
+        await tester.tap(find.byIcon(Icons.edit));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Backend Endpoint'), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
+
+        // Cancel the dialog.
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // Endpoint unchanged.
+        expect(
+          notifier.state.backendEndpoint,
+          LogConfig.defaultConfig.backendEndpoint,
+        );
+      });
+
+      testWidgets('saves valid endpoint via dialog', (tester) async {
+        late _TestLogConfigNotifier notifier;
+
+        await tester.pumpWidget(
+          _createTelemetryApp(
+            onNotifierCreated: (n) => notifier = n,
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.byIcon(Icons.edit));
+        await tester.pumpAndSettle();
+
+        // Clear and type a new endpoint.
+        await tester.enterText(find.byType(TextField), '/v2/logs');
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        expect(notifier.state.backendEndpoint, '/v2/logs');
+      });
+
+      testWidgets('rejects empty endpoint', (tester) async {
+        late _TestLogConfigNotifier notifier;
+        final originalEndpoint = LogConfig.defaultConfig.backendEndpoint;
+
+        await tester.pumpWidget(
+          _createTelemetryApp(
+            onNotifierCreated: (n) => notifier = n,
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.byIcon(Icons.edit));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), '  ');
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        // Endpoint should not have changed.
+        expect(notifier.state.backendEndpoint, originalEndpoint);
+      });
+
+      testWidgets('rejects endpoint not starting with /', (tester) async {
+        late _TestLogConfigNotifier notifier;
+        final originalEndpoint = LogConfig.defaultConfig.backendEndpoint;
+
+        await tester.pumpWidget(
+          _createTelemetryApp(
+            onNotifierCreated: (n) => notifier = n,
+          ),
+        );
+        await tester.pump();
+
+        await tester.tap(find.byIcon(Icons.edit));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'no-slash');
+        await tester.tap(find.text('Save'));
+        await tester.pumpAndSettle();
+
+        expect(notifier.state.backendEndpoint, originalEndpoint);
+      });
+    });
   });
 }
