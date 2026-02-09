@@ -9,7 +9,7 @@ const Object _sentinel = Object();
 @immutable
 class LogRecord {
   /// Creates a new log record.
-  const LogRecord({
+  LogRecord({
     required this.level,
     required this.message,
     required this.timestamp,
@@ -18,8 +18,8 @@ class LogRecord {
     this.stackTrace,
     this.spanId,
     this.traceId,
-    this.attributes = const {},
-  });
+    Map<String, Object> attributes = const {},
+  }) : attributes = Map.unmodifiable(attributes);
 
   /// Severity level of this log.
   final LogLevel level;
