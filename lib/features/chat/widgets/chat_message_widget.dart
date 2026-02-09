@@ -35,6 +35,7 @@ class ChatMessageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final soliplexTheme = SoliplexTheme.of(context);
+    final isDarkTheme = theme.brightness == Brightness.dark;
 
     if (message.user == ChatUser.system) {
       return _buildSystemMessage(context, theme);
@@ -116,6 +117,42 @@ class ChatMessageWidget extends StatelessWidget {
                     MarkdownWidget(
                       data: text,
                       shrinkWrap: true,
+                      config: MarkdownConfig(
+                        configs: [
+                          if (isDarkTheme)
+                            PreConfig(
+                              wrapper: (child, code, language) =>
+                                  _codeActionsWrapper(
+                                context,
+                                child,
+                                code,
+                                language,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[900],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              textStyle:
+                                  const TextStyle(fontFamily: 'monospace'),
+                            )
+                          else
+                            PreConfig(
+                              wrapper: (child, code, language) =>
+                                  _codeActionsWrapper(
+                                context,
+                                child,
+                                code,
+                                language,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              textStyle:
+                                  const TextStyle(fontFamily: 'monospace'),
+                            ),
+                        ],
+                      ),
                     ),
                   // Only show streaming indicator when there's actual text
                   // being streamed. When text is empty, the status indicator
@@ -152,6 +189,27 @@ class ChatMessageWidget extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _codeActionsWrapper(
+    BuildContext context,
+    Widget child,
+    String code,
+    String language,
+  ) {
+    return Stack(
+      children: [
+        child,
+        Positioned(
+          top: 16,
+          right: 8,
+          child: IconButton(
+            icon: const Icon(Icons.copy_rounded, size: 20),
+            onPressed: () => _copyToClipboard(context, code),
+          ),
+        ),
+      ],
     );
   }
 
