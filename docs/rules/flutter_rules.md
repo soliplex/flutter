@@ -89,7 +89,8 @@ Core          → shared utilities, extensions
 
 **Feature-based Organization:**
 
-Each feature has its own presentation, domain, and data subfolders.
+Each feature has its own directory under `lib/features/` with optional `widgets/`
+and `models/` subfolders as needed.
 
 ## Testing
 
@@ -97,17 +98,17 @@ Each feature has its own presentation, domain, and data subfolders.
 
 - Arrange-Act-Assert (Given-When-Then)
 - Prefer fakes/stubs over mocks
-- Use `mockito` or `mocktail` only when necessary
+- Use `mocktail` when mocking is necessary
 
 **Types:**
 
-- Unit tests (`package:test`) → domain logic, data layer, state
-- Widget tests (`package:flutter_test`) → UI components
-- Integration tests (`package:integration_test`) → end-to-end flows
+- Unit tests (`package:test`) - domain logic, data layer, state
+- Widget tests (`package:flutter_test`) - UI components
+- Integration tests (`package:integration_test`) - end-to-end flows
 
 **Assertions:**
 
-Prefer `package:checks` for expressive, readable assertions.
+Use standard `expect()` matchers from `package:test` and `package:flutter_test`.
 
 ## Theming
 
@@ -141,23 +142,21 @@ Use `ThemeExtension<T>` for styles not in standard ThemeData.
 
 Use `LayoutBuilder` or `MediaQuery` for responsive layouts.
 
-## Code Generation
-
-When using `json_serializable` or similar:
-
-```bash
-dart run build_runner build --delete-conflicting-outputs
-```
-
 ## Logging
 
-Use `dart:developer` log instead of `print`:
+Use the `Loggers` class from `soliplex_logging` instead of `print` or
+`dart:developer`:
 
 ```dart
-import 'dart:developer' as developer;
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 
-developer.log('Message', name: 'myapp.module', error: e, stackTrace: s);
+Loggers.auth.info('User logged in');
+Loggers.http.debug('GET /api/users');
+Loggers.activeRun.error('Failed', error: e, stackTrace: s);
 ```
+
+See [Logging Quickstart](../logging-quickstart.md) for the full list of
+available loggers and log level guidelines.
 
 ## Quick Reference
 
@@ -167,5 +166,5 @@ developer.log('Message', name: 'myapp.module', error: e, stackTrace: s);
 | Small, focused, reusable Widget classes | Giant `build()` methods |
 | Pattern matching | Excessive null checks with `!` |
 | `ListView.builder` | `ListView` with large lists |
-| Fakes/stubs in tests | Heavy mock usage |
+| Fakes/stubs in tests | Heavy mock usage with mockito |
 | `Theme.of(context)` | Hardcoded colors/styles |

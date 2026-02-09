@@ -102,7 +102,7 @@ void main() {
         expect(find.text('Logs (3)'), findsOneWidget);
       });
 
-      testWidgets('shows newest first via reverse ListView', (tester) async {
+      testWidgets('shows newest record first in the list', (tester) async {
         final sink = MemorySink()
           ..write(
             _makeRecord(
@@ -119,14 +119,79 @@ void main() {
 
         await tester.pumpWidget(_buildScreen(sink: sink));
 
-        // Both records are displayed
+        // Both records are displayed.
         expect(find.text('Old message'), findsOneWidget);
         expect(find.text('New message'), findsOneWidget);
 
-        // The ListView is reversed: newest (last in list) renders at the top.
-        // Verify the ListView has reverse: true.
-        final listView = tester.widget<ListView>(find.byType(ListView));
-        expect(listView.reverse, isTrue);
+        // The first LogRecordTile on screen should be the newest record.
+        final tiles = tester.widgetList<LogRecordTile>(
+          find.byType(LogRecordTile),
+        );
+        expect(tiles.first.record.message, 'New message');
+        expect(tiles.last.record.message, 'Old message');
+      });
+
+      testWidgets('newest record stays first after live update',
+          (tester) async {
+        final sink = MemorySink()
+          ..write(
+            _makeRecord(
+              message: 'Initial',
+              timestamp: DateTime(2024, 1, 15, 10),
+            ),
+          );
+
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        // Write a newer record while the screen is open.
+        sink.write(
+          _makeRecord(
+            message: 'Live update',
+            timestamp: DateTime(2024, 1, 15, 11),
+          ),
+        );
+        await tester.pump(_flushDuration);
+
+        final tiles = tester.widgetList<LogRecordTile>(
+          find.byType(LogRecordTile),
+        );
+        expect(tiles.first.record.message, 'Live update');
+        expect(tiles.last.record.message, 'Initial');
+      });
+
+      testWidgets('ordering preserved after filter change', (tester) async {
+        final sink = MemorySink()
+          ..write(
+            _makeRecord(
+              message: 'Info old',
+              timestamp: DateTime(2024, 1, 15, 9),
+            ),
+          )
+          ..write(
+            _makeRecord(
+              level: LogLevel.error,
+              message: 'Error',
+              timestamp: DateTime(2024, 1, 15, 10),
+            ),
+          )
+          ..write(
+            _makeRecord(
+              message: 'Info new',
+              timestamp: DateTime(2024, 1, 15, 11),
+            ),
+          );
+
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        // Filter to INFO only.
+        await tester.tap(find.widgetWithText(FilterChip, 'INFO'));
+        await tester.pump();
+
+        final tiles = tester.widgetList<LogRecordTile>(
+          find.byType(LogRecordTile),
+        );
+        expect(tiles.first.record.message, 'Info new');
+        expect(tiles.last.record.message, 'Info old');
       });
 
       testWidgets('clear button is enabled with records', (tester) async {

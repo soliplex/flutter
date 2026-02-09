@@ -15,6 +15,7 @@ packages/soliplex_logging/
 │       ├── log_sink.dart
 │       ├── logger.dart
 │       └── sinks/
+│           ├── backend_log_sink.dart   # HTTP shipping sink
 │           ├── console_sink.dart
 │           ├── disk_queue.dart         # abstract interface
 │           ├── disk_queue_io.dart      # native JSONL impl
@@ -22,7 +23,10 @@ packages/soliplex_logging/
 │           ├── memory_sink.dart
 │           └── stdout_sink.dart
 └── test/
+    ├── integration/
+    │   └── backend_sink_pipeline_test.dart
     └── sinks/
+        ├── backend_log_sink_test.dart
         └── disk_queue_test.dart
 ```
 
@@ -128,6 +132,203 @@ Stream<String> _readLinesStream() {
       .transform(utf8.decoder)
       .transform(const LineSplitter());
 }
+```
+
+## BackendLogSink
+
+HTTP shipping sink that writes records to `DiskQueue` first, then
+periodically POSTs them as JSON batches to the Soliplex backend.
+
+### Data flow
+
+```
+LogRecord → write() → DiskQueue.append / appendSync
+                            ↓
+              Timer (30s) or ERROR/FATAL trigger
+                            ↓
+                        flush()
+                            ↓
+              ┌─ jwtProvider == null? → buffer (skip flush)
+              ├─ networkChecker == false? → skip
+              ├─ backoffUntil in future? → skip
+              └─ drain → capByBytes → POST /v1/logs
+                                          ↓
+                          200 → confirm records from queue
+                      401/403 → disable (re-enable on new JWT)
+                          404 → disable permanently
+                    429/5xx → exponential backoff + jitter
+                 50 failures → poison pill (discard batch)
+```
+
+### Construction
+
+```dart
+final sink = BackendLogSink(
+  endpoint: 'https://api.example.com/v1/logs',
+  client: httpClient,
+  installId: installUuid,        // stable per device
+  sessionId: sessionUuid,        // new each app launch
+  diskQueue: DiskQueue(directoryPath: queueDir),
+  userId: currentUser?.id,       // null before auth
+  resourceAttributes: {
+    'service.name': 'soliplex-flutter',
+    'service.version': appVersion,
+  },
+  jwtProvider: () => authService.currentJwt,
+  networkChecker: () => connectivity.hasNetwork,
+  onError: (msg, err) => log.warning(msg),
+);
+```
+
+### Pre-auth buffering
+
+When `jwtProvider` is set but returns `null`, `flush()` is a no-op. Records
+accumulate in `DiskQueue` on disk. Once `jwtProvider` returns a token, the
+next flush ships all buffered pre-login logs together.
+
+If the sink is disabled by an auth error (401/403) and a **new** JWT appears
+(different from the previous one), the sink re-enables itself automatically.
+A 404 (endpoint not found) disables the sink permanently — no JWT change
+will re-enable it.
+
+### Record serialization
+
+Each `LogRecord` is serialized to a JSON map with these fields:
+
+| Field | Source |
+|-------|--------|
+| `timestamp` | `record.timestamp` (UTC ISO 8601) |
+| `level` | `record.level.name` |
+| `logger` | `record.loggerName` |
+| `message` | `record.message` |
+| `attributes` | `record.attributes` (coerced to JSON-safe types) |
+| `error` | `record.error?.toString()` |
+| `stackTrace` | `record.stackTrace?.toString()` |
+| `spanId` / `traceId` | from record (optional) |
+| `installId` / `sessionId` / `userId` | from sink constructor |
+
+Non-primitive attribute values (custom objects) are coerced to strings.
+Lists and Maps are preserved recursively.
+
+### Size limits
+
+| Limit | Value | Behavior |
+|-------|-------|----------|
+| Max record size | 64 KB | Fields truncated: message → stackTrace → error → attributes cleared |
+| Max batch payload | 900 KB | Records capped per-batch; oversized single records discarded |
+| Max records per batch | 100 | Remaining records stay in queue for next flush |
+
+Truncation is UTF-8 safe — multi-byte characters are never split mid-sequence.
+Size checks use `utf8.encode().length` for byte accuracy.
+
+### Retry and backoff
+
+On 429 or 5xx responses (or network errors), records stay in the queue and
+the sink enters exponential backoff:
+
+- Base delay: 1s, 2s, 4s, 8s, ... capped at 60s
+- Jitter: +0–1000ms random per attempt (decorrelates retries)
+- **Poison pill**: after 50 consecutive failures, the batch is discarded via
+  `onError` to prevent a single bad batch from blocking the queue forever
+
+### Severity-triggered flush
+
+`ERROR` and `FATAL` records trigger an immediate `flush()` call (in addition
+to the periodic timer). A concurrency guard (`_isFlushing`) prevents
+duplicate HTTP requests when the timer and severity trigger fire
+simultaneously.
+
+### Fatal records
+
+`FATAL` logs bypass the async `DiskQueue.append` path and use
+`DiskQueue.appendSync` instead, blocking the caller until the record is
+fsynced to disk. This guarantees the record survives even if the process
+dies immediately after.
+
+## Testing BackendLogSink
+
+Tests live in `test/sinks/backend_log_sink_test.dart` (24 tests).
+
+### Running tests
+
+```bash
+cd packages/soliplex_logging
+dart test test/sinks/backend_log_sink_test.dart
+```
+
+### Test setup pattern
+
+Tests use a `MockClient` from `package:http/testing.dart` and a real
+`PlatformDiskQueue` backed by a temp directory:
+
+```dart
+late Directory tempDir;
+late PlatformDiskQueue diskQueue;
+late List<http.Request> capturedRequests;
+late http.Client mockClient;
+var httpStatus = 200;
+
+setUp(() {
+  tempDir = Directory.systemTemp.createTempSync('backend_sink_test_');
+  diskQueue = PlatformDiskQueue(directoryPath: tempDir.path);
+  capturedRequests = [];
+  httpStatus = 200;
+
+  mockClient = http_testing.MockClient((request) async {
+    capturedRequests.add(request);
+    return http.Response('', httpStatus);
+  });
+});
+```
+
+### What's covered
+
+| Test | What it verifies |
+|------|------------------|
+| records serialized with installId/sessionId/userId | Envelope fields present |
+| resource attributes included in payload | Resource envelope |
+| HTTP 200 confirms records | Queue drains on success |
+| HTTP 429 keeps records in queue with backoff | Retryable error handling |
+| HTTP 5xx keeps records in queue | Server error handling |
+| HTTP 401 disables export and calls onError | Auth failure disable |
+| HTTP 404 disables export and calls onError | Missing endpoint disable |
+| pre-auth: flush skips when jwtProvider returns null | Buffering before login |
+| post-auth: buffered pre-login logs drain on first flush | Pre-auth drain |
+| networkChecker false skips flush | Offline handling |
+| poison pill: batch discarded after 50 failures | Queue unblocking |
+| attribute value safety: non-primitive coerced to string | Type coercion |
+| fatal records use appendSync | Sync write path |
+| close attempts final flush | Graceful shutdown |
+| severity-triggered flush on ERROR | Immediate flush |
+| JWT included in Authorization header | Auth header |
+| re-enables after new JWT on 401 | Auth recovery |
+| byte-based batch cap limits records per batch | Batch size limit |
+| oversized single record is discarded and reported | C1 fix validation |
+| concurrent flush calls are deduplicated | C2 fix validation |
+| network error triggers retry with backoff | Network error handling |
+| coerces List and Map attribute values | Nested type coercion |
+| record size guard truncates oversized messages | Truncation |
+| UTF-8 safe truncation does not split multi-byte chars | Multi-byte safety |
+
+### Testing backoff manually
+
+To test backoff behavior, clear `backoffUntil` between flushes to simulate
+time passing:
+
+```dart
+test('poison pill after 50 failures', () async {
+  httpStatus = 500;
+  final sink = createSink(onError: (msg, _) => errorMessage = msg)
+    ..write(makeRecord());
+
+  for (var i = 0; i < 50; i++) {
+    sink.backoffUntil = null; // simulate time passing
+    await sink.flush();
+  }
+
+  expect(errorMessage, contains('poison pill'));
+  expect(await diskQueue.pendingCount, 0);
+});
 ```
 
 ## Testing DiskQueue
