@@ -2,15 +2,14 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:markdown_widget/markdown_widget.dart';
 
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:soliplex_client/soliplex_client.dart'
     show ChatMessage, ChatUser, ErrorMessage, SourceReference, TextMessage;
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
-import 'package:soliplex_frontend/features/chat/widgets/code_block_builder.dart';
 
 /// Widget that displays a single chat message.
 class ChatMessageWidget extends StatelessWidget {
@@ -74,24 +73,23 @@ class ChatMessageWidget extends StatelessWidget {
           // is still processing). The thinking section and status indicator
           // show what's happening.
           if (text.isNotEmpty || !isStreaming)
-            SelectionArea(
-              child: Container(
-                constraints: BoxConstraints(
-                  maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
-                ),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: isUser
-                      ? theme.colorScheme.primaryContainer
-                      : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (isUser)
-                      TextSelectionTheme(
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: isUser
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (isUser)
+                    SelectionArea(
+                      child: TextSelectionTheme(
                         data: TextSelectionThemeData(
                           selectionColor:
                               theme.colorScheme.onPrimaryContainer.withAlpha(
@@ -108,48 +106,24 @@ class ChatMessageWidget extends StatelessWidget {
                                 : theme.colorScheme.onPrimaryContainer,
                           ),
                         ),
-                      )
-                    else
-                      // NOTE: Do not set selectable: true here
-                      // The markdown is rendered as separate widgets,
-                      // if you set selectable: true, you'll have to select
-                      // each widget separately.
-                      MarkdownBody(
-                        data: text,
-                        styleSheet: MarkdownStyleSheet(
-                          p: theme.textTheme.bodyLarge?.copyWith(
-                            color: message is ErrorMessage
-                                ? theme.colorScheme.error
-                                : theme.colorScheme.onSurface,
-                          ),
-                          code: context.monospace.copyWith(
-                            backgroundColor:
-                                theme.colorScheme.surfaceContainerHigh,
-                          ),
-                          codeblockDecoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(
-                              soliplexTheme.radii.sm,
-                            ),
-                          ),
-                        ),
-                        builders: {
-                          'code': CodeBlockBuilder(
-                            preferredStyle: context.monospace.copyWith(
-                              fontSize: 14,
-                            ),
-                          ),
-                        },
                       ),
-                    // Only show streaming indicator when there's actual text
-                    // being streamed. When text is empty, the status indicator
-                    // at the bottom of the list shows what's happening.
-                    if (isStreaming && text.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      _buildStreamingIndicator(context, theme),
-                    ],
+                    )
+                  else
+                    // NOTE: Do not set selectable: true here
+                    // The markdown is rendered as separate widgets,
+                    // if you set selectable: true, you'll have to select
+                    // each widget separately.
+                    MarkdownWidget(
+                      data: text,
+                    ),
+                  // Only show streaming indicator when there's actual text
+                  // being streamed. When text is empty, the status indicator
+                  // at the bottom of the list shows what's happening.
+                  if (isStreaming && text.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _buildStreamingIndicator(context, theme),
                   ],
-                ),
+                ],
               ),
             ),
           if (isUser)
