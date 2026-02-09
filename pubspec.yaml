@@ -20,6 +20,8 @@ dependencies:
   markdown_widget:
     git:
       url: https://github.com/soliplex/markdown_widget
+      ref: main
+      commit: 8136ad36647d5705190b03727898ee264a84f392
   go_router: ^17.1.0
   http: ^1.2.0
   intl: ^0.20.1

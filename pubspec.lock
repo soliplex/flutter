@@ -477,7 +477,7 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: HEAD
+      ref: main
       resolved-ref: "7a80eb342a060afcf063daa870e606cf05a1bbee"
       url: "https://github.com/soliplex/markdown_widget"
     source: git
