@@ -13,11 +13,12 @@ void main() {
 
   /// Fail fast if OIDC credentials are not provided via --dart-define.
   void requireOidcCredentials() {
-    if (oidcUsername.isEmpty || oidcPassword.isEmpty) {
+    if (oidcUsername.isEmpty || oidcPassword.isEmpty || oidcIssuerId.isEmpty) {
       fail(
         'OIDC credentials required. Pass:\n'
         '  --dart-define SOLIPLEX_OIDC_USERNAME=<user>\n'
-        '  --dart-define SOLIPLEX_OIDC_PASSWORD=<pass>',
+        '  --dart-define SOLIPLEX_OIDC_PASSWORD=<pass>\n'
+        '  --dart-define SOLIPLEX_OIDC_ISSUER_ID=<issuer>',
       );
     }
   }
