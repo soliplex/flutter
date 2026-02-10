@@ -47,7 +47,12 @@ Future<void> waitForCondition(
 }
 
 /// Workaround for Flutter macOS keyboard assertion bug.
+///
+/// On web, this bug does not occur — skip to avoid unnecessary error
+/// handler wrapping.
 void ignoreKeyboardAssertions() {
+  if (kIsWeb) return;
+
   final originalOnError = FlutterError.onError;
   FlutterError.onError = (FlutterErrorDetails details) {
     final msg = details.exception.toString();

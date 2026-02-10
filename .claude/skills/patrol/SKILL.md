@@ -1,19 +1,21 @@
 ---
 name: patrol
-description: Run Patrol E2E integration tests on macOS. Use when writing, running, or debugging Patrol tests.
+description: Run Patrol E2E integration tests on macOS or Chrome. Use when writing, running, or debugging Patrol tests.
 argument-hint: "[test-file|all]"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
 # Patrol E2E Test Skill
 
-Run and manage Patrol integration tests for this Flutter macOS project.
+Run and manage Patrol integration tests for this Flutter project (macOS and Chrome).
 
 ## Running Tests
 
 **CLI location:** `patrol`
 
-Always use `--device macos` to avoid the interactive device selection prompt:
+Always use `--device` to avoid the interactive device selection prompt.
+
+### macOS (default)
 
 ```bash
 # Run a specific test file
@@ -26,6 +28,32 @@ patrol test \
 patrol test \
   --device macos \
   --target integration_test/ \
+  --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+```
+
+### Chrome (web)
+
+Requires Node.js >= 18 (Playwright auto-installs on first run).
+
+```bash
+# Run a specific test in Chrome
+patrol test \
+  --device chrome \
+  --target integration_test/$ARGUMENTS \
+  --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+
+# Run headless (for CI or no-GUI environments)
+patrol test \
+  --device chrome \
+  --web-headless true \
+  --target integration_test/$ARGUMENTS \
+  --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+
+# Custom viewport (default is browser-dependent)
+patrol test \
+  --device chrome \
+  --web-viewport "1280x720" \
+  --target integration_test/$ARGUMENTS \
   --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
 ```
 
@@ -69,7 +97,25 @@ Both the app AND the test runner need their own entitlements:
 
 ### Keyboard assertions
 
-macOS has a Flutter keyboard assertion bug. All tests must call `ignoreKeyboardAssertions()` early.
+macOS has a Flutter keyboard assertion bug. All tests must call `ignoreKeyboardAssertions()` early. On web, the function is a no-op (`kIsWeb` guard).
+
+## Chrome (Web) Constraints
+
+### Viewport is controllable
+
+Unlike macOS (fixed ~800x600), Chrome viewport can be set with `--web-viewport "1280x720"`. A viewport >= 840px wide puts the app above the desktop breakpoint, so the HistoryPanel renders inline instead of in a drawer.
+
+### No entitlements required
+
+Web does not require macOS entitlements or Accessibility permissions.
+
+### CORS
+
+The backend must return proper CORS headers for the test origin. Default dev server config at `localhost:8000` typically handles this.
+
+### Node.js required
+
+Patrol uses Playwright for Chrome automation. Playwright requires Node.js >= 18. It auto-installs browser binaries on first `patrol test --device chrome` run.
 
 ## Test Patterns
 
@@ -177,3 +223,5 @@ This repo is a git worktree. Pre-commit hooks that invoke `flutter`/`dart` must 
 | "did not appear within 10s" | Widget in drawer, not body | Check if window < 840px breakpoint |
 | `Bad state: No element` on enterText | Finder matched Semantics, not TextField | Use `find.byType(TextField)` instead |
 | Accessibility permission denied | Entitlements changed | Re-approve in System Settings > Privacy > Accessibility |
+| Chrome: "Cannot find module playwright" | Node.js not installed | Install Node.js >= 18, then rerun |
+| Chrome: CORS error in test | Backend missing CORS headers | Configure backend `Access-Control-Allow-Origin` for test origin |
