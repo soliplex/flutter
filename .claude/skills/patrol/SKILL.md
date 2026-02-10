@@ -1,13 +1,13 @@
 ---
 name: patrol
-description: Run Patrol E2E integration tests on macOS or Chrome. Use when writing, running, or debugging Patrol tests.
+description: Run Patrol E2E integration tests on macOS, iOS, or Chrome. Use when writing, running, or debugging Patrol tests.
 argument-hint: "[test-file|all]"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
 # Patrol E2E Test Skill
 
-Run and manage Patrol integration tests for this Flutter project (macOS and Chrome).
+Run and manage Patrol integration tests for this Flutter project (macOS, iOS, and Chrome).
 
 ## Running Tests
 
@@ -30,6 +30,28 @@ patrol test \
   --target integration_test/ \
   --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
 ```
+
+### iOS (simulator)
+
+Use a booted simulator's device ID or name. The `--ios` flag specifies the OS
+version (defaults to `latest` — must match the simulator's OS).
+
+```bash
+# Run on a specific iOS simulator
+patrol test \
+  --device <DEVICE_ID> \
+  --target integration_test/$ARGUMENTS \
+  --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+
+# If simulator OS != latest SDK, specify explicitly
+patrol test \
+  --device <DEVICE_ID> \
+  --ios=18.6 \
+  --target integration_test/$ARGUMENTS \
+  --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+```
+
+Use `xcrun simctl list devices booted` to find the device ID and OS version.
 
 ### Chrome (web)
 
@@ -98,6 +120,25 @@ Both the app AND the test runner need their own entitlements:
 ### Keyboard assertions
 
 macOS has a Flutter keyboard assertion bug. All tests must call `ignoreKeyboardAssertions()` early. On web, the function is a no-op (`kIsWeb` guard).
+
+## iOS Constraints
+
+### RunnerUITests target required
+
+The iOS Xcode project needs a `RunnerUITests` UI test bundle target
+(same pattern as macOS). The target, scheme entry, and Podfile entry
+are already configured in this repo.
+
+### Simulator OS version must match
+
+Patrol uses `--ios=<version>` (defaults to `latest`). If the booted
+simulator runs an older iOS than the latest installed SDK, pass the
+version explicitly: `--ios=18.6`.
+
+### Keyboard assertions
+
+`ignoreKeyboardAssertions()` applies on iOS too (same Flutter bug as
+macOS). No changes needed — the function works on both platforms.
 
 ## Chrome (Web) Constraints
 
@@ -227,3 +268,5 @@ This repo is a git worktree. Pre-commit hooks that invoke `flutter`/`dart` must 
 | Chrome: CORS error in test | Backend missing CORS headers | Configure backend `Access-Control-Allow-Origin` for test origin |
 | Chrome: "Failed to fetch" on `verifyBackendOrFail` | Backend offline or CORS block | Start backend; check browser console for CORS errors |
 | `command not found: patrol` | `~/.pub-cache/bin` not on PATH | Add to PATH or use full path `~/.pub-cache/bin/patrol` |
+| iOS: xcodebuild exit code 70 | `OS=latest` doesn't match simulator | Use `--ios=18.6` (match simulator OS) |
+| iOS: "Device ... is not attached" | Wrong device ID format | Use UUID from `xcrun simctl list devices booted` |
