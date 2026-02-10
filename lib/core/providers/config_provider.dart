@@ -62,13 +62,13 @@ class ConfigNotifier extends Notifier<AppConfig> {
     // typically static, watch enables proper rebuilding in tests.
     final preloadedUrl = ref.watch(preloadedBaseUrlProvider);
     if (preloadedUrl != null) {
-      Loggers.config.info('Backend URL: $preloadedUrl (saved preferences)');
+      Loggers.config.debug('Backend URL: $preloadedUrl (saved preferences)');
       return AppConfig(baseUrl: preloadedUrl);
     }
 
     final configUrl = ref.watch(shellConfigProvider).defaultBackendUrl;
     final resolved = platformDefaultBackendUrl(configUrl);
-    Loggers.config.info(
+    Loggers.config.debug(
       'Backend URL: $resolved '
       '(${kIsWeb ? "platform origin" : "shell config"})',
     );
