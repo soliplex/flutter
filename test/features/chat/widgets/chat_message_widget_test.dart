@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:markdown_widget/markdown_widget.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
-import 'package:visibility_detector/visibility_detector.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -12,9 +11,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    // Prevent VisibilityDetector debounce timers from leaking in tests
-    VisibilityDetectorController.instance.updateInterval = Duration.zero;
-
     // Mock clipboard for tests
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (message) async {
