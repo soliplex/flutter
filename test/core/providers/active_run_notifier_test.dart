@@ -687,7 +687,6 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
-          runLifecycleProvider.overrideWithValue(_noOpRunLifecycle),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
