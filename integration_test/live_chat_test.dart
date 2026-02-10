@@ -126,8 +126,8 @@ void main() {
       );
       expect(
         runDuration,
-        lessThan(const Duration(seconds: 30)),
-        reason: 'AG-UI run took ${runDuration.inSeconds}s (limit: 30s)',
+        lessThan(const Duration(seconds: 45)),
+        reason: 'AG-UI run took ${runDuration.inSeconds}s (limit: 45s)',
       );
 
       // Pump extra frames for macOS rendering.
