@@ -10,6 +10,16 @@ const backendUrl = String.fromEnvironment(
   defaultValue: 'http://localhost:8000',
 );
 
+/// OIDC credentials from --dart-define (Phase C).
+const oidcUsername = String.fromEnvironment('SOLIPLEX_OIDC_USERNAME');
+const oidcPassword = String.fromEnvironment('SOLIPLEX_OIDC_PASSWORD');
+
+/// OIDC issuer ID from --dart-define (must match a key in /api/login response).
+const oidcIssuerId = String.fromEnvironment(
+  'SOLIPLEX_OIDC_ISSUER_ID',
+  defaultValue: 'oidc-client-name',
+);
+
 /// Fail fast if backend is unreachable.
 ///
 /// Uses /api/login which works in both no-auth and OIDC modes.
