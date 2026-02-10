@@ -24,7 +24,7 @@ class RunHandle {
     required this.cancelToken,
     required this.subscription,
     ActiveRunState? initialState,
-  }) : _state = initialState ?? const IdleState();
+  }) : state = initialState ?? const IdleState();
 
   /// The room this run belongs to.
   final String roomId;
@@ -39,19 +39,13 @@ class RunHandle {
   final StreamSubscription<BaseEvent> subscription;
 
   /// Current state of the run.
-  ActiveRunState _state;
-
-  /// Gets the current state of the run.
-  ActiveRunState get state => _state;
-
-  /// Updates the run state.
-  set state(ActiveRunState newState) => _state = newState;
+  ActiveRunState state;
 
   /// Composite key for registry lookups: "roomId:threadId".
   String get key => '$roomId:$threadId';
 
   /// Whether the run is currently active (not idle or completed).
-  bool get isActive => _state.isRunning;
+  bool get isActive => state.isRunning;
 
   /// Disposes of all resources held by this handle.
   ///
@@ -62,5 +56,5 @@ class RunHandle {
   }
 
   @override
-  String toString() => 'RunHandle(key: $key, state: $_state)';
+  String toString() => 'RunHandle(key: $key, state: $state)';
 }
