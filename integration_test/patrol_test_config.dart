@@ -56,6 +56,17 @@ Future<void> waitForCondition(
   fail(failureMessage ?? 'Timed out after $timeout');
 }
 
+/// Find a widget of [type] containing text that includes [substring].
+///
+/// Useful when room/tile names may change (e.g. "Gemini 2.5 Flash")
+/// and an exact-match finder would be brittle.
+Finder findByTextContaining(Type type, String substring) {
+  return find.ancestor(
+    of: find.textContaining(substring),
+    matching: find.byType(type),
+  );
+}
+
 /// Workaround for Flutter macOS keyboard assertion bug.
 ///
 /// On web, this bug does not occur — skip to avoid unnecessary error

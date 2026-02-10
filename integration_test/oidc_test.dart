@@ -66,15 +66,15 @@ void main() {
       await $.tester.enterText(searchField, 'Gemini');
       await $.tester.pump(const Duration(milliseconds: 500));
 
-      // Tap the filtered room (wait for specific text to avoid race).
-      final geminiTile = find.widgetWithText(RoomListTile, 'Gemini');
+      // Tap the filtered room (substring — name is "Gemini 2.5 Flash").
+      final geminiTile = findByTextContaining(RoomListTile, 'Gemini');
       await waitForCondition(
         $.tester,
         condition: () => $.tester.any(geminiTile),
         timeout: const Duration(seconds: 5),
         failureMessage: 'Gemini room not found after search filter',
       );
-      await $.tester.tap(geminiTile);
+      await $.tester.tap(geminiTile.first);
       await $.tester.pump(const Duration(milliseconds: 500));
 
       // Wait for chat input.
