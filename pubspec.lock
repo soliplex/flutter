@@ -547,11 +547,10 @@ packages:
   markdown_widget:
     dependency: "direct main"
     description:
-      path: "."
-      ref: main
-      resolved-ref: "7a80eb342a060afcf063daa870e606cf05a1bbee"
-      url: "https://github.com/soliplex/markdown_widget"
-    source: git
+      name: markdown_widget
+      sha256: b52c13d3ee4d0e60c812e15b0593f142a3b8a2003cde1babb271d001a1dbdc1c
+      url: "https://pub.dev"
+    source: hosted
     version: "2.3.2+8"
   matcher:
     dependency: transitive

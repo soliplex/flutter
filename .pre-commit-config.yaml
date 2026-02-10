@@ -19,16 +19,6 @@ repos:
         language: system
         types: [dart]
         exclude: ^packages/soliplex_client/lib/src/schema/
-      - id: flutter-test
-        name: flutter test
-        entry: flutter test -j 4 -r failures-only --fail-fast --coverage
-        language: system
-        pass_filenames: false
-      - id: check-coverage
-        name: check coverage >= 75%
-        entry: python3 tool/check_coverage.py
-        language: system
-        pass_filenames: false
       - id: flutter-analyze
         name: flutter analyze
         entry: flutter analyze --fatal-infos

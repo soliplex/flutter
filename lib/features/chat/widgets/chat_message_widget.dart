@@ -35,7 +35,6 @@ class ChatMessageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final soliplexTheme = SoliplexTheme.of(context);
-    final isDarkTheme = theme.brightness == Brightness.dark;
 
     if (message.user == ChatUser.system) {
       return _buildSystemMessage(context, theme);
@@ -119,38 +118,22 @@ class ChatMessageWidget extends StatelessWidget {
                       shrinkWrap: true,
                       config: MarkdownConfig(
                         configs: [
-                          if (isDarkTheme)
-                            PreConfig(
-                              wrapper: (child, code, language) =>
-                                  _codeActionsWrapper(
-                                context,
-                                child,
-                                code,
-                                language,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[900],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              textStyle:
-                                  const TextStyle(fontFamily: 'monospace'),
-                            )
-                          else
-                            PreConfig(
-                              wrapper: (child, code, language) =>
-                                  _codeActionsWrapper(
-                                context,
-                                child,
-                                code,
-                                language,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              textStyle:
-                                  const TextStyle(fontFamily: 'monospace'),
+                          PreConfig(
+                            wrapper: (child, code, language) =>
+                                _codeActionsWrapper(
+                              context,
+                              child,
+                              code,
+                              language,
                             ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(
+                                soliplexTheme.radii.sm,
+                              ),
+                            ),
+                            textStyle: context.monospace,
+                          ),
                         ],
                       ),
                     ),

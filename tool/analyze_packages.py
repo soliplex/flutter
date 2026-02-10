@@ -17,7 +17,7 @@ def main() -> int:
             continue
         print(f"Analyzing {name}...")
         result = subprocess.run(
-            ["dart", "analyze", "--fatal-infos", pkg_path], shell=True
+            ["dart", "analyze", "--fatal-infos", pkg_path]
         )
         if result.returncode != 0:
             failed.append(name)
