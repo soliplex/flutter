@@ -34,8 +34,10 @@ fit, add a new static field to `Loggers`.
 
 ### Message Style and Stack Traces
 
-Messages state **what happened** and **to what**. Always use
-`catch (e, s)` and pass both to the logger.
+Your log message MUST state **what happened** and **to what entity**.
+When logging an error, you MUST use a `catch (e, s)` block and pass
+both the `error` and `stackTrace` objects to the logger. Losing the
+stack trace is a critical error.
 
 ```dart
 // Good
@@ -67,3 +69,26 @@ paths. Filter by `loggerName` to isolate a feature.
 
 Circular buffer (2000 records) via `memorySinkProvider`. Oldest
 records evicted when full.
+
+## Usage in Patrol E2E Tests
+
+Patrol tests **cannot** see internal app state. They rely entirely on
+logs captured by the `TestLogHarness` via `MemorySink`.
+
+- **Assert:** `harness.expectLog('ActiveRun', 'RUN_FINISHED')` verifies
+  an operation happened.
+- **Wait:** `harness.waitForLog('ActiveRun', 'RUN_FINISHED')` blocks
+  until an async process completes.
+- **Debug:** `harness.dumpLogs(last: 50)` dumps recent logs on failure.
+
+**Workflow for discovering log patterns:**
+
+1. Run the app manually (via `debugging` skill).
+2. Perform the action you want to test.
+3. Call `mcp__dart-tools__get_app_logs` to see the `[DEBUG]` output.
+4. Copy the exact logger name and message pattern into your
+   `harness.expectLog` or `harness.waitForLog` call.
+
+**Write clear, unique, and predictable log messages to create stable,
+non-flaky tests.** Vague messages like `'done'` make test assertions
+impossible to write.

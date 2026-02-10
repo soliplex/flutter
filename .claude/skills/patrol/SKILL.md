@@ -7,7 +7,25 @@ allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 
 # Patrol E2E Test Skill
 
-Run and manage Patrol integration tests for this Flutter project (macOS, iOS, Android, and Chrome).
+**PREREQUISITE:** If you are writing a NEW test or fixing a broken finder,
+you MUST load the `debugging` skill first.
+
+1. **Load:** `debugging` skill.
+2. **Inspect:** Run `mcp__dart-tools__get_widget_tree` to see reality.
+3. **Write:** Return here to write the Patrol test using the exact
+   strings you found.
+
+Run and manage Patrol integration tests for this Flutter project
+(macOS, iOS, Android, and Chrome).
+
+## Test Inventory
+
+| File | Auth | Backend | Tests |
+|------|------|---------|-------|
+| `smoke_test.dart` | no-auth | localhost:8000 | App boot, log harness |
+| `live_chat_test.dart` | no-auth | localhost:8000 | Rooms, chat send/receive |
+| `settings_test.dart` | no-auth | localhost:8000 | Settings navigation, tiles |
+| `oidc_test.dart` | OIDC | configurable | ROPC rooms+chat, settings auth |
 
 ## Running Tests
 
@@ -18,17 +36,24 @@ Always use `--device` to avoid the interactive device selection prompt.
 ### macOS (default)
 
 ```bash
-# Run a specific test file
+# Run a specific no-auth test
 patrol test \
   --device macos \
   --target integration_test/$ARGUMENTS \
   --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
 
-# Run all integration tests
+# Run all no-auth tests
 patrol test \
   --device macos \
-  --target integration_test/ \
-  --dart-define SOLIPLEX_BACKEND_URL=http://localhost:8000
+  --target integration_test/smoke_test.dart
+
+patrol test \
+  --device macos \
+  --target integration_test/live_chat_test.dart
+
+patrol test \
+  --device macos \
+  --target integration_test/settings_test.dart
 ```
 
 **First-time setup:** See [macOS Setup Guide](./setup/macos-setup.md) for entitlements and window constraints.
@@ -106,19 +131,65 @@ patrol test \
 
 **First-time setup:** See [Web Setup Guide](./setup/web-setup.md) for Node.js, CORS, and viewport details.
 
-If `$ARGUMENTS` is empty or "all", run against `integration_test/` (all tests).
+### OIDC tests
+
+```bash
+patrol test \
+  --device macos \
+  --target integration_test/oidc_test.dart \
+  --dart-define SOLIPLEX_BACKEND_URL=https://my.soliplex.com \
+  --dart-define SOLIPLEX_OIDC_USERNAME=patrol \
+  --dart-define SOLIPLEX_OIDC_PASSWORD=patrol \
+  --dart-define SOLIPLEX_OIDC_ISSUER_ID=<issuer-key>
+```
+
+OIDC tests **require** all three credentials via `--dart-define`. Without
+them the test calls `requireOidcCredentials()` and fails immediately.
+
+If `$ARGUMENTS` is empty or "all", run against `integration_test/` (all no-auth tests).
 If `$ARGUMENTS` is a filename like `smoke_test.dart`, run that specific file.
+If `$ARGUMENTS` is `oidc_test.dart`, use the OIDC command above.
 
 ## Pre-flight Checks
 
 Before running tests, verify:
 
-1. **Backend is running** in `--no-auth-mode` at the URL above
+1. **Backend is running** — localhost:8000 for no-auth, or the OIDC backend URL
 2. **patrol CLI is installed**: `patrol --version`
 3. **Code compiles**: Run `dart analyze integration_test/` first
 4. **test_bundle.dart is current**: Patrol auto-generates this — if tests are missing from the bundle, delete it and let `patrol test` regenerate
 
+## FORBIDDEN PATTERNS
+
+Read this BEFORE writing any test code.
+
+1. **The "Exact Match" Trap:**
+   - FORBIDDEN: `find.widgetWithText(RoomListTile, 'Gemini')`
+   - Why: Fails because the widget renders "Gemini 2.5 Flash".
+   - REQUIRED: `findByTextContaining(RoomListTile, 'Gemini')`
+
+2. **The "Blind Finder" Trap:**
+   - FORBIDDEN: Writing `find.byType(MyWidget)` based on reading source.
+   - Why: The runtime widget may be wrapped in `Semantics`, `Padding`,
+     or `GestureDetector` that obscures the type.
+   - REQUIRED: Run `mcp__dart-tools__get_widget_tree` and copy the
+     exact `widgetRuntimeType`.
+
+3. **The "Pump" Trap:**
+   - FORBIDDEN: `await $.pumpAndSettle()`
+   - Why: SSE streams keep the app "active" indefinitely.
+   - REQUIRED: Use `harness.waitForLog(...)` or `waitForCondition(...)`.
+
+4. **The "Semantics" Trap:**
+   - FORBIDDEN: `find.bySemanticsLabel` for text entry targets.
+   - Why: Resolves to the Semantics wrapper, not the TextField.
+   - REQUIRED: Use `find.byType(TextField)`.
+
 ## Test Patterns
+
+**Core Rule: Inspect Before You Write.** Before adding or changing any
+finder, follow the debugging workflow below. Guessing finders from source
+code is the most common cause of test failures.
 
 ### Never use pumpAndSettle
 
@@ -128,7 +199,7 @@ SSE streams prevent settling. Use these instead:
 2. **`harness.waitForLog`** — stream-based, for async events (preferred)
 3. **`tester.pump(duration)`** — fixed delays, only for brief rendering pauses
 
-### Standard test structure
+### Standard no-auth test structure
 
 ```dart
 patrolTest('description', ($) async {
@@ -150,17 +221,66 @@ patrolTest('description', ($) async {
 });
 ```
 
+### Authenticated (OIDC) test structure
+
+```dart
+patrolTest('oidc - description', ($) async {
+  requireOidcCredentials();
+  await verifyBackendOrFail(backendUrl);
+  ignoreKeyboardAssertions();
+
+  final harness = TestLogHarness();
+  await harness.initialize();
+
+  try {
+    final tokens = await performRopcExchange(
+      baseUrl: backendUrl,
+      username: oidcUsername,
+      password: oidcPassword,
+      issuerId: oidcIssuerId,
+    );
+    await pumpAuthenticatedTestApp($, harness, tokens: tokens);
+    // ... test body ...
+  } catch (e) {
+    harness.dumpLogs(last: 50);
+    rethrow;
+  } finally {
+    harness.dispose();
+  }
+});
+```
+
+Key helpers for OIDC tests:
+
+- **`requireOidcCredentials()`** — fails fast if `--dart-define` creds missing
+- **`performRopcExchange()`** — HTTP POST `grant_type=password` to Keycloak
+  token endpoint, returns `Authenticated` state
+- **`pumpAuthenticatedTestApp()`** — boots app with
+  `PreAuthenticatedNotifier` injecting real OIDC tokens
+
 ### Widget finders reference
 
 | Target | Finder |
 |--------|--------|
 | Room list items | `find.byType(RoomListTile)` |
+| Room by name (substring) | `findByTextContaining(RoomListTile, 'Gemini')` |
 | Chat input | `find.byType(TextField)` |
 | Send button | `find.byTooltip('Send message')` |
 | Chat messages | `find.byType(ChatMessageWidget)` |
-| Settings icon | `find.byIcon(Icons.settings)` |
+| Settings button | `find.byTooltip('Open settings')` |
+| Room search field | `find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText?.contains('Search') == true)` |
 
-**Avoid** `find.bySemanticsLabel` for text entry — it can resolve to the Semantics wrapper instead of the TextField, causing `enterText` to fail.
+**Text Matching Protocol:**
+
+1. **DEFAULT** to `findByTextContaining(WidgetType, 'Substring')`.
+   UI text often contains version numbers, status, or whitespace
+   (e.g., "Gemini 2.5 Flash" vs "Gemini").
+2. **ONLY** use exact matching if you have verified the `textPreview`
+   in the widget tree is static and will not change.
+3. `findByTextContaining` is defined in `patrol_test_config.dart`.
+
+**ListView.builder gotcha:** Off-screen items are not in the widget tree.
+Use the in-app search toolbar to filter items instead of scrolling.
 
 ### Log patterns for assertions
 
@@ -173,26 +293,37 @@ patrolTest('description', ($) async {
 | `ActiveRun` | `TEXT_START:` | First text chunk received |
 | `ActiveRun` | `RUN_FINISHED` | SSE stream completed |
 
-## Debugging: Two-Phase Workflow
+### UI visibility pump pattern
 
-### Phase 1: Discover (dart MCP — `flutter run`)
+Single `pump(Duration(seconds: 1))` renders only ONE frame. Use a loop
+for actual UI painting:
 
-Use `mcp__dart-tools__launch_app` to start the app, then inspect the live
-widget tree and logs to find the right finders and log patterns for your test.
-
-```text
-mcp__dart-tools__launch_app   → starts app, returns DTD URI
-mcp__dart-tools__connect_dart_tooling_daemon → connect to running app
-mcp__dart-tools__get_widget_tree(summaryOnly: true) → see real widget hierarchy
-mcp__dart-tools__get_app_logs(pid, maxLines: 50)    → see stdout log output
-mcp__dart-tools__get_runtime_errors                  → check for exceptions
+```dart
+for (var i = 0; i < 5; i++) {
+  await $.tester.pump(const Duration(milliseconds: 200));
+}
 ```
 
-Stdout logs appear as `[DEBUG] Router: redirect called for /` — use these
-to identify the logger name and message pattern for `harness.expectLog()`.
+## Debugging: Two-Phase Workflow
 
-The widget tree shows actual `widgetRuntimeType` values — use these for
-`find.byType()` finders.
+### Phase 1: MANDATORY Discovery
+
+**STOP. Do not write any finders yet.**
+
+Use the `debugging` skill to launch the app and inspect the widget tree.
+
+1. Run `mcp__dart-tools__launch_app` to start the app.
+2. Run `mcp__dart-tools__connect_dart_tooling_daemon` with the DTD URI.
+3. Run `mcp__dart-tools__get_widget_tree(summaryOnly: true)`.
+4. **READ the `textPreview`** of the target widget — this is your
+   source of truth for text finders.
+5. **COPY the `widgetRuntimeType`** directly into your test code.
+6. Run `mcp__dart-tools__get_app_logs` to see `[DEBUG]` log patterns
+   for `harness.expectLog()` assertions.
+
+For interactive debugging (tap, enter text, scroll), launch with
+`target: "test_driver/app.dart"` which enables flutter_driver commands.
+See the `debugging` skill for the full flutter_driver workflow.
 
 ### Phase 2: Assert (TestLogHarness — patrol run)
 
@@ -232,3 +363,6 @@ This repo is a git worktree. Pre-commit hooks that invoke `flutter`/`dart` must 
 | Chrome: "Cannot find module playwright" | Node.js not installed | See [Web setup](./setup/web-setup.md) |
 | Chrome: CORS error in test | Backend missing CORS headers | See [Web setup](./setup/web-setup.md) |
 | Chrome: "Failed to fetch" on `verifyBackendOrFail` | Backend offline or CORS block | Start backend; check browser console |
+| OIDC test fails immediately | Missing `--dart-define` creds | Add `SOLIPLEX_OIDC_USERNAME`, `SOLIPLEX_OIDC_PASSWORD`, `SOLIPLEX_OIDC_ISSUER_ID` |
+| 401 on OIDC test | Wrong issuer selected | Check `--dart-define SOLIPLEX_OIDC_ISSUER_ID` matches backend |
+| Room not found in list | ListView.builder — off-screen | Use room search toolbar instead of scrolling |
