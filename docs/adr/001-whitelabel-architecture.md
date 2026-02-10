@@ -158,9 +158,7 @@ These changes would be breaking and require a major version bump.
 
 ## Implementation Reference
 
-See [APPSHELL_EXTRACTION.md](../APPSHELL_EXTRACTION.md) for:
-
-- Architecture diagrams
-- File organization details
-- Testing and verification procedures
-- Local development setup
+The white-label entry point is `runSoliplexApp()` in `lib/main.dart`.
+Configuration flows through `SoliplexConfig` and Riverpod provider overrides.
+See the [Client Package](../summary/client.md) documentation for the underlying
+API client architecture.

@@ -51,9 +51,13 @@ class LogManager {
   }
 
   /// Closes all sinks.
+  ///
+  /// Clears the sink list before awaiting close to prevent new writes
+  /// from reaching sinks that are in the process of shutting down.
   Future<void> close() async {
-    await Future.wait(_sinks.map((s) => s.close()));
+    final sinksToClose = List<LogSink>.of(_sinks);
     _sinks.clear();
+    await Future.wait(sinksToClose.map((s) => s.close()));
   }
 
   /// Resets the manager for testing.

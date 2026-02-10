@@ -1,8 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:soliplex_frontend/core/logging/backend_logging_provider.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
+import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
+
+export 'package:soliplex_frontend/core/logging/backend_logging_provider.dart'
+    show
+        backendLogSinkProvider,
+        deviceAliasProvider,
+        installIdProvider,
+        resourceAttributesProvider,
+        sessionIdProvider;
 
 /// SharedPreferences key for minimum log level.
 const _kLogLevelKey = 'log_level';
@@ -12,6 +27,12 @@ const _kConsoleLoggingKey = 'console_logging';
 
 /// SharedPreferences key for stdout logging enabled.
 const _kStdoutLoggingKey = 'stdout_logging';
+
+/// SharedPreferences key for backend logging enabled.
+const _kBackendLoggingKey = 'backend_logging';
+
+/// SharedPreferences key for backend endpoint.
+const _kBackendEndpointKey = 'backend_endpoint';
 
 /// Notifier for managing log configuration.
 ///
@@ -31,6 +52,8 @@ class LogConfigNotifier extends Notifier<LogConfig> {
     final levelIndex = prefs.getInt(_kLogLevelKey);
     final consoleEnabled = prefs.getBool(_kConsoleLoggingKey);
     final stdoutEnabled = prefs.getBool(_kStdoutLoggingKey);
+    final backendEnabled = prefs.getBool(_kBackendLoggingKey);
+    final backendEndpoint = prefs.getString(_kBackendEndpointKey);
 
     return LogConfig(
       minimumLevel: levelIndex != null && levelIndex < LogLevel.values.length
@@ -40,6 +63,10 @@ class LogConfigNotifier extends Notifier<LogConfig> {
           consoleEnabled ?? LogConfig.defaultConfig.consoleLoggingEnabled,
       stdoutLoggingEnabled:
           stdoutEnabled ?? LogConfig.defaultConfig.stdoutLoggingEnabled,
+      backendLoggingEnabled:
+          backendEnabled ?? LogConfig.defaultConfig.backendLoggingEnabled,
+      backendEndpoint:
+          backendEndpoint ?? LogConfig.defaultConfig.backendEndpoint,
     );
   }
 
@@ -59,6 +86,18 @@ class LogConfigNotifier extends Notifier<LogConfig> {
   Future<void> setStdoutLoggingEnabled({required bool enabled}) async {
     await _prefs.setBool(_kStdoutLoggingKey, enabled);
     state = state.copyWith(stdoutLoggingEnabled: enabled);
+  }
+
+  /// Updates whether backend log shipping is enabled.
+  Future<void> setBackendLoggingEnabled({required bool enabled}) async {
+    await _prefs.setBool(_kBackendLoggingKey, enabled);
+    state = state.copyWith(backendLoggingEnabled: enabled);
+  }
+
+  /// Updates the backend endpoint for log ingestion.
+  Future<void> setBackendEndpoint(String endpoint) async {
+    await _prefs.setString(_kBackendEndpointKey, endpoint);
+    state = state.copyWith(backendEndpoint: endpoint);
   }
 }
 
@@ -163,6 +202,7 @@ final stdoutSinkProvider = Provider<StdoutSink?>((ref) {
 /// This provider:
 /// - Sets the global minimum log level on LogManager
 /// - Enables/disables sinks based on config
+/// - Creates/destroys `BackendLogSink` based on config
 /// - Uses ref.listen to react to config changes without rebuilding sinks
 ///
 /// Watch this provider in your app root to initialize logging.
@@ -177,19 +217,91 @@ final logConfigControllerProvider = Provider<void>((ref) {
   final stdoutSink = ref.watch(stdoutSinkProvider);
 
   // Apply config immediately and listen for changes.
-  void applyConfig(LogConfig config) {
+  void applyConfig(LogConfig? previous, LogConfig config) {
     // Apply minimum level to LogManager (centralized ownership).
     LogManager.instance.minimumLevel = config.minimumLevel;
 
     // Enable/disable sinks based on config.
     consoleSink.enabled = config.consoleLoggingEnabled;
     stdoutSink?.enabled = config.stdoutLoggingEnabled;
+
+    // Handle backend sink lifecycle on toggle change.
+    final backendChanged = previous == null ||
+        previous.backendLoggingEnabled != config.backendLoggingEnabled;
+    if (backendChanged) {
+      // Invalidate to dispose any existing sink (onDispose removes from
+      // LogManager and closes it). Then re-read to trigger creation if
+      // the new config has backend logging enabled.
+      ref
+        ..invalidate(backendLogSinkProvider)
+        ..read(backendLogSinkProvider);
+    }
   }
 
-  // Listen to config changes.
-  ref.listen(
-    logConfigProvider,
-    (previous, next) => applyConfig(next),
-    fireImmediately: true,
-  );
+  // Cache resolved BackendLogSink for synchronous access in run listener.
+  BackendLogSink? cachedBackendSink;
+
+  // Listen to config changes, backend sink resolution, active run, and
+  // network connectivity.
+  ref
+    ..listen(
+      logConfigProvider,
+      applyConfig,
+      fireImmediately: true,
+    )
+    ..listen(
+      backendLogSinkProvider,
+      (_, next) {
+        final sink = next.asData?.value;
+        cachedBackendSink = sink;
+        // Sync run state immediately so early-run logs get context.
+        if (sink != null) {
+          try {
+            final runState = ref.read(activeRunNotifierProvider);
+            if (runState is RunningState) {
+              sink
+                ..threadId = runState.threadId
+                ..runId = runState.runId;
+            }
+          } catch (_) {
+            // activeRunNotifierProvider may not be initialized yet.
+          }
+        }
+      },
+      fireImmediately: true,
+    )
+    // Track active run context and flush on completion.
+    ..listen<ActiveRunState>(
+      activeRunNotifierProvider,
+      (previous, next) {
+        final sink = cachedBackendSink;
+        if (sink == null) return;
+        if (next is RunningState) {
+          sink
+            ..threadId = next.threadId
+            ..runId = next.runId;
+        } else {
+          sink
+            ..threadId = null
+            ..runId = null;
+        }
+        if (previous is RunningState && next is CompletedState) {
+          unawaited(sink.flush(force: true));
+        }
+      },
+    )
+    ..listen(
+      connectivityProvider,
+      (previous, next) {
+        if (previous == null || !previous.hasValue) return;
+        next.whenData((results) {
+          Loggers.telemetry.info(
+            'network_changed',
+            attributes: {
+              'connectivity': results.map((r) => r.name).join(', '),
+            },
+          );
+        });
+      },
+    );
 });

@@ -18,7 +18,9 @@ import 'package:soliplex_logging/src/log_sink.dart';
 class MemorySink implements LogSink {
   /// Creates a memory sink that retains at most [maxRecords] entries.
   MemorySink({this.maxRecords = 2000})
-      : assert(maxRecords > 0, 'maxRecords must be positive');
+      : assert(maxRecords > 0, 'maxRecords must be positive') {
+    _view = _RingBufferView(this);
+  }
 
   /// Maximum number of records retained in the buffer.
   final int maxRecords;
@@ -27,14 +29,17 @@ class MemorySink implements LogSink {
   int _head = 0;
   int _count = 0;
 
+  late final _RingBufferView _view;
+
   final _recordController = StreamController<LogRecord>.broadcast();
   final _clearController = StreamController<void>.broadcast();
 
-  /// Unmodifiable view of current records (oldest first).
+  /// Live unmodifiable view of current records (oldest first).
   ///
   /// Returns a lightweight wrapper over the internal circular buffer.
-  /// No copy is made. Safe to index from `ListView.builder`.
-  List<LogRecord> get records => _RingBufferView(_buffer, _head, _count);
+  /// No copy is made. The view always reflects the current buffer state.
+  /// Safe to index from `ListView.builder`.
+  List<LogRecord> get records => _view;
 
   /// Stream of new records for live listeners.
   Stream<LogRecord> get onRecord => _recordController.stream;
@@ -82,19 +87,19 @@ class MemorySink implements LogSink {
   }
 }
 
-/// Unmodifiable list view over a circular buffer.
+/// Live unmodifiable list view over a circular buffer.
 ///
-/// Maps logical indices (0 = oldest) to physical buffer positions
-/// without copying. Provides O(1) access for `ListView.builder`.
+/// Reads state directly from the owning [MemorySink] so that the view
+/// always reflects the current buffer contents. Maps logical indices
+/// (0 = oldest) to physical buffer positions without copying.
+/// Provides O(1) access for `ListView.builder`.
 class _RingBufferView with ListMixin<LogRecord> {
-  _RingBufferView(this._buffer, this._head, this._count);
+  _RingBufferView(this._sink);
 
-  final List<LogRecord> _buffer;
-  final int _head;
-  final int _count;
+  final MemorySink _sink;
 
   @override
-  int get length => _count;
+  int get length => _sink._count;
 
   @override
   set length(int newLength) =>
@@ -103,7 +108,7 @@ class _RingBufferView with ListMixin<LogRecord> {
   @override
   LogRecord operator [](int index) {
     RangeError.checkValidIndex(index, this);
-    return _buffer[(_head + index) % _buffer.length];
+    return _sink._buffer[(_sink._head + index) % _sink._buffer.length];
   }
 
   @override

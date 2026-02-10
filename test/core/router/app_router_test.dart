@@ -7,6 +7,8 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/callback_params.dart';
+import 'package:soliplex_frontend/core/logging/log_config.dart';
+import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
@@ -44,6 +46,11 @@ AuthState _resolveAuthState({
   if (noAuthMode) return const NoAuthRequired();
   if (authenticated) return _createAuthenticatedState();
   return const Unauthenticated();
+}
+
+class _TestLogConfigNotifier extends LogConfigNotifier {
+  @override
+  LogConfig build() => LogConfig.defaultConfig;
 }
 
 class _MockAuthNotifier extends AuthNotifier {
@@ -97,6 +104,7 @@ Widget createRouterAppAt(
   return ProviderScope(
     overrides: [
       shellConfigProvider.overrideWithValue(config),
+      logConfigProvider.overrideWith(_TestLogConfigNotifier.new),
       authProvider.overrideWith(() => _MockAuthNotifier(authState)),
       routerProvider.overrideWith((ref) {
         final currentAuthState = ref.watch(authProvider);
@@ -544,6 +552,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           shellConfigProvider.overrideWithValue(testSoliplexConfig),
+          logConfigProvider.overrideWith(_TestLogConfigNotifier.new),
           backendVersionInfoProvider.overrideWithValue(
             const AsyncValue.data(testBackendVersionInfo),
           ),
@@ -1078,6 +1087,7 @@ void main() {
               routes: RouteConfig(initialRoute: '/settings'),
             ),
           ),
+          logConfigProvider.overrideWith(_TestLogConfigNotifier.new),
           backendVersionInfoProvider.overrideWithValue(
             const AsyncValue.data(testBackendVersionInfo),
           ),

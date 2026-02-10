@@ -1,9 +1,11 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_frontend/core/logging/log_config.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
+import 'package:soliplex_frontend/core/providers/connectivity_provider.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 void main() {
@@ -24,6 +26,9 @@ void main() {
     return ProviderContainer(
       overrides: [
         preloadedPrefsProvider.overrideWithValue(preloadedPrefs),
+        connectivityProvider.overrideWith(
+          (ref) => Stream.value([ConnectivityResult.wifi]),
+        ),
       ],
     );
   }
@@ -98,6 +103,52 @@ void main() {
 
       // Verify persistence.
       expect(prefs.getBool('console_logging'), isFalse);
+    });
+
+    test('loads saved backend logging state from preferences', () async {
+      SharedPreferences.setMockInitialValues({
+        'backend_logging': true,
+        'backend_endpoint': '/custom/logs',
+      });
+      prefs = await SharedPreferences.getInstance();
+
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final config = container.read(logConfigProvider);
+
+      expect(config.backendLoggingEnabled, isTrue);
+      expect(config.backendEndpoint, '/custom/logs');
+    });
+
+    test('setBackendLoggingEnabled updates state and persists', () async {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(logConfigProvider.notifier);
+
+      await notifier.setBackendLoggingEnabled(enabled: true);
+
+      final config = container.read(logConfigProvider);
+      expect(config.backendLoggingEnabled, isTrue);
+
+      // Verify persistence.
+      expect(prefs.getBool('backend_logging'), isTrue);
+    });
+
+    test('setBackendEndpoint updates state and persists', () async {
+      final container = createContainer(prefs);
+      addTearDown(container.dispose);
+
+      final notifier = container.read(logConfigProvider.notifier);
+
+      await notifier.setBackendEndpoint('/v2/logs');
+
+      final config = container.read(logConfigProvider);
+      expect(config.backendEndpoint, '/v2/logs');
+
+      // Verify persistence.
+      expect(prefs.getString('backend_endpoint'), '/v2/logs');
     });
 
     test('throws when prefs provider not overridden', () {
