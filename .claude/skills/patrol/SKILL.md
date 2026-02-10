@@ -62,7 +62,7 @@ serial from `adb devices`.
 # Boot emulator (if not running)
 export ANDROID_HOME=~/Library/Android/sdk
 export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
-emulator -avd Medium_Phone_API_36.0 &
+emulator -avd Patrol_Test_API_36 &
 
 # Run on Android emulator
 patrol test \
@@ -162,6 +162,31 @@ macOS). No changes needed — the function works on both platforms.
 
 ## Android Constraints
 
+### Use Google APIs image, NOT Google Play
+
+Android emulators created with a **Google Play** system image force a mandatory
+Gmail login on first boot that cannot be skipped. Use **Google APIs** instead.
+
+**One-time AVD setup (command line):**
+
+```bash
+export ANDROID_HOME=~/Library/Android/sdk
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH"
+
+# Download Google APIs image (non-Play Store)
+sdkmanager "system-images;android-36;google_apis;arm64-v8a"
+
+# Create AVD
+avdmanager create avd \
+  --name "Patrol_Test_API_36" \
+  --package "system-images;android-36;google_apis;arm64-v8a" \
+  --device "medium_phone"
+```
+
+**Or in Android Studio:** Device Manager > Create Device > select a system image
+with target **"Google APIs"** (not "Google Play").
+
 ### localhost is 10.0.2.2
 
 Android emulators cannot reach the host's `localhost` directly. Use
@@ -171,6 +196,12 @@ Android emulators cannot reach the host's `localhost` directly. Use
 
 Patrol needs `ANDROID_HOME` and `adb` on PATH. Default macOS location:
 `~/Library/Android/sdk`.
+
+### JDK for sdkmanager/avdmanager
+
+`sdkmanager` and `avdmanager` require JDK 17+. Android Studio bundles JDK 21
+at `/Applications/Android Studio.app/Contents/jbr/Contents/Home`. Set
+`JAVA_HOME` to this path before running SDK tools.
 
 ### Test orchestrator
 
@@ -310,3 +341,4 @@ This repo is a git worktree. Pre-commit hooks that invoke `flutter`/`dart` must 
 | iOS: "Device ... is not attached" | Wrong device ID format | Use UUID from `xcrun simctl list devices booted` |
 | Android: "No connected devices" | Emulator not running or `adb` not on PATH | Boot emulator and set `ANDROID_HOME` |
 | Android: connection refused to localhost | Emulator can't reach host localhost | Use `10.0.2.2` instead of `localhost` |
+| Android: Gmail login prompt on boot | AVD uses Google Play image | Recreate AVD with Google APIs image (see Android Constraints) |
