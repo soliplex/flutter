@@ -42,21 +42,18 @@ dependencies:
   web: ^1.1.1
 
 dev_dependencies:
-  # Icon generation
   flutter_launcher_icons: ^0.14.4
-
-  # Splash screen generation
   flutter_native_splash: ^2.4.7
   flutter_test:
     sdk: flutter
-
-  # Testing
+  integration_test:
+    sdk: flutter
   mocktail: ^1.0.4
+  patrol: ^4.1.0
+  patrol_finders: ^3.0.0
 
   # Riverpod for testing (explicit version from transitive)
   riverpod: 3.2.1
-
-  # Linting - Zero tolerance
   very_good_analysis: ^10.1.0
 
   # VisibilityDetector (transitive from markdown_widget, needed in tests)
@@ -87,3 +84,9 @@ flutter_native_splash:
     color: "#424242"
 
   web: true
+
+patrol:
+  app_name: Soliplex
+  test_directory: integration_test
+  macos:
+    bundle_id: ai.soliplex.client

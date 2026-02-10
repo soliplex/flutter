@@ -9,7 +9,6 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
-import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 /// Internal state representing the notifier's resource management.
 ///
@@ -87,18 +86,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
-    ref
-      // Reset when leaving a selected thread (run state is scoped to thread)
-      ..listen(threadSelectionProvider, (previous, next) {
-        if (previous is ThreadSelected) {
-          unawaited(reset());
-        }
-      })
-      ..onDispose(() {
-        if (_internalState is RunningInternalState) {
-          (_internalState as RunningInternalState).dispose();
-        }
-      });
+    ref.onDispose(() {
+      if (_internalState is RunningInternalState) {
+        (_internalState as RunningInternalState).dispose();
+      }
+    });
 
     return const IdleState();
   }

@@ -642,7 +642,7 @@ void main() {
       eventStreamController.close();
     });
 
-    test('resets state when switching from one thread to another', () async {
+    test('run continues when switching threads', () async {
       final container = ProviderContainer(
         overrides: [
           apiProvider.overrideWithValue(mockApi),
@@ -677,9 +677,55 @@ void main() {
       // Allow listener to fire
       await Future<void>.delayed(Duration.zero);
 
-      // State should be reset to IdleState
-      expect(container.read(activeRunNotifierProvider), isA<IdleState>());
-      expect(container.read(activeRunNotifierProvider).messages, isEmpty);
+      // Run state should NOT be reset - run continues in background
+      expect(container.read(activeRunNotifierProvider), isA<RunningState>());
+      expect(container.read(activeRunNotifierProvider).messages, isNotEmpty);
+    });
+
+    test('run state preserved when returning to thread', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Select thread A
+      container
+          .read(threadSelectionProvider.notifier)
+          .set(const ThreadSelected('thread-a'));
+
+      // Start a run on thread A
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-a',
+            userMessage: 'Hello from thread A',
+          );
+
+      // Verify running
+      final initialState = container.read(activeRunNotifierProvider);
+      expect(initialState, isA<RunningState>());
+      final initialMessageCount = initialState.messages.length;
+
+      // Switch to thread B
+      container
+          .read(threadSelectionProvider.notifier)
+          .set(const ThreadSelected('thread-b'));
+      await Future<void>.delayed(Duration.zero);
+
+      // Switch back to thread A
+      container
+          .read(threadSelectionProvider.notifier)
+          .set(const ThreadSelected('thread-a'));
+      await Future<void>.delayed(Duration.zero);
+
+      // State should still be RunningState with same messages
+      final restoredState = container.read(activeRunNotifierProvider);
+      expect(restoredState, isA<RunningState>());
+      expect(restoredState.messages.length, equals(initialMessageCount));
     });
 
     test('does not reset when selecting the same thread again', () async {
