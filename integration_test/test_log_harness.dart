@@ -139,7 +139,8 @@ class TestLogHarness {
   ///
   /// Returns the [Duration] between the first record matching
   /// [startLogger]/[startPattern] and the first matching
-  /// [endLogger]/[endPattern]. Fails if either record is not found.
+  /// [endLogger]/[endPattern] that appears after it. Fails if either
+  /// record is not found.
   Duration measureLogDelta(
     String startLogger,
     String startPattern,
@@ -147,27 +148,26 @@ class TestLogHarness {
     String endPattern,
   ) {
     final records = sink.records;
-    LogRecord? start;
-    LogRecord? end;
-    for (final r in records) {
-      if (start == null &&
-          r.loggerName == startLogger &&
-          r.message.contains(startPattern)) {
-        start = r;
-      }
-      if (r.loggerName == endLogger && r.message.contains(endPattern)) {
-        end = r;
-      }
-    }
-    if (start == null) {
+    final startIndex = records.indexWhere(
+      (r) => r.loggerName == startLogger && r.message.contains(startPattern),
+    );
+    if (startIndex == -1) {
       dumpLogs(last: 30);
       fail('Start log not found: [$startLogger] "$startPattern"');
     }
-    if (end == null) {
+    final endIndex = records.indexWhere(
+      (r) => r.loggerName == endLogger && r.message.contains(endPattern),
+      startIndex,
+    );
+    if (endIndex == -1) {
       dumpLogs(last: 30);
-      fail('End log not found: [$endLogger] "$endPattern"');
+      fail(
+        'End log not found after start: [$endLogger] "$endPattern"',
+      );
     }
-    return end.timestamp.difference(start.timestamp);
+    return records[endIndex]
+        .timestamp
+        .difference(records[startIndex].timestamp);
   }
 
   /// Dump recent logs to console (for failure diagnostics).
