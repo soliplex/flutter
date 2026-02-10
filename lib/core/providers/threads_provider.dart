@@ -265,7 +265,7 @@ void selectAndPersistThread({
     setLastViewedThread(
       roomId: roomId,
       threadId: threadId,
-      invalidate: invalidateLastViewed(ref),
+      invalidate: (roomId) => ref.invalidate(lastViewedThreadProvider(roomId)),
     ).catchError((Object e) {
       Loggers.room.warning('Failed to persist last viewed thread: $e');
     }),
@@ -304,20 +304,6 @@ final lastViewedThreadProvider = FutureProvider.family<LastViewed, String>((
 
 /// Callback for invalidating the last viewed thread provider.
 typedef InvalidateLastViewed = void Function(String roomId);
-
-/// Creates an [InvalidateLastViewed] callback from a ref.
-///
-/// Use this to pass to [setLastViewedThread] or [clearLastViewedThread]:
-/// ```dart
-/// setLastViewedThread(
-///   roomId: roomId,
-///   threadId: threadId,
-///   invalidate: invalidateLastViewed(ref),
-/// );
-/// ```
-InvalidateLastViewed invalidateLastViewed(WidgetRef ref) {
-  return (roomId) => ref.invalidate(lastViewedThreadProvider(roomId));
-}
 
 /// Saves the last viewed thread for a room.
 ///
