@@ -1,0 +1,86 @@
+name: Patrol E2E
+
+on:
+  # Manual trigger with optional test target
+  workflow_dispatch:
+    inputs:
+      test_target:
+        description: "Test file (e.g. smoke_test.dart) or blank for all"
+        required: false
+        default: ""
+  # Run on PRs labeled 'e2e'
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize]
+
+jobs:
+  patrol-macos:
+    # Only run when manually triggered or PR has 'e2e' label
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'e2e')
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      BACKEND_URL: ${{ secrets.STAGING_BACKEND_URL || 'http://localhost:8000' }}
+      SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Cache pub dependencies
+        uses: actions/cache@v5
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install Patrol CLI
+        run: dart pub global activate patrol_cli
+
+      - name: Verify backend reachable
+        run: |
+          STATUS=$(curl -s -o /dev/null -w '%{http_code}' "$BACKEND_URL/api/login" || true)
+          if [ "$STATUS" != "200" ]; then
+            echo "::error::Backend unreachable at $BACKEND_URL/api/login (HTTP $STATUS)"
+            exit 1
+          fi
+          echo "Backend OK at $BACKEND_URL"
+
+      - name: Resolve test target
+        id: target
+        run: |
+          INPUT="${{ github.event.inputs.test_target }}"
+          if [ -n "$INPUT" ]; then
+            echo "path=integration_test/$INPUT" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=integration_test/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Patrol tests
+        run: |
+          patrol test \
+            --device macos \
+            --target "${{ steps.target.outputs.path }}" \
+            --dart-define SOLIPLEX_BACKEND_URL="$BACKEND_URL"
+
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          GITHUB_REF: ${{ github.ref }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          curl -X POST \
+            --data-urlencode \
+            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":test_tube: Patrol E2E failed on $GITHUB_REF:\n$COMMIT_MSG\n$RUN_URL\", \"icon_emoji\": \":flutter:\"}" \
+            "$SLACK_NOTIFY_URL"
