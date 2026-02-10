@@ -110,3 +110,18 @@ strict origin whitelisting, configure it to accept `http://localhost:*`.
    passes (or fails at backend check if backend offline — same as macOS)
 2. `dart analyze integration_test/` — 0 issues
 3. Existing macOS tests still pass (no regression)
+
+### Validated locally
+
+Chrome smoke test ran end-to-end through the Playwright pipeline:
+
+- Flutter web app built and served on ephemeral port
+- Playwright installed Node.js deps + browser binaries automatically
+- Test executed, hit `verifyBackendOrFail` (backend offline — expected)
+- Error was `ClientException: Failed to fetch` (browser fetch API, not
+  `dart:io` — confirms web runtime)
+- No keyboard assertion errors (confirms `kIsWeb` guard works)
+
+The failure at `verifyBackendOrFail` is identical in behavior to macOS when
+the backend is offline. With a running backend, the test would proceed past
+the health check into the app boot sequence.

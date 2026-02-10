@@ -225,3 +225,5 @@ This repo is a git worktree. Pre-commit hooks that invoke `flutter`/`dart` must 
 | Accessibility permission denied | Entitlements changed | Re-approve in System Settings > Privacy > Accessibility |
 | Chrome: "Cannot find module playwright" | Node.js not installed | Install Node.js >= 18, then rerun |
 | Chrome: CORS error in test | Backend missing CORS headers | Configure backend `Access-Control-Allow-Origin` for test origin |
+| Chrome: "Failed to fetch" on `verifyBackendOrFail` | Backend offline or CORS block | Start backend; check browser console for CORS errors |
+| `command not found: patrol` | `~/.pub-cache/bin` not on PATH | Add to PATH or use full path `~/.pub-cache/bin/patrol` |
