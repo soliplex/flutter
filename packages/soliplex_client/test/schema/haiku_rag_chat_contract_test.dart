@@ -36,10 +36,8 @@ void main() {
 
     group('JSON keys required for parsing', () {
       test('parses from haiku.rag.chat state format', () {
-        // The generated fromJson requires citation_registry to be present
-        // (even though the field is optional in the constructor).
-        // This is a quirk of the quicktype-generated code that consumers
-        // must be aware of.
+        // The generated fromJson requires citation_registry to be present.
+        // The backend always sends it (even if empty).
         final json = {
           'citation_registry': <String, int>{},
           'citations': <Map<String, dynamic>>[],
@@ -66,11 +64,13 @@ void main() {
         expect(ragChat.citations, hasLength(1));
       });
 
-      test('citation_registry can be absent in fromJson', () {
-        final json = <String, dynamic>{'qa_history': <dynamic>[]};
+      test('citation_registry is required in fromJson', () {
+        final json = <String, dynamic>{
+          'citation_registry': <String, int>{'ref-1': 0},
+        };
 
         final ragChat = HaikuRagChat.fromJson(json);
-        expect(ragChat.citationRegistry, isNull);
+        expect(ragChat.citationRegistry, equals({'ref-1': 0}));
       });
     });
   });

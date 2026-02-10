@@ -71,7 +71,13 @@ class CitationExtractor {
     if (currentLength <= previousLength) return [];
 
     try {
-      final haikuRagChat = HaikuRagChat.fromJson(currentData);
+      // Ensure citation_registry has a default — required by fromJson but
+      // may be absent in STATE_DELTA events that only include qa_history.
+      final normalizedData = {
+        'citation_registry': const <String, int>{},
+        ...currentData,
+      };
+      final haikuRagChat = HaikuRagChat.fromJson(normalizedData);
       final qaHistory = haikuRagChat.qaHistory ?? [];
 
       return qaHistory
