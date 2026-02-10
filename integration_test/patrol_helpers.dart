@@ -112,7 +112,7 @@ Future<Authenticated> performRopcExchange({
   }
 
   final tokenJson = jsonDecode(tokenRes.body) as Map<String, dynamic>;
-  final expiresIn = tokenJson['expires_in'] as int? ?? 300;
+  final expiresIn = (tokenJson['expires_in'] as num?)?.toInt() ?? 300;
 
   return Authenticated(
     accessToken: tokenJson['access_token'] as String,
