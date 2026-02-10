@@ -2,7 +2,12 @@
 # Adds RunnerUITests (UI Testing Bundle) target to the macOS Xcode project.
 # Used for Patrol E2E integration tests.
 
-gems_dir = '/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec/gems'
+# Discover CocoaPods gem directory dynamically (survives version upgrades).
+pods_prefix = `brew --prefix cocoapods 2>/dev/null`.strip
+if pods_prefix.empty? || !File.directory?(pods_prefix)
+  abort 'CocoaPods not found via Homebrew. Install with: brew install cocoapods'
+end
+gems_dir = File.join(pods_prefix, 'libexec', 'gems')
 Dir.glob(File.join(gems_dir, '*/lib')).each { |p| $LOAD_PATH.unshift(p) }
 require 'xcodeproj'
 
