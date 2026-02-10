@@ -40,10 +40,10 @@ void main() {
             'client_id': 'my-client',
             'scope': 'openid email profile',
           },
-          'pydio': {
-            'title': 'Pydio SSO',
-            'server_url': 'https://sso.pydio.com/auth',
-            'client_id': 'pydio-client',
+          'oidc-client-name': {
+            'title': 'Corporate SSO',
+            'server_url': 'https://sso.example.com/auth',
+            'client_id': 'oidc-client',
             'scope': 'openid',
           },
         },
@@ -62,11 +62,11 @@ void main() {
       expect(keycloak.clientId, equals('my-client'));
       expect(keycloak.scope, equals('openid email profile'));
 
-      final pydio = providers.firstWhere((p) => p.id == 'pydio');
-      expect(pydio.name, equals('Pydio SSO'));
-      expect(pydio.serverUrl, equals('https://sso.pydio.com/auth'));
-      expect(pydio.clientId, equals('pydio-client'));
-      expect(pydio.scope, equals('openid'));
+      final oidc = providers.firstWhere((p) => p.id == 'oidc-client-name');
+      expect(oidc.name, equals('Corporate SSO'));
+      expect(oidc.serverUrl, equals('https://sso.example.com/auth'));
+      expect(oidc.clientId, equals('oidc-client'));
+      expect(oidc.scope, equals('openid'));
     });
 
     test('returns empty list when no providers configured', () async {
