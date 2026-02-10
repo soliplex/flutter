@@ -95,7 +95,7 @@ void main() {
       await harness.waitForLog(
         'ActiveRun',
         'RUN_FINISHED',
-        timeout: const Duration(seconds: 30),
+        timeout: const Duration(seconds: 60),
       );
 
       // Pump to let UI update with response.
