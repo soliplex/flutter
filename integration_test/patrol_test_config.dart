@@ -17,7 +17,7 @@ const oidcPassword = String.fromEnvironment('SOLIPLEX_OIDC_PASSWORD');
 /// OIDC issuer ID from --dart-define (must match a key in /api/login response).
 const oidcIssuerId = String.fromEnvironment(
   'SOLIPLEX_OIDC_ISSUER_ID',
-  defaultValue: 'pydio',
+  defaultValue: 'oidc-client-name',
 );
 
 /// Fail fast if backend is unreachable.
