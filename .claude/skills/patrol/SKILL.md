@@ -1,13 +1,13 @@
 ---
 name: patrol
-description: Run Patrol E2E integration tests on macOS, iOS, or Chrome. Use when writing, running, or debugging Patrol tests.
+description: Run Patrol E2E integration tests on macOS, iOS, Android, or Chrome. Use when writing, running, or debugging Patrol tests.
 argument-hint: "[test-file|all]"
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 ---
 
 # Patrol E2E Test Skill
 
-Run and manage Patrol integration tests for this Flutter project (macOS, iOS, and Chrome).
+Run and manage Patrol integration tests for this Flutter project (macOS, iOS, Android, and Chrome).
 
 ## Running Tests
 
@@ -52,6 +52,26 @@ patrol test \
 ```
 
 Use `xcrun simctl list devices booted` to find the device ID and OS version.
+
+### Android (emulator or device)
+
+Requires `ANDROID_HOME` set and `adb` on PATH. Use the emulator name or device
+serial from `adb devices`.
+
+```bash
+# Boot emulator (if not running)
+export ANDROID_HOME=~/Library/Android/sdk
+export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+emulator -avd Medium_Phone_API_36.0 &
+
+# Run on Android emulator
+patrol test \
+  --device emulator-5554 \
+  --target integration_test/$ARGUMENTS \
+  --dart-define SOLIPLEX_BACKEND_URL=http://10.0.2.2:8000
+```
+
+**Note:** Android emulators use `10.0.2.2` to reach the host's `localhost`.
 
 ### Chrome (web)
 
@@ -139,6 +159,24 @@ version explicitly: `--ios=18.6`.
 
 `ignoreKeyboardAssertions()` applies on iOS too (same Flutter bug as
 macOS). No changes needed — the function works on both platforms.
+
+## Android Constraints
+
+### localhost is 10.0.2.2
+
+Android emulators cannot reach the host's `localhost` directly. Use
+`10.0.2.2:8000` (maps to host `127.0.0.1:8000`) in `--dart-define`.
+
+### ANDROID_HOME must be set
+
+Patrol needs `ANDROID_HOME` and `adb` on PATH. Default macOS location:
+`~/Library/Android/sdk`.
+
+### Test orchestrator
+
+The Gradle config uses `ANDROIDX_TEST_ORCHESTRATOR` with
+`clearPackageData = true` for test isolation. This means each test run
+gets a fresh app state.
 
 ## Chrome (Web) Constraints
 
@@ -270,3 +308,5 @@ This repo is a git worktree. Pre-commit hooks that invoke `flutter`/`dart` must 
 | `command not found: patrol` | `~/.pub-cache/bin` not on PATH | Add to PATH or use full path `~/.pub-cache/bin/patrol` |
 | iOS: xcodebuild exit code 70 | `OS=latest` doesn't match simulator | Use `--ios=18.6` (match simulator OS) |
 | iOS: "Device ... is not attached" | Wrong device ID format | Use UUID from `xcrun simctl list devices booted` |
+| Android: "No connected devices" | Emulator not running or `adb` not on PATH | Boot emulator and set `ANDROID_HOME` |
+| Android: connection refused to localhost | Emulator can't reach host localhost | Use `10.0.2.2` instead of `localhost` |
