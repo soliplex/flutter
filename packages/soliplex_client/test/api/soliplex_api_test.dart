@@ -558,7 +558,73 @@ void main() {
     });
 
     group('createThread', () {
-      test('returns ThreadInfo', () async {
+      test('returns ThreadInfo and initial AG-UI state', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'POST',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'thread_id': 'new-thread',
+            'runs': <String, dynamic>{
+              'run-1': <String, dynamic>{
+                'run_id': 'run-1',
+                'run_input': <String, dynamic>{
+                  'state': <String, dynamic>{
+                    'haiku.rag.chat': <String, dynamic>{
+                      'citation_registry': <String, dynamic>{},
+                      'citations': <dynamic>[],
+                    },
+                  },
+                },
+              },
+            },
+          },
+        );
+
+        final (thread, aguiState) = await api.createThread('room-123');
+
+        expect(thread.id, equals('new-thread'));
+        expect(thread.roomId, equals('room-123'));
+        expect(thread.initialRunId, equals('run-1'));
+        expect(
+          aguiState,
+          containsPair('haiku.rag.chat', isA<Map<String, dynamic>>()),
+        );
+      });
+
+      test('returns empty state when runs have no run_input', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'POST',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'thread_id': 'new-thread',
+            'runs': <String, dynamic>{
+              'run-1': <String, dynamic>{'run_id': 'run-1'},
+            },
+          },
+        );
+
+        final (_, aguiState) = await api.createThread('room-123');
+
+        expect(aguiState, isEmpty);
+      });
+
+      test('returns empty state when runs map is empty', () async {
         when(
           () => mockTransport.request<Map<String, dynamic>>(
             'POST',
@@ -573,10 +639,10 @@ void main() {
           (_) async => {'thread_id': 'new-thread', 'runs': <String, dynamic>{}},
         );
 
-        final thread = await api.createThread('room-123');
+        final (thread, aguiState) = await api.createThread('room-123');
 
         expect(thread.id, equals('new-thread'));
-        expect(thread.roomId, equals('room-123'));
+        expect(aguiState, isEmpty);
       });
 
       test('validates non-empty roomId', () {

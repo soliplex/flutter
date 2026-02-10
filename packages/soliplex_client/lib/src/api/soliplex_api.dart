@@ -255,7 +255,9 @@ class SoliplexApi {
   /// Parameters:
   /// - [roomId]: The room ID (must not be empty)
   ///
-  /// Returns a [ThreadInfo] for the newly created thread.
+  /// Returns a record of ([ThreadInfo], AG-UI state). The state is extracted
+  /// from the initial run's `run_input.state` and contains backend-initialized
+  /// feature defaults (e.g., `haiku.rag.chat`).
   ///
   /// Throws:
   /// - [ArgumentError] if [roomId] is empty
@@ -264,7 +266,7 @@ class SoliplexApi {
   /// - [NetworkException] if connection fails
   /// - [ApiException] for other server errors
   /// - [CancelledException] if cancelled via [cancelToken]
-  Future<ThreadInfo> createThread(
+  Future<(ThreadInfo, Map<String, dynamic>)> createThread(
     String roomId, {
     CancelToken? cancelToken,
   }) async {
@@ -279,20 +281,28 @@ class SoliplexApi {
       cancelToken: cancelToken,
     );
 
-    // Extract initial run_id from runs map
+    // Extract initial run_id and AG-UI state from runs map
     String? initialRunId;
+    var aguiState = const <String, dynamic>{};
     final runs = response['runs'] as Map<String, dynamic>?;
     if (runs != null && runs.isNotEmpty) {
       initialRunId = runs.keys.first;
+      final run = runs[initialRunId] as Map<String, dynamic>?;
+      final runInput = run?['run_input'] as Map<String, dynamic>?;
+      final state = runInput?['state'];
+      if (state is Map<String, dynamic>) {
+        aguiState = state;
+      }
     }
 
-    // Normalize response: backend returns thread_id, we use id
-    return ThreadInfo(
+    final threadInfo = ThreadInfo(
       id: response['thread_id'] as String,
       roomId: roomId,
       initialRunId: initialRunId ?? '',
       createdAt: DateTime.now(),
     );
+
+    return (threadInfo, aguiState);
   }
 
   /// Deletes a thread.

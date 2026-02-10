@@ -13,6 +13,7 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -380,7 +381,9 @@ void main() {
         final mockApi = _TrackingSoliplexApi(threadToCreate: newThread);
         when(
           () => mockApi.createThread('test-room'),
-        ).thenAnswer((_) async => newThread);
+        ).thenAnswer(
+          (_) async => (newThread, const <String, dynamic>{}),
+        );
 
         late _TrackingThreadSelectionNotifier selectionNotifier;
         late _TrackingActiveRunNotifier runNotifier;
@@ -447,7 +450,9 @@ void main() {
         final mockApi = _TrackingSoliplexApi(threadToCreate: newThread);
         when(
           () => mockApi.createThread('test-room'),
-        ).thenAnswer((_) async => newThread);
+        ).thenAnswer(
+          (_) async => (newThread, const <String, dynamic>{}),
+        );
 
         late _TrackingThreadSelectionNotifier selectionNotifier;
         late _TrackingActiveRunNotifier runNotifier;
@@ -552,6 +557,93 @@ void main() {
           runNotifier.lastStartRun!.userMessage,
           equals('Message to existing'),
         );
+      });
+
+      testWidgets('seeds cache with initial AG-UI state from createThread', (
+        tester,
+      ) async {
+        // Arrange
+        SharedPreferences.setMockInitialValues({});
+        final mockRoom = TestData.createRoom();
+        final newThread = TestData.createThread(id: 'seeded-thread');
+        final initialState = <String, dynamic>{
+          'haiku.rag.chat': <String, dynamic>{
+            'citation_registry': <String, int>{},
+            'citations': <dynamic>[],
+          },
+        };
+
+        final mockApi = _TrackingSoliplexApi(threadToCreate: newThread);
+        when(
+          () => mockApi.createThread('test-room'),
+        ).thenAnswer(
+          (_) async => (newThread, initialState),
+        );
+
+        late ProviderContainer container;
+
+        final router = GoRouter(
+          initialLocation: '/rooms/test-room',
+          routes: [
+            GoRoute(
+              path: '/rooms/:roomId',
+              builder: (context, state) {
+                final threadId = state.uri.queryParameters['thread'];
+                if (threadId != null) {
+                  return Text('Navigated to thread: $threadId');
+                }
+                return const Scaffold(body: ChatPanel());
+              },
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container = ProviderContainer(
+              overrides: [
+                shellConfigProvider.overrideWithValue(testSoliplexConfig),
+                currentRoomProvider.overrideWith((ref) => mockRoom),
+                currentThreadProvider.overrideWith((ref) => null),
+                apiProvider.overrideWithValue(mockApi),
+                threadSelectionProvider.overrideWith(() {
+                  return _TrackingThreadSelectionNotifier(
+                    initialSelection: const NewThreadIntent(),
+                  );
+                }),
+                activeRunNotifierProvider.overrideWith(() {
+                  return _TrackingActiveRunNotifier(
+                    initialState: const IdleState(),
+                  );
+                }),
+                allMessagesProvider.overrideWith((ref) async => []),
+                threadsProvider('test-room').overrideWith((ref) async => []),
+                documentsProviderOverride('test-room'),
+              ],
+            ),
+            child: MaterialApp.router(
+              theme: testThemeData,
+              routerConfig: router,
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Act: Enter text and send
+        await tester.enterText(find.byType(TextField), 'Hello');
+        await tester.pump();
+        await tester.tap(find.byIcon(Icons.send));
+        await tester.pumpAndSettle();
+
+        // Assert: cache contains the seeded state
+        final cache = container.read(threadHistoryCacheProvider);
+        expect(cache, contains('seeded-thread'));
+        final history = cache['seeded-thread']!;
+        expect(
+          history.aguiState,
+          containsPair('haiku.rag.chat', isA<Map<String, dynamic>>()),
+        );
+        expect(history.messages, isEmpty);
       });
     });
 

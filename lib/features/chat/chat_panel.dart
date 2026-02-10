@@ -12,6 +12,7 @@ import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/selected_documents_provider.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
@@ -197,12 +198,26 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         () => ref.read(apiProvider).createThread(room.id),
         'create thread',
       );
+      final Map<String, dynamic> initialAguiState;
       switch (result) {
         case Ok(:final value):
-          effectiveThread = value;
+          final (threadInfo, aguiState) = value;
+          effectiveThread = threadInfo;
+          initialAguiState = aguiState;
           Loggers.chat.info('Thread created: ${effectiveThread.id}');
         case Err():
           return;
+      }
+
+      // Seed the history cache with backend-initialized AG-UI state
+      if (initialAguiState.isNotEmpty) {
+        ref.read(threadHistoryCacheProvider.notifier).updateHistory(
+              effectiveThread.id,
+              ThreadHistory(
+                messages: const [],
+                aguiState: initialAguiState,
+              ),
+            );
       }
 
       // Update selection to the new thread
