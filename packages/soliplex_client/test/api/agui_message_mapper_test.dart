@@ -385,7 +385,7 @@ void main() {
 
         expect(aguiMessages, hasLength(2));
         final assistantMsg = aguiMessages[0] as AssistantMessage;
-        expect(assistantMsg.toolCalls![0].function.arguments, equals(''));
+        expect(assistantMsg.toolCalls![0].function.arguments, equals('{}'));
       });
     });
   });

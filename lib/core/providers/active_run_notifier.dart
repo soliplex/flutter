@@ -488,6 +488,15 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         return tc;
       }).toList(),
     );
+    // Add ToolCallMessage to conversation so convertToAgui produces
+    // AssistantMessage (tool calls) + ToolMessage (results) for the backend.
+    final toolCallMessage = ToolCallMessage.create(
+      id: 'tool_msg_${DateTime.now().millisecondsSinceEpoch}',
+      toolCalls: conversation.toolCalls,
+    );
+    conversation = conversation
+        .withAppendedMessage(toolCallMessage)
+        .copyWith(toolCalls: []);
     state = afterExec.copyWith(conversation: conversation);
 
     // Cancel old subscription and start continuation run
@@ -510,13 +519,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     final threadId = conversation.threadId;
 
     try {
-      Loggers.activeRun.debug(
-        'Creating continuation run: room=$roomId, thread=$threadId',
-      );
+      // Create a new run via the API (like PR #83).
       final api = ref.read(apiProvider);
       final runInfo = await api.createRun(roomId, threadId);
-      if (!ref.mounted) return;
-
       final newRunId = runInfo.id;
       final endpoint = 'rooms/$roomId/agui/$threadId/$newRunId';
 
@@ -532,10 +537,18 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         state: conversation.aguiState,
       );
 
+      // New cancel token for the continuation run (old run's token is stale).
+      final cancelToken = CancelToken();
+
+      // Update conversation status to Running with new run ID
+      final runningConversation =
+          conversation.withStatus(domain.Running(runId: newRunId));
+      state = RunningState(conversation: runningConversation);
+
       final eventStream = _agUiClient.runAgent(
         endpoint,
         input,
-        cancelToken: previousInternal.cancelToken,
+        cancelToken: cancelToken,
       );
 
       final newSubscription = eventStream.listen(
@@ -575,7 +588,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       _internalState = RunningInternalState(
         roomId: roomId,
         runId: newRunId,
-        cancelToken: previousInternal.cancelToken,
+        cancelToken: cancelToken,
         subscription: newSubscription,
         userMessageId: previousInternal.userMessageId,
         previousAguiState: previousInternal.previousAguiState,
