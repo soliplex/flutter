@@ -58,6 +58,16 @@ class RunningInternalState extends NotifierInternalState {
   /// Used to detect new citations via length-based comparison.
   final Map<String, dynamic> previousAguiState;
 
+  /// Completes when the SSE stream closes (onDone fires).
+  /// Used by continuation runs to wait for the backend to finish
+  /// processing Run 1 before creating Run 2.
+  final Completer<void> streamDone = Completer<void>();
+
+  /// Whether tool execution is in progress. When true, the onDone
+  /// handler skips the CompletedState transition (the continuation
+  /// run will handle it).
+  bool toolExecutionPending = false;
+
   /// Disposes of all resources.
   Future<void> dispose() async {
     cancelToken.cancel();
@@ -231,8 +241,17 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           _handleRunFailure(error, effectiveStack);
         },
         onDone: () {
-          // If stream ends without RUN_FINISHED or RUN_ERROR,
-          // mark as finished
+          final internal = _internalState;
+          if (internal is RunningInternalState) {
+            // Signal that the SSE stream has closed.
+            if (!internal.streamDone.isCompleted) {
+              internal.streamDone.complete();
+            }
+            // If tool execution is pending, skip CompletedState transition.
+            // The continuation run will handle state transitions.
+            if (internal.toolExecutionPending) return;
+          }
+          // Normal completion — mark as finished.
           final currentState = state;
           if (currentState is RunningState) {
             final completed = CompletedState(
@@ -426,6 +445,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     final internal = _internalState;
     if (internal is! RunningInternalState) return;
 
+    // Mark tool execution pending so onDone skips CompletedState.
+    internal.toolExecutionPending = true;
+
     // Safety 3: Pause subscription before any async work.
     internal.subscription.pause();
     Loggers.activeRun.debug('Stream paused for tool execution');
@@ -499,10 +521,27 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         .copyWith(toolCalls: []);
     state = afterExec.copyWith(conversation: conversation);
 
-    // Cancel old subscription and start continuation run
-    Loggers.activeRun.debug('Cancelling Run 1 subscription');
+    // Resume subscription so remaining events (RUN_FINISHED) are delivered
+    // and the stream closes naturally. The backend's on_done handler saves
+    // events and marks the run as finished only when the connection closes.
+    Loggers.activeRun.debug('Resuming stream to drain Run 1');
+    internal.subscription.resume();
+
+    // Wait for the stream to close (onDone fires). This ensures the backend
+    // has processed the connection close and marked Run 1 as finished before
+    // we create Run 2.
+    await internal.streamDone.future.timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        Loggers.activeRun.warning('Run 1 stream did not close within 10s');
+      },
+    );
     await internal.subscription.cancel();
     if (!ref.mounted) return;
+
+    // Safety 4: If cancelRun() or reset() replaced _internalState during
+    // the stream drain, another owner took over. Do not start Run 2.
+    if (_internalState != internal) return;
 
     await _continueWithToolResults(internal, conversation);
   }
@@ -527,6 +566,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       // Convert all messages (including tool results) to AG-UI format
       final aguiMessages = convertToAgui(conversation.messages);
+
+      final msgSummary = aguiMessages.map((m) {
+        final suffix = m is ToolMessage ? '(${m.toolCallId})' : '';
+        return '${m.role.value}$suffix';
+      }).join(', ');
+      Loggers.activeRun.debug(
+        'Continuation messages (${aguiMessages.length}): $msgSummary',
+      );
 
       final toolDefs = _toolRegistry.toolDefinitions;
       final input = SimpleRunAgentInput(
@@ -554,6 +601,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final newSubscription = eventStream.listen(
         _processEvent,
         onError: (Object error, StackTrace stackTrace) {
+          Loggers.activeRun.error(
+            'Continuation stream error: $error',
+          );
           final effectiveStack = stackTrace.toString().isNotEmpty
               ? stackTrace
               : StackTrace.current;
@@ -596,7 +646,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     } catch (e, st) {
       // Continuation run failed (network error, server down).
       Loggers.activeRun.error(
-        'Continuation run failed',
+        'Continuation run failed: $e',
         error: e,
         stackTrace: st,
       );
