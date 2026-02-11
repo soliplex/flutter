@@ -511,6 +511,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final api = ref.read(apiProvider);
       final runInfo = await api.createRun(roomId, threadId);
       final newRunId = runInfo.id;
+      Loggers.activeRun.debug(
+        'Continuation run $newRunId created for thread $threadId',
+      );
 
       // Convert all messages (including tool results) to AG-UI format
       final aguiMessages = convertToAgui(conversation.messages);
