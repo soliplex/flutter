@@ -539,6 +539,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     await internal.subscription.cancel();
     if (!ref.mounted) return;
 
+    // Safety 4: If cancelRun() or reset() replaced _internalState during
+    // the stream drain, another owner took over. Do not start Run 2.
+    if (_internalState != internal) return;
+
     await _continueWithToolResults(internal, conversation);
   }
 

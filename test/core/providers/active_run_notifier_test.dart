@@ -2191,5 +2191,71 @@ void main() {
       expect(cache['thread-1'], isNotNull);
       expect(cache['thread-1']!.messages, isNotEmpty);
     });
+
+    test('cancelRun during tool execution prevents continuation run', () async {
+      // Use a slow tool so we can cancel during execution.
+      final toolCompleter = Completer<String>();
+      final slowRegistry = const ToolRegistry().register(
+        ClientTool(
+          definition: const Tool(
+            name: 'get_secret',
+            description: 'Returns a secret.',
+            parameters: {
+              'type': 'object',
+              'properties': <String, dynamic>{},
+            },
+          ),
+          executor: (_) => toolCompleter.future,
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(slowRegistry),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Call the tool',
+          );
+
+      // Trigger tool execution
+      run1Controller
+        ..add(
+          const ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'get_secret',
+          ),
+        )
+        ..add(const ToolCallArgsEvent(toolCallId: 'tc-1', delta: '{}'))
+        ..add(const ToolCallEndEvent(toolCallId: 'tc-1'));
+      await Future<void>.delayed(Duration.zero);
+
+      // Tool is executing — cancel the run.
+      await container.read(activeRunNotifierProvider.notifier).cancelRun();
+
+      // Let the tool complete (the future resolves after cancel).
+      toolCompleter.complete('42');
+      await run1Controller.close();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // State should stay CancelledResult, NOT revert to RunningState.
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<CompletedState>());
+      expect(
+        (state as CompletedState).result,
+        isA<CancelledResult>(),
+        reason:
+            'cancelRun during tool execution must not be overridden by Run 2',
+      );
+
+      // Only one runAgent call (no continuation run started).
+      expect(runAgentCallCount, 1);
+    });
   });
 }
