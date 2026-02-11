@@ -57,6 +57,60 @@ void main() {
       expect(find.byType(MarkdownBody), findsOneWidget);
     });
 
+    testWidgets('sanitizes <br> tags to newlines', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: 'line one<br>line two',
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.data, 'line one\nline two');
+    });
+
+    testWidgets('sanitizes <br /> tags to newlines', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: 'line one<br />line two',
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.data, 'line one\nline two');
+    });
+
+    testWidgets('sanitizes <br/> tags to newlines', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: 'line one<br/>line two',
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.data, 'line one\nline two');
+    });
+
+    testWidgets('passes through content without HTML unchanged', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: 'no html here',
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.data, 'no html here');
+    });
+
     testWidgets('uses styles from MarkdownThemeExtension', (
       tester,
     ) async {
