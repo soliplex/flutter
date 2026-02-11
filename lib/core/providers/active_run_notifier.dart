@@ -197,9 +197,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Set running state
       state = RunningState(conversation: conversation);
 
-      // Step 2: Build the streaming endpoint URL with backend run_id
-      final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
-
       // Convert all messages to AG-UI format for backend
       final aguiMessages = convertToAgui(allMessages);
 
@@ -222,64 +219,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         state: mergedState,
       );
 
-      // Start streaming
-      final eventStream = _agUiClient.runAgent(
-        endpoint,
-        input,
-        cancelToken: cancelToken,
-      );
-
-      // Process events
-      // ignore: cancel_subscriptions - stored in _internalState and cancelled
-      subscription = eventStream.listen(
-        _processEvent,
-        onError: (Object error, StackTrace stackTrace) {
-          // Use provided stackTrace, or capture current if empty.
-          final effectiveStack = stackTrace.toString().isNotEmpty
-              ? stackTrace
-              : StackTrace.current;
-          _handleRunFailure(error, effectiveStack);
-        },
-        onDone: () {
-          final internal = _internalState;
-          if (internal is RunningInternalState) {
-            // Signal that the SSE stream has closed.
-            if (!internal.streamDone.isCompleted) {
-              internal.streamDone.complete();
-            }
-            // If tool execution is pending, skip CompletedState transition.
-            // The continuation run will handle state transitions.
-            if (internal.toolExecutionPending) return;
-          }
-          // Normal completion — mark as finished.
-          final currentState = state;
-          if (currentState is RunningState) {
-            final completed = CompletedState(
-              conversation: currentState.conversation.withStatus(
-                const domain.Completed(),
-              ),
-              result: const Success(),
-            );
-            state = completed;
-            _updateCacheOnCompletion(completed);
-          }
-        },
-        cancelOnError: false,
-      );
-
-      Loggers.activeRun.debug(
-        'Stream subscription established for run $runId',
-      );
-
-      // Store running state with correlation data
-      _internalState = RunningInternalState(
+      // Start streaming and store running state with correlation data.
+      _internalState = _establishRunSubscription(
         roomId: roomId,
         runId: runId,
         cancelToken: cancelToken,
-        subscription: subscription,
+        input: input,
         userMessageId: userMessageObj.id,
         previousAguiState: cachedAguiState,
       );
+      subscription = (_internalState as RunningInternalState).subscription;
     } on CancellationError catch (e, st) {
       // User cancelled - clean up resources
       Loggers.activeRun.info('Run cancelled', error: e, stackTrace: st);
@@ -562,7 +511,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final api = ref.read(apiProvider);
       final runInfo = await api.createRun(roomId, threadId);
       final newRunId = runInfo.id;
-      final endpoint = 'rooms/$roomId/agui/$threadId/$newRunId';
 
       // Convert all messages (including tool results) to AG-UI format
       final aguiMessages = convertToAgui(conversation.messages);
@@ -592,57 +540,23 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           conversation.withStatus(domain.Running(runId: newRunId));
       state = RunningState(conversation: runningConversation);
 
-      final eventStream = _agUiClient.runAgent(
-        endpoint,
-        input,
-        cancelToken: cancelToken,
-      );
-
-      final newSubscription = eventStream.listen(
-        _processEvent,
-        onError: (Object error, StackTrace stackTrace) {
-          Loggers.activeRun.error(
-            'Continuation stream error: $error',
-          );
-          final effectiveStack = stackTrace.toString().isNotEmpty
-              ? stackTrace
-              : StackTrace.current;
-          _handleRunFailure(error, effectiveStack);
-        },
-        onDone: () {
-          final currentState = state;
-          if (currentState is RunningState) {
-            final completed = CompletedState(
-              conversation: currentState.conversation.withStatus(
-                const domain.Completed(),
-              ),
-              result: const Success(),
-            );
-            state = completed;
-            _updateCacheOnCompletion(completed);
-          }
-        },
-        cancelOnError: false,
-      );
-
-      if (!ref.mounted) {
-        await newSubscription.cancel();
-        return;
-      }
-
-      Loggers.activeRun.debug(
-        'Continuation run $newRunId started (tool results)',
-      );
-
       // Swap internal state — public state stays RunningState (Safety 2).
-      _internalState = RunningInternalState(
+      // Uses the shared subscription setup so continuation runs also support
+      // multi-hop tool calling (Run 2 → Run 3).
+      _internalState = _establishRunSubscription(
         roomId: roomId,
         runId: newRunId,
         cancelToken: cancelToken,
-        subscription: newSubscription,
+        input: input,
         userMessageId: previousInternal.userMessageId,
         previousAguiState: previousInternal.previousAguiState,
       );
+
+      if (!ref.mounted) {
+        await (_internalState as RunningInternalState).subscription.cancel();
+        _internalState = const IdleInternalState();
+        return;
+      }
     } catch (e, st) {
       // Continuation run failed (network error, server down).
       Loggers.activeRun.error(
@@ -652,6 +566,73 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
       _handleRunFailure(e, st);
     }
+  }
+
+  /// Creates an event stream subscription and wraps it in a
+  /// [RunningInternalState].
+  ///
+  /// Shared by [startRun] and [_continueWithToolResults] so both use
+  /// the same onDone/onError semantics. In particular, the onDone handler
+  /// supports the stream drain protocol (completes `streamDone`, respects
+  /// `toolExecutionPending`), enabling multi-hop tool calling.
+  RunningInternalState _establishRunSubscription({
+    required String roomId,
+    required String runId,
+    required CancelToken cancelToken,
+    required SimpleRunAgentInput input,
+    required String userMessageId,
+    required Map<String, dynamic> previousAguiState,
+  }) {
+    final endpoint = 'rooms/$roomId/agui/${input.threadId}/$runId';
+    final eventStream = _agUiClient.runAgent(
+      endpoint,
+      input,
+      cancelToken: cancelToken,
+    );
+
+    // ignore: cancel_subscriptions - stored in RunningInternalState
+    final subscription = eventStream.listen(
+      _processEvent,
+      onError: (Object error, StackTrace stackTrace) {
+        final effectiveStack =
+            stackTrace.toString().isNotEmpty ? stackTrace : StackTrace.current;
+        _handleRunFailure(error, effectiveStack);
+      },
+      onDone: () {
+        final internal = _internalState;
+        if (internal is RunningInternalState) {
+          if (!internal.streamDone.isCompleted) {
+            internal.streamDone.complete();
+          }
+          if (internal.toolExecutionPending) return;
+        }
+        final currentState = state;
+        if (currentState is RunningState) {
+          final completed = CompletedState(
+            conversation: currentState.conversation.withStatus(
+              const domain.Completed(),
+            ),
+            result: const Success(),
+          );
+          state = completed;
+          _updateCacheOnCompletion(completed);
+        }
+      },
+      cancelOnError: false,
+    );
+
+    Loggers.activeRun.debug(
+      'Stream subscription established for run $runId',
+    );
+
+    return RunningInternalState(
+      roomId: roomId,
+      runId: runId,
+      cancelToken: cancelToken,
+      subscription: subscription,
+      userMessageId: userMessageId,
+      previousAguiState: previousAguiState,
+    );
   }
 
   /// Logs AG-UI events at appropriate levels.
