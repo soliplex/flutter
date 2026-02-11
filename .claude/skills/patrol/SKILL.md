@@ -150,6 +150,34 @@ patrolTest('description', ($) async {
 });
 ```
 
+### Provider overrides via `extraOverrides`
+
+Both `pumpTestApp` and `pumpAuthenticatedTestApp` accept an optional
+`extraOverrides` parameter to inject additional Riverpod provider overrides
+(e.g., `toolRegistryProvider` for tool calling tests).
+
+**Import rule:** Riverpod 3.x does not export the `Override` type from the
+main barrel file. You must import it from `misc.dart`:
+
+```dart
+import 'package:flutter_riverpod/misc.dart' show Override;
+```
+
+**Usage:**
+
+```dart
+await pumpTestApp(
+  $,
+  harness,
+  extraOverrides: [
+    toolRegistryProvider.overrideWithValue(registry),
+  ],
+);
+```
+
+Overrides are appended after the base set (prefs, sink, config, baseUrl, auth),
+so they can shadow base providers if needed.
+
 ### Widget finders reference
 
 | Target | Finder |
@@ -172,6 +200,10 @@ patrolTest('description', ($) async {
 | `ActiveRun` | `RUN_STARTED` | AG-UI SSE stream opened |
 | `ActiveRun` | `TEXT_START:` | First text chunk received |
 | `ActiveRun` | `RUN_FINISHED` | SSE stream completed |
+| `ActiveRun` | `TOOL_START: <name>` | Model invoked a client-side tool |
+| `ActiveRun` | `TOOL_END` | Tool call args fully received |
+| `ActiveRun` | `Tool completed: <name>` | Client executed tool successfully |
+| `ActiveRun` | `Continuation run` | Second run started with tool results |
 
 ## Debugging: Two-Phase Workflow
 
