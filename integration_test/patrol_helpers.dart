@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:patrol/patrol.dart';
@@ -128,11 +129,13 @@ Future<Authenticated> performRopcExchange({
 /// Pump [SoliplexApp] with no-auth provider overrides.
 ///
 /// Standard set of 5 overrides for Patrol E2E tests running against a
-/// `--no-auth-mode` backend.
+/// `--no-auth-mode` backend. Pass [extraOverrides] to inject additional
+/// provider overrides (e.g., `toolRegistryProvider` for tool calling tests).
 Future<void> pumpTestApp(
   PatrolIntegrationTester $,
-  TestLogHarness harness,
-) async {
+  TestLogHarness harness, {
+  List<Override> extraOverrides = const [],
+}) async {
   await $.pumpWidget(
     ProviderScope(
       overrides: [
@@ -146,6 +149,7 @@ Future<void> pumpTestApp(
         ),
         preloadedBaseUrlProvider.overrideWithValue(backendUrl),
         authProvider.overrideWith(NoAuthNotifier.new),
+        ...extraOverrides,
       ],
       child: const SoliplexApp(),
     ),
@@ -160,6 +164,7 @@ Future<void> pumpAuthenticatedTestApp(
   PatrolIntegrationTester $,
   TestLogHarness harness, {
   required Authenticated tokens,
+  List<Override> extraOverrides = const [],
 }) async {
   await $.pumpWidget(
     ProviderScope(
@@ -174,6 +179,7 @@ Future<void> pumpAuthenticatedTestApp(
         ),
         preloadedBaseUrlProvider.overrideWithValue(backendUrl),
         authProvider.overrideWith(() => PreAuthenticatedNotifier(tokens)),
+        ...extraOverrides,
       ],
       child: const SoliplexApp(),
     ),
