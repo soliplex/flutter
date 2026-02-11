@@ -99,10 +99,29 @@ void main() {
         'Continuation run',
         timeout: const Duration(seconds: 30),
       );
-      await harness.waitForLog(
-        'ActiveRun',
-        'RUN_FINISHED',
+
+      // With the stream drain fix, Run 1's RUN_FINISHED is already in the
+      // buffer. We need to wait for the SECOND RUN_FINISHED (from Run 2).
+      final run1FinishedCount = harness.sink.records
+          .where(
+            (r) =>
+                r.loggerName == 'ActiveRun' &&
+                r.message.contains('RUN_FINISHED'),
+          )
+          .length;
+      await waitForCondition(
+        $.tester,
+        condition: () =>
+            harness.sink.records
+                .where(
+                  (r) =>
+                      r.loggerName == 'ActiveRun' &&
+                      r.message.contains('RUN_FINISHED'),
+                )
+                .length >
+            run1FinishedCount,
         timeout: const Duration(seconds: 60),
+        failureMessage: 'Second RUN_FINISHED (continuation run) not received',
       );
 
       // Pump to let UI update with response.
@@ -149,7 +168,9 @@ void main() {
       harness.dumpLogs(last: 80);
       rethrow;
     } finally {
+      // Always dump logs so we can diagnose continuation run failures.
       harness
+        ..dumpLogs(last: 80)
         ..expectNoErrors()
         ..dispose();
     }
