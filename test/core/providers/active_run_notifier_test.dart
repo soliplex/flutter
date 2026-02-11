@@ -15,6 +15,28 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
 import '../../helpers/test_helpers.dart';
 
+/// Creates a [ProviderContainer] pre-configured for [ActiveRunNotifier] tests.
+///
+/// Every container includes [agUiClientProvider] and [toolRegistryProvider].
+/// Pass [mockApi] to also override [apiProvider] (needed for startRun tests).
+/// Set [withThreadSelection] to include a real [ThreadSelectionNotifier].
+ProviderContainer createNotifierContainer({
+  required MockAgUiClient mockAgUiClient,
+  MockSoliplexApi? mockApi,
+  ToolRegistry toolRegistry = const ToolRegistry(),
+  bool withThreadSelection = false,
+}) {
+  return ProviderContainer(
+    overrides: [
+      agUiClientProvider.overrideWithValue(mockAgUiClient),
+      toolRegistryProvider.overrideWithValue(toolRegistry),
+      if (mockApi != null) apiProvider.overrideWithValue(mockApi),
+      if (withThreadSelection)
+        threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
+    ],
+  );
+}
+
 void main() {
   late MockAgUiClient mockAgUiClient;
   late MockSoliplexApi mockApi;
@@ -33,11 +55,8 @@ void main() {
     late ProviderContainer container;
 
     setUp(() {
-      container = ProviderContainer(
-        overrides: [
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
       );
     });
 
@@ -105,12 +124,9 @@ void main() {
           ),
         ).thenAnswer((_) => eventStreamController.stream);
 
-        final testContainer = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-            agUiClientProvider.overrideWithValue(mockAgUiClient),
-            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          ],
+        final testContainer = createNotifierContainer(
+          mockAgUiClient: mockAgUiClient,
+          mockApi: mockApi,
         );
 
         addTearDown(() {
@@ -188,12 +204,9 @@ void main() {
           ),
         ).thenAnswer((_) => eventStreamController.stream);
 
-        final testContainer = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-            agUiClientProvider.overrideWithValue(mockAgUiClient),
-            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          ],
+        final testContainer = createNotifierContainer(
+          mockAgUiClient: mockAgUiClient,
+          mockApi: mockApi,
         );
 
         addTearDown(() {
@@ -398,12 +411,9 @@ void main() {
         ),
       ).thenAnswer((_) => eventStreamController.stream);
 
-      container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
     });
 
@@ -563,12 +573,9 @@ void main() {
         ),
       ).thenAnswer((_) => eventStreamController.stream);
 
-      container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
     });
 
@@ -649,13 +656,10 @@ void main() {
     });
 
     test('run continues when switching threads', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
+        withThreadSelection: true,
       );
 
       addTearDown(container.dispose);
@@ -690,13 +694,10 @@ void main() {
     });
 
     test('run state preserved when returning to thread', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
+        withThreadSelection: true,
       );
 
       addTearDown(container.dispose);
@@ -737,13 +738,10 @@ void main() {
     });
 
     test('does not reset when selecting the same thread again', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
+        withThreadSelection: true,
       );
 
       addTearDown(container.dispose);
@@ -777,13 +775,10 @@ void main() {
     });
 
     test('does not reset when initially selecting a thread', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
+        withThreadSelection: true,
       );
 
       addTearDown(container.dispose);
@@ -849,12 +844,9 @@ void main() {
     });
 
     test('updates cache when RUN_FINISHED event is received', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -895,12 +887,9 @@ void main() {
     });
 
     test('updates cache when RUN_ERROR event is received', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -972,12 +961,9 @@ void main() {
     });
 
     test('stream onError transitions to Failed state', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1010,12 +996,9 @@ void main() {
     });
 
     test('stream onError updates cache with messages', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1051,12 +1034,9 @@ void main() {
     test(
       'stream onDone without RUN_FINISHED transitions to Completed',
       () async {
-        final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-            agUiClientProvider.overrideWithValue(mockAgUiClient),
-            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          ],
+        final container = createNotifierContainer(
+          mockAgUiClient: mockAgUiClient,
+          mockApi: mockApi,
         );
 
         addTearDown(container.dispose);
@@ -1086,12 +1066,9 @@ void main() {
     );
 
     test('stream onDone updates cache with messages', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1163,12 +1140,9 @@ void main() {
     });
 
     test('ignores events when not in RunningState', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1203,12 +1177,9 @@ void main() {
     });
 
     test('ignores events after RUN_FINISHED completes', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1278,12 +1249,9 @@ void main() {
         ),
       ).thenThrow(const CancellationError('Cancelled'));
 
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1316,12 +1284,9 @@ void main() {
         ),
       ).thenThrow(const CancellationError('Cancelled'));
 
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1349,12 +1314,9 @@ void main() {
         ),
       ).thenThrow(const CancellationError('Cancelled'));
 
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1411,12 +1373,9 @@ void main() {
     });
 
     test('concurrent startRun calls are rejected', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1487,12 +1446,9 @@ void main() {
     test(
       'includes cached messages in Conversation when starting run',
       () async {
-        final container = ProviderContainer(
-          overrides: [
-            apiProvider.overrideWithValue(mockApi),
-            agUiClientProvider.overrideWithValue(mockAgUiClient),
-            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-          ],
+        final container = createNotifierContainer(
+          mockAgUiClient: mockAgUiClient,
+          mockApi: mockApi,
         );
 
         addTearDown(container.dispose);
@@ -1532,12 +1488,9 @@ void main() {
     );
 
     test('sends complete history to backend in AG-UI format', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1588,12 +1541,9 @@ void main() {
     });
 
     test('preserves messages from multiple runs in sequence', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
@@ -1649,12 +1599,9 @@ void main() {
     });
 
     test('sends accumulated AG-UI state merged with initial state', () async {
-      final container = ProviderContainer(
-        overrides: [
-          apiProvider.overrideWithValue(mockApi),
-          agUiClientProvider.overrideWithValue(mockAgUiClient),
-          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
-        ],
+      final container = createNotifierContainer(
+        mockAgUiClient: mockAgUiClient,
+        mockApi: mockApi,
       );
 
       addTearDown(container.dispose);
