@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -214,7 +214,7 @@ void main() {
         );
 
         // Assert - should use MarkdownBody for assistant messages
-        expect(find.byType(MarkdownBody), findsOneWidget);
+        expect(find.byType(FlutterMarkdownPlusRenderer), findsOneWidget);
       });
 
       testWidgets('does not render markdown for user messages', (tester) async {
@@ -231,7 +231,7 @@ void main() {
         );
 
         // Assert - should use Text for user messages, not MarkdownBody
-        expect(find.byType(MarkdownBody), findsNothing);
+        expect(find.byType(FlutterMarkdownPlusRenderer), findsNothing);
         expect(find.text('**bold** and *italic* text'), findsOneWidget);
       });
 
@@ -252,7 +252,7 @@ void main() {
         );
 
         // Assert - MarkdownBody should render code blocks
-        expect(find.byType(MarkdownBody), findsOneWidget);
+        expect(find.byType(FlutterMarkdownPlusRenderer), findsOneWidget);
         // The code block should be rendered (implementation detail - just
         // verify it doesn't crash)
         await tester.pumpAndSettle();
