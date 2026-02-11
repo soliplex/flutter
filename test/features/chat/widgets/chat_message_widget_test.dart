@@ -255,6 +255,26 @@ void main() {
         expect(renderer.onLinkTap, isNotNull);
       });
 
+      testWidgets('provides image tap handler to markdown renderer', (
+        tester,
+      ) async {
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: '![photo](https://example.com/img.png)',
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        final renderer = tester.widget<FlutterMarkdownPlusRenderer>(
+          find.byType(FlutterMarkdownPlusRenderer),
+        );
+        expect(renderer.onImageTap, isNotNull);
+      });
+
       testWidgets('renders code blocks with syntax highlighting', (
         tester,
       ) async {

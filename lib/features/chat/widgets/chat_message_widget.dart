@@ -9,6 +9,7 @@ import 'package:soliplex_client/soliplex_client.dart'
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
+import 'package:soliplex_frontend/shared/widgets/fullscreen_image_viewer.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
 import 'package:url_launcher/url_launcher.dart';
@@ -118,6 +119,11 @@ class ChatMessageWidget extends StatelessWidget {
                       FlutterMarkdownPlusRenderer(
                         data: text,
                         onLinkTap: _openLink,
+                        onImageTap: (src, alt) => _openImage(
+                          context,
+                          src,
+                          alt,
+                        ),
                       ),
                     // Only show streaming indicator when there's actual text
                     // being streamed. When text is empty, the status indicator
@@ -245,6 +251,14 @@ class ChatMessageWidget extends StatelessWidget {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  void _openImage(BuildContext context, String src, String? alt) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FullscreenImageViewer(imageUrl: src, altText: alt),
+      ),
+    );
   }
 
   Future<void> _copyToClipboard(BuildContext context, String text) async {
