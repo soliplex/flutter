@@ -5,6 +5,7 @@ import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/code_block_builder.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/markdown_renderer.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/markdown_theme_extension.dart';
 
 /// Renders markdown using `flutter_markdown_plus`.
 ///
@@ -21,26 +22,17 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final soliplexTheme = SoliplexTheme.of(context);
+    final markdownTheme = Theme.of(context).extension<MarkdownThemeExtension>();
+    final monoStyle = context.monospace;
 
     return MarkdownBody(
       data: data,
-      styleSheet: MarkdownStyleSheet(
-        p: theme.textTheme.bodyLarge?.copyWith(
-          color: theme.colorScheme.onSurface,
-        ),
-        code: context.monospace.copyWith(
-          backgroundColor: theme.colorScheme.surfaceContainerHigh,
-        ),
-        codeblockDecoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(soliplexTheme.radii.sm),
-        ),
+      styleSheet: markdownTheme?.toMarkdownStyleSheet(
+        codeFontStyle: monoStyle,
       ),
       builders: {
         'code': CodeBlockBuilder(
-          preferredStyle: context.monospace.copyWith(fontSize: 14),
+          preferredStyle: monoStyle.copyWith(fontSize: 14),
         ),
       },
     );
