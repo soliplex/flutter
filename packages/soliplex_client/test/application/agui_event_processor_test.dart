@@ -209,7 +209,7 @@ void main() {
     });
 
     group('tool call events', () {
-      test('ToolCallStartEvent adds tool call to conversation', () {
+      test('ToolCallStartEvent adds tool call with streaming status', () {
         const event = ToolCallStartEvent(
           toolCallId: 'tool-1',
           toolCallName: 'search',
@@ -220,15 +220,60 @@ void main() {
         expect(result.conversation.toolCalls, hasLength(1));
         expect(result.conversation.toolCalls.first.id, equals('tool-1'));
         expect(result.conversation.toolCalls.first.name, equals('search'));
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.streaming),
+        );
       });
 
-      test('ToolCallEndEvent removes tool call from active list', () {
+      test('ToolCallEndEvent marks tool call as pending', () {
         final conversationWithTool = conversation.withToolCall(
-          const ToolCallInfo(id: 'tool-1', name: 'search'),
+          const ToolCallInfo(
+            id: 'tool-1',
+            name: 'search',
+            status: ToolCallStatus.streaming,
+          ),
         );
         const event = ToolCallEndEvent(toolCallId: 'tool-1');
 
         final result = processEvent(conversationWithTool, streaming, event);
+
+        expect(result.conversation.toolCalls, hasLength(1));
+        expect(
+          result.conversation.toolCalls.first.status,
+          equals(ToolCallStatus.pending),
+        );
+      });
+
+      test('ToolCallArgsEvent accumulates argument delta', () {
+        final conversationWithTool = conversation.withToolCall(
+          const ToolCallInfo(
+            id: 'tool-1',
+            name: 'search',
+            arguments: '{"query":',
+            status: ToolCallStatus.streaming,
+          ),
+        );
+        const event = ToolCallArgsEvent(
+          toolCallId: 'tool-1',
+          delta: ' "hello"}',
+        );
+
+        final result = processEvent(conversationWithTool, streaming, event);
+
+        expect(
+          result.conversation.toolCalls.first.arguments,
+          equals('{"query": "hello"}'),
+        );
+      });
+
+      test('ToolCallArgsEvent for unknown id is ignored', () {
+        const event = ToolCallArgsEvent(
+          toolCallId: 'unknown-id',
+          delta: 'data',
+        );
+
+        final result = processEvent(conversation, streaming, event);
 
         expect(result.conversation.toolCalls, isEmpty);
       });
@@ -262,7 +307,11 @@ void main() {
           currentActivity: app_streaming.ToolCallActivity(toolName: 'search'),
         );
         final conversationWithTool = conversation.withToolCall(
-          const ToolCallInfo(id: 'tc-1', name: 'search'),
+          const ToolCallInfo(
+            id: 'tc-1',
+            name: 'search',
+            status: ToolCallStatus.streaming,
+          ),
         );
         const event = ToolCallEndEvent(toolCallId: 'tc-1');
 

@@ -37,6 +37,8 @@ The shared `ToolRegistry` provider is already safe for concurrent use
 4. Scope `AgUiClient` — currently singleton, may need per-server instances if
    hitting different backends
 5. Ensure tool executors are safe for concurrent use (document this contract)
+6. If `roomId` can be duplicated across servers, the family key becomes
+   `(serverBaseUrl, roomId, threadId)` or uses an opaque server ID
 
 The tool calling infrastructure from this PR carries forward unchanged.
 

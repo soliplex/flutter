@@ -164,6 +164,61 @@ void main() {
         expect(aguiMessages, hasLength(1));
         expect(aguiMessages[0], isA<AssistantMessage>());
       });
+
+      test('includes ToolMessage for failed tool calls with error content', () {
+        final chatMessages = [
+          ToolCallMessage(
+            id: 'msg-5',
+            createdAt: DateTime.now(),
+            toolCalls: const [
+              ToolCallInfo(
+                id: 'tc-1',
+                name: 'search',
+                arguments: '{"query": "test"}',
+                status: ToolCallStatus.failed,
+                result: 'Error: connection timeout',
+              ),
+            ],
+          ),
+        ];
+
+        final aguiMessages = convertToAgui(chatMessages);
+
+        expect(aguiMessages, hasLength(2));
+        expect(aguiMessages[0], isA<AssistantMessage>());
+        expect(aguiMessages[1], isA<ToolMessage>());
+
+        final toolMsg = aguiMessages[1] as ToolMessage;
+        expect(toolMsg.toolCallId, equals('tc-1'));
+        expect(toolMsg.content, equals('Error: connection timeout'));
+      });
+
+      test('skips ToolMessage for streaming and executing tool calls', () {
+        final chatMessages = [
+          ToolCallMessage(
+            id: 'msg-6',
+            createdAt: DateTime.now(),
+            toolCalls: const [
+              ToolCallInfo(
+                id: 'tc-1',
+                name: 'search',
+                status: ToolCallStatus.streaming,
+              ),
+              ToolCallInfo(
+                id: 'tc-2',
+                name: 'calculate',
+                status: ToolCallStatus.executing,
+              ),
+            ],
+          ),
+        ];
+
+        final aguiMessages = convertToAgui(chatMessages);
+
+        // Only AssistantMessage, no ToolMessages for streaming/executing
+        expect(aguiMessages, hasLength(1));
+        expect(aguiMessages[0], isA<AssistantMessage>());
+      });
     });
 
     group('GenUiMessage conversion', () {

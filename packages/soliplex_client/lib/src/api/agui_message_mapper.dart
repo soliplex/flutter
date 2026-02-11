@@ -66,9 +66,12 @@ List<Message> _convertToolCallMessage(ToolCallMessage message) {
 
   result.add(AssistantMessage(id: message.id, toolCalls: toolCalls));
 
-  // Add ToolMessage for each completed tool call
+  // Add ToolMessage for each completed or failed tool call.
+  // Failed tool calls send their error to the model so it can respond.
   for (final tc in message.toolCalls) {
     if (tc.status == ToolCallStatus.completed) {
+      result.add(ToolMessage(toolCallId: tc.id, content: tc.result));
+    } else if (tc.status == ToolCallStatus.failed) {
       result.add(ToolMessage(toolCallId: tc.id, content: tc.result));
     }
   }

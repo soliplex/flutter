@@ -29,12 +29,17 @@ class IdleInternalState extends NotifierInternalState {
 /// Not marked as @immutable because it holds mutable StreamSubscription.
 class RunningInternalState extends NotifierInternalState {
   RunningInternalState({
+    required this.roomId,
     required this.runId,
     required this.cancelToken,
     required this.subscription,
     required this.userMessageId,
     required this.previousAguiState,
   });
+
+  /// The room this run belongs to. Needed for continuation runs
+  /// (tool result submission).
+  final String roomId;
 
   /// The ID of the active run.
   final String runId;
@@ -79,12 +84,14 @@ class RunningInternalState extends NotifierInternalState {
 /// ```
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
+  late ToolRegistry _toolRegistry;
   NotifierInternalState _internalState = const IdleInternalState();
   bool _isStarting = false;
 
   @override
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
+    _toolRegistry = ref.watch(toolRegistryProvider);
 
     ref.onDispose(() {
       if (_internalState is RunningInternalState) {
@@ -194,11 +201,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ...?initialState,
       };
 
-      // Create the input for the run
+      // Create the input for the run.
+      // Include client-side tool definitions so the model knows they exist.
+      final toolDefs = _toolRegistry.toolDefinitions;
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
+        tools: toolDefs.isNotEmpty ? toolDefs : null,
         state: mergedState,
       );
 
@@ -244,6 +254,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       // Store running state with correlation data
       _internalState = RunningInternalState(
+        roomId: roomId,
         runId: runId,
         cancelToken: cancelToken,
         subscription: subscription,
@@ -383,8 +394,199 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       // Map result to frontend state
-      state = _mapResultToState(currentState, result);
+      final newState = _mapResultToState(currentState, result);
+      state = newState;
+
+      // After a ToolCallEnd, check if all tool calls are pending (ready).
+      // If so, execute them and continue with a new run.
+      if (event is ToolCallEndEvent &&
+          newState is RunningState &&
+          !_toolRegistry.isEmpty) {
+        final pendingCalls = newState.conversation.toolCalls
+            .where((tc) => tc.status == ToolCallStatus.pending)
+            .toList();
+        final streamingCalls = newState.conversation.toolCalls
+            .where((tc) => tc.status == ToolCallStatus.streaming)
+            .toList();
+        if (pendingCalls.isNotEmpty && streamingCalls.isEmpty) {
+          _executeToolsAndContinue(pendingCalls);
+        }
+      }
     } catch (e, st) {
+      _handleRunFailure(e, st);
+    }
+  }
+
+  /// Executes all pending tool calls and continues with a new run.
+  ///
+  /// Safety: pauses the stream subscription first (no late events), checks
+  /// `ref.mounted` after each await (user may navigate away), and never emits
+  /// a non-Running public state during the transition.
+  Future<void> _executeToolsAndContinue(List<ToolCallInfo> pendingCalls) async {
+    final internal = _internalState;
+    if (internal is! RunningInternalState) return;
+
+    // Safety 3: Pause subscription before any async work.
+    internal.subscription.pause();
+    Loggers.activeRun.debug('Stream paused for tool execution');
+
+    Loggers.activeRun.debug(
+      'Executing ${pendingCalls.length} tool call(s): '
+      '${pendingCalls.map((tc) => tc.name).join(", ")}',
+    );
+
+    // Mark all pending calls as executing
+    final currentState = state;
+    if (currentState is! RunningState) return;
+
+    var conversation = currentState.conversation;
+    conversation = conversation.copyWith(
+      toolCalls: conversation.toolCalls
+          .map(
+            (tc) => pendingCalls.any((p) => p.id == tc.id)
+                ? tc.copyWith(status: ToolCallStatus.executing)
+                : tc,
+          )
+          .toList(),
+    );
+    state = currentState.copyWith(conversation: conversation);
+
+    // Execute each tool with per-tool error isolation
+    final results = <(String, String, ToolCallStatus)>[];
+    await Future.wait(
+      pendingCalls.map((tc) async {
+        Loggers.activeRun.debug('Tool executing: ${tc.name} (${tc.id})');
+        try {
+          final result = await _toolRegistry.execute(tc);
+          Loggers.activeRun.debug('Tool completed: ${tc.name} (${tc.id})');
+          results.add((tc.id, result, ToolCallStatus.completed));
+        } catch (e) {
+          Loggers.activeRun.warning(
+            'Tool failed: ${tc.name} (${tc.id})',
+            error: e,
+          );
+          results.add((tc.id, 'Error: $e', ToolCallStatus.failed));
+        }
+      }),
+    );
+
+    // Safety 1: User may have navigated away during execution.
+    if (!ref.mounted) return;
+
+    // Mark each call completed/failed and update conversation
+    final afterExec = state;
+    if (afterExec is! RunningState) return;
+
+    conversation = afterExec.conversation;
+    final resultMap = {for (final r in results) r.$1: r};
+    conversation = conversation.copyWith(
+      toolCalls: conversation.toolCalls.map((tc) {
+        final result = resultMap[tc.id];
+        if (result != null) {
+          return tc.copyWith(status: result.$3, result: result.$2);
+        }
+        return tc;
+      }).toList(),
+    );
+    state = afterExec.copyWith(conversation: conversation);
+
+    // Cancel old subscription and start continuation run
+    Loggers.activeRun.debug('Cancelling Run 1 subscription');
+    await internal.subscription.cancel();
+    if (!ref.mounted) return;
+
+    await _continueWithToolResults(internal, conversation);
+  }
+
+  /// Creates a continuation run (Run 2) with tool results in messages.
+  ///
+  /// The public state stays [RunningState] throughout — the UI sees
+  /// uninterrupted "running".
+  Future<void> _continueWithToolResults(
+    RunningInternalState previousInternal,
+    domain.Conversation conversation,
+  ) async {
+    final roomId = previousInternal.roomId;
+    final threadId = conversation.threadId;
+
+    try {
+      Loggers.activeRun.debug(
+        'Creating continuation run: room=$roomId, thread=$threadId',
+      );
+      final api = ref.read(apiProvider);
+      final runInfo = await api.createRun(roomId, threadId);
+      if (!ref.mounted) return;
+
+      final newRunId = runInfo.id;
+      final endpoint = 'rooms/$roomId/agui/$threadId/$newRunId';
+
+      // Convert all messages (including tool results) to AG-UI format
+      final aguiMessages = convertToAgui(conversation.messages);
+
+      final toolDefs = _toolRegistry.toolDefinitions;
+      final input = SimpleRunAgentInput(
+        threadId: threadId,
+        runId: newRunId,
+        messages: aguiMessages,
+        tools: toolDefs.isNotEmpty ? toolDefs : null,
+        state: conversation.aguiState,
+      );
+
+      final eventStream = _agUiClient.runAgent(
+        endpoint,
+        input,
+        cancelToken: previousInternal.cancelToken,
+      );
+
+      final newSubscription = eventStream.listen(
+        _processEvent,
+        onError: (Object error, StackTrace stackTrace) {
+          final effectiveStack = stackTrace.toString().isNotEmpty
+              ? stackTrace
+              : StackTrace.current;
+          _handleRunFailure(error, effectiveStack);
+        },
+        onDone: () {
+          final currentState = state;
+          if (currentState is RunningState) {
+            final completed = CompletedState(
+              conversation: currentState.conversation.withStatus(
+                const domain.Completed(),
+              ),
+              result: const Success(),
+            );
+            state = completed;
+            _updateCacheOnCompletion(completed);
+          }
+        },
+        cancelOnError: false,
+      );
+
+      if (!ref.mounted) {
+        await newSubscription.cancel();
+        return;
+      }
+
+      Loggers.activeRun.debug(
+        'Continuation run $newRunId started (tool results)',
+      );
+
+      // Swap internal state — public state stays RunningState (Safety 2).
+      _internalState = RunningInternalState(
+        roomId: roomId,
+        runId: newRunId,
+        cancelToken: previousInternal.cancelToken,
+        subscription: newSubscription,
+        userMessageId: previousInternal.userMessageId,
+        previousAguiState: previousInternal.previousAguiState,
+      );
+    } catch (e, st) {
+      // Continuation run failed (network error, server down).
+      Loggers.activeRun.error(
+        'Continuation run failed',
+        error: e,
+        stackTrace: st,
+      );
       _handleRunFailure(e, st);
     }
   }

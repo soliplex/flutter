@@ -94,16 +94,27 @@ EventProcessingResult processEvent(
         };
         return EventProcessingResult(
           conversation: conversation.withToolCall(
-            ToolCallInfo(id: toolCallId, name: toolCallName),
+            ToolCallInfo(
+              id: toolCallId,
+              name: toolCallName,
+              status: ToolCallStatus.streaming,
+            ),
           ),
           streaming: newStreaming,
         );
       }(),
+    ToolCallArgsEvent(:final toolCallId, :final delta) =>
+      _processToolCallArgs(conversation, streaming, toolCallId, delta),
     ToolCallEndEvent(:final toolCallId) => EventProcessingResult(
-        // Don't change activity - it persists until next activity starts
+        // Don't change activity - it persists until next activity starts.
+        // Mark tool call as pending (ready to execute) instead of removing it.
         conversation: conversation.copyWith(
           toolCalls: conversation.toolCalls
-              .where((tc) => tc.id != toolCallId)
+              .map(
+                (tc) => tc.id == toolCallId
+                    ? tc.copyWith(status: ToolCallStatus.pending)
+                    : tc,
+              )
               .toList(),
         ),
         streaming: streaming,
@@ -285,6 +296,36 @@ ChatUser _mapRoleToChatUser(TextMessageRole role) {
     TextMessageRole.system => ChatUser.system,
     TextMessageRole.developer => ChatUser.system,
   };
+}
+
+// Tool call argument accumulation
+
+EventProcessingResult _processToolCallArgs(
+  Conversation conversation,
+  StreamingState streaming,
+  String toolCallId,
+  String delta,
+) {
+  final index = conversation.toolCalls.indexWhere((tc) => tc.id == toolCallId);
+  if (index == -1) {
+    // Out-of-order ToolCallArgs for an unknown id — protocol violation.
+    // Log + ignore rather than crashing the client.
+    return EventProcessingResult(
+      conversation: conversation,
+      streaming: streaming,
+    );
+  }
+
+  final updated = conversation.toolCalls[index].copyWith(
+    arguments: conversation.toolCalls[index].arguments + delta,
+  );
+  final newToolCalls = [...conversation.toolCalls];
+  newToolCalls[index] = updated;
+
+  return EventProcessingResult(
+    conversation: conversation.copyWith(toolCalls: newToolCalls),
+    streaming: streaming,
+  );
 }
 
 // State events - apply JSON Patch

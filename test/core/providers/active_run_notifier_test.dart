@@ -36,6 +36,7 @@ void main() {
       container = ProviderContainer(
         overrides: [
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
     });
@@ -108,6 +109,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           ],
         );
 
@@ -190,6 +192,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           ],
         );
 
@@ -346,6 +349,7 @@ void main() {
       final controller = StreamController<BaseEvent>();
 
       final state = RunningInternalState(
+        roomId: 'test-room',
         runId: 'test-run-id',
         cancelToken: cancelToken,
         subscription: controller.stream.listen((_) {}),
@@ -398,6 +402,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
     });
@@ -562,6 +567,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
     });
@@ -647,6 +653,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -687,6 +694,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -733,6 +741,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -772,6 +781,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           threadSelectionProvider.overrideWith(ThreadSelectionNotifier.new),
         ],
       );
@@ -843,6 +853,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -888,6 +899,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -964,6 +976,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1001,6 +1014,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1041,6 +1055,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           ],
         );
 
@@ -1075,6 +1090,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1151,6 +1167,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1190,6 +1207,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1264,6 +1282,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1301,6 +1320,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1333,6 +1353,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1394,6 +1415,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1469,6 +1491,7 @@ void main() {
           overrides: [
             apiProvider.overrideWithValue(mockApi),
             agUiClientProvider.overrideWithValue(mockAgUiClient),
+            toolRegistryProvider.overrideWithValue(const ToolRegistry()),
           ],
         );
 
@@ -1513,6 +1536,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1568,6 +1592,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 
@@ -1628,6 +1653,7 @@ void main() {
         overrides: [
           apiProvider.overrideWithValue(mockApi),
           agUiClientProvider.overrideWithValue(mockAgUiClient),
+          toolRegistryProvider.overrideWithValue(const ToolRegistry()),
         ],
       );
 

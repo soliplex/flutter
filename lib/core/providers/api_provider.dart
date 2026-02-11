@@ -178,6 +178,15 @@ final apiProvider = Provider<SoliplexApi>((ref) {
   );
 });
 
+/// Provider for the client-side tool registry.
+///
+/// Starts empty. Concrete tools are registered in follow-up PRs (e.g.
+/// patrol_run_tool). The registry is immutable and safe for concurrent use
+/// across notifier instances (current singleton or future multiplexed family).
+final toolRegistryProvider = Provider<ToolRegistry>((ref) {
+  return const ToolRegistry();
+});
+
 /// Provider for the Soliplex HTTP client.
 ///
 /// Returns the shared [authenticatedClientProvider] to ensure all HTTP activity
