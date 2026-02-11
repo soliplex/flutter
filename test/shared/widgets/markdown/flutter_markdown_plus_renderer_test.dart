@@ -1,7 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/markdown_renderer.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/markdown_theme_extension.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -53,6 +55,33 @@ void main() {
 
       await tester.pumpAndSettle();
       expect(find.byType(MarkdownBody), findsOneWidget);
+    });
+
+    testWidgets('uses styles from MarkdownThemeExtension', (
+      tester,
+    ) async {
+      final theme = testThemeData.copyWith(
+        extensions: [
+          ...testThemeData.extensions.values,
+          const MarkdownThemeExtension(
+            code: TextStyle(backgroundColor: Colors.red),
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: const Scaffold(
+            body: FlutterMarkdownPlusRenderer(data: 'Hello'),
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(
+        find.byType(MarkdownBody),
+      );
+      expect(body.styleSheet?.code?.backgroundColor, Colors.red);
     });
   });
 }

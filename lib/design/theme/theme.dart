@@ -5,6 +5,7 @@ import 'package:soliplex_frontend/design/tokens/colors.dart';
 import 'package:soliplex_frontend/design/tokens/radii.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/design/tokens/typography.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/markdown_theme_extension.dart';
 
 /// Creates a light theme using the provided colors.
 ///
@@ -13,20 +14,21 @@ import 'package:soliplex_frontend/design/tokens/typography.dart';
 /// preserving the theme structure.
 ThemeData soliplexLightTheme({SoliplexColors colors = lightSoliplexColors}) {
   final textTheme = soliplexTextTheme(colors);
+  final colorScheme = ColorScheme(
+    brightness: Brightness.light,
+    primary: colors.primary,
+    onPrimary: colors.onPrimary,
+    secondary: colors.secondary,
+    onSecondary: colors.onSecondary,
+    surface: colors.background,
+    onSurface: colors.foreground,
+    error: colors.destructive,
+    onError: colors.onDestructive,
+  );
 
   return ThemeData(
     brightness: Brightness.light,
-    colorScheme: ColorScheme(
-      brightness: Brightness.light,
-      primary: colors.primary,
-      onPrimary: colors.onPrimary,
-      secondary: colors.secondary,
-      onSecondary: colors.onSecondary,
-      surface: colors.background,
-      onSurface: colors.foreground,
-      error: colors.destructive,
-      onError: colors.onDestructive,
-    ),
+    colorScheme: colorScheme,
     appBarTheme: AppBarTheme(
       backgroundColor: colors.onPrimary,
       foregroundColor: colors.primary,
@@ -192,6 +194,7 @@ ThemeData soliplexLightTheme({SoliplexColors colors = lightSoliplexColors}) {
           ),
         ),
       ),
+      _markdownThemeExtension(colorScheme, textTheme),
     ],
   );
 }
@@ -203,20 +206,21 @@ ThemeData soliplexLightTheme({SoliplexColors colors = lightSoliplexColors}) {
 /// preserving the theme structure.
 ThemeData soliplexDarkTheme({SoliplexColors colors = darkSoliplexColors}) {
   final textTheme = soliplexTextTheme(colors);
+  final colorScheme = ColorScheme(
+    brightness: Brightness.dark,
+    primary: colors.primary,
+    onPrimary: colors.onPrimary,
+    secondary: colors.secondary,
+    onSecondary: colors.onSecondary,
+    surface: colors.background,
+    onSurface: colors.foreground,
+    error: colors.destructive,
+    onError: colors.onDestructive,
+  );
 
   return ThemeData(
     brightness: Brightness.dark,
-    colorScheme: ColorScheme(
-      brightness: Brightness.dark,
-      primary: colors.primary,
-      onPrimary: colors.onPrimary,
-      secondary: colors.secondary,
-      onSecondary: colors.onSecondary,
-      surface: colors.background,
-      onSurface: colors.foreground,
-      error: colors.destructive,
-      onError: colors.onDestructive,
-    ),
+    colorScheme: colorScheme,
     appBarTheme: AppBarTheme(
       backgroundColor: colors.onPrimary,
       foregroundColor: colors.primary,
@@ -382,6 +386,39 @@ ThemeData soliplexDarkTheme({SoliplexColors colors = darkSoliplexColors}) {
           ),
         ),
       ),
+      _markdownThemeExtension(colorScheme, textTheme),
     ],
+  );
+}
+
+MarkdownThemeExtension _markdownThemeExtension(
+  ColorScheme colorScheme,
+  TextTheme textTheme,
+) {
+  return MarkdownThemeExtension(
+    h1: textTheme.titleLarge,
+    h2: textTheme.titleMedium,
+    h3: textTheme.titleSmall,
+    body: textTheme.bodyMedium,
+    code: textTheme.bodyMedium?.copyWith(
+      backgroundColor: colorScheme.surfaceContainerHigh,
+    ),
+    link: TextStyle(
+      color: colorScheme.primary,
+      decoration: TextDecoration.underline,
+      decorationColor: colorScheme.primary,
+    ),
+    codeBlockDecoration: BoxDecoration(
+      color: colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(soliplexRadii.sm),
+    ),
+    blockquoteDecoration: BoxDecoration(
+      border: Border(
+        left: BorderSide(
+          color: colorScheme.outlineVariant,
+          width: 3,
+        ),
+      ),
+    ),
   );
 }
