@@ -111,6 +111,69 @@ void main() {
       expect(body.data, 'no html here');
     });
 
+    testWidgets('wires onLinkTap to MarkdownBody.onTapLink', (
+      tester,
+    ) async {
+      String? tappedHref;
+      String? tappedTitle;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: FlutterMarkdownPlusRenderer(
+            data: '[example](https://example.com)',
+            onLinkTap: (href, title) {
+              tappedHref = href;
+              tappedTitle = title;
+            },
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.onTapLink, isNotNull);
+
+      // Simulate the package callback to verify bridging
+      body.onTapLink!('example', 'https://example.com', '');
+      expect(tappedHref, 'https://example.com');
+      expect(tappedTitle, '');
+    });
+
+    testWidgets('does not set onTapLink when onLinkTap is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: '[example](https://example.com)',
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.onTapLink, isNull);
+    });
+
+    testWidgets('onLinkTap ignores links with null href', (tester) async {
+      String? tappedHref;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: FlutterMarkdownPlusRenderer(
+            data: '[example](https://example.com)',
+            onLinkTap: (href, title) {
+              tappedHref = href;
+            },
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+
+      // Simulate the package calling with null href
+      body.onTapLink!('example', null, '');
+      expect(tappedHref, isNull);
+    });
+
     testWidgets('uses styles from MarkdownThemeExtension', (
       tester,
     ) async {

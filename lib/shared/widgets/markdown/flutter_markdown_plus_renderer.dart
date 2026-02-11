@@ -30,6 +30,11 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
       styleSheet: markdownTheme?.toMarkdownStyleSheet(
         codeFontStyle: monoStyle,
       ),
+      onTapLink: onLinkTap == null
+          ? null
+          : (_, href, title) {
+              if (href != null) onLinkTap!(href, title);
+            },
       builders: {
         'code': CodeBlockBuilder(
           preferredStyle: monoStyle.copyWith(fontSize: 14),
