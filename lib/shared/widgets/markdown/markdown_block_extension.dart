@@ -9,10 +9,16 @@ class MarkdownBlockExtension {
     required this.pattern,
     required this.tag,
     required this.builder,
+    this.endPattern,
   });
 
   /// Pattern to detect this block type in markdown text.
   final RegExp pattern;
+
+  /// Closing pattern for multi-line blocks. When set, the parser
+  /// consumes lines until this pattern matches, collecting them
+  /// as the block content.
+  final RegExp? endPattern;
 
   /// Tag name used to identify this block type.
   final String tag;
