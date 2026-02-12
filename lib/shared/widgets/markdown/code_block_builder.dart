@@ -5,7 +5,42 @@ import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:markdown/markdown.dart' as md;
 
-/// Custom markdown builder for code blocks with syntax highlighting.
+/// Renders inline code as a styled span with background, padding, and
+/// border radius — matching typical markdown renderers (GitHub, VS Code).
+///
+/// Registered for the `'code'` tag. Fenced code blocks are handled by
+/// [CodeBlockBuilder] under the `'pre'` tag.
+///
+/// For fenced code blocks (`pre > code`), this builder also fires for the
+/// inner `code` element, but the returned widget is discarded — the `'pre'`
+/// builder's result takes precedence in flutter_markdown_plus's pipeline.
+class InlineCodeBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        element.textContent,
+        style: preferredStyle,
+      ),
+    );
+  }
+}
+
+/// Custom markdown builder for fenced code blocks with syntax highlighting.
+///
+/// Registered for the `'pre'` tag so that inline code (`<code>`) is handled
+/// separately by [InlineCodeBuilder].
 class CodeBlockBuilder extends MarkdownElementBuilder {
   CodeBlockBuilder({required this.preferredStyle});
 
@@ -14,13 +49,7 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
     final code = element.textContent;
-    var language = 'plaintext';
-
-    // Get language from class attribute (e.g., "language-dart")
-    final className = element.attributes['class'];
-    if (className != null && className.startsWith('language-')) {
-      language = className.replaceFirst('language-', '');
-    }
+    final language = _languageFrom(element);
 
     final semanticLabel =
         language == 'plaintext' ? 'Code block' : 'Code block in $language';
@@ -33,6 +62,24 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
         codeStyle: this.preferredStyle,
       ),
     );
+  }
+
+  /// Extracts the language from the child `code` element's class attribute.
+  ///
+  /// A fenced code block's AST is `pre > code(class="language-xxx") > Text`.
+  static String _languageFrom(md.Element pre) {
+    final children = pre.children;
+    if (children != null) {
+      for (final child in children) {
+        if (child is md.Element && child.tag == 'code') {
+          final className = child.attributes['class'];
+          if (className != null && className.startsWith('language-')) {
+            return className.replaceFirst('language-', '');
+          }
+        }
+      }
+    }
+    return 'plaintext';
   }
 }
 

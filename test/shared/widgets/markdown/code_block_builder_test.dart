@@ -23,6 +23,49 @@ void main() {
         .setMockMethodCallHandler(SystemChannels.platform, null);
   });
 
+  group('inline code', () {
+    testWidgets('does not render copy button for inline code', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: 'Use the `foo` command',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.copy), findsNothing);
+    });
+
+    // Tests visual styling — intentionally coupled to InlineCodeBuilder's
+    // widget structure (DecoratedBox with color + borderRadius). Will need
+    // updating if the builder's widget tree changes.
+    testWidgets('wraps inline code in a decorated container', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: 'Use the `foo` command',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final decoratedBoxes = find.ancestor(
+        of: find.text('foo'),
+        matching: find.byType(DecoratedBox),
+      );
+
+      final hasCodePill = decoratedBoxes.evaluate().any((element) {
+        final box = element.widget as DecoratedBox;
+        final decoration = box.decoration;
+        return decoration is BoxDecoration &&
+            decoration.color != null &&
+            decoration.borderRadius != null;
+      });
+      expect(hasCodePill, isTrue);
+    });
+  });
+
   group('CodeBlockBuilder', () {
     testWidgets('renders copy button on code blocks', (tester) async {
       await tester.pumpWidget(

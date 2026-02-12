@@ -42,7 +42,8 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
         for (final ext in blockExtensions.values) _ExtensionBlockSyntax(ext),
       ],
       builders: {
-        'code': CodeBlockBuilder(
+        'code': InlineCodeBuilder(),
+        'pre': CodeBlockBuilder(
           preferredStyle: monoStyle.copyWith(fontSize: 14),
         ),
         for (final ext in blockExtensions.values)
