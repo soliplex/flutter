@@ -11,6 +11,8 @@ import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 /// Widget that displays a single chat message.
 class ChatMessageWidget extends StatelessWidget {
   const ChatMessageWidget({
@@ -113,7 +115,10 @@ class ChatMessageWidget extends StatelessWidget {
                       // The markdown is rendered as separate widgets,
                       // if you set selectable: true, you'll have to select
                       // each widget separately.
-                      FlutterMarkdownPlusRenderer(data: text),
+                      FlutterMarkdownPlusRenderer(
+                        data: text,
+                        onLinkTap: _openLink,
+                      ),
                     // Only show streaming indicator when there's actual text
                     // being streamed. When text is empty, the status indicator
                     // at the bottom of the list shows what's happening.
@@ -226,6 +231,20 @@ class ChatMessageWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openLink(String href, String? title) async {
+    final uri = Uri.tryParse(href);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on Exception catch (e, stackTrace) {
+      Loggers.ui.error(
+        'Failed to open link: $href',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   Future<void> _copyToClipboard(BuildContext context, String text) async {
