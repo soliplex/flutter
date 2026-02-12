@@ -22,16 +22,19 @@ class InlineCodeBuilder extends MarkdownElementBuilder {
     TextStyle? preferredStyle,
     TextStyle? parentStyle,
   ) {
-    final theme = Theme.of(context);
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHigh,
+        color: Color.alphaBlend(
+          colorScheme.onSurface.withAlpha(30),
+          colorScheme.surface,
+        ),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         element.textContent,
-        style: preferredStyle,
+        style: preferredStyle?.copyWith(backgroundColor: Colors.transparent),
       ),
     );
   }
