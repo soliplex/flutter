@@ -35,11 +35,30 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
           : (_, href, title) {
               if (href != null) onLinkTap!(href, title);
             },
+      imageBuilder: onImageTap == null ? null : _buildImage,
       builders: {
         'code': CodeBlockBuilder(
           preferredStyle: monoStyle.copyWith(fontSize: 14),
         ),
       },
+    );
+  }
+
+  Widget _buildImage(Uri uri, String? title, String? alt) {
+    return GestureDetector(
+      onTap: () => onImageTap!(uri.toString(), alt),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 400),
+        child: Image.network(
+          uri.toString(),
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => const Icon(
+            Icons.broken_image,
+            size: 48,
+            color: Colors.grey,
+          ),
+        ),
+      ),
     );
   }
 
