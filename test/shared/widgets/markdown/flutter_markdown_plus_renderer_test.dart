@@ -174,6 +174,99 @@ void main() {
       expect(tappedHref, isNull);
     });
 
+    testWidgets('sets imageBuilder on MarkdownBody when onImageTap is provided',
+        (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: FlutterMarkdownPlusRenderer(
+            data: '![alt](https://example.com/img.png)',
+            onImageTap: (_, __) {},
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.imageBuilder, isNotNull);
+    });
+
+    testWidgets('does not set imageBuilder when onImageTap is null', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: '![alt](https://example.com/img.png)',
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      expect(body.imageBuilder, isNull);
+    });
+
+    testWidgets('imageBuilder constrains image size', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: FlutterMarkdownPlusRenderer(
+            data: '![photo](https://example.com/img.png)',
+            onImageTap: (_, __) {},
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      final widget = body.imageBuilder!(
+        Uri.parse('https://example.com/img.png'),
+        null,
+        'photo',
+      );
+
+      // Build the widget tree to inspect constraints
+      await tester.pumpWidget(createTestApp(home: widget));
+
+      final finder = find.descendant(
+        of: find.byType(GestureDetector),
+        matching: find.byType(ConstrainedBox),
+      );
+      final box = tester.widget<ConstrainedBox>(finder);
+      expect(box.constraints.maxHeight, 400);
+    });
+
+    testWidgets('imageBuilder forwards tap to onImageTap', (tester) async {
+      String? tappedSrc;
+      String? tappedAlt;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: FlutterMarkdownPlusRenderer(
+            data: '![photo](https://example.com/img.png)',
+            onImageTap: (src, alt) {
+              tappedSrc = src;
+              tappedAlt = alt;
+            },
+          ),
+        ),
+      );
+
+      final body = tester.widget<MarkdownBody>(find.byType(MarkdownBody));
+      final widget = body.imageBuilder!(
+        Uri.parse('https://example.com/img.png'),
+        null,
+        'photo',
+      );
+
+      await tester.pumpWidget(createTestApp(home: widget));
+
+      // Invoke onTap directly — network images don't load in test env so
+      // the widget may have zero size and fail hit testing.
+      final detector = tester.widget<GestureDetector>(
+        find.byType(GestureDetector).first,
+      );
+      detector.onTap!();
+      expect(tappedSrc, 'https://example.com/img.png');
+      expect(tappedAlt, 'photo');
+    });
+
     testWidgets('uses styles from MarkdownThemeExtension', (
       tester,
     ) async {
