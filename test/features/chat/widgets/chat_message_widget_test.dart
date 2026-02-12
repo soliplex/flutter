@@ -235,6 +235,26 @@ void main() {
         expect(find.text('**bold** and *italic* text'), findsOneWidget);
       });
 
+      testWidgets('provides link tap handler to markdown renderer', (
+        tester,
+      ) async {
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: 'Visit [site](https://example.com)',
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        final renderer = tester.widget<FlutterMarkdownPlusRenderer>(
+          find.byType(FlutterMarkdownPlusRenderer),
+        );
+        expect(renderer.onLinkTap, isNotNull);
+      });
+
       testWidgets('renders code blocks with syntax highlighting', (
         tester,
       ) async {
