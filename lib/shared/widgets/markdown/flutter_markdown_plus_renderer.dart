@@ -26,7 +26,7 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
     final monoStyle = context.monospace;
 
     return MarkdownBody(
-      data: data,
+      data: _sanitize(data),
       styleSheet: markdownTheme?.toMarkdownStyleSheet(
         codeFontStyle: monoStyle,
       ),
@@ -37,4 +37,8 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
       },
     );
   }
+
+  static final _brTag = RegExp(r'<br\s*/?>');
+
+  static String _sanitize(String markdown) => markdown.replaceAll(_brTag, '\n');
 }
