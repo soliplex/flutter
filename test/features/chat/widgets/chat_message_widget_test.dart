@@ -213,7 +213,7 @@ void main() {
           ),
         );
 
-        // Assert - should use MarkdownBody for assistant messages
+        // Assert - should use markdown renderer for assistant messages
         expect(find.byType(FlutterMarkdownPlusRenderer), findsOneWidget);
       });
 
@@ -230,7 +230,7 @@ void main() {
           ),
         );
 
-        // Assert - should use Text for user messages, not MarkdownBody
+        // Assert - should use Text for user messages, not markdown renderer
         expect(find.byType(FlutterMarkdownPlusRenderer), findsNothing);
         expect(find.text('**bold** and *italic* text'), findsOneWidget);
       });
