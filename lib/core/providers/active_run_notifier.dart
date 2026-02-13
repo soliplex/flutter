@@ -8,7 +8,9 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
+import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 
 /// Manages the lifecycle of an active AG-UI run.
@@ -47,23 +49,27 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
-    ref.onDispose(() {
-      _registry.dispose().catchError((Object e, StackTrace st) {
-        Loggers.activeRun.error(
-          'Registry disposal error',
-          error: e,
-          stackTrace: st,
-        );
+    // Sync exposed state when the user navigates between rooms/threads.
+    ref
+      ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
+      ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
+      ..onDispose(() {
+        _registry.dispose().catchError((Object e, StackTrace st) {
+          Loggers.activeRun.error(
+            'Registry disposal error',
+            error: e,
+            stackTrace: st,
+          );
+        });
+        _currentHandle?.dispose().catchError((Object e, StackTrace st) {
+          Loggers.activeRun.error(
+            'Handle disposal error',
+            error: e,
+            stackTrace: st,
+          );
+        });
+        _currentHandle = null;
       });
-      _currentHandle?.dispose().catchError((Object e, StackTrace st) {
-        Loggers.activeRun.error(
-          'Handle disposal error',
-          error: e,
-          stackTrace: st,
-        );
-      });
-      _currentHandle = null;
-    });
 
     return const IdleState();
   }
@@ -310,6 +316,31 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           stackTrace: st,
         );
       }
+    }
+  }
+
+  /// Syncs the exposed state with the currently viewed thread.
+  ///
+  /// Called when the user navigates between rooms/threads. Looks up the
+  /// registry for an active run matching the viewed thread and exposes
+  /// its state. If no run exists, resets to idle.
+  void _syncCurrentHandle() {
+    final roomId = ref.read(currentRoomIdProvider);
+    final threadId = ref.read(currentThreadIdProvider);
+
+    if (roomId == null || threadId == null) {
+      _currentHandle = null;
+      state = const IdleState();
+      return;
+    }
+
+    final handle = _registry.getHandle(roomId, threadId);
+    if (handle != null) {
+      _currentHandle = handle;
+      state = handle.state;
+    } else {
+      _currentHandle = null;
+      state = const IdleState();
     }
   }
 
