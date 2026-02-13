@@ -1,6 +1,7 @@
 /// Native HTTP clients for soliplex_client.
 ///
 /// Provides platform-optimized HTTP clients:
+/// - `CronetHttpClient` for Android using Cronet (HTTP/2, HTTP/3, QUIC)
 /// - `CupertinoHttpClient` for iOS and macOS using NSURLSession
 /// - `createPlatformClient` for automatic platform detection
 ///
@@ -14,6 +15,7 @@
 ///
 /// // Or use specific client
 /// final cupertinoClient = CupertinoHttpClient();
+/// final cronetClient = CronetHttpClient();
 /// ```
 library soliplex_client_native;
 
