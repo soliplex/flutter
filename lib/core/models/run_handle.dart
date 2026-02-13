@@ -26,6 +26,8 @@ class RunHandle {
     ActiveRunState? initialState,
   }) : state = initialState ?? const IdleState();
 
+  bool _disposed = false;
+
   /// The room this run belongs to.
   final String roomId;
 
@@ -49,8 +51,11 @@ class RunHandle {
 
   /// Disposes of all resources held by this handle.
   ///
-  /// Cancels the token and subscription. Safe to call multiple times.
+  /// Cancels the token and subscription. Safe to call multiple times —
+  /// subsequent calls are a no-op.
   Future<void> dispose() async {
+    if (_disposed) return;
+    _disposed = true;
     cancelToken.cancel();
     await subscription.cancel();
   }

@@ -224,6 +224,33 @@ void main() {
 
         expect(cancelToken.isCancelled, isTrue);
       });
+
+      test('second dispose does not cancel subscription again', () async {
+        var cancelCount = 0;
+        final broadcastController = StreamController<BaseEvent>.broadcast();
+        final testSubscription = broadcastController.stream.listen((_) {});
+
+        addTearDown(testSubscription.cancel);
+        addTearDown(broadcastController.close);
+
+        broadcastController.onCancel = () {
+          cancelCount++;
+        };
+
+        final handle = RunHandle(
+          roomId: 'room-1',
+          threadId: 'thread-1',
+          cancelToken: cancelToken,
+          subscription: testSubscription,
+        );
+
+        await handle.dispose();
+        expect(cancelCount, 1);
+
+        // Second dispose should be a no-op
+        await handle.dispose();
+        expect(cancelCount, 1);
+      });
     });
 
     group('toString', () {
