@@ -1851,5 +1851,174 @@ void main() {
       final runningState = handle.state as RunningState;
       expect(runningState.isStreaming, isTrue);
     });
+
+    test('stream error sets handle to CompletedState(Failed)', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      final handle = registry.getHandle('room-1', 'thread-1')!;
+
+      eventStreamController.addError(Exception('Network error'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(handle.state, isA<CompletedState>());
+      final completed = handle.state as CompletedState;
+      expect(completed.result, isA<FailedResult>());
+      expect(
+        (completed.result as FailedResult).errorMessage,
+        contains('Network error'),
+      );
+    });
+
+    test('generic exception in startRun transitions to failed state', () async {
+      // Make runAgent throw so the generic catch block fires
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenThrow(Exception('Connection refused'));
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final state = container.read(activeRunNotifierProvider);
+      expect(state, isA<CompletedState>());
+      final completed = state as CompletedState;
+      expect(completed.result, isA<FailedResult>());
+      expect(
+        (completed.result as FailedResult).errorMessage,
+        contains('Connection refused'),
+      );
+    });
+
+    test('CompletedState prevents stale handle updates', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      final handle = registry.getHandle('room-1', 'thread-1')!;
+
+      // Complete the run
+      eventStreamController.add(
+        const RunFinishedEvent(threadId: 'thread-1', runId: 'run-1'),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(handle.state, isA<CompletedState>());
+
+      // Send late events — handle state should remain CompletedState
+      eventStreamController.add(
+        const TextMessageContentEvent(
+          messageId: 'msg-late',
+          delta: 'Stale event',
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(handle.state, isA<CompletedState>());
+    });
+
+    test('onDone without RUN_FINISHED updates handle state', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      final handle = registry.getHandle('room-1', 'thread-1')!;
+
+      // Close stream without sending RUN_FINISHED
+      await eventStreamController.close();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(handle.state, isA<CompletedState>());
+      final completed = handle.state as CompletedState;
+      expect(completed.result, isA<Success>());
+    });
+
+    test('container disposal cleans up registry', () async {
+      final localStreamController = StreamController<BaseEvent>();
+
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => localStreamController.stream);
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+        ],
+      );
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-1',
+            userMessage: 'Hello',
+          );
+
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+      expect(registry.activeRunCount, 1);
+
+      // Dispose container — should not throw
+      container.dispose();
+      await localStreamController.close();
+    });
   });
 }
