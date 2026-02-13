@@ -92,7 +92,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   /// The run registry for this notifier.
   ///
-  /// Exposed for testing and future slices that need registry access.
+  /// Exposed for testing and external access to run tracking state.
   RunRegistry get registry => _registry;
 
   @override
@@ -100,10 +100,24 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     _agUiClient = ref.watch(agUiClientProvider);
 
     ref.onDispose(() {
-      _registry.dispose();
+      _registry.dispose().catchError((Object e, StackTrace st) {
+        Loggers.activeRun.error(
+          'Registry disposal error',
+          error: e,
+          stackTrace: st,
+        );
+      });
       _currentHandle = null;
-      if (_internalState is RunningInternalState) {
-        (_internalState as RunningInternalState).dispose();
+
+      final internalState = _internalState;
+      if (internalState is RunningInternalState) {
+        internalState.dispose().catchError((Object e, StackTrace st) {
+          Loggers.activeRun.error(
+            'Internal state disposal error',
+            error: e,
+            stackTrace: st,
+          );
+        });
       }
     });
 
@@ -112,8 +126,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   /// Sets the public state and keeps the current [RunHandle] in sync.
   ///
-  /// When the new state is [CompletedState], the handle reference is released
-  /// after updating it. The handle remains in the registry for observability.
+  /// Automatically releases the handle reference on [CompletedState].
+  /// Other terminal transitions (e.g., [IdleState] from [reset]) must
+  /// release the handle explicitly before calling this method.
   void _updateState(ActiveRunState newState) {
     state = newState;
     _currentHandle?.state = newState;
@@ -269,7 +284,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         'Stream subscription established for run $runId',
       );
 
-      // Store running state with correlation data
       _internalState = RunningInternalState(
         runId: runId,
         cancelToken: cancelToken,
@@ -278,7 +292,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         previousAguiState: cachedAguiState,
       );
 
-      // Register run handle with the registry for tracking
       _currentHandle = RunHandle(
         roomId: roomId,
         threadId: threadId,
@@ -286,7 +299,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         subscription: subscription,
         initialState: state,
       );
-      await _registry.registerRun(_currentHandle!);
+
+      try {
+        await _registry.registerRun(_currentHandle!);
+      } catch (e, st) {
+        Loggers.activeRun.error(
+          'Failed to register run with registry',
+          error: e,
+          stackTrace: st,
+        );
+      }
     } on CancellationError catch (e, st) {
       // User cancelled - clean up resources
       Loggers.activeRun.info('Run cancelled', error: e, stackTrace: st);
