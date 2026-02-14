@@ -56,16 +56,18 @@ Bundle run resources into a `RunHandle` class:
 
 ```dart
 class RunHandle {
-  final String roomId;
-  final String threadId;
+  final RunKey key;
+  String get roomId => key.roomId;
+  String get threadId => key.threadId;
+  final String runId;
   final CancelToken cancelToken;
   final StreamSubscription<BaseEvent> subscription;
+  final String userMessageId;
+  final Map<String, dynamic> previousAguiState;
   ActiveRunState state;
+  bool get isActive => state.isRunning;
 
-  Future<void> dispose() async {
-    cancelToken.cancel();
-    await subscription.cancel();
-  }
+  Future<void> dispose() async { ... }  // Idempotent
 }
 ```
 
@@ -73,15 +75,22 @@ class RunHandle {
 resources. Extracting to a standalone class enables multi-run tracking and
 improves testability.
 
-#### 2. Composite Key: (roomId, threadId)
+#### 2. RunKey Record Typedef
 
-Runs are keyed by both room and thread ID, not just thread ID.
+Runs are identified by `typedef RunKey = ({String roomId, String threadId})`,
+a named record providing type-safe composite identity with value equality.
+`RunKey` is used as the map key in `RunRegistry`, the identity field in
+`RunHandle` and `RunLifecycleEvent`. Convenience getters on both types
+expose `roomId` and `threadId` directly.
 
 **Rationale:**
 
 - Thread IDs may not be globally unique across rooms (depends on backend)
-- Future multi-room support requires distinguishing runs in different rooms
-- Explicit room context prevents subtle bugs if thread ID collision occurs
+- Record value equality eliminates string-concatenation keys and `_makeKey()`
+- Type-safe map key: `Map<RunKey, RunHandle>` vs `Map<String, RunHandle>`
+- Registry API takes one param (`RunKey`) instead of two strings
+- Event construction is terser: `RunStarted(key: handle.key)`
+- Convenience getters preserve consumer ergonomics: `event.roomId`
 
 #### 3. Minimal Provider Footprint
 
@@ -91,22 +100,48 @@ Expose `RunRegistry` via a single provider (or integrate into
 **Rationale:** Per issue #127, avoid proliferating providers. Centralized logic
 is easier to test and reason about.
 
-#### 4. UI-Agnostic Lifecycle Events
+#### 4. Two Lifecycle Event Types (not three)
 
 The registry broadcasts `Stream<RunLifecycleEvent>` with:
 
-- `RunStarted`
-- `RunCompleted`
-- `RunErrored`
+- `RunStarted` — emitted when a run is registered
+- `RunCompleted` — emitted for all terminal transitions (success, failure,
+  cancellation)
 
-UI components decide how to present these (toast, badge, dot, etc.).
+The original spec had a separate `RunErrored` type, but a run that errors
+*has completed*. The outcome is encoded in the existing `CompletionResult`
+sealed hierarchy (`Success`, `FailedResult`, `CancelledResult`), which
+already provides exhaustive pattern matching. A separate `RunErrored` would
+duplicate this information and force consumers to handle two event types
+identically — both slices 8 (cache) and 9 (unread indicators) react to
+"run ended" regardless of outcome.
 
 **Rationale:** Separation of concerns. The registry doesn't know or care about
 UI. The UI can evolve its presentation independently.
 
-#### 5. Incremental Migration
+#### 5. Atomic Completion via `completeRun()`
 
-The implementation is divided into 10 slices. Slice 1 (walking skeleton)
+Terminal state transitions go through `RunRegistry.completeRun(handle,
+completed)` rather than setting `handle.state` directly. This method
+atomically sets the handle's state and emits the lifecycle event.
+
+**Rationale:** Without this, every call site would need to both set the
+state and emit the event. Forgetting the emission would be a silent bug.
+`completeRun()` makes the right thing easy and the wrong thing hard.
+
+#### 6. Unconditional Event Emission
+
+The registry emits `RunCompleted` for all terminal results including
+`CancelledResult`. Consumers decide which results to act on.
+
+**Rationale:** The registry is infrastructure — a faithful event bus that
+reports what happened. Filtering is a business policy decision that belongs
+in consumers. If a future consumer needs cancellation events (e.g.,
+analytics), they're available on the stream without modifying the registry.
+
+#### 7. Incremental Migration
+
+The implementation is divided into 11 slices. Slice 1 (walking skeleton)
 delivers immediate value by simply removing the cancel-on-navigate behavior.
 Subsequent slices refactor toward the full registry pattern.
 
@@ -118,25 +153,33 @@ the basic improvement is already shipped.
 #### RunHandle
 
 ```dart
+typedef RunKey = ({String roomId, String threadId});
+
 /// Encapsulates resources for a single active run.
 class RunHandle {
   RunHandle({
-    required this.roomId,
-    required this.threadId,
+    required this.key,
+    required this.runId,
     required this.cancelToken,
     required this.subscription,
-    this.state = const IdleState(),
-  });
+    required this.userMessageId,
+    required this.previousAguiState,
+    ActiveRunState? initialState,
+  }) : state = initialState ?? const IdleState();
 
-  final String roomId;
-  final String threadId;
+  final RunKey key;
+  String get roomId => key.roomId;
+  String get threadId => key.threadId;
+  final String runId;
   final CancelToken cancelToken;
   final StreamSubscription<BaseEvent> subscription;
+  final String userMessageId;
+  final Map<String, dynamic> previousAguiState;
   ActiveRunState state;
-
-  String get key => '$roomId:$threadId';
+  bool get isActive => state.isRunning;
 
   Future<void> dispose() async {
+    // Idempotent — safe to call multiple times.
     cancelToken.cancel();
     await subscription.cancel();
   }
@@ -148,25 +191,43 @@ class RunHandle {
 ```dart
 /// Manages multiple concurrent AG-UI runs.
 class RunRegistry {
-  final Map<String, RunHandle> _runs = {};
-  final _lifecycleController = StreamController<RunLifecycleEvent>.broadcast();
+  final Map<RunKey, RunHandle> _runs = {};
+  final _controller = StreamController<RunLifecycleEvent>.broadcast();
 
-  Stream<RunLifecycleEvent> get lifecycleEvents => _lifecycleController.stream;
+  Stream<RunLifecycleEvent> get lifecycleEvents => _controller.stream;
 
-  /// Register a run handle in the registry.
-  void registerRun(RunHandle handle) { ... }
+  /// Register a run handle (replaces existing for same key). Emits RunStarted.
+  Future<void> registerRun(RunHandle handle) async { ... }
+
+  /// Atomically set terminal state and emit RunCompleted.
+  /// Silently returns if disposed or handle was replaced by a newer run.
+  void completeRun(RunHandle handle, CompletedState completed) { ... }
 
   /// Get current state for a thread's run, or null if none.
-  ActiveRunState? getRunState(String roomId, String threadId) { ... }
+  ActiveRunState? getRunState(RunKey key) { ... }
 
-  /// Cancel a specific run.
-  Future<void> cancelRun(String roomId, String threadId) async { ... }
+  /// Get the run handle for a thread, or null if none.
+  RunHandle? getHandle(RunKey key) { ... }
 
-  /// Cancel all runs (for cleanup).
-  Future<void> cancelAll() async { ... }
+  /// Whether any run (active or completed) is registered for the key.
+  bool hasRun(RunKey key) { ... }
 
-  void dispose() {
-    _lifecycleController.close();
+  /// Whether an actively running (not yet completed) run exists for the key.
+  bool hasActiveRun(RunKey key) { ... }
+
+  /// Remove a run and dispose its resources (no lifecycle event).
+  Future<void> removeRun(RunKey key) async { ... }
+
+  /// Dispose all runs without emitting lifecycle events.
+  Future<void> removeAll() async { ... }
+
+  int get runCount;
+  int get activeRunCount;
+  Iterable<RunHandle> get handles;
+
+  Future<void> dispose() async {
+    await removeAll();
+    await _controller.close();
   }
 }
 ```
@@ -174,57 +235,63 @@ class RunRegistry {
 #### RunLifecycleEvent
 
 ```dart
+@immutable
 sealed class RunLifecycleEvent {
-  String get roomId;
-  String get threadId;
+  const RunLifecycleEvent({required this.key});
+  final RunKey key;
+  String get roomId => key.roomId;
+  String get threadId => key.threadId;
 }
 
-class RunStarted extends RunLifecycleEvent { ... }
+@immutable
+class RunStarted extends RunLifecycleEvent {
+  const RunStarted({required super.key});
+}
 
+@immutable
 class RunCompleted extends RunLifecycleEvent {
-  final CompletionResult result;
-}
-
-class RunErrored extends RunLifecycleEvent {
-  final String errorMessage;
+  const RunCompleted({required super.key, required this.result});
+  final CompletionResult result;  // Success, FailedResult, or CancelledResult
 }
 ```
 
 ### Provider Integration
 
-```dart
-/// Single provider for the RunRegistry instance.
-final runRegistryProvider = Provider<RunRegistry>((ref) {
-  final registry = RunRegistry();
-  ref.onDispose(registry.dispose);
-  return registry;
-});
-```
-
-`ActiveRunNotifier` is modified to use the registry:
+The registry is embedded in `ActiveRunNotifier` rather than exposed as a
+separate provider. This keeps the provider footprint minimal (per issue #127)
+and makes the registry an implementation detail of the notifier. A `registry`
+getter provides external access for testing and lifecycle event consumption.
 
 ```dart
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
+  final RunRegistry _registry = RunRegistry();
+
+  /// The run whose state the notifier exposes to UI.
+  RunHandle? _currentHandle;
+
+  /// Exposed for testing and external access to run tracking state.
+  RunRegistry get registry => _registry;
+
   @override
   ActiveRunState build() {
-    final registry = ref.watch(runRegistryProvider);
-
-    // Subscribe to current thread's state changes
-    ref.listen(threadSelectionProvider, (previous, next) {
-      if (next is ThreadSelected) {
-        final roomId = ref.read(currentRoomIdProvider);
-        if (roomId != null) {
-          _subscribeToRun(roomId, next.threadId);
-        }
-      }
-    });
+    // Sync exposed state when the user navigates between rooms/threads.
+    ref
+      ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
+      ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
+      ..onDispose(() => _registry.dispose());
 
     return const IdleState();
   }
 
   Future<void> startRun({...}) async {
-    final registry = ref.read(runRegistryProvider);
-    await registry.startRun(...);
+    // Creates RunHandle, registers with _registry, subscribes to events.
+    // Each run's stream callbacks capture their own handle via closure
+    // so concurrent runs don't interfere with each other.
+  }
+
+  void _syncCurrentHandle() {
+    // Looks up the run for the current room/thread in the registry
+    // and updates _currentHandle + notifier state accordingly.
   }
 }
 ```

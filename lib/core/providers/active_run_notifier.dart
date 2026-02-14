@@ -204,8 +204,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       handle = RunHandle(
-        roomId: roomId,
-        threadId: threadId,
+        key: (roomId: roomId, threadId: threadId),
         runId: runId,
         cancelToken: cancelToken,
         subscription: subscription,
@@ -276,22 +275,22 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   Future<void> cancelRun() async {
     Loggers.activeRun.debug('cancelRun called');
     final handle = _currentHandle;
+    if (handle == null) return;
 
-    if (handle != null) {
-      await handle.dispose();
-      final handleState = handle.state;
-      if (handleState is RunningState) {
-        final completed = CompletedState(
-          conversation: handleState.conversation.withStatus(
-            const domain.Cancelled(reason: 'User cancelled'),
-          ),
-          result: const CancelledResult(reason: 'Cancelled by user'),
-        );
-        handle.state = completed;
-        state = completed;
-        _updateCacheOnCompletion(completed);
-      }
-      _currentHandle = null;
+    _currentHandle = null;
+    await handle.dispose();
+
+    final handleState = handle.state;
+    if (handleState is RunningState) {
+      final completed = CompletedState(
+        conversation: handleState.conversation.withStatus(
+          const domain.Cancelled(reason: 'User cancelled'),
+        ),
+        result: const CancelledResult(reason: 'Cancelled by user'),
+      );
+      _registry.completeRun(handle, completed);
+      _updateCacheOnCompletion(completed);
+      state = completed;
     }
   }
 
@@ -334,7 +333,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       return;
     }
 
-    final handle = _registry.getHandle(roomId, threadId);
+    final handle = _registry.getHandle((roomId: roomId, threadId: threadId));
     if (handle != null) {
       _currentHandle = handle;
       state = handle.state;
@@ -359,14 +358,13 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       final newState = _mapResultForRun(handle, handleState, result);
-      handle.state = newState;
-
-      if (identical(handle, _currentHandle)) {
-        state = newState;
-        if (newState is CompletedState) {
-          _currentHandle = null;
-        }
+      if (newState is CompletedState) {
+        _registry.completeRun(handle, newState);
+      } else {
+        handle.state = newState;
       }
+
+      _syncUiState(handle, newState);
     } catch (e, st) {
       _handleFailureForRun(handle, e, st);
     }
@@ -393,13 +391,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
-      handle.state = completed;
+      _registry.completeRun(handle, completed);
       _updateCacheOnCompletion(completed);
-
-      if (identical(handle, _currentHandle)) {
-        state = completed;
-        _currentHandle = null;
-      }
+      _syncUiState(handle, completed);
     }
   }
 
@@ -413,13 +407,19 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: const Success(),
       );
-      handle.state = completed;
+      _registry.completeRun(handle, completed);
       _updateCacheOnCompletion(completed);
+      _syncUiState(handle, completed);
+    }
+  }
 
-      if (identical(handle, _currentHandle)) {
-        state = completed;
-        _currentHandle = null;
-      }
+  /// Syncs the notifier's exposed state if this handle is the one the UI
+  /// is watching. Detaches the handle on terminal (completed) states.
+  void _syncUiState(RunHandle handle, ActiveRunState newState) {
+    if (!identical(handle, _currentHandle)) return;
+    state = newState;
+    if (newState is CompletedState) {
+      _currentHandle = null;
     }
   }
 
