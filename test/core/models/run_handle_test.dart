@@ -27,22 +27,31 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_123',
+          previousAguiState: const {'key': 'value'},
         );
 
         expect(handle.roomId, 'room-1');
         expect(handle.threadId, 'thread-1');
+        expect(handle.runId, 'run-1');
         expect(handle.cancelToken, cancelToken);
         expect(handle.subscription, subscription);
+        expect(handle.userMessageId, 'user_123');
+        expect(handle.previousAguiState, {'key': 'value'});
       });
 
       test('defaults to IdleState when no initial state provided', () {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         expect(handle.state, isA<IdleState>());
@@ -58,8 +67,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
           initialState: runningState,
         );
 
@@ -72,8 +84,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-123',
           threadId: 'thread-456',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         expect(handle.key, 'room-123:thread-456');
@@ -83,8 +98,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-with-dashes',
           threadId: 'thread_with_underscores',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         expect(handle.key, 'room-with-dashes:thread_with_underscores');
@@ -96,8 +114,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         const conversation = Conversation(
@@ -117,8 +138,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         expect(handle.isActive, isFalse);
@@ -134,8 +158,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
           initialState: runningState,
         );
 
@@ -155,8 +182,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
           initialState: completedState,
         );
 
@@ -169,8 +199,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         expect(cancelToken.isCancelled, isFalse);
@@ -194,8 +227,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: testSubscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         await handle.dispose();
@@ -213,8 +249,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         // Should not throw when called multiple times
@@ -240,8 +279,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: testSubscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         await handle.dispose();
@@ -258,8 +300,11 @@ void main() {
         final handle = RunHandle(
           roomId: 'room-1',
           threadId: 'thread-1',
+          runId: 'run-1',
           cancelToken: cancelToken,
           subscription: subscription,
+          userMessageId: 'user_1',
+          previousAguiState: const {},
         );
 
         final str = handle.toString();

@@ -35,8 +35,11 @@ void main() {
       return RunHandle(
         roomId: roomId,
         threadId: threadId,
+        runId: 'run-1',
         cancelToken: cancelToken,
         subscription: subscription,
+        userMessageId: 'user_1',
+        previousAguiState: const {},
         initialState: initialState,
       );
     }

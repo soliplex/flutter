@@ -21,8 +21,11 @@ class RunHandle {
   RunHandle({
     required this.roomId,
     required this.threadId,
+    required this.runId,
     required this.cancelToken,
     required this.subscription,
+    required this.userMessageId,
+    required this.previousAguiState,
     ActiveRunState? initialState,
   }) : state = initialState ?? const IdleState();
 
@@ -34,11 +37,20 @@ class RunHandle {
   /// The thread this run belongs to.
   final String threadId;
 
+  /// The backend-generated run ID.
+  final String runId;
+
   /// Token for cancelling the run.
   final CancelToken cancelToken;
 
   /// Subscription to the AG-UI event stream.
   final StreamSubscription<BaseEvent> subscription;
+
+  /// The ID of the user message that triggered this run.
+  final String userMessageId;
+
+  /// AG-UI state snapshot from before the run started.
+  final Map<String, dynamic> previousAguiState;
 
   /// Current state of the run.
   ActiveRunState state;
