@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 
+/// Composite identifier for a run: (roomId, threadId).
+typedef RunKey = ({String roomId, String threadId});
+
 /// Encapsulates all resources for a single AG-UI run.
 ///
 /// RunHandle bundles together the cancellation token, stream subscription,
@@ -14,13 +17,12 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 /// The [key] property provides a composite identifier for use in registries:
 /// ```dart
 /// final handle = RunHandle(...);
-/// registry[handle.key] = handle; // Key: "room-1:thread-1"
+/// registry[handle.key] = handle;
 /// ```
 class RunHandle {
   /// Creates a run handle with the given resources.
   RunHandle({
-    required this.roomId,
-    required this.threadId,
+    required this.key,
     required this.runId,
     required this.cancelToken,
     required this.subscription,
@@ -31,11 +33,14 @@ class RunHandle {
 
   bool _disposed = false;
 
+  /// Composite key identifying which room/thread this run belongs to.
+  final RunKey key;
+
   /// The room this run belongs to.
-  final String roomId;
+  String get roomId => key.roomId;
 
   /// The thread this run belongs to.
-  final String threadId;
+  String get threadId => key.threadId;
 
   /// The backend-generated run ID.
   final String runId;
@@ -54,9 +59,6 @@ class RunHandle {
 
   /// Current state of the run.
   ActiveRunState state;
-
-  /// Composite key for registry lookups: "roomId:threadId".
-  String get key => '$roomId:$threadId';
 
   /// Whether the run is currently active (not idle or completed).
   bool get isActive => state.isRunning;
