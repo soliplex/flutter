@@ -42,14 +42,31 @@ class _SettingsButton extends StatelessWidget {
   }
 }
 
+/// Back button for AppBar leading slot.
+///
+/// Pops the current route to return to the previous screen.
+class _BackButton extends StatelessWidget {
+  const _BackButton();
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(Icons.adaptive.arrow_back),
+      tooltip: 'Go back',
+      onPressed: () => context.pop(),
+    );
+  }
+}
+
 /// Creates an AppShell with the given configuration.
 AppShell _staticShell({
   required Widget title,
   required Widget body,
+  Widget? leading,
   List<Widget> actions = const [],
 }) {
   return AppShell(
-    config: ShellConfig(title: title, actions: actions),
+    config: ShellConfig(title: title, leading: leading, actions: actions),
     body: body,
   );
 }
@@ -58,10 +75,16 @@ AppShell _staticShell({
 NoTransitionPage<void> _staticPage({
   required Widget title,
   required Widget body,
+  Widget? leading,
   List<Widget> actions = const [],
 }) {
   return NoTransitionPage(
-    child: _staticShell(title: title, body: body, actions: actions),
+    child: _staticShell(
+      title: title,
+      body: body,
+      leading: leading,
+      actions: actions,
+    ),
   );
 }
 
@@ -263,7 +286,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           name: 'home',
           pageBuilder: (context, state) {
             return _staticPage(
-              title: Text(shellConfig.appName),
+              title: const Text(''),
               body: const HomeScreen(),
               actions: [if (features.enableSettings) const _SettingsButton()],
             );
@@ -331,6 +354,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           name: 'settings',
           pageBuilder: (context, state) => _staticPage(
             title: const Text('Settings'),
+            leading: const _BackButton(),
             body: const SettingsScreen(),
           ),
           routes: [
@@ -359,6 +383,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               name: 'telemetry',
               pageBuilder: (context, state) => _staticPage(
                 title: const Text('Telemetry'),
+                leading: const _BackButton(),
                 body: const TelemetryScreen(),
               ),
             ),

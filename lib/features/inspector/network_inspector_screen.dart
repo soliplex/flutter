@@ -44,6 +44,11 @@ class _NetworkInspectorScreenState
     return AppShell(
       config: ShellConfig(
         title: Text('Requests (${sortedGroups.length})'),
+        leading: IconButton(
+          icon: Icon(Icons.adaptive.arrow_back),
+          tooltip: 'Back to settings',
+          onPressed: () => context.pop(),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),

@@ -152,7 +152,7 @@ class TelemetryScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
             child: const Text('Save'),
           ),
