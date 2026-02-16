@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Implemented through slice 10. Slice 11 (remove room-switch cancellation) remains.
 
 ## Context
 
@@ -92,13 +92,17 @@ expose `roomId` and `threadId` directly.
 - Event construction is terser: `RunStarted(key: handle.key)`
 - Convenience getters preserve consumer ergonomics: `event.roomId`
 
-#### 3. Minimal Provider Footprint
+#### 3. Singleton Registry with Callback Injection
 
-Expose `RunRegistry` via a single provider (or integrate into
-`activeRunNotifierProvider`). Domain logic stays in the `RunRegistry` class.
+`RunRegistry` is a singleton (`RunRegistry.instance`) rather than a Riverpod
+provider or an embedded field. `ActiveRunNotifier` accesses it via the static
+instance and injects an `OnRunCompleted` callback for cache updates. This keeps
+the registry a pure Dart service with no Flutter/Riverpod dependency.
 
-**Rationale:** Per issue #127, avoid proliferating providers. Centralized logic
-is easier to test and reason about.
+**Rationale:** Per issue #127, avoid proliferating providers. The singleton
+pattern emerged during implementation as cleaner than embedding the registry
+in the notifier — it avoids circular references and makes the registry
+independently testable.
 
 #### 4. Two Lifecycle Event Types (not three)
 
@@ -123,7 +127,10 @@ UI. The UI can evolve its presentation independently.
 
 Terminal state transitions go through `RunRegistry.completeRun(handle,
 completed)` rather than setting `handle.state` directly. This method
-atomically sets the handle's state and emits the lifecycle event.
+atomically sets the handle's state, emits the lifecycle event, and invokes
+the `onRunCompleted` callback. A separate `notifyCompletion(key, completed)`
+method exists for runs that fail before registration (e.g., errors during
+setup) — it invokes the callback without touching the registry map.
 
 **Rationale:** Without this, every call site would need to both set the
 state and emit the event. Forgetting the emission would be a silent bug.
@@ -179,7 +186,8 @@ class RunHandle {
   bool get isActive => state.isRunning;
 
   Future<void> dispose() async {
-    // Idempotent — safe to call multiple times.
+    if (_disposed) return;
+    _disposed = true;
     cancelToken.cancel();
     await subscription.cancel();
   }
@@ -189,6 +197,8 @@ class RunHandle {
 #### RunRegistry
 
 ```dart
+typedef OnRunCompleted = void Function(RunKey key, CompletedState completed);
+
 /// Manages multiple concurrent AG-UI runs.
 class RunRegistry {
   final Map<ThreadKey, RunHandle> _runs = {};
@@ -199,7 +209,7 @@ class RunRegistry {
   /// Register a run handle (replaces existing for same key). Emits RunStarted.
   Future<void> registerRun(RunHandle handle) async { ... }
 
-  /// Atomically set terminal state and emit RunCompleted.
+  /// Atomically set terminal state, emit RunCompleted, invoke callback.
   /// Silently returns if disposed or handle was replaced by a newer run.
   void completeRun(RunHandle handle, CompletedState completed) { ... }
 
@@ -225,10 +235,7 @@ class RunRegistry {
   int get activeRunCount;
   Iterable<RunHandle> get handles;
 
-  Future<void> dispose() async {
-    await removeAll();
-    await _controller.close();
-  }
+  Future<void> dispose() async { ... }
 }
 ```
 
@@ -257,34 +264,43 @@ class RunCompleted extends RunLifecycleEvent {
 
 ### Provider Integration
 
-The registry is embedded in `ActiveRunNotifier` rather than exposed as a
-separate provider. This keeps the provider footprint minimal (per issue #127)
-and makes the registry an implementation detail of the notifier. A `registry`
-getter provides external access for testing and lifecycle event consumption.
+The registry is a singleton (`RunRegistry.instance`) accessed by
+`ActiveRunNotifier` via a `registry` getter. The notifier injects an
+`OnRunCompleted` callback for cache updates and subscribes to lifecycle
+events for unread indicators. On dispose, it cleans up the callback and
+lifecycle subscription.
 
 ```dart
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
-  final RunRegistry _registry = RunRegistry();
-
-  /// The run whose state the notifier exposes to UI.
   RunHandle? _currentHandle;
+  StreamSubscription<RunLifecycleEvent>? _lifecycleSub;
 
-  /// Exposed for testing and external access to run tracking state.
-  RunRegistry get registry => _registry;
+  RunRegistry get registry => RunRegistry.instance;
 
   @override
   ActiveRunState build() {
+    // Inject cache-update callback into the global registry.
+    registry.onRunCompleted = _buildCacheUpdater();
+
+    // Mark thread as unread when a background run completes.
+    _lifecycleSub = registry.lifecycleEvents.listen((event) { ... });
+
     // Sync exposed state when the user navigates between rooms/threads.
     ref
       ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
       ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
-      ..onDispose(() => _registry.dispose());
+      ..onDispose(() {
+        _lifecycleSub?.cancel();
+        registry.onRunCompleted = null;
+        registry.removeAll();
+        _currentHandle = null;
+      });
 
     return const IdleState();
   }
 
   Future<void> startRun({...}) async {
-    // Creates RunHandle, registers with _registry, subscribes to events.
+    // Creates RunHandle, registers with registry, subscribes to events.
     // Each run's stream callbacks capture their own handle via closure
     // so concurrent runs don't interfere with each other.
   }
@@ -292,6 +308,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   void _syncCurrentHandle() {
     // Looks up the run for the current room/thread in the registry
     // and updates _currentHandle + notifier state accordingly.
+  }
+
+  OnRunCompleted _buildCacheUpdater() {
+    // Returns callback that merges completed run's messages and
+    // messageStates into ThreadHistoryCache using composite RunKey.
   }
 }
 ```
