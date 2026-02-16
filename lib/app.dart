@@ -7,6 +7,7 @@ import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_frontend/core/providers/theme_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -72,6 +73,7 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
 
     final authState = ref.watch(authProvider);
     final shellConfig = ref.watch(shellConfigProvider);
+    final themeMode = ref.watch(themeModeProvider);
     final themeConfig = shellConfig.theme;
 
     final lightTheme = soliplexLightTheme(
@@ -91,7 +93,7 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
         title: shellConfig.appName,
         theme: lightTheme,
         darkTheme: darkTheme,
-        themeMode: ThemeMode.light,
+        themeMode: themeMode,
         debugShowCheckedModeBanner: false,
         home: const _AuthLoadingScreen(),
       );
@@ -103,7 +105,7 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
       title: shellConfig.appName,
       theme: lightTheme,
       darkTheme: darkTheme,
-      themeMode: ThemeMode.light,
+      themeMode: themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
     );
