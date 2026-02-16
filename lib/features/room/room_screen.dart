@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
@@ -191,18 +189,38 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   }
 
   Future<void> _showQuizPicker(Map<String, String> quizzes) async {
+    final sortedEntries = quizzes.entries.toList()
+      ..sort((a, b) => a.value.toLowerCase().compareTo(b.value.toLowerCase()));
+
     final selectedQuizId = await showDialog<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Select Quiz'),
-        children: [
-          for (final entry in quizzes.entries)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, entry.key),
-              child: Text(entry.value),
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          title: const Text('Select Quiz'),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: SoliplexSpacing.s2),
+          content: SizedBox(
+            width: 480,
+            height: 400,
+            child: ListView.builder(
+              itemCount: sortedEntries.length,
+              itemBuilder: (context, index) {
+                final entry = sortedEntries[index];
+                return ListTile(
+                  title: Text(entry.value),
+                  leading: Icon(
+                    Icons.quiz,
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  onTap: () => Navigator.pop(context, entry.key),
+                );
+              },
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
 
     if (selectedQuizId != null && mounted) {
@@ -283,25 +301,41 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
     final selectedId = await showDialog<String>(
       context: context,
-      builder: (context) => SimpleDialog(
-        title: const Text('Switch Room'),
-        children: [
-          for (final room in sortedRooms)
-            SimpleDialogOption(
-              onPressed: () => Navigator.pop(context, room.id),
-              child: Row(
-                children: [
-                  Expanded(child: Text(room.name)),
-                  if (room.id == currentRoom?.id)
-                    Icon(
-                      Icons.check,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                ],
-              ),
+      builder: (context) {
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return AlertDialog(
+          title: const Text('Switch Room'),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: SoliplexSpacing.s2),
+          content: SizedBox(
+            width: 480,
+            height: 400,
+            child: ListView.builder(
+              itemCount: sortedRooms.length,
+              itemBuilder: (context, index) {
+                final room = sortedRooms[index];
+                final isSelected = room.id == currentRoom?.id;
+                return ListTile(
+                  title: Text(room.name),
+                  subtitle: room.hasDescription ? Text(room.description) : null,
+                  selected: isSelected,
+                  selectedTileColor: colorScheme.primaryContainer,
+                  selectedColor: colorScheme.onPrimaryContainer,
+                  leading: Icon(
+                    Icons.meeting_room,
+                    color: isSelected ? colorScheme.primary : null,
+                  ),
+                  trailing: isSelected
+                      ? Icon(Icons.check, color: colorScheme.primary)
+                      : null,
+                  onTap: () => Navigator.pop(context, room.id),
+                );
+              },
             ),
-        ],
-      ),
+          ),
+        );
+      },
     );
 
     if (selectedId != null && mounted) {
