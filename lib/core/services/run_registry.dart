@@ -34,11 +34,14 @@ typedef OnRunCompleted = void Function(CompletedState completed);
 /// await registry.removeRun(key);
 /// ```
 class RunRegistry {
-  RunRegistry({this.onRunCompleted});
+  RunRegistry();
+
+  /// The global registry instance shared across the application.
+  static RunRegistry instance = RunRegistry();
 
   /// Optional callback invoked when a run completes via [completeRun] or
-  /// [notifyCompletion].
-  final OnRunCompleted? onRunCompleted;
+  /// [notifyCompletion]. Set by the consumer that owns the cache-update logic.
+  OnRunCompleted? onRunCompleted;
 
   final Map<ThreadKey, RunHandle> _runs = {};
   final _controller = StreamController<RunLifecycleEvent>.broadcast();
