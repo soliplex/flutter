@@ -3,7 +3,6 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import 'package:soliplex_client/soliplex_client.dart'
     show
         ChatMessage,
@@ -12,7 +11,6 @@ import 'package:soliplex_client/soliplex_client.dart'
         FeedbackType,
         SourceReference,
         TextMessage;
-
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
@@ -102,8 +100,8 @@ class ChatMessageWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isUser
                       ? theme.colorScheme.primaryContainer
-                      : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
+                      : theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

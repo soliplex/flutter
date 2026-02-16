@@ -728,7 +728,7 @@ SearchBarThemeData buildSearchBarTheme(
 SearchViewThemeData buildSearchViewTheme(ColorScheme colorScheme) {
   return SearchViewThemeData(
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(soliplexRadii.xl),
+      borderRadius: BorderRadius.circular(soliplexRadii.lg),
     ),
   );
 }
