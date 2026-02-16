@@ -85,13 +85,19 @@ class AppShell extends ConsumerWidget {
         ),
         actions: [
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+            padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s1),
             child: ThemeToggleButton(),
           ),
-          ...config.actions,
+          for (final action in config.actions)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: SoliplexSpacing.s1,
+              ),
+              child: action,
+            ),
           if (showInspector)
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+              padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s1),
               child: _InspectorButton(),
             ),
         ],
