@@ -2501,6 +2501,129 @@ void main() {
 
       expect(container.read(activeRunNotifierProvider), isA<IdleState>());
     });
+
+    test('run persists across room switch and is restored on return', () async {
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          currentRoomIdProviderOverride('room-1'),
+          threadSelectionProviderOverride(
+            const ThreadSelected('thread-a'),
+          ),
+        ],
+      );
+
+      addTearDown(container.dispose);
+
+      // Start a run in room-1/thread-a
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-a',
+            userMessage: 'Hello',
+          );
+
+      expect(
+        container.read(activeRunNotifierProvider),
+        isA<RunningState>(),
+      );
+
+      // Switch to room-2/thread-x (no run there)
+      container.read(currentRoomIdProvider.notifier).set('room-2');
+      container
+          .read(threadSelectionProvider.notifier)
+          .set(const ThreadSelected('thread-x'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        container.read(activeRunNotifierProvider),
+        isA<IdleState>(),
+      );
+
+      // Return to room-1/thread-a
+      container.read(currentRoomIdProvider.notifier).set('room-1');
+      container
+          .read(threadSelectionProvider.notifier)
+          .set(const ThreadSelected('thread-a'));
+      await Future<void>.delayed(Duration.zero);
+
+      // Run should be restored from registry
+      final restored = container.read(activeRunNotifierProvider);
+      expect(restored, isA<RunningState>());
+      expect((restored as RunningState).threadId, 'thread-a');
+    });
+
+    test('concurrent runs in different rooms are both active', () async {
+      final streamB = StreamController<BaseEvent>();
+      addTearDown(streamB.close);
+
+      // Second startRun returns a different stream
+      var callCount = 0;
+      when(
+        () => mockAgUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => (callCount++ == 0) ? streamA.stream : streamB.stream);
+
+      when(
+        () => mockApi.createRun(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer(
+        (_) async => RunInfo(
+          id: 'run-${callCount + 1}',
+          threadId: 'thread-a',
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      final container = ProviderContainer(
+        overrides: [
+          apiProvider.overrideWithValue(mockApi),
+          agUiClientProvider.overrideWithValue(mockAgUiClient),
+          currentRoomIdProviderOverride('room-1'),
+          threadSelectionProviderOverride(
+            const ThreadSelected('thread-a'),
+          ),
+        ],
+      );
+
+      addTearDown(container.dispose);
+      final registry =
+          container.read(activeRunNotifierProvider.notifier).registry;
+
+      // Start run in room-1/thread-a
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-1',
+            threadId: 'thread-a',
+            userMessage: 'Hello from room 1',
+          );
+
+      // Switch to room-2/thread-a and start a second run
+      container.read(currentRoomIdProvider.notifier).set('room-2');
+      container
+          .read(threadSelectionProvider.notifier)
+          .set(const ThreadSelected('thread-a'));
+      await Future<void>.delayed(Duration.zero);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+            roomId: 'room-2',
+            threadId: 'thread-a',
+            userMessage: 'Hello from room 2',
+          );
+
+      // Both runs should be active in the registry
+      const keyA = (roomId: 'room-1', threadId: 'thread-a');
+      const keyB = (roomId: 'room-2', threadId: 'thread-a');
+
+      expect(registry.hasActiveRun(keyA), isTrue);
+      expect(registry.hasActiveRun(keyB), isTrue);
+      expect(registry.activeRunCount, 2);
+    });
   });
 
   group('lifecycle events', () {
