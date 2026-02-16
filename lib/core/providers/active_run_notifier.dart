@@ -7,6 +7,7 @@ import 'package:soliplex_client/soliplex_client.dart' as domain
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
+import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
@@ -40,6 +41,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Current run handle — the run whose state the notifier exposes to UI.
   RunHandle? _currentHandle;
 
+  /// Subscription to registry lifecycle events for cache updates.
+  StreamSubscription<RunLifecycleEvent>? _lifecycleSub;
+
   /// The run registry for this notifier.
   ///
   /// Exposed for testing and external access to run tracking state.
@@ -49,11 +53,22 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
+    // Update cache when any run completes (foreground or background).
+    _lifecycleSub = _registry.lifecycleEvents.listen((event) {
+      if (event is RunCompleted) {
+        final handle = _registry.getHandle(event.key);
+        if (handle?.state is CompletedState) {
+          _updateCacheOnCompletion(handle!.state as CompletedState);
+        }
+      }
+    });
+
     // Sync exposed state when the user navigates between rooms/threads.
     ref
       ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
       ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
       ..onDispose(() {
+        _lifecycleSub?.cancel();
         _registry.dispose().catchError((Object e, StackTrace st) {
           Loggers.activeRun.error(
             'Registry disposal error',
@@ -289,7 +304,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: const CancelledResult(reason: 'Cancelled by user'),
       );
       _registry.completeRun(handle, completed);
-      _updateCacheOnCompletion(completed);
       state = completed;
     }
   }
@@ -392,7 +406,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       _registry.completeRun(handle, completed);
-      _updateCacheOnCompletion(completed);
       _syncUiState(handle, completed);
     }
   }
@@ -408,7 +421,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: const Success(),
       );
       _registry.completeRun(handle, completed);
-      _updateCacheOnCompletion(completed);
       _syncUiState(handle, completed);
     }
   }
@@ -494,10 +506,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           'Unexpected Idle status during event processing',
         ),
     };
-
-    if (newState is CompletedState) {
-      _updateCacheOnCompletion(newState);
-    }
 
     return newState;
   }
