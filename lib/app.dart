@@ -74,8 +74,14 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
     final shellConfig = ref.watch(shellConfigProvider);
     final themeConfig = shellConfig.theme;
 
-    final lightTheme = soliplexLightTheme(colors: themeConfig.lightColors);
-    final darkTheme = soliplexDarkTheme(colors: themeConfig.darkColors);
+    final lightTheme = soliplexLightTheme(
+      colorConfig: themeConfig.colorConfig,
+      fontConfig: themeConfig.fontConfig,
+    );
+    final darkTheme = soliplexDarkTheme(
+      colorConfig: themeConfig.colorConfig,
+      fontConfig: themeConfig.fontConfig,
+    );
 
     // Don't construct routing until auth state is resolved.
     // This prevents building route widgets that would be discarded,

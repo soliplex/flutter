@@ -277,7 +277,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Confirm in dialog
-        await tester.tap(find.widgetWithText(TextButton, 'Sign Out'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Sign Out'));
         await tester.pumpAndSettle();
 
         expect(mockNotifier.signOutCalled, isTrue);

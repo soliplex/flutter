@@ -4,8 +4,8 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Color-coded badge displaying a [LogLevel] label.
 ///
-/// Uses [SymbolicColors] for consistent theming:
-/// - fatal/error -> danger (red)
+/// Uses [ColorScheme] for consistent theming:
+/// - fatal/error -> error (red)
 /// - warning -> warning (orange)
 /// - info -> info (blue)
 /// - debug/trace -> outline (muted)
@@ -38,7 +38,7 @@ class LogLevelBadge extends StatelessWidget {
 
   static Color _colorForLevel(LogLevel level, ColorScheme colorScheme) {
     return switch (level) {
-      LogLevel.fatal || LogLevel.error => colorScheme.danger,
+      LogLevel.fatal || LogLevel.error => colorScheme.error,
       LogLevel.warning => colorScheme.warning,
       LogLevel.info => colorScheme.info,
       LogLevel.debug || LogLevel.trace => colorScheme.outline,

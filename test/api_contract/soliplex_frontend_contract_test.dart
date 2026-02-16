@@ -121,23 +121,44 @@ void main() {
     group('ThemeConfig', () {
       test('default constructor with all parameters', () {
         const config = ThemeConfig(
-          lightColors: lightSoliplexColors,
-          darkColors: darkSoliplexColors,
+          colorConfig: ColorConfig(),
+          fontConfig: FontConfig(bodyFont: 'Inter'),
         );
 
         // Verify all properties are accessible
-        expect(config.lightColors, isA<SoliplexColors>());
-        expect(config.darkColors, isA<SoliplexColors>());
+        expect(config.colorConfig, isA<ColorConfig>());
+        expect(config.fontConfig, isA<FontConfig>());
+      });
+
+      test('default values', () {
+        const config = ThemeConfig();
+
+        expect(config.colorConfig, isNull);
+        expect(config.fontConfig, isNull);
       });
 
       test('copyWith signature', () {
         const config = ThemeConfig();
         final copied = config.copyWith(
-          lightColors: lightSoliplexColors,
-          darkColors: darkSoliplexColors,
+          colorConfig: const ColorConfig(),
+          fontConfig: const FontConfig(bodyFont: 'Inter'),
         );
 
         expect(copied, isA<ThemeConfig>());
+      });
+
+      test('copyWith can clear configs', () {
+        const config = ThemeConfig(
+          colorConfig: ColorConfig(),
+          fontConfig: FontConfig(bodyFont: 'Inter'),
+        );
+        final cleared = config.copyWith(
+          clearColorConfig: true,
+          clearFontConfig: true,
+        );
+
+        expect(cleared.colorConfig, isNull);
+        expect(cleared.fontConfig, isNull);
       });
 
       test('equality and hashCode', () {
@@ -154,52 +175,135 @@ void main() {
       });
     });
 
-    group('SoliplexColors', () {
+    group('ColorPalette', () {
       test('constructor with all required parameters', () {
-        const colors = SoliplexColors(
+        const palette = ColorPalette(
+          primary: Colors.blue,
+          secondary: Colors.orange,
           background: Colors.white,
           foreground: Colors.black,
-          primary: Colors.blue,
-          onPrimary: Colors.white,
-          secondary: Colors.grey,
-          onSecondary: Colors.black,
-          accent: Colors.amber,
-          onAccent: Colors.black,
-          muted: Colors.grey,
-          mutedForeground: Colors.grey,
-          destructive: Colors.red,
-          onDestructive: Colors.white,
-          border: Colors.grey,
-          inputBackground: Colors.white,
-          hintText: Colors.grey,
+          muted: Color(0xFFE0E0E0),
+          mutedForeground: Color(0xFF757575),
+          border: Color(0xFFBDBDBD),
         );
 
-        // Verify all 15 color properties are accessible
-        expect(colors.background, isA<Color>());
-        expect(colors.foreground, isA<Color>());
-        expect(colors.primary, isA<Color>());
-        expect(colors.onPrimary, isA<Color>());
-        expect(colors.secondary, isA<Color>());
-        expect(colors.onSecondary, isA<Color>());
-        expect(colors.accent, isA<Color>());
-        expect(colors.onAccent, isA<Color>());
-        expect(colors.muted, isA<Color>());
-        expect(colors.mutedForeground, isA<Color>());
-        expect(colors.destructive, isA<Color>());
-        expect(colors.onDestructive, isA<Color>());
-        expect(colors.border, isA<Color>());
-        expect(colors.inputBackground, isA<Color>());
-        expect(colors.hintText, isA<Color>());
+        expect(palette.primary, isA<Color>());
+        expect(palette.secondary, isA<Color>());
+        expect(palette.background, isA<Color>());
+        expect(palette.foreground, isA<Color>());
+        expect(palette.muted, isA<Color>());
+        expect(palette.mutedForeground, isA<Color>());
+        expect(palette.border, isA<Color>());
       });
 
-      test('lightSoliplexColors constant is accessible', () {
-        expect(lightSoliplexColors, isA<SoliplexColors>());
-        expect(lightSoliplexColors.background, isA<Color>());
+      test('optional fields are nullable', () {
+        const palette = ColorPalette(
+          primary: Colors.blue,
+          secondary: Colors.orange,
+          background: Colors.white,
+          foreground: Colors.black,
+          muted: Color(0xFFE0E0E0),
+          mutedForeground: Color(0xFF757575),
+          border: Color(0xFFBDBDBD),
+        );
+
+        expect(palette.tertiary, isA<Color?>());
+        expect(palette.error, isA<Color?>());
+        expect(palette.onPrimary, isA<Color?>());
+        expect(palette.onSecondary, isA<Color?>());
+        expect(palette.onTertiary, isA<Color?>());
+        expect(palette.onError, isA<Color?>());
       });
 
-      test('darkSoliplexColors constant is accessible', () {
-        expect(darkSoliplexColors, isA<SoliplexColors>());
-        expect(darkSoliplexColors.background, isA<Color>());
+      test('named constructors exist', () {
+        const light = ColorPalette.defaultLight();
+        const dark = ColorPalette.defaultDark();
+
+        expect(light, isA<ColorPalette>());
+        expect(dark, isA<ColorPalette>());
+      });
+
+      test('effective getters are accessible', () {
+        const palette = ColorPalette.defaultLight();
+
+        expect(palette.effectiveOnPrimary, isA<Color>());
+        expect(palette.effectiveOnSecondary, isA<Color>());
+        expect(palette.effectiveTertiary, isA<Color>());
+        expect(palette.effectiveOnTertiary, isA<Color>());
+        expect(palette.effectiveError, isA<Color>());
+        expect(palette.effectiveOnError, isA<Color>());
+      });
+
+      test('copyWith signature', () {
+        const palette = ColorPalette.defaultLight();
+        final copied = palette.copyWith(
+          primary: Colors.green,
+          clearTertiary: true,
+          clearError: true,
+        );
+
+        expect(copied, isA<ColorPalette>());
+      });
+
+      test('equality and hashCode', () {
+        const a = ColorPalette.defaultLight();
+        const b = ColorPalette.defaultLight();
+
+        expect(a == b, isTrue);
+        expect(a.hashCode, isA<int>());
+      });
+
+      test('toString', () {
+        const palette = ColorPalette.defaultLight();
+        expect(palette.toString(), isA<String>());
+      });
+    });
+
+    group('ColorConfig', () {
+      test('default constructor with palette parameters', () {
+        const config = ColorConfig(
+          light: ColorPalette.defaultLight(),
+          dark: ColorPalette.defaultDark(),
+        );
+
+        expect(config.light, isA<ColorPalette>());
+        expect(config.dark, isA<ColorPalette>());
+      });
+
+      test('default values use default palettes', () {
+        const config = ColorConfig();
+
+        expect(
+          config.light,
+          equals(const ColorPalette.defaultLight()),
+        );
+        expect(
+          config.dark,
+          equals(const ColorPalette.defaultDark()),
+        );
+      });
+
+      test('copyWith signature', () {
+        const config = ColorConfig();
+        final copied = config.copyWith(
+          light: const ColorPalette.defaultLight(),
+          dark: const ColorPalette.defaultDark(),
+        );
+
+        expect(copied, isA<ColorConfig>());
+      });
+
+      test('equality and hashCode', () {
+        const a = ColorConfig();
+        const b = ColorConfig();
+
+        expect(a == b, isTrue);
+        expect(a.hashCode, isA<int>());
+      });
+
+      test('toString', () {
+        const config = ColorConfig();
+        expect(config.toString(), isA<String>());
       });
     });
 
@@ -213,6 +317,8 @@ void main() {
           features: Features(),
           theme: ThemeConfig(),
           routes: RouteConfig(),
+          showLogoInAppBar: true,
+          showAppNameInAppBar: false,
         );
 
         // Verify all properties are accessible
@@ -222,6 +328,8 @@ void main() {
         expect(config.features, isA<Features>());
         expect(config.theme, isA<ThemeConfig>());
         expect(config.routes, isA<RouteConfig>());
+        expect(config.showLogoInAppBar, isA<bool>());
+        expect(config.showAppNameInAppBar, isA<bool>());
       });
 
       test('copyWith signature', () {
@@ -233,6 +341,8 @@ void main() {
           features: const Features.minimal(),
           theme: const ThemeConfig(),
           routes: const RouteConfig(),
+          showLogoInAppBar: true,
+          showAppNameInAppBar: false,
         );
 
         expect(copied, isA<SoliplexConfig>());
@@ -263,6 +373,16 @@ void main() {
         );
         expect(configWithScheme.oauthRedirectScheme, 'com.example.app');
       });
+
+      test('showLogoInAppBar defaults to false', () {
+        const config = SoliplexConfig(logo: LogoConfig.soliplex);
+        expect(config.showLogoInAppBar, isFalse);
+      });
+
+      test('showAppNameInAppBar defaults to true', () {
+        const config = SoliplexConfig(logo: LogoConfig.soliplex);
+        expect(config.showAppNameInAppBar, isTrue);
+      });
     });
 
     group('runSoliplexApp', () {
@@ -292,8 +412,17 @@ void main() {
             showVersionInfo: false,
           ),
           theme: ThemeConfig(
-            lightColors: lightSoliplexColors,
-            darkColors: darkSoliplexColors,
+            colorConfig: ColorConfig(
+              light: ColorPalette(
+                primary: Color(0xFF1976D2), // Brand blue
+                secondary: Color(0xFF03DAC6),
+                background: Color(0xFFFAFAFA),
+                foreground: Color(0xFF1A1A1E),
+                muted: Color(0xFFE4E4E8),
+                mutedForeground: Color(0xFF6E6E78),
+                border: Color(0xFFC8C8CE),
+              ),
+            ),
           ),
           routes: RouteConfig(
             showHomeRoute: false,
@@ -322,33 +451,28 @@ void main() {
         expect(config.routes.showHomeRoute, isTrue);
       });
 
-      test('custom theme colors', () {
-        // External project with custom branding
-        const customLightColors = SoliplexColors(
-          background: Color(0xFFFFFFFF),
-          foreground: Color(0xFF000000),
-          primary: Color(0xFF6200EE),
-          onPrimary: Color(0xFFFFFFFF),
-          secondary: Color(0xFF03DAC6),
-          onSecondary: Color(0xFF000000),
-          accent: Color(0xFFBB86FC),
-          onAccent: Color(0xFF000000),
-          muted: Color(0xFFE0E0E0),
-          mutedForeground: Color(0xFF757575),
-          destructive: Color(0xFFB00020),
-          onDestructive: Color(0xFFFFFFFF),
-          border: Color(0xFFBDBDBD),
-          inputBackground: Color(0xFFF5F5F5),
-          hintText: Color(0xFF9E9E9E),
-        );
-
+      test('custom theme colors with full branding', () {
+        // External project with custom brand colors
         const config = SoliplexConfig(
           logo: LogoConfig.soliplex,
-          theme: ThemeConfig(lightColors: customLightColors),
+          theme: ThemeConfig(
+            colorConfig: ColorConfig(
+              light: ColorPalette(
+                primary: Color(0xFF6200EE), // Purple brand
+                secondary: Color(0xFF03DAC6), // Teal accent
+                background: Color(0xFFFAFAFA),
+                foreground: Color(0xFF1A1A1E),
+                muted: Color(0xFFE4E4E8),
+                mutedForeground: Color(0xFF6E6E78),
+                border: Color(0xFFC8C8CE),
+                error: Color(0xFFB00020), // Custom error red
+              ),
+            ),
+          ),
         );
 
         expect(
-          config.theme.lightColors.primary,
+          config.theme.colorConfig?.light.primary,
           equals(const Color(0xFF6200EE)),
         );
       });
