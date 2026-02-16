@@ -740,9 +740,9 @@ original room and response is still there.
 
 ### Acceptance Criteria
 
-- [ ] Runs persist across room navigation
-- [ ] Multiple rooms can have active runs
-- [ ] All tests pass
+- [x] Runs persist across room navigation
+- [x] Multiple rooms can have active runs
+- [x] All tests pass
 
 ---
 

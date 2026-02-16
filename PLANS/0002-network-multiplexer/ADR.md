@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented through slice 10. Slice 11 (remove room-switch cancellation) remains.
+Implemented. All 11 slices complete.
 
 ## Context
 

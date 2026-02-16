@@ -217,7 +217,7 @@ intentionally deferred for separate UX discussion.
 - [x] User can start runs in multiple threads concurrently.
 - [x] Background run completion updates message cache.
 - [x] Lifecycle events are broadcast for background awareness.
-- [ ] Runs persist across room navigation. *(slice 11)*
+- [x] Runs persist across room navigation.
 - [x] All existing tests pass or are updated appropriately.
 
 ## UI Notification Design
