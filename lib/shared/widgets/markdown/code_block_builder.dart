@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
+import 'package:flutter_highlight/themes/vs2015.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -317,7 +318,8 @@ class _CodeBlock extends StatelessWidget {
           child: HighlightView(
             code,
             language: language,
-            theme: githubTheme,
+            theme:
+                theme.brightness == Brightness.dark ? vs2015Theme : githubTheme,
             padding: EdgeInsets.zero,
             textStyle: codeStyle,
           ),
