@@ -181,12 +181,24 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final aguiMessages = convertToAgui(allMessages);
 
       // Merge accumulated AG-UI state with any client-provided initial state.
-      // Order: cached state first (backend-generated), then initial state
-      // (client-generated like filter_documents) so client can override.
-      final mergedState = <String, dynamic>{
-        ...cachedAguiState,
-        ...?initialState,
-      };
+      // Deep merge at the state-key level so client-provided keys (e.g.
+      // document_filter) merge INTO the server's haiku.rag.chat dict
+      // rather than replacing it.
+      final mergedState = <String, dynamic>{...cachedAguiState};
+      if (initialState != null) {
+        for (final entry in initialState.entries) {
+          final existing = mergedState[entry.key];
+          if (existing is Map<String, dynamic> &&
+              entry.value is Map<String, dynamic>) {
+            mergedState[entry.key] = <String, dynamic>{
+              ...existing,
+              ...entry.value as Map<String, dynamic>,
+            };
+          } else {
+            mergedState[entry.key] = entry.value;
+          }
+        }
+      }
 
       // Create the input for the run
       final input = SimpleRunAgentInput(

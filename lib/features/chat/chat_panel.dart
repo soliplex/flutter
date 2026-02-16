@@ -6,8 +6,6 @@ import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
-import 'package:soliplex_frontend/core/models/agui_features/filter_documents.dart';
-import 'package:soliplex_frontend/core/models/agui_features/filter_documents_ext.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
@@ -260,12 +258,14 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         .read(selectedDocumentsNotifierProvider.notifier)
         .getForThread((roomId: room.id, threadId: effectiveThread.id));
 
-    // Build initial state with filter_documents if documents are selected
+    // Build initial state with document filter if documents are selected
     Map<String, dynamic>? initialState;
     if (selectedDocuments.isNotEmpty) {
-      initialState = FilterDocuments(
-        documentIds: selectedDocuments.map((d) => d.id).toList(),
-      ).toStateEntry();
+      initialState = {
+        'haiku.rag.chat': {
+          'document_filter': selectedDocuments.map((d) => d.title).toList(),
+        },
+      };
     }
 
     // Start the run

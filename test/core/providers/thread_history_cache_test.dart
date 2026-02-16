@@ -58,7 +58,7 @@ void main() {
           messages: [
             TestData.createMessage(id: 'msg-1', text: 'From API'),
           ],
-          aguiState: const {'ask_history': <String, dynamic>{}},
+          aguiState: const {'haiku.rag.chat': <String, dynamic>{}},
         );
 
         when(
@@ -78,7 +78,7 @@ void main() {
         // Assert
         expect(history.messages, hasLength(1));
         expect(history.messages[0].id, 'msg-1');
-        expect(history.aguiState, containsPair('ask_history', {}));
+        expect(history.aguiState, containsPair('haiku.rag.chat', {}));
         verify(
           () => mockApi.getThreadHistory('room-abc', 'thread-123'),
         ).called(1);

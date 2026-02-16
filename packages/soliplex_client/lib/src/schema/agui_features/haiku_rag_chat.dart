@@ -23,6 +23,7 @@ String haikuRagChatToJson(HaikuRagChat data) => json.encode(data.toJson());
 class HaikuRagChat {
   final Map<String, int>? citationRegistry;
   final List<Citation>? citations;
+  final List<List<Citation>>? citationsHistory;
   final List<String>? documentFilter;
   final String? initialContext;
   final List<QaResponse>? qaHistory;
@@ -32,6 +33,7 @@ class HaikuRagChat {
   HaikuRagChat({
     this.citationRegistry,
     this.citations,
+    this.citationsHistory,
     this.documentFilter,
     this.initialContext,
     this.qaHistory,
@@ -47,6 +49,15 @@ class HaikuRagChat {
         ? []
         : List<Citation>.from(
             json["citations"]!.map((x) => Citation.fromJson(x)),
+          ),
+    citationsHistory: json["citations_history"] == null
+        ? []
+        : List<List<Citation>>.from(
+            json["citations_history"]!.map(
+              (x) => List<Citation>.from(
+                x.map((y) => Citation.fromJson(y)),
+              ),
+            ),
           ),
     documentFilter: json["document_filter"] == null
         ? []
@@ -70,6 +81,13 @@ class HaikuRagChat {
     "citations": citations == null
         ? []
         : List<dynamic>.from(citations!.map((x) => x.toJson())),
+    "citations_history": citationsHistory == null
+        ? []
+        : List<dynamic>.from(
+            citationsHistory!.map(
+              (x) => List<dynamic>.from(x.map((y) => y.toJson())),
+            ),
+          ),
     "document_filter": documentFilter == null
         ? []
         : List<dynamic>.from(documentFilter!.map((x) => x)),

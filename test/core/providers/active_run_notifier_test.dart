@@ -1633,19 +1633,11 @@ void main() {
 
       // Pre-populate cache with AG-UI state from previous runs
       final cachedAguiState = <String, dynamic>{
-        'ask_history': {
-          'questions': [
-            {
-              'question': 'Previous question',
-              'response': 'Previous answer',
-              'citations': <Map<String, dynamic>>[],
-            },
-          ],
-        },
         'haiku.rag.chat': {
           'qa_history': [
             {'question': 'Q1', 'answer': 'A1'},
           ],
+          'session_context': {'summary': 'Previous context'},
         },
       };
 
@@ -1654,10 +1646,10 @@ void main() {
         ThreadHistory(messages: const [], aguiState: cachedAguiState),
       );
 
-      // Start a run with initial state (filter_documents)
+      // Start a run with initial state (document_filter via haiku.rag.chat)
       final initialState = <String, dynamic>{
-        'filter_documents': {
-          'document_ids': ['doc-1', 'doc-2'],
+        'haiku.rag.chat': {
+          'document_filter': ['Doc A', 'Doc B'],
         },
       };
 
@@ -1676,23 +1668,16 @@ void main() {
         ),
       ).captured.single as SimpleRunAgentInput;
 
-      // Verify state contains BOTH cached AG-UI state AND initial state
+      // Verify state is deep-merged: cached server state + client state
       final sentState = captured.state as Map<String, dynamic>;
+      final haikuChat = sentState['haiku.rag.chat'] as Map<String, dynamic>;
 
-      // Cached state should be preserved
-      expect(sentState['ask_history'], isNotNull);
-      expect(
-        (sentState['ask_history'] as Map)['questions'],
-        hasLength(1),
-      );
-      expect(sentState['haiku.rag.chat'], isNotNull);
+      // Cached server state should be preserved
+      expect(haikuChat['qa_history'], hasLength(1));
+      expect(haikuChat['session_context'], isNotNull);
 
-      // Initial state (filter_documents) should be included
-      expect(sentState['filter_documents'], isNotNull);
-      expect(
-        (sentState['filter_documents'] as Map)['document_ids'],
-        ['doc-1', 'doc-2'],
-      );
+      // Client-provided document_filter should be merged in
+      expect(haikuChat['document_filter'], ['Doc A', 'Doc B']);
     });
   });
 
