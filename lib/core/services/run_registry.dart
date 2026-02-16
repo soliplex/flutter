@@ -8,6 +8,9 @@ import 'package:soliplex_frontend/core/models/thread_key.dart';
 /// Callback invoked when a run completes (success, failure, or cancellation).
 typedef OnRunCompleted = void Function(CompletedState completed);
 
+/// Callback invoked when a run completes (success, failure, or cancellation).
+typedef OnRunCompleted = void Function(CompletedState completed);
+
 /// Registry for tracking multiple concurrent AG-UI runs.
 ///
 /// RunRegistry manages a collection of [RunHandle] instances, keyed by
