@@ -81,6 +81,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           activeRunNotifierOverride(const IdleState()),
+          currentRoomIdProviderOverride('room-1'),
           threadSelectionProviderOverride(const ThreadSelected('thread-1')),
         ],
       );
@@ -89,7 +90,7 @@ void main() {
       // Pre-populate cache
       container
           .read(threadHistoryCacheProvider.notifier)
-          .updateHistory('thread-1', cachedHistory);
+          .updateHistory('room-1', 'thread-1', cachedHistory);
 
       // Act
       final refs = container.read(
@@ -105,6 +106,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           activeRunNotifierOverride(const IdleState()),
+          currentRoomIdProviderOverride('room-1'),
           threadSelectionProviderOverride(const ThreadSelected('thread-1')),
         ],
       );
@@ -112,6 +114,7 @@ void main() {
 
       // Pre-populate cache with empty messageStates
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'room-1',
             'thread-1',
             ThreadHistory(messages: const []),
           );
@@ -184,6 +187,7 @@ void main() {
           activeRunNotifierOverride(
             RunningState(conversation: activeConversation),
           ),
+          currentRoomIdProviderOverride('room-1'),
           threadSelectionProviderOverride(const ThreadSelected('thread-1')),
         ],
       );
@@ -192,7 +196,7 @@ void main() {
       // Pre-populate cache
       container
           .read(threadHistoryCacheProvider.notifier)
-          .updateHistory('thread-1', cachedHistory);
+          .updateHistory('room-1', 'thread-1', cachedHistory);
 
       // Act
       final refs = container.read(

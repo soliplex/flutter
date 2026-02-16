@@ -642,9 +642,10 @@ void main() {
         await tester.pumpAndSettle();
 
         // Assert: cache contains the seeded state
+        const key = (roomId: 'test-room', threadId: 'seeded-thread');
         final cache = container.read(threadHistoryCacheProvider);
-        expect(cache, contains('seeded-thread'));
-        final history = cache['seeded-thread']!;
+        expect(cache, contains(key));
+        final history = cache[key]!;
         expect(
           history.aguiState,
           containsPair('haiku.rag.chat', isA<Map<String, dynamic>>()),

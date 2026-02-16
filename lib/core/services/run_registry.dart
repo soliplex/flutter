@@ -6,10 +6,7 @@ import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 import 'package:soliplex_frontend/core/models/thread_key.dart';
 
 /// Callback invoked when a run completes (success, failure, or cancellation).
-typedef OnRunCompleted = void Function(CompletedState completed);
-
-/// Callback invoked when a run completes (success, failure, or cancellation).
-typedef OnRunCompleted = void Function(CompletedState completed);
+typedef OnRunCompleted = void Function(ThreadKey key, CompletedState completed);
 
 /// Registry for tracking multiple concurrent AG-UI runs.
 ///
@@ -75,13 +72,13 @@ class RunRegistry {
     if (_controller.isClosed || _runs[handle.key] != handle) return;
     handle.state = completed;
     _controller.add(RunCompleted(key: handle.key, result: completed.result));
-    onRunCompleted?.call(completed);
+    onRunCompleted?.call(handle.key, completed);
   }
 
   /// Notifies the completion callback for runs that failed before
   /// registration (e.g., errors during run setup).
-  void notifyCompletion(CompletedState completed) {
-    onRunCompleted?.call(completed);
+  void notifyCompletion(ThreadKey key, CompletedState completed) {
+    onRunCompleted?.call(key, completed);
   }
 
   /// Gets the current state for a thread's run.

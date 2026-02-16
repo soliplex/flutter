@@ -212,6 +212,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       // Seed the history cache with backend-initialized AG-UI state
       if (initialAguiState.isNotEmpty) {
         ref.read(threadHistoryCacheProvider.notifier).updateHistory(
+              room.id,
               effectiveThread.id,
               ThreadHistory(
                 messages: const [],

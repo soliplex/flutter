@@ -3,6 +3,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
@@ -30,9 +31,11 @@ final sourceReferencesForUserMessageProvider =
   }
 
   // Fall back to cache
+  final roomId = ref.watch(currentRoomIdProvider);
   final threadId = ref.watch(currentThreadIdProvider);
-  if (threadId == null) return const [];
+  if (roomId == null || threadId == null) return const [];
 
-  final cached = ref.watch(threadHistoryCacheProvider)[threadId];
+  final key = (roomId: roomId, threadId: threadId);
+  final cached = ref.watch(threadHistoryCacheProvider)[key];
   return cached?.messageStates[userMessageId]?.sourceReferences ?? const [];
 });

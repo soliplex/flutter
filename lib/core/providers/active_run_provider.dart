@@ -100,7 +100,7 @@ final allMessagesProvider = FutureProvider<List<ChatMessage>>((ref) async {
 
   // Watch cache state to react to updates from updateHistory().
   final cacheState = ref.watch(threadHistoryCacheProvider);
-  final cached = cacheState[thread.id];
+  final cached = cacheState[(roomId: room.id, threadId: thread.id)];
 
   // Use cached history if available, otherwise fetch (which updates cache).
   final history = cached ??

@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
@@ -156,7 +157,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // because normal UI flow ensures cache is populated before user can
       // send. Adding async fetch here would block UI for a rare edge case.
       // See issue #30 for details.
-      final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+      final cachedHistory = ref.read(threadHistoryCacheProvider)[(
+        roomId: roomId,
+        threadId: threadId,
+      )];
       final cachedMessages = cachedHistory?.messages ?? [];
       final cachedAguiState = cachedHistory?.aguiState ?? const {};
 
@@ -254,6 +258,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       Loggers.activeRun.info('Run cancelled', error: e, stackTrace: st);
       await subscription?.cancel();
       final conv = pendingState?.conversation ?? state.conversation;
+      final key = (roomId: roomId, threadId: threadId);
       final completed = CompletedState(
         conversation: conv.withStatus(
           domain.Cancelled(reason: e.message),
@@ -261,7 +266,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: CancelledResult(reason: e.message),
       );
       state = completed;
-      _registry.notifyCompletion(completed);
+      registry.notifyCompletion(key, completed);
       _currentHandle = null;
     } catch (e, stackTrace) {
       // Clean up subscription on any error
@@ -272,6 +277,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
       await subscription?.cancel();
       final conv = pendingState?.conversation ?? state.conversation;
+      final key = (roomId: roomId, threadId: threadId);
       final errorMsg = e.toString();
       final completed = CompletedState(
         conversation: conv.withStatus(
@@ -280,7 +286,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       state = completed;
-      _registry.notifyCompletion(completed);
+      registry.notifyCompletion(key, completed);
       _currentHandle = null;
     } finally {
       _isStarting = false;
@@ -548,12 +554,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   /// Builds the cache-update callback injected into [RunRegistry].
   OnRunCompleted _buildCacheUpdater() {
-    return (CompletedState completedState) {
-      final threadId = completedState.threadId;
-      if (threadId.isEmpty) return;
+    return (ThreadKey key, CompletedState completedState) {
+      if (key.threadId.isEmpty) return;
 
       // Merge existing messageStates from cache with new ones from this run
-      final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+      final cachedHistory = ref.read(threadHistoryCacheProvider)[key];
       final existingMessageStates = cachedHistory?.messageStates ?? const {};
       final newMessageStates = completedState.conversation.messageStates;
 
@@ -564,7 +569,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
       ref
           .read(threadHistoryCacheProvider.notifier)
-          .updateHistory(threadId, history);
+          .updateHistory(key.roomId, key.threadId, history);
     };
   }
 }

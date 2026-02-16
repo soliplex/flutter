@@ -628,7 +628,7 @@ void main() {
       setUp(() {
         completedStates = [];
         callbackRegistry = RunRegistry(
-          onRunCompleted: completedStates.add,
+          onRunCompleted: (_, completed) => completedStates.add(completed),
         );
       });
 
@@ -712,7 +712,7 @@ void main() {
           result: Success(),
         );
 
-        callbackRegistry.notifyCompletion(completed);
+        callbackRegistry.notifyCompletion(defaultKey, completed);
 
         expect(completedStates, hasLength(1));
         expect(completedStates.first, same(completed));
@@ -735,6 +735,7 @@ void main() {
             ),
           )
           ..notifyCompletion(
+            defaultKey,
             const CompletedState(
               conversation: Conversation(
                 threadId: 'thread-1',

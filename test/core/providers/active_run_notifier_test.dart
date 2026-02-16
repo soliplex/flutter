@@ -880,8 +880,9 @@ void main() {
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
       // Cache should be empty initially
+      const key = (roomId: 'room-1', threadId: 'thread-1');
       final cacheBefore = container.read(threadHistoryCacheProvider);
-      expect(cacheBefore['thread-1'], isNull);
+      expect(cacheBefore[key], isNull);
 
       // Send RUN_FINISHED event
       eventStreamController.add(
@@ -896,10 +897,10 @@ void main() {
 
       // Cache should now contain the messages
       final cacheAfter = container.read(threadHistoryCacheProvider);
-      expect(cacheAfter['thread-1'], isNotNull);
-      expect(cacheAfter['thread-1']!.messages, hasLength(1));
+      expect(cacheAfter[key], isNotNull);
+      expect(cacheAfter[key]!.messages, hasLength(1));
       expect(
-        (cacheAfter['thread-1']!.messages.first as TextMessage).text,
+        (cacheAfter[key]!.messages.first as TextMessage).text,
         'Hello',
       );
     });
@@ -922,8 +923,9 @@ void main() {
           );
 
       // Cache should be empty initially
+      const key = (roomId: 'room-1', threadId: 'thread-1');
       final cacheBefore = container.read(threadHistoryCacheProvider);
-      expect(cacheBefore['thread-1'], isNull);
+      expect(cacheBefore[key], isNull);
 
       // Send RUN_ERROR event
       eventStreamController.add(const RunErrorEvent(message: 'Test error'));
@@ -938,8 +940,8 @@ void main() {
 
       // Cache should still contain the messages (even on error)
       final cacheAfter = container.read(threadHistoryCacheProvider);
-      expect(cacheAfter['thread-1'], isNotNull);
-      expect(cacheAfter['thread-1']!.messages, hasLength(1));
+      expect(cacheAfter[key], isNotNull);
+      expect(cacheAfter[key]!.messages, hasLength(1));
     });
   });
 
@@ -1050,9 +1052,10 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify cache was updated despite error
+      const key = (roomId: 'room-1', threadId: 'thread-1');
       final cache = container.read(threadHistoryCacheProvider);
-      expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.messages.length, greaterThan(0));
+      expect(cache[key], isNotNull);
+      expect(cache[key]!.messages.length, greaterThan(0));
     });
 
     test(
@@ -1124,9 +1127,10 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Verify cache was updated
+      const key = (roomId: 'room-1', threadId: 'thread-1');
       final cache = container.read(threadHistoryCacheProvider);
-      expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.messages.length, greaterThan(0));
+      expect(cache[key], isNotNull);
+      expect(cache[key]!.messages.length, greaterThan(0));
     });
   });
 
@@ -1367,9 +1371,10 @@ void main() {
           );
 
       // Cache should be updated
+      const key = (roomId: 'room-1', threadId: 'thread-1');
       final cache = container.read(threadHistoryCacheProvider);
-      expect(cache['thread-1'], isNotNull);
-      expect(cache['thread-1']!.messages, hasLength(1));
+      expect(cache[key], isNotNull);
+      expect(cache[key]!.messages, hasLength(1));
     });
   });
 
@@ -1509,6 +1514,7 @@ void main() {
           ),
         ];
         container.read(threadHistoryCacheProvider.notifier).updateHistory(
+              'room-1',
               'thread-1',
               ThreadHistory(messages: historicalMessages),
             );
@@ -1553,6 +1559,7 @@ void main() {
         ),
       ];
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'room-1',
             'thread-1',
             ThreadHistory(messages: historicalMessages),
           );
@@ -1673,6 +1680,7 @@ void main() {
       };
 
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
+            'room-1',
             'thread-1',
             ThreadHistory(messages: const [], aguiState: cachedAguiState),
           );
@@ -2224,9 +2232,10 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       // Cache for thread-a should be updated
+      const keyA = (roomId: 'room-1', threadId: 'thread-a');
       final cache = container.read(threadHistoryCacheProvider);
-      expect(cache['thread-a'], isNotNull);
-      expect(cache['thread-a']!.messages, hasLength(1));
+      expect(cache[keyA], isNotNull);
+      expect(cache[keyA]!.messages, hasLength(1));
 
       // Notifier state should still show thread B
       final notifierState = container.read(activeRunNotifierProvider);
