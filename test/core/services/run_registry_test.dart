@@ -620,5 +620,131 @@ void main() {
         expect(streamDone, isTrue);
       });
     });
+
+    group('onRunCompleted callback', () {
+      late RunRegistry callbackRegistry;
+      late List<CompletedState> completedStates;
+
+      setUp(() {
+        completedStates = [];
+        callbackRegistry = RunRegistry(
+          onRunCompleted: completedStates.add,
+        );
+      });
+
+      tearDown(() async {
+        await callbackRegistry.dispose();
+      });
+
+      test('completeRun invokes the callback with CompletedState', () async {
+        const completed = CompletedState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: domain.Completed(),
+          ),
+          result: Success(),
+        );
+
+        final handle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        await callbackRegistry.registerRun(handle);
+
+        callbackRegistry.completeRun(handle, completed);
+
+        expect(completedStates, hasLength(1));
+        expect(completedStates.first, same(completed));
+      });
+
+      test('completeRun does not invoke callback for stale handle', () async {
+        final staleHandle = createHandle();
+        await callbackRegistry.registerRun(staleHandle);
+
+        final newHandle = createHandle();
+        await callbackRegistry.registerRun(newHandle);
+
+        callbackRegistry.completeRun(
+          staleHandle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        expect(completedStates, isEmpty);
+      });
+
+      test('completeRun does not invoke callback for removed handle', () async {
+        final handle = createHandle();
+        await callbackRegistry.registerRun(handle);
+        await callbackRegistry.removeRun(
+          (roomId: 'room-1', threadId: 'thread-1'),
+        );
+
+        callbackRegistry.completeRun(
+          handle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        expect(completedStates, isEmpty);
+      });
+
+      test('notifyCompletion invokes the callback directly', () {
+        const completed = CompletedState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: domain.Completed(),
+          ),
+          result: Success(),
+        );
+
+        callbackRegistry.notifyCompletion(completed);
+
+        expect(completedStates, hasLength(1));
+        expect(completedStates.first, same(completed));
+      });
+
+      test('no callback is a no-op', () async {
+        // Default registry (no callback) should not throw
+        final handle = createHandle();
+        await registry.registerRun(handle);
+
+        registry.completeRun(
+          handle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        registry.notifyCompletion(
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+        // No exception thrown — passes
+      });
+    });
   });
 }

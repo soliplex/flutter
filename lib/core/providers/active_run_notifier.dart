@@ -37,7 +37,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   bool _isStarting = false;
 
   /// Registry tracking active runs across rooms and threads.
-  final RunRegistry _registry = RunRegistry();
+  late final RunRegistry _registry =
+      RunRegistry(onRunCompleted: _buildCacheUpdater());
 
   /// Current run handle — the run whose state the notifier exposes to UI.
   RunHandle? _currentHandle;
@@ -54,15 +55,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
-    // Update cache and unread indicators when any run completes.
+    // Mark thread as unread when a non-cancelled background run completes.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
       if (event is RunCompleted) {
-        final handle = _registry.getHandle(event.key);
-        if (handle?.state is CompletedState) {
-          _updateCacheOnCompletion(handle!.state as CompletedState);
-        }
-
-        // Mark thread as unread when a non-cancelled background run completes.
         final isBackground = _currentHandle?.key != event.key;
         if (isBackground && event.result is! CancelledResult) {
           ref
@@ -266,7 +261,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: CancelledResult(reason: e.message),
       );
       state = completed;
-      _updateCacheOnCompletion(completed);
+      _registry.notifyCompletion(completed);
       _currentHandle = null;
     } catch (e, stackTrace) {
       // Clean up subscription on any error
@@ -285,7 +280,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       state = completed;
-      _updateCacheOnCompletion(completed);
+      _registry.notifyCompletion(completed);
       _currentHandle = null;
     } finally {
       _isStarting = false;
@@ -551,23 +546,25 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     return conversation.withMessageState(handle.userMessageId, messageState);
   }
 
-  /// Updates the history cache when a run completes.
-  void _updateCacheOnCompletion(CompletedState completedState) {
-    final threadId = completedState.threadId;
-    if (threadId.isEmpty) return;
+  /// Builds the cache-update callback injected into [RunRegistry].
+  OnRunCompleted _buildCacheUpdater() {
+    return (CompletedState completedState) {
+      final threadId = completedState.threadId;
+      if (threadId.isEmpty) return;
 
-    // Merge existing messageStates from cache with new ones from this run
-    final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
-    final existingMessageStates = cachedHistory?.messageStates ?? const {};
-    final newMessageStates = completedState.conversation.messageStates;
+      // Merge existing messageStates from cache with new ones from this run
+      final cachedHistory = ref.read(threadHistoryCacheProvider)[threadId];
+      final existingMessageStates = cachedHistory?.messageStates ?? const {};
+      final newMessageStates = completedState.conversation.messageStates;
 
-    final history = ThreadHistory(
-      messages: completedState.messages,
-      aguiState: completedState.conversation.aguiState,
-      messageStates: {...existingMessageStates, ...newMessageStates},
-    );
-    ref
-        .read(threadHistoryCacheProvider.notifier)
-        .updateHistory(threadId, history);
+      final history = ThreadHistory(
+        messages: completedState.messages,
+        aguiState: completedState.conversation.aguiState,
+        messageStates: {...existingMessageStates, ...newMessageStates},
+      );
+      ref
+          .read(threadHistoryCacheProvider.notifier)
+          .updateHistory(threadId, history);
+    };
   }
 }
