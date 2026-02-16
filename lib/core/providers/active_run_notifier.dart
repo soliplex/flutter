@@ -12,6 +12,7 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 
 /// Manages the lifecycle of an active AG-UI run.
@@ -53,12 +54,20 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
-    // Update cache when any run completes (foreground or background).
+    // Update cache and unread indicators when any run completes.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
       if (event is RunCompleted) {
         final handle = _registry.getHandle(event.key);
         if (handle?.state is CompletedState) {
           _updateCacheOnCompletion(handle!.state as CompletedState);
+        }
+
+        // Mark thread as unread when a non-cancelled background run completes.
+        final isBackground = _currentHandle?.key != event.key;
+        if (isBackground && event.result is! CancelledResult) {
+          ref
+              .read(unreadRunsProvider.notifier)
+              .markUnread(event.roomId, event.threadId);
         }
       }
     });

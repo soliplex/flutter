@@ -5,6 +5,7 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/history/widgets/new_conversation_button.dart';
 import 'package:soliplex_frontend/features/history/widgets/thread_list_item.dart';
@@ -84,6 +85,8 @@ class HistoryPanel extends ConsumerWidget {
           _ => null,
         };
         final currentThreadId = ref.watch(currentThreadIdProvider);
+        final unreadRuns = ref.watch(unreadRunsProvider);
+        final unreadThreads = unreadRuns[roomId] ?? const {};
 
         return Padding(
           padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
@@ -114,6 +117,7 @@ class HistoryPanel extends ConsumerWidget {
                         thread: thread,
                         isSelected: isSelected,
                         hasActiveRun: hasActiveRun,
+                        hasUnreadRun: unreadThreads.contains(thread.id),
                         onTap: () => _handleThreadSelection(
                           context,
                           ref,
@@ -141,6 +145,7 @@ class HistoryPanel extends ConsumerWidget {
     String threadId,
   ) {
     Loggers.room.trace('Thread selected from list: $threadId');
+    ref.read(unreadRunsProvider.notifier).markRead(roomId, threadId);
     selectThread(
       ref: ref,
       roomId: roomId,
