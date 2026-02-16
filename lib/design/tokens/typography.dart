@@ -1,38 +1,133 @@
 import 'package:flutter/material.dart';
 
-import 'package:soliplex_frontend/design/tokens/colors.dart';
+/// Bundled font family constants for the default Soliplex theme.
+abstract final class FontFamilies {
+  /// Body font — UI text, paragraphs, labels, buttons.
+  static const String body = 'Inter';
 
-TextTheme soliplexTextTheme(SoliplexColors colors) {
+  /// Display font — hero text, AppBar titles, ListTile titles.
+  static const String display = 'Hyprsalvo';
+
+  /// Brand font — reserved for special brand uses.
+  static const String brand = 'Tactical';
+}
+
+/// Builds the Soliplex [TextTheme] with optional font overrides.
+///
+/// When [bodyFont] or [displayFont] are `null`, no `fontFamily` is set on
+/// those styles, so Material's default sans-serif font is used.
+TextTheme buildSoliplexTextTheme({String? bodyFont, String? displayFont}) {
   return TextTheme(
-    bodyMedium: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      height: 1.5,
-      color: colors.foreground,
+    // Display styles - large, prominent text
+    displayLarge: TextStyle(
+      fontFamily: displayFont,
+      fontSize: 48,
+      letterSpacing: -0.25,
+      height: 1.2,
     ),
-    labelMedium: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
-      height: 1.5,
-      color: colors.foreground,
+    displayMedium: TextStyle(
+      fontFamily: displayFont,
+      fontSize: 32,
+      letterSpacing: 0,
+      height: 1.8,
     ),
-    titleSmall: TextStyle(
-      fontSize: 16,
+    displaySmall: TextStyle(
+      fontFamily: displayFont,
+      fontSize: 28,
+      letterSpacing: 0,
+      height: 2.15,
+    ),
+
+    // Headline styles - section headers
+    headlineLarge: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w600,
+      fontSize: 28,
+      letterSpacing: 0,
+      height: 1.25,
+    ),
+    headlineMedium: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w600,
+      fontSize: 24,
+      letterSpacing: 0,
+      height: 2.4,
+    ),
+    headlineSmall: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w600,
+      fontSize: 20,
+      letterSpacing: 0,
+      height: 2.8,
+    ),
+
+    // Title styles - card titles, list headers
+    titleLarge: TextStyle(
+      fontFamily: bodyFont,
       fontWeight: FontWeight.w500,
-      height: 1.5,
-      color: colors.foreground,
+      fontSize: 24,
+      letterSpacing: 0,
+      height: 1.27,
     ),
     titleMedium: TextStyle(
-      fontSize: 20,
+      fontFamily: bodyFont,
       fontWeight: FontWeight.w500,
+      fontSize: 18,
+      letterSpacing: 0.15,
       height: 1.5,
-      color: colors.foreground,
     ),
-    titleLarge: TextStyle(
-      fontSize: 24,
+    titleSmall: TextStyle(
+      fontFamily: bodyFont,
       fontWeight: FontWeight.w500,
+      fontSize: 14,
+      letterSpacing: 0.1,
+      height: 1.43,
+    ),
+
+    // Body styles - paragraph text
+    bodyLarge: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w400,
+      fontSize: 16,
+      letterSpacing: 0.5,
+      height: 1.3,
+    ),
+    bodyMedium: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w400,
+      fontSize: 13,
+      letterSpacing: 0.25,
+      height: 1.4,
+    ),
+    bodySmall: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w400,
+      fontSize: 10,
+      letterSpacing: 0.4,
+      height: 1.6,
+    ),
+
+    // Label styles - buttons, chips, form labels
+    labelLarge: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w500,
+      fontSize: 16,
+      letterSpacing: 0.1,
       height: 1.5,
-      color: colors.foreground,
+    ),
+    labelMedium: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w500,
+      fontSize: 13,
+      letterSpacing: 0.5,
+      height: 1.5,
+    ),
+    labelSmall: TextStyle(
+      fontFamily: bodyFont,
+      fontWeight: FontWeight.w500,
+      fontSize: 10,
+      letterSpacing: 0.5,
+      height: 1.5,
     ),
   );
 }

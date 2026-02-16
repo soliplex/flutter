@@ -30,15 +30,13 @@
 library soliplex_frontend;
 
 // Configuration models
+export 'package:soliplex_frontend/core/models/color_config.dart';
 export 'package:soliplex_frontend/core/models/features.dart';
+export 'package:soliplex_frontend/core/models/font_config.dart';
 export 'package:soliplex_frontend/core/models/logo_config.dart';
 export 'package:soliplex_frontend/core/models/route_config.dart';
 export 'package:soliplex_frontend/core/models/soliplex_config.dart';
-export 'package:soliplex_frontend/core/models/theme_config.dart';
-
-// Design tokens (for custom themes)
-export 'package:soliplex_frontend/design/tokens/colors.dart'
-    show SoliplexColors, darkSoliplexColors, lightSoliplexColors;
-
+export 'package:soliplex_frontend/core/models/theme_config.dart'
+    show ThemeConfig;
 // Entry point
 export 'package:soliplex_frontend/run_soliplex_app.dart';

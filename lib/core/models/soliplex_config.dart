@@ -41,6 +41,8 @@ class SoliplexConfig {
     this.features = const Features(),
     this.theme = const ThemeConfig(),
     this.routes = const RouteConfig(),
+    this.showLogoInAppBar = false,
+    this.showAppNameInAppBar = true,
   });
 
   /// The display name of the application.
@@ -91,6 +93,23 @@ class SoliplexConfig {
   /// Route configuration for navigation behavior.
   final RouteConfig routes;
 
+  /// Whether to show the configured logo left-aligned in the AppBar.
+  ///
+  /// When `true`, the logo is rendered in the left group of the AppBar
+  /// alongside the app name (if [showAppNameInAppBar] is also `true`).
+  /// The page title is flex-centered in the remaining space.
+  ///
+  /// Defaults to `false` (no logo in AppBar).
+  final bool showLogoInAppBar;
+
+  /// Whether to show [appName] left-aligned in the AppBar.
+  ///
+  /// Only takes effect when [showLogoInAppBar] is `true`. When both are
+  /// `true`, the app name is shown next to the logo in the left group.
+  ///
+  /// Defaults to `true`.
+  final bool showAppNameInAppBar;
+
   /// Creates a copy with the specified fields replaced.
   SoliplexConfig copyWith({
     String? appName,
@@ -101,6 +120,8 @@ class SoliplexConfig {
     Features? features,
     ThemeConfig? theme,
     RouteConfig? routes,
+    bool? showLogoInAppBar,
+    bool? showAppNameInAppBar,
   }) {
     return SoliplexConfig(
       appName: appName ?? this.appName,
@@ -111,6 +132,8 @@ class SoliplexConfig {
       features: features ?? this.features,
       theme: theme ?? this.theme,
       routes: routes ?? this.routes,
+      showLogoInAppBar: showLogoInAppBar ?? this.showLogoInAppBar,
+      showAppNameInAppBar: showAppNameInAppBar ?? this.showAppNameInAppBar,
     );
   }
 
@@ -126,7 +149,9 @@ class SoliplexConfig {
           consentNotice == other.consentNotice &&
           features == other.features &&
           theme == other.theme &&
-          routes == other.routes;
+          routes == other.routes &&
+          showLogoInAppBar == other.showLogoInAppBar &&
+          showAppNameInAppBar == other.showAppNameInAppBar;
 
   @override
   int get hashCode => Object.hash(
@@ -138,6 +163,8 @@ class SoliplexConfig {
         features,
         theme,
         routes,
+        showLogoInAppBar,
+        showAppNameInAppBar,
       );
 
   @override
@@ -149,5 +176,7 @@ class SoliplexConfig {
       'consentNotice: $consentNotice, '
       'features: $features, '
       'theme: $theme, '
-      'routes: $routes)';
+      'routes: $routes, '
+      'showLogoInAppBar: $showLogoInAppBar, '
+      'showAppNameInAppBar: $showAppNameInAppBar)';
 }
