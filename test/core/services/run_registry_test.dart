@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_client/soliplex_client.dart' as domain show Running;
+import 'package:soliplex_client/soliplex_client.dart' as domain
+    show Completed, Failed, Running;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
+import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 
 void main() {
@@ -33,8 +35,7 @@ void main() {
       addTearDown(controller.close);
 
       return RunHandle(
-        roomId: roomId,
-        threadId: threadId,
+        key: (roomId: roomId, threadId: threadId),
         runId: 'run-1',
         cancelToken: cancelToken,
         subscription: subscription,
@@ -44,14 +45,16 @@ void main() {
       );
     }
 
+    const defaultKey = (roomId: 'room-1', threadId: 'thread-1');
+
     group('registerRun', () {
       test('adds handle to registry', () async {
         final handle = createHandle();
 
         await registry.registerRun(handle);
 
-        expect(registry.activeRunCount, 1);
-        expect(registry.hasActiveRun('room-1', 'thread-1'), isTrue);
+        expect(registry.runCount, 1);
+        expect(registry.hasRun(defaultKey), isTrue);
       });
 
       test('can register multiple handles for different threads', () async {
@@ -63,7 +66,7 @@ void main() {
         await registry.registerRun(handle2);
         await registry.registerRun(handle3);
 
-        expect(registry.activeRunCount, 3);
+        expect(registry.runCount, 3);
       });
 
       test('replaces existing handle for same room/thread', () async {
@@ -73,14 +76,14 @@ void main() {
         await registry.registerRun(handle1);
         await registry.registerRun(handle2);
 
-        expect(registry.activeRunCount, 1);
+        expect(registry.runCount, 1);
         expect(handle1.cancelToken.isCancelled, isTrue);
       });
     });
 
     group('getRunState', () {
       test('returns null for unknown thread', () {
-        final state = registry.getRunState('room-1', 'thread-1');
+        final state = registry.getRunState(defaultKey);
 
         expect(state, isNull);
       });
@@ -95,7 +98,7 @@ void main() {
 
         await registry.registerRun(handle);
 
-        final state = registry.getRunState('room-1', 'thread-1');
+        final state = registry.getRunState(defaultKey);
         expect(state, isA<RunningState>());
       });
 
@@ -109,14 +112,14 @@ void main() {
         );
         handle.state = const RunningState(conversation: conversation);
 
-        final state = registry.getRunState('room-1', 'thread-1');
+        final state = registry.getRunState(defaultKey);
         expect(state, isA<RunningState>());
       });
     });
 
     group('getHandle', () {
       test('returns null for unknown thread', () {
-        final handle = registry.getHandle('room-1', 'thread-1');
+        final handle = registry.getHandle(defaultKey);
 
         expect(handle, isNull);
       });
@@ -125,57 +128,96 @@ void main() {
         final handle = createHandle();
         await registry.registerRun(handle);
 
-        final retrieved = registry.getHandle('room-1', 'thread-1');
+        final retrieved = registry.getHandle(defaultKey);
         expect(retrieved, same(handle));
       });
     });
 
-    group('hasActiveRun', () {
+    group('hasRun', () {
       test('returns false for unknown thread', () {
-        expect(registry.hasActiveRun('room-1', 'thread-1'), isFalse);
+        expect(registry.hasRun(defaultKey), isFalse);
       });
 
       test('returns true for registered thread', () async {
         final handle = createHandle();
         await registry.registerRun(handle);
 
-        expect(registry.hasActiveRun('room-1', 'thread-1'), isTrue);
+        expect(registry.hasRun(defaultKey), isTrue);
       });
 
-      test('returns false after run is cancelled', () async {
+      test('returns false after run is removed', () async {
         final handle = createHandle();
         await registry.registerRun(handle);
-        await registry.cancelRun('room-1', 'thread-1');
+        await registry.removeRun(defaultKey);
 
-        expect(registry.hasActiveRun('room-1', 'thread-1'), isFalse);
+        expect(registry.hasRun(defaultKey), isFalse);
       });
     });
 
-    group('cancelRun', () {
+    group('hasActiveRun', () {
+      test('returns false for unknown key', () {
+        expect(registry.hasActiveRun(defaultKey), isFalse);
+      });
+
+      test('returns true for running handle', () async {
+        final handle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        await registry.registerRun(handle);
+
+        expect(registry.hasActiveRun(defaultKey), isTrue);
+      });
+
+      test('returns false for completed handle', () async {
+        final handle = createHandle();
+        await registry.registerRun(handle);
+        registry.completeRun(
+          handle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        expect(registry.hasRun(defaultKey), isTrue);
+        expect(registry.hasActiveRun(defaultKey), isFalse);
+      });
+    });
+
+    group('removeRun', () {
       test('removes handle from registry', () async {
         final handle = createHandle();
         await registry.registerRun(handle);
 
-        await registry.cancelRun('room-1', 'thread-1');
+        await registry.removeRun(defaultKey);
 
-        expect(registry.activeRunCount, 0);
-        expect(registry.hasActiveRun('room-1', 'thread-1'), isFalse);
+        expect(registry.runCount, 0);
+        expect(registry.hasRun(defaultKey), isFalse);
       });
 
       test('disposes the handle', () async {
         final handle = createHandle();
         await registry.registerRun(handle);
 
-        await registry.cancelRun('room-1', 'thread-1');
+        await registry.removeRun(defaultKey);
 
         expect(handle.cancelToken.isCancelled, isTrue);
       });
 
       test('does nothing for unknown thread', () async {
         // Should not throw
-        await registry.cancelRun('room-1', 'unknown-thread');
+        await registry
+            .removeRun((roomId: 'room-1', threadId: 'unknown-thread'));
 
-        expect(registry.activeRunCount, 0);
+        expect(registry.runCount, 0);
       });
 
       test('only cancels specified thread', () async {
@@ -184,15 +226,18 @@ void main() {
         await registry.registerRun(handle1);
         await registry.registerRun(handle2);
 
-        await registry.cancelRun('room-1', 'thread-1');
+        await registry.removeRun(defaultKey);
 
-        expect(registry.activeRunCount, 1);
-        expect(registry.hasActiveRun('room-1', 'thread-1'), isFalse);
-        expect(registry.hasActiveRun('room-1', 'thread-2'), isTrue);
+        expect(registry.runCount, 1);
+        expect(registry.hasRun(defaultKey), isFalse);
+        expect(
+          registry.hasRun((roomId: 'room-1', threadId: 'thread-2')),
+          isTrue,
+        );
       });
     });
 
-    group('cancelAll', () {
+    group('removeAll', () {
       test('removes all handles', () async {
         final handle1 = createHandle();
         final handle2 = createHandle(threadId: 'thread-2');
@@ -201,9 +246,9 @@ void main() {
         await registry.registerRun(handle2);
         await registry.registerRun(handle3);
 
-        await registry.cancelAll();
+        await registry.removeAll();
 
-        expect(registry.activeRunCount, 0);
+        expect(registry.runCount, 0);
       });
 
       test('disposes all handles', () async {
@@ -212,7 +257,7 @@ void main() {
         await registry.registerRun(handle1);
         await registry.registerRun(handle2);
 
-        await registry.cancelAll();
+        await registry.removeAll();
 
         expect(handle1.cancelToken.isCancelled, isTrue);
         expect(handle2.cancelToken.isCancelled, isTrue);
@@ -220,9 +265,26 @@ void main() {
 
       test('can be called on empty registry', () async {
         // Should not throw
-        await registry.cancelAll();
+        await registry.removeAll();
 
-        expect(registry.activeRunCount, 0);
+        expect(registry.runCount, 0);
+      });
+    });
+
+    group('runCount', () {
+      test('returns 0 for empty registry', () {
+        expect(registry.runCount, 0);
+      });
+
+      test('reflects number of registered runs', () async {
+        await registry.registerRun(createHandle());
+        expect(registry.runCount, 1);
+
+        await registry.registerRun(createHandle(threadId: 'thread-2'));
+        expect(registry.runCount, 2);
+
+        await registry.removeRun(defaultKey);
+        expect(registry.runCount, 1);
       });
     });
 
@@ -231,15 +293,43 @@ void main() {
         expect(registry.activeRunCount, 0);
       });
 
-      test('reflects number of registered runs', () async {
-        await registry.registerRun(createHandle());
-        expect(registry.activeRunCount, 1);
+      test('counts only running handles, not completed ones', () async {
+        final handle1 = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        final handle2 = createHandle(
+          threadId: 'thread-2',
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-2',
+              status: domain.Running(runId: 'run-2'),
+            ),
+          ),
+        );
+        await registry.registerRun(handle1);
+        await registry.registerRun(handle2);
 
-        await registry.registerRun(createHandle(threadId: 'thread-2'));
         expect(registry.activeRunCount, 2);
+        expect(registry.runCount, 2);
 
-        await registry.cancelRun('room-1', 'thread-1');
+        registry.completeRun(
+          handle1,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
         expect(registry.activeRunCount, 1);
+        expect(registry.runCount, 2);
       });
     });
 
@@ -269,7 +359,7 @@ void main() {
 
         expect(handle1.cancelToken.isCancelled, isTrue);
         expect(handle2.cancelToken.isCancelled, isTrue);
-        expect(registry.activeRunCount, 0);
+        expect(registry.runCount, 0);
       });
     });
 
@@ -281,9 +371,253 @@ void main() {
         await registry.registerRun(handle1);
         await registry.registerRun(handle2);
 
-        expect(registry.activeRunCount, 2);
-        expect(registry.hasActiveRun('room-A', 'thread-1'), isTrue);
-        expect(registry.hasActiveRun('room-B', 'thread-1'), isTrue);
+        expect(registry.runCount, 2);
+        expect(
+          registry.hasRun((roomId: 'room-A', threadId: 'thread-1')),
+          isTrue,
+        );
+        expect(
+          registry.hasRun((roomId: 'room-B', threadId: 'thread-1')),
+          isTrue,
+        );
+      });
+    });
+
+    group('lifecycle events', () {
+      test('emits RunStarted when registerRun is called', () async {
+        final handle = createHandle();
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        await registry.registerRun(handle);
+
+        expect(events, hasLength(1));
+        expect(events.first, isA<RunStarted>());
+        final started = events.first as RunStarted;
+        expect(started.roomId, 'room-1');
+        expect(started.threadId, 'thread-1');
+      });
+
+      test('replacing a handle emits RunStarted but no RunCompleted for old',
+          () async {
+        final handle1 = createHandle();
+        final handle2 = createHandle();
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        await registry.registerRun(handle1);
+        await registry.registerRun(handle2);
+        await Future<void>.delayed(Duration.zero);
+
+        // Two RunStarted events, no RunCompleted for the replaced handle
+        expect(events, hasLength(2));
+        expect(events.every((e) => e is RunStarted), isTrue);
+      });
+
+      test('completeRun emits RunCompleted for Success', () async {
+        const conversation = Conversation(
+          threadId: 'thread-1',
+          status: domain.Completed(),
+        );
+        const completed = CompletedState(
+          conversation: conversation,
+          result: Success(),
+        );
+
+        final handle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        await registry.registerRun(handle);
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        registry.completeRun(handle, completed);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(events, hasLength(1));
+        expect(events.first, isA<RunCompleted>());
+        final event = events.first as RunCompleted;
+        expect(event.roomId, 'room-1');
+        expect(event.threadId, 'thread-1');
+        expect(event.result, isA<Success>());
+      });
+
+      test('completeRun emits RunCompleted for FailedResult', () async {
+        const conversation = Conversation(
+          threadId: 'thread-1',
+          status: domain.Failed(error: 'boom'),
+        );
+        const completed = CompletedState(
+          conversation: conversation,
+          result: FailedResult(errorMessage: 'boom'),
+        );
+
+        final handle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        await registry.registerRun(handle);
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        registry.completeRun(handle, completed);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(events, hasLength(1));
+        final event = events.first as RunCompleted;
+        expect(event.result, isA<FailedResult>());
+        expect(
+          (event.result as FailedResult).errorMessage,
+          'boom',
+        );
+      });
+
+      test('completeRun emits RunCompleted for CancelledResult', () async {
+        const conversation = Conversation(
+          threadId: 'thread-1',
+          status: domain.Completed(),
+        );
+        const completed = CompletedState(
+          conversation: conversation,
+          result: CancelledResult(reason: 'User cancelled'),
+        );
+
+        final handle = createHandle();
+        await registry.registerRun(handle);
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        registry.completeRun(handle, completed);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(events, hasLength(1));
+        expect(events.first, isA<RunCompleted>());
+        final event = events.first as RunCompleted;
+        expect(event.result, isA<CancelledResult>());
+      });
+
+      test('completeRun ignores stale handle replaced by a newer run',
+          () async {
+        final staleHandle = createHandle();
+        await registry.registerRun(staleHandle);
+
+        final newHandle = createHandle();
+        await registry.registerRun(newHandle);
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        registry.completeRun(
+          staleHandle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        expect(events, isEmpty);
+        expect(staleHandle.state, isA<IdleState>());
+      });
+
+      test('completeRun after removeRun is a no-op', () async {
+        final handle = createHandle();
+        await registry.registerRun(handle);
+        await registry.removeRun(defaultKey);
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        registry.completeRun(
+          handle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        expect(events, isEmpty);
+        expect(handle.state, isA<IdleState>());
+      });
+
+      test('completeRun sets handle state', () async {
+        const conversation = Conversation(
+          threadId: 'thread-1',
+          status: domain.Completed(),
+        );
+        const completed = CompletedState(
+          conversation: conversation,
+          result: Success(),
+        );
+
+        final handle = createHandle();
+        await registry.registerRun(handle);
+
+        registry.completeRun(handle, completed);
+
+        expect(handle.state, same(completed));
+      });
+
+      test('completeRun is no-op after disposal because handle is unregistered',
+          () async {
+        final handle = createHandle();
+        await registry.registerRun(handle);
+
+        await registry.dispose();
+
+        // removeAll() cleared _runs, so identity check returns early
+        registry.completeRun(
+          handle,
+          const CompletedState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Completed(),
+            ),
+            result: Success(),
+          ),
+        );
+
+        expect(handle.state, isA<IdleState>());
+      });
+
+      test('registerRun throws after disposal', () async {
+        await registry.dispose();
+
+        expect(
+          () => registry.registerRun(createHandle()),
+          throwsStateError,
+        );
+      });
+
+      test('stream is closed on dispose', () async {
+        var streamDone = false;
+        registry.lifecycleEvents.listen(
+          (_) {},
+          onDone: () => streamDone = true,
+        );
+
+        await registry.dispose();
+
+        expect(streamDone, isTrue);
       });
     });
   });

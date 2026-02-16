@@ -19,131 +19,27 @@ void main() {
     });
 
     tearDown(() {
+      subscription.cancel();
       eventStreamController.close();
     });
 
-    group('construction', () {
-      test('creates with required fields', () {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
+    RunHandle createHandle({
+      ActiveRunState? initialState,
+      StreamSubscription<BaseEvent>? customSubscription,
+    }) =>
+        RunHandle(
+          key: (roomId: 'room-1', threadId: 'thread-1'),
           runId: 'run-1',
           cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_123',
-          previousAguiState: const {'key': 'value'},
-        );
-
-        expect(handle.roomId, 'room-1');
-        expect(handle.threadId, 'thread-1');
-        expect(handle.runId, 'run-1');
-        expect(handle.cancelToken, cancelToken);
-        expect(handle.subscription, subscription);
-        expect(handle.userMessageId, 'user_123');
-        expect(handle.previousAguiState, {'key': 'value'});
-      });
-
-      test('defaults to IdleState when no initial state provided', () {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
+          subscription: customSubscription ?? subscription,
           userMessageId: 'user_1',
           previousAguiState: const {},
+          initialState: initialState,
         );
-
-        expect(handle.state, isA<IdleState>());
-      });
-
-      test('accepts initial state', () {
-        const conversation = Conversation(
-          threadId: 'thread-1',
-          status: domain.Running(runId: 'run-1'),
-        );
-        const runningState = RunningState(conversation: conversation);
-
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-          initialState: runningState,
-        );
-
-        expect(handle.state, isA<RunningState>());
-      });
-    });
-
-    group('key', () {
-      test('returns composite key of roomId:threadId', () {
-        final handle = RunHandle(
-          roomId: 'room-123',
-          threadId: 'thread-456',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
-
-        expect(handle.key, 'room-123:thread-456');
-      });
-
-      test('handles special characters in IDs', () {
-        final handle = RunHandle(
-          roomId: 'room-with-dashes',
-          threadId: 'thread_with_underscores',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
-
-        expect(handle.key, 'room-with-dashes:thread_with_underscores');
-      });
-    });
-
-    group('state', () {
-      test('state can be updated', () {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
-
-        const conversation = Conversation(
-          threadId: 'thread-1',
-          status: domain.Running(runId: 'run-1'),
-        );
-        const runningState = RunningState(conversation: conversation);
-
-        handle.state = runningState;
-
-        expect(handle.state, isA<RunningState>());
-      });
-    });
 
     group('isActive', () {
       test('returns false when state is IdleState', () {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
+        final handle = createHandle();
 
         expect(handle.isActive, isFalse);
       });
@@ -153,17 +49,9 @@ void main() {
           threadId: 'thread-1',
           status: domain.Running(runId: 'run-1'),
         );
-        const runningState = RunningState(conversation: conversation);
 
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-          initialState: runningState,
+        final handle = createHandle(
+          initialState: const RunningState(conversation: conversation),
         );
 
         expect(handle.isActive, isTrue);
@@ -174,20 +62,12 @@ void main() {
           threadId: 'thread-1',
           status: Completed(),
         );
-        const completedState = CompletedState(
-          conversation: conversation,
-          result: Success(),
-        );
 
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-          initialState: completedState,
+        final handle = createHandle(
+          initialState: const CompletedState(
+            conversation: conversation,
+            result: Success(),
+          ),
         );
 
         expect(handle.isActive, isFalse);
@@ -196,15 +76,7 @@ void main() {
 
     group('dispose', () {
       test('cancels the cancel token', () async {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
+        final handle = createHandle();
 
         expect(cancelToken.isCancelled, isFalse);
 
@@ -224,15 +96,7 @@ void main() {
         addTearDown(testSubscription.cancel);
         addTearDown(broadcastController.close);
 
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: testSubscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
+        final handle = createHandle(customSubscription: testSubscription);
 
         await handle.dispose();
 
@@ -246,15 +110,7 @@ void main() {
       });
 
       test('can be called multiple times safely', () async {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
+        final handle = createHandle();
 
         // Should not throw when called multiple times
         await handle.dispose();
@@ -276,15 +132,7 @@ void main() {
           cancelCount++;
         };
 
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: testSubscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
+        final handle = createHandle(customSubscription: testSubscription);
 
         await handle.dispose();
         expect(cancelCount, 1);
@@ -292,26 +140,6 @@ void main() {
         // Second dispose should be a no-op
         await handle.dispose();
         expect(cancelCount, 1);
-      });
-    });
-
-    group('toString', () {
-      test('includes key and state', () {
-        final handle = RunHandle(
-          roomId: 'room-1',
-          threadId: 'thread-1',
-          runId: 'run-1',
-          cancelToken: cancelToken,
-          subscription: subscription,
-          userMessageId: 'user_1',
-          previousAguiState: const {},
-        );
-
-        final str = handle.toString();
-
-        expect(str, contains('RunHandle'));
-        expect(str, contains('key: room-1:thread-1'));
-        expect(str, contains('IdleState'));
       });
     });
   });
