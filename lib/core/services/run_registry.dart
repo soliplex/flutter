@@ -76,7 +76,7 @@ class RunRegistry {
   }
 
   /// Notifies the completion callback for runs that failed before
-  /// registration (e.g., errors during [startRun] setup).
+  /// registration (e.g., errors during run setup).
   void notifyCompletion(CompletedState completed) {
     onRunCompleted?.call(completed);
   }

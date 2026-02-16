@@ -723,26 +723,26 @@ void main() {
         final handle = createHandle();
         await registry.registerRun(handle);
 
-        registry.completeRun(
-          handle,
-          const CompletedState(
-            conversation: Conversation(
-              threadId: 'thread-1',
-              status: domain.Completed(),
+        registry
+          ..completeRun(
+            handle,
+            const CompletedState(
+              conversation: Conversation(
+                threadId: 'thread-1',
+                status: domain.Completed(),
+              ),
+              result: Success(),
             ),
-            result: Success(),
-          ),
-        );
-
-        registry.notifyCompletion(
-          const CompletedState(
-            conversation: Conversation(
-              threadId: 'thread-1',
-              status: domain.Completed(),
+          )
+          ..notifyCompletion(
+            const CompletedState(
+              conversation: Conversation(
+                threadId: 'thread-1',
+                status: domain.Completed(),
+              ),
+              result: Success(),
             ),
-            result: Success(),
-          ),
-        );
+          );
         // No exception thrown — passes
       });
     });
