@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/inspector/http_inspector_panel.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
+import 'package:soliplex_frontend/shared/widgets/theme_toggle_button.dart';
 
 /// Shell widget that wraps all screens with a single Scaffold.
 ///
 /// Provides:
 /// - Single Scaffold to avoid nested Scaffold drawer issues
 /// - HTTP inspector drawer accessible from all screens (if enabled)
-/// - Consistent AppBar with configurable actions
+/// - Consistent AppBar with configurable actions and theme toggle
 /// - Support for custom end drawers
 ///
 /// The HTTP inspector can be disabled via `Features.enableHttpInspector`.
@@ -47,21 +49,45 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final shellConfig = ref.watch(shellConfigProvider);
     final features = ref.watch(featuresProvider);
     final showInspector =
         features.enableHttpInspector && customEndDrawer == null;
 
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: SoliplexSpacing.s6,
           children: [
-            if (config.leading != null) config.leading!,
-            if (config.title != null) Flexible(child: config.title!),
+            // Left group — intrinsic width
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              spacing: SoliplexSpacing.s2,
+              children: [
+                if (config.leading != null) config.leading!,
+                if (shellConfig.showLogoInAppBar)
+                  _BrandLogo(config: shellConfig),
+                if (shellConfig.showLogoInAppBar &&
+                    shellConfig.showAppNameInAppBar)
+                  Text(
+                    shellConfig.appName,
+                    style: Theme.of(context).textTheme.displaySmall,
+                  ),
+              ],
+            ),
+            // Page title — centered in remaining space
+            Expanded(
+              child: config.title != null
+                  ? Center(child: config.title)
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
         actions: [
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+            child: ThemeToggleButton(),
+          ),
           ...config.actions,
           if (showInspector)
             const Padding(
@@ -117,6 +143,32 @@ class AppShell extends ConsumerWidget {
     }
 
     return null;
+  }
+}
+
+/// Brand logo for the AppBar.
+///
+/// Renders the configured logo asset with an error fallback icon.
+class _BrandLogo extends StatelessWidget {
+  const _BrandLogo({required this.config});
+
+  final SoliplexConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    const double logoHeight = 40;
+
+    return Image.asset(
+      config.logo.assetPath,
+      package: config.logo.package,
+      height: logoHeight,
+      fit: BoxFit.contain,
+      semanticLabel: '${config.appName} logo',
+      errorBuilder: (context, error, stack) => const Icon(
+        Icons.image_not_supported_outlined,
+        size: logoHeight,
+      ),
+    );
   }
 }
 
