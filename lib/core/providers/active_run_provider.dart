@@ -109,7 +109,10 @@ final allMessagesProvider = FutureProvider<List<ChatMessage>>((ref) async {
           .getHistory(room.id, thread.id);
 
   final runState = ref.watch(activeRunNotifierProvider);
-  return _mergeMessages(history.messages, runState.messages);
+  final runMessages = runState.conversation.threadId == thread.id
+      ? runState.messages
+      : <ChatMessage>[];
+  return _mergeMessages(history.messages, runMessages);
 });
 
 /// Merges cached and running messages, deduplicating by ID.

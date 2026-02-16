@@ -259,6 +259,52 @@ void main() {
         expect(messages, isEmpty);
       });
 
+      test(
+        'ignores run messages from a different thread',
+        () async {
+          // Arrange: run state is for thread-other, but we're viewing
+          // thread-123
+          final cachedMessages = [
+            TestData.createMessage(id: 'msg-1', text: 'Cached message'),
+          ];
+          final runMessages = [
+            TestData.createMessage(id: 'msg-1', text: 'Cached message'),
+            TestData.createMessage(id: 'msg-2', text: 'Leaked message'),
+          ];
+
+          final mockThread = TestData.createThread(id: 'thread-123');
+          final mockRoom = TestData.createRoom(id: 'room-abc');
+
+          final container = ProviderContainer(
+            overrides: [
+              apiProvider.overrideWithValue(mockApi),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              threadHistoryCacheProvider.overrideWith(() {
+                return _PrePopulatedCache({'thread-123': cachedMessages});
+              }),
+              activeRunNotifierOverride(
+                RunningState(
+                  conversation: Conversation(
+                    threadId: 'thread-other',
+                    messages: runMessages,
+                    status: const Running(runId: 'run-1'),
+                  ),
+                ),
+              ),
+            ],
+          );
+          addTearDown(container.dispose);
+
+          // Act
+          final messages = await container.read(allMessagesProvider.future);
+
+          // Assert: Only cached messages, no leaked run messages
+          expect(messages, hasLength(1));
+          expect(messages[0].id, 'msg-1');
+        },
+      );
+
       test('returns empty list when no room selected', () async {
         // Arrange
         final container = ProviderContainer(

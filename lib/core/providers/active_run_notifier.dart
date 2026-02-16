@@ -8,7 +8,9 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
+import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 
 /// Manages the lifecycle of an active AG-UI run.
@@ -47,23 +49,27 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
-    ref.onDispose(() {
-      _registry.dispose().catchError((Object e, StackTrace st) {
-        Loggers.activeRun.error(
-          'Registry disposal error',
-          error: e,
-          stackTrace: st,
-        );
+    // Sync exposed state when the user navigates between rooms/threads.
+    ref
+      ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
+      ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
+      ..onDispose(() {
+        _registry.dispose().catchError((Object e, StackTrace st) {
+          Loggers.activeRun.error(
+            'Registry disposal error',
+            error: e,
+            stackTrace: st,
+          );
+        });
+        _currentHandle?.dispose().catchError((Object e, StackTrace st) {
+          Loggers.activeRun.error(
+            'Handle disposal error',
+            error: e,
+            stackTrace: st,
+          );
+        });
+        _currentHandle = null;
       });
-      _currentHandle?.dispose().catchError((Object e, StackTrace st) {
-        Loggers.activeRun.error(
-          'Handle disposal error',
-          error: e,
-          stackTrace: st,
-        );
-      });
-      _currentHandle = null;
-    });
 
     return const IdleState();
   }
@@ -198,8 +204,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       handle = RunHandle(
-        roomId: roomId,
-        threadId: threadId,
+        key: (roomId: roomId, threadId: threadId),
         runId: runId,
         cancelToken: cancelToken,
         subscription: subscription,
@@ -270,22 +275,22 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   Future<void> cancelRun() async {
     Loggers.activeRun.debug('cancelRun called');
     final handle = _currentHandle;
+    if (handle == null) return;
 
-    if (handle != null) {
-      await handle.dispose();
-      final handleState = handle.state;
-      if (handleState is RunningState) {
-        final completed = CompletedState(
-          conversation: handleState.conversation.withStatus(
-            const domain.Cancelled(reason: 'User cancelled'),
-          ),
-          result: const CancelledResult(reason: 'Cancelled by user'),
-        );
-        handle.state = completed;
-        state = completed;
-        _updateCacheOnCompletion(completed);
-      }
-      _currentHandle = null;
+    _currentHandle = null;
+    await handle.dispose();
+
+    final handleState = handle.state;
+    if (handleState is RunningState) {
+      final completed = CompletedState(
+        conversation: handleState.conversation.withStatus(
+          const domain.Cancelled(reason: 'User cancelled'),
+        ),
+        result: const CancelledResult(reason: 'Cancelled by user'),
+      );
+      _registry.completeRun(handle, completed);
+      _updateCacheOnCompletion(completed);
+      state = completed;
     }
   }
 
@@ -313,6 +318,31 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     }
   }
 
+  /// Syncs the exposed state with the currently viewed thread.
+  ///
+  /// Called when the user navigates between rooms/threads. Looks up the
+  /// registry for an active run matching the viewed thread and exposes
+  /// its state. If no run exists, resets to idle.
+  void _syncCurrentHandle() {
+    final roomId = ref.read(currentRoomIdProvider);
+    final threadId = ref.read(currentThreadIdProvider);
+
+    if (roomId == null || threadId == null) {
+      _currentHandle = null;
+      state = const IdleState();
+      return;
+    }
+
+    final handle = _registry.getHandle((roomId: roomId, threadId: threadId));
+    if (handle != null) {
+      _currentHandle = handle;
+      state = handle.state;
+    } else {
+      _currentHandle = null;
+      state = const IdleState();
+    }
+  }
+
   /// Processes a single AG-UI event for a specific run.
   void _processEventForRun(RunHandle handle, BaseEvent event) {
     try {
@@ -328,14 +358,13 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       final newState = _mapResultForRun(handle, handleState, result);
-      handle.state = newState;
-
-      if (identical(handle, _currentHandle)) {
-        state = newState;
-        if (newState is CompletedState) {
-          _currentHandle = null;
-        }
+      if (newState is CompletedState) {
+        _registry.completeRun(handle, newState);
+      } else {
+        handle.state = newState;
       }
+
+      _syncUiState(handle, newState);
     } catch (e, st) {
       _handleFailureForRun(handle, e, st);
     }
@@ -362,13 +391,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
-      handle.state = completed;
+      _registry.completeRun(handle, completed);
       _updateCacheOnCompletion(completed);
-
-      if (identical(handle, _currentHandle)) {
-        state = completed;
-        _currentHandle = null;
-      }
+      _syncUiState(handle, completed);
     }
   }
 
@@ -382,13 +407,19 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: const Success(),
       );
-      handle.state = completed;
+      _registry.completeRun(handle, completed);
       _updateCacheOnCompletion(completed);
+      _syncUiState(handle, completed);
+    }
+  }
 
-      if (identical(handle, _currentHandle)) {
-        state = completed;
-        _currentHandle = null;
-      }
+  /// Syncs the notifier's exposed state if this handle is the one the UI
+  /// is watching. Detaches the handle on terminal (completed) states.
+  void _syncUiState(RunHandle handle, ActiveRunState newState) {
+    if (!identical(handle, _currentHandle)) return;
+    state = newState;
+    if (newState is CompletedState) {
+      _currentHandle = null;
     }
   }
 
