@@ -133,20 +133,21 @@ code and prepares for multi-run tracking.
 ### Tasks
 
 1. Create `lib/core/models/run_handle.dart`
-2. Define `RunHandle` class with: key (RunKey), runId, cancelToken,
+2. Define `RunHandle` class with: key (ThreadKey), runId, cancelToken,
    subscription, userMessageId, previousAguiState, state, isActive
 3. Move dispose logic from `RunningInternalState` to `RunHandle` (idempotent)
 4. Add unit tests for `RunHandle`
 
 ### Files Created
 
+- `lib/core/models/thread_key.dart`
 - `lib/core/models/run_handle.dart`
 - `test/core/models/run_handle_test.dart`
 
 ### RunHandle API
 
 ```dart
-typedef RunKey = ({String roomId, String threadId});
+// ThreadKey is defined in lib/core/models/thread_key.dart
 
 class RunHandle {
   RunHandle({
@@ -159,7 +160,7 @@ class RunHandle {
     ActiveRunState? initialState,
   }) : state = initialState ?? const IdleState();
 
-  final RunKey key;
+  final ThreadKey key;
   String get roomId => key.roomId;
   String get threadId => key.threadId;
   final String runId;
@@ -207,7 +208,7 @@ enabling multiple concurrent runs.
 ### Tasks
 
 1. Create `lib/core/services/run_registry.dart`
-2. Define `RunRegistry` class with `Map<RunKey, RunHandle>`
+2. Define `RunRegistry` class with `Map<ThreadKey, RunHandle>`
 3. Implement `registerRun()`, `getRunState()`, `getHandle()`, `hasRun()`,
    `hasActiveRun()`, `removeRun()`, `removeAll()`
 4. Add unit tests
@@ -221,25 +222,25 @@ enabling multiple concurrent runs.
 
 ```dart
 class RunRegistry {
-  final Map<RunKey, RunHandle> _runs = {};
+  final Map<ThreadKey, RunHandle> _runs = {};
 
   /// Register a run handle (replaces existing for same key).
   Future<void> registerRun(RunHandle handle);
 
   /// Get current state for a thread's run, or null if none.
-  ActiveRunState? getRunState(RunKey key);
+  ActiveRunState? getRunState(ThreadKey key);
 
   /// Get the run handle for a thread, or null if none.
-  RunHandle? getHandle(RunKey key);
+  RunHandle? getHandle(ThreadKey key);
 
   /// Whether any run (active or completed) is registered for the key.
-  bool hasRun(RunKey key);
+  bool hasRun(ThreadKey key);
 
   /// Whether an actively running (not yet completed) run exists for the key.
-  bool hasActiveRun(RunKey key);
+  bool hasActiveRun(ThreadKey key);
 
   /// Remove a run and dispose its resources.
-  Future<void> removeRun(RunKey key);
+  Future<void> removeRun(ThreadKey key);
 
   /// Dispose all runs.
   Future<void> removeAll();
@@ -441,7 +442,7 @@ Foundation for unread indicators (slice 9).
 @immutable
 sealed class RunLifecycleEvent {
   const RunLifecycleEvent({required this.key});
-  final RunKey key;
+  final ThreadKey key;
   String get roomId => key.roomId;
   String get threadId => key.threadId;
 }
@@ -479,7 +480,7 @@ This keeps the registry a faithful event bus rather than embedding business
 policy about which events are "interesting." If a future consumer (e.g.,
 analytics) needs cancellation events, they're available on the stream.
 
-**`RunKey` typedef with convenience getters.** A named record typedef
+**`ThreadKey` typedef with convenience getters.** A named record typedef
 `({String roomId, String threadId})` provides a type-safe composite
 identifier with value equality. Used as the map key in RunRegistry (no
 string concatenation, no `_makeKey()` helper), the identity field in
@@ -654,7 +655,7 @@ class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
 **Customer value:** Prepares for cross-room persistence. Avoids threadId
 collisions if backend generates same IDs per room.
 
-**Note:** The `RunKey` typedef and `Map<RunKey, RunHandle>` were introduced
+**Note:** The `ThreadKey` typedef and `Map<ThreadKey, RunHandle>` were introduced
 in slices 2–3, so the core keying infrastructure already exists. This slice
 audits remaining code paths that may still use threadId alone without roomId
 context.
@@ -662,7 +663,7 @@ context.
 ### Tasks
 
 1. Audit all code paths for threadId-only lookups (without roomId context)
-2. Verify `_syncCurrentHandle()` constructs a proper `RunKey` with both IDs
+2. Verify `_syncCurrentHandle()` constructs a proper `ThreadKey` with both IDs
 3. Add cross-room integration tests if not already covered
 
 ### Files Modified
@@ -746,7 +747,8 @@ original room and response is still there.
 
 **Created:**
 
-- `lib/core/models/run_handle.dart` - RunKey typedef + RunHandle class (slice 2)
+- `lib/core/models/thread_key.dart` - ThreadKey typedef (slice 2)
+- `lib/core/models/run_handle.dart` - RunHandle class (slice 2)
 - `lib/core/services/run_registry.dart` - RunRegistry class (slice 3)
 - `lib/core/models/run_lifecycle_event.dart` - Lifecycle events (slice 7)
 

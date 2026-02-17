@@ -1,6 +1,6 @@
 import 'package:meta/meta.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
-import 'package:soliplex_frontend/core/models/run_handle.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 
 /// Events broadcast when runs start or complete.
 @immutable
@@ -8,7 +8,7 @@ sealed class RunLifecycleEvent {
   const RunLifecycleEvent({required this.key});
 
   /// Composite key identifying which room/thread this event is for.
-  final RunKey key;
+  final ThreadKey key;
 
   /// The room this event belongs to.
   String get roomId => key.roomId;

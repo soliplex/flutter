@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 
 /// Registry for tracking multiple concurrent AG-UI runs.
 ///
 /// RunRegistry manages a collection of [RunHandle] instances, keyed by
-/// their [RunKey]. It provides:
+/// their [ThreadKey]. It provides:
 /// - Registration and lookup of runs
 /// - Lifecycle event broadcasting via [completeRun]
 /// - Removal and disposal of individual or all runs
@@ -30,7 +31,7 @@ import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 /// await registry.removeRun(key);
 /// ```
 class RunRegistry {
-  final Map<RunKey, RunHandle> _runs = {};
+  final Map<ThreadKey, RunHandle> _runs = {};
   final _controller = StreamController<RunLifecycleEvent>.broadcast();
 
   /// Stream of lifecycle events for run start and completion.
@@ -67,24 +68,24 @@ class RunRegistry {
   /// Gets the current state for a thread's run.
   ///
   /// Returns null if no run exists for the given room/thread.
-  ActiveRunState? getRunState(RunKey key) => _runs[key]?.state;
+  ActiveRunState? getRunState(ThreadKey key) => _runs[key]?.state;
 
   /// Gets the run handle for a thread.
   ///
   /// Returns null if no run exists for the given room/thread.
-  RunHandle? getHandle(RunKey key) => _runs[key];
+  RunHandle? getHandle(ThreadKey key) => _runs[key];
 
   /// Checks if any run (active or completed) is registered for the given key.
-  bool hasRun(RunKey key) => _runs.containsKey(key);
+  bool hasRun(ThreadKey key) => _runs.containsKey(key);
 
   /// Checks if an actively running (not yet completed) run exists for the key.
-  bool hasActiveRun(RunKey key) => _runs[key]?.isActive ?? false;
+  bool hasActiveRun(ThreadKey key) => _runs[key]?.isActive ?? false;
 
   /// Removes a run and disposes its resources.
   ///
   /// Callers must call [completeRun] first if a lifecycle event is needed.
   /// Does nothing if no run exists for the given key.
-  Future<void> removeRun(RunKey key) async {
+  Future<void> removeRun(ThreadKey key) async {
     final handle = _runs.remove(key);
     await handle?.dispose();
   }

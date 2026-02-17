@@ -7,10 +7,12 @@ import 'package:soliplex_client/soliplex_client.dart' as domain
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
+import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 
 /// Manages the lifecycle of an active AG-UI run.
@@ -40,6 +42,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Current run handle — the run whose state the notifier exposes to UI.
   RunHandle? _currentHandle;
 
+  /// Subscription to registry lifecycle events.
+  StreamSubscription<RunLifecycleEvent>? _lifecycleSub;
+
   /// The run registry for this notifier.
   ///
   /// Exposed for testing and external access to run tracking state.
@@ -49,11 +54,30 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
+    // Update cache and unread indicators when any run completes.
+    _lifecycleSub = _registry.lifecycleEvents.listen((event) {
+      if (event is RunCompleted) {
+        final handle = _registry.getHandle(event.key);
+        if (handle?.state is CompletedState) {
+          _updateCacheOnCompletion(handle!.state as CompletedState);
+        }
+
+        // Mark thread as unread when a non-cancelled background run completes.
+        final isBackground = _currentHandle?.key != event.key;
+        if (isBackground && event.result is! CancelledResult) {
+          ref
+              .read(unreadRunsProvider.notifier)
+              .markUnread(event.roomId, event.threadId);
+        }
+      }
+    });
+
     // Sync exposed state when the user navigates between rooms/threads.
     ref
       ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
       ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
       ..onDispose(() {
+        _lifecycleSub?.cancel();
         _registry.dispose().catchError((Object e, StackTrace st) {
           Loggers.activeRun.error(
             'Registry disposal error',
@@ -84,7 +108,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Useful when a thread was just created with an initial run.
   ///
   /// Multiple runs can be active concurrently in different threads. The
-  /// notifier's [state] tracks the most recently started run.
+  /// notifier's [state] tracks the run for the currently viewed thread.
   Future<void> startRun({
     required String roomId,
     required String threadId,
@@ -270,7 +294,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   /// Cancels the current run.
   ///
-  /// Preserves all completed messages but clears streaming state.
+  /// Preserves the conversation so far and marks it as cancelled.
   /// Background runs in other threads are unaffected.
   Future<void> cancelRun() async {
     Loggers.activeRun.debug('cancelRun called');
@@ -289,7 +313,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: const CancelledResult(reason: 'Cancelled by user'),
       );
       _registry.completeRun(handle, completed);
-      _updateCacheOnCompletion(completed);
       state = completed;
     }
   }
@@ -392,7 +415,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       _registry.completeRun(handle, completed);
-      _updateCacheOnCompletion(completed);
       _syncUiState(handle, completed);
     }
   }
@@ -408,7 +430,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: const Success(),
       );
       _registry.completeRun(handle, completed);
-      _updateCacheOnCompletion(completed);
       _syncUiState(handle, completed);
     }
   }
@@ -494,10 +515,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           'Unexpected Idle status during event processing',
         ),
     };
-
-    if (newState is CompletedState) {
-      _updateCacheOnCompletion(newState);
-    }
 
     return newState;
   }

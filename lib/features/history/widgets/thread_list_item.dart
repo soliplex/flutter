@@ -26,6 +26,7 @@ class ThreadListItem extends StatelessWidget {
     required this.isSelected,
     required this.hasActiveRun,
     required this.onTap,
+    this.hasUnreadRun = false,
     super.key,
   });
 
@@ -37,6 +38,9 @@ class ThreadListItem extends StatelessWidget {
 
   /// Whether this thread has an active run.
   final bool hasActiveRun;
+
+  /// Whether this thread has a completed run the user hasn't viewed.
+  final bool hasUnreadRun;
 
   /// Callback when the item is tapped.
   final VoidCallback onTap;
@@ -93,6 +97,16 @@ class ThreadListItem extends StatelessWidget {
               : colorScheme.onSurfaceVariant,
         ),
       ),
+      trailing: hasUnreadRun && !isSelected
+          ? Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                shape: BoxShape.circle,
+              ),
+            )
+          : null,
     );
   }
 }

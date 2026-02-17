@@ -8,6 +8,7 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
@@ -98,6 +99,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           :final threadId,
         ) when threads.any((t) => t.id == threadId)) {
       Loggers.room.debug('Thread selection: last viewed $threadId');
+      ref.read(unreadRunsProvider.notifier).markRead(widget.roomId, threadId);
       ref.read(threadSelectionProvider.notifier).set(ThreadSelected(threadId));
       return;
     }
@@ -111,6 +113,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
   /// Selects a thread and persists as last viewed.
   void _selectThread(String threadId) {
+    ref.read(unreadRunsProvider.notifier).markRead(widget.roomId, threadId);
     selectAndPersistThread(ref: ref, roomId: widget.roomId, threadId: threadId);
   }
 
