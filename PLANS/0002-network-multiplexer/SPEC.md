@@ -102,7 +102,7 @@ regardless of whether it was still streaming.
 │                       Provider Layer                            │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │              ActiveRunNotifier (modified)                 │   │
-│  │  - Accesses RunRegistry.instance via registry getter     │   │
+│  │  - Owns RunRegistry via constructor injection            │   │
 │  │  - Injects OnRunCompleted callback for cache updates     │   │
 │  │  - Syncs current handle on room/thread navigation        │   │
 │  │  - Exposes state for current thread only                 │   │
@@ -148,7 +148,7 @@ indirection.
 - Current `ActiveRunState` (Idle, Running, Completed)
 - `bool isActive` — whether the run is currently running
 
-**RunRegistry:** Pure Dart singleton managing multiple runs:
+**RunRegistry:** Pure Dart service managing multiple runs:
 
 - `Map<ThreadKey, RunHandle>` with type-safe record keys
 - `registerRun()` adds a RunHandle and emits `RunStarted`
@@ -156,15 +156,15 @@ indirection.
 - `removeRun(ThreadKey)` removes a run and disposes its resources
 - `getRunState(ThreadKey)` returns the current state for a run
 - `Stream<RunLifecycleEvent>` broadcasts all lifecycle events unconditionally
-- `OnRunCompleted? onRunCompleted` — injected callback for cache updates
+- `OnRunCompleted? onRunCompleted` — constructor-injected callback for cache updates
 
 **ActiveRunNotifier (modified):**
 
 - Removes thread navigation listener (slice 1)
-- Accesses `RunRegistry.instance` via `registry` getter (slice 4)
+- Owns `RunRegistry` as a field, exposes via `registry` getter (slice 4)
 - Creates `RunHandle` in `startRun()` and registers with registry
 - Syncs `_currentHandle` and exposed state on room/thread navigation (slice 6)
-- Injects `_buildCacheUpdater()` into `registry.onRunCompleted` (slice 8)
+- Passes `_buildCacheUpdater()` via `RunRegistry` constructor (slice 8)
 - Subscribes to `registry.lifecycleEvents` for unread indicators (slice 9)
 - State reflects current thread only
 

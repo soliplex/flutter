@@ -92,17 +92,15 @@ expose `roomId` and `threadId` directly.
 - Event construction is terser: `RunStarted(key: handle.key)`
 - Convenience getters preserve consumer ergonomics: `event.roomId`
 
-#### 3. Singleton Registry with Callback Injection
+#### 3. Registry as Owned Field with Constructor Injection
 
-`RunRegistry` is a singleton (`RunRegistry.instance`) rather than a Riverpod
-provider or an embedded field. `ActiveRunNotifier` accesses it via the static
-instance and injects an `OnRunCompleted` callback for cache updates. This keeps
+`RunRegistry` is a plain class owned by `ActiveRunNotifier` as a `late final`
+field. The `OnRunCompleted` callback is passed via the constructor. This keeps
 the registry a pure Dart service with no Flutter/Riverpod dependency.
 
-**Rationale:** Per issue #127, avoid proliferating providers. The singleton
-pattern emerged during implementation as cleaner than embedding the registry
-in the notifier — it avoids circular references and makes the registry
-independently testable.
+**Rationale:** Per issue #127, avoid proliferating providers. A field with
+constructor injection is cleaner than a static singleton — it avoids global
+state and makes the registry independently testable.
 
 #### 4. Two Lifecycle Event Types (not three)
 
@@ -197,10 +195,13 @@ class RunHandle {
 #### RunRegistry
 
 ```dart
-typedef OnRunCompleted = void Function(RunKey key, CompletedState completed);
+typedef OnRunCompleted = void Function(ThreadKey key, CompletedState completed);
 
 /// Manages multiple concurrent AG-UI runs.
 class RunRegistry {
+  RunRegistry({this.onRunCompleted});
+
+  final OnRunCompleted? onRunCompleted;
   final Map<ThreadKey, RunHandle> _runs = {};
   final _controller = StreamController<RunLifecycleEvent>.broadcast();
 
@@ -264,26 +265,25 @@ class RunCompleted extends RunLifecycleEvent {
 
 ### Provider Integration
 
-The registry is a singleton (`RunRegistry.instance`) accessed by
-`ActiveRunNotifier` via a `registry` getter. The notifier injects an
-`OnRunCompleted` callback for cache updates and subscribes to lifecycle
-events for unread indicators. On dispose, it cleans up the callback and
-lifecycle subscription.
+The registry is owned by `ActiveRunNotifier` as a `late final` field,
+created with the `OnRunCompleted` callback via constructor injection.
+The notifier exposes it via a `registry` getter and subscribes to
+lifecycle events for unread indicators. On dispose, it cleans up the
+lifecycle subscription and disposes the registry.
 
 ```dart
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
+  late final RunRegistry _registry =
+      RunRegistry(onRunCompleted: _buildCacheUpdater());
   RunHandle? _currentHandle;
   StreamSubscription<RunLifecycleEvent>? _lifecycleSub;
 
-  RunRegistry get registry => RunRegistry.instance;
+  RunRegistry get registry => _registry;
 
   @override
   ActiveRunState build() {
-    // Inject cache-update callback into the global registry.
-    registry.onRunCompleted = _buildCacheUpdater();
-
     // Mark thread as unread when a background run completes.
-    _lifecycleSub = registry.lifecycleEvents.listen((event) { ... });
+    _lifecycleSub = _registry.lifecycleEvents.listen((event) { ... });
 
     // Sync exposed state when the user navigates between rooms/threads.
     ref
@@ -291,8 +291,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
       ..onDispose(() {
         _lifecycleSub?.cancel();
-        registry.onRunCompleted = null;
-        registry.removeAll();
+        _registry.dispose();
         _currentHandle = null;
       });
 
@@ -312,7 +311,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   OnRunCompleted _buildCacheUpdater() {
     // Returns callback that merges completed run's messages and
-    // messageStates into ThreadHistoryCache using composite RunKey.
+    // messageStates into ThreadHistoryCache using composite ThreadKey.
   }
 }
 ```

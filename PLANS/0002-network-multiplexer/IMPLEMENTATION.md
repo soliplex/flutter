@@ -221,16 +221,19 @@ enabling multiple concurrent runs.
 ### RunRegistry API
 
 ```dart
-typedef OnRunCompleted = void Function(RunKey key, CompletedState completed);
+typedef OnRunCompleted = void Function(ThreadKey key, CompletedState completed);
 
 class RunRegistry {
+  RunRegistry({this.onRunCompleted});
+
+  final OnRunCompleted? onRunCompleted;
   final Map<ThreadKey, RunHandle> _runs = {};
 
   Stream<RunLifecycleEvent> get lifecycleEvents;
 
   Future<void> registerRun(RunHandle handle);
   void completeRun(RunHandle handle, CompletedState completed);
-  void notifyCompletion(RunKey key, CompletedState completed);
+  void notifyCompletion(ThreadKey key, CompletedState completed);
 
   /// Get current state for a thread's run, or null if none.
   ActiveRunState? getRunState(ThreadKey key);
@@ -305,12 +308,13 @@ class. Foundation for all future slices.
 
 ### Implementation Notes
 
-The registry is a singleton (`RunRegistry.instance`) accessed via the
-notifier's `registry` getter. This avoids Riverpod provider proliferation
-(per issue #127) while keeping the registry independently testable. The
-notifier's `startRun()` creates the RunHandle and registers it. Each run's
-stream subscription callbacks capture their own `RunHandle` via closure,
-so concurrent runs don't interfere.
+The registry is owned by `ActiveRunNotifier` as a `late final` field,
+created with the `OnRunCompleted` callback via constructor injection.
+This avoids Riverpod provider proliferation (per issue #127) while
+keeping the registry independently testable. The notifier's `startRun()`
+creates the RunHandle and registers it. Each run's stream subscription
+callbacks capture their own `RunHandle` via closure, so concurrent runs
+don't interfere.
 
 ### Acceptance Criteria
 
@@ -550,18 +554,18 @@ navigated away during streaming.
 
 - `lib/core/services/run_registry.dart` — `OnRunCompleted` callback typedef
 - `lib/core/providers/active_run_notifier.dart` — `_buildCacheUpdater()`
-  injected into `registry.onRunCompleted`
+  passed via `RunRegistry` constructor
 - `lib/core/providers/thread_history_cache.dart`
 - Tests
 
 ### Implementation
 
-Cache updates are injected into `RunRegistry` via the `OnRunCompleted`
-callback. `ActiveRunNotifier._buildCacheUpdater()` returns a closure that
-merges completed run messages and messageStates into `ThreadHistoryCache`.
-The registry invokes this callback from `completeRun()` and
-`notifyCompletion()`, so background runs update the cache without needing
-the notifier to be in the foreground.
+Cache updates are passed to `RunRegistry` via constructor injection of the
+`OnRunCompleted` callback. `ActiveRunNotifier._buildCacheUpdater()` returns
+a closure that merges completed run messages and messageStates into
+`ThreadHistoryCache`. The registry invokes this callback from
+`completeRun()` and `notifyCompletion()`, so background runs update the
+cache without needing the notifier to be in the foreground.
 
 ### Tests
 
@@ -602,26 +606,23 @@ Blue dot on threads, count badge on rooms.
 ### Files Modified
 
 - `lib/features/history/widgets/thread_list_item.dart` (add blue dot)
-- `lib/features/rooms/widgets/room_card.dart` (add count badge)
+- `lib/features/rooms/widgets/room_grid_card.dart` (add count badge)
 - Tests
 
-### UnreadRunsNotifier API
+### UnreadRuns / UnreadRunsNotifier API
 
 ```dart
-class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
-  // Map<roomId, Set<threadId>> of threads with unread completed runs
+class UnreadRuns {
+  const UnreadRuns({Map<String, Set<String>> byRoom = const {}});
 
-  /// Mark a thread as having an unread completed run.
-  void markUnread(String roomId, String threadId);
-
-  /// Mark a thread as read (user viewed it).
-  void markRead(String roomId, String threadId);
-
-  /// Check if a thread has unread completed runs.
-  bool hasUnread(String roomId, String threadId);
-
-  /// Get count of unread threads in a room.
+  bool isThreadUnread(ThreadKey key);
   int unreadCountForRoom(String roomId);
+  bool get isEmpty;
+}
+
+class UnreadRunsNotifier extends Notifier<UnreadRuns> {
+  void markUnread(ThreadKey key);
+  void markRead(ThreadKey key);
 }
 ```
 
@@ -643,10 +644,10 @@ class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
 
 - Unit: markUnread adds thread to set
 - Unit: markRead removes thread from set
-- Unit: hasUnread returns correct value
+- Unit: isThreadUnread returns correct value
 - Unit: unreadCountForRoom returns correct count
 - Widget: Thread list item shows blue dot when unread
-- Widget: Room card shows count badge when unread threads exist
+- Widget: Room grid card shows count badge when unread threads exist
 
 ### Acceptance Criteria
 
@@ -664,7 +665,7 @@ class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
 **Target:** ~200 lines (actual, across 12 files)
 
 **Customer value:** Eliminates cross-room cache collisions. All data layers
-use composite `RunKey` consistently.
+use composite `ThreadKey` consistently.
 
 **Note:** The `ThreadKey` typedef and `Map<ThreadKey, RunHandle>` were introduced
 in slices 2–3, so the core keying infrastructure already exists. This slice
@@ -681,7 +682,7 @@ context.
 
 - `lib/core/providers/thread_history_cache.dart` — re-keyed state and APIs
 - `lib/core/services/run_registry.dart` — `OnRunCompleted` and
-  `notifyCompletion` accept `RunKey`
+  `notifyCompletion` accept `ThreadKey`
 - `lib/core/providers/active_run_notifier.dart` — cache lookups, callback,
   `notifyCompletion` calls
 - `lib/core/providers/active_run_provider.dart` — composite key cache lookup
@@ -700,13 +701,13 @@ context.
 
 - Unit: Same threadId in different rooms produces separate cache entries
 - Unit: All existing cache tests updated to use composite keys
-- Integration: `OnRunCompleted` callback receives `RunKey`
+- Integration: `OnRunCompleted` callback receives `ThreadKey`
 
 ### Acceptance Criteria
 
-- [x] `ThreadHistoryCache` keyed by `RunKey` instead of `String`
+- [x] `ThreadHistoryCache` keyed by `ThreadKey` instead of `String`
 - [x] All consumers use composite keys for cache access
-- [x] `OnRunCompleted` and `notifyCompletion` pass `RunKey`
+- [x] `OnRunCompleted` and `notifyCompletion` pass `ThreadKey`
 - [x] Cross-room test proves no cache collision
 - [x] All 1326 tests pass
 
@@ -767,11 +768,11 @@ original room and response is still there.
 **Modified:**
 
 - `lib/core/providers/active_run_notifier.dart` - Remove listener (slice 1),
-  access singleton registry (slice 4), sync current handle on navigation
-  (slice 6), inject cache-update callback (slice 8), subscribe to lifecycle
+  own registry field (slice 4), sync current handle on navigation
+  (slice 6), pass cache-update callback via constructor (slice 8), subscribe to lifecycle
   events for unread indicators (slice 9)
 - `lib/core/providers/thread_history_cache.dart` - Re-keyed from
-  `Map<String, ThreadHistory>` to `Map<RunKey, ThreadHistory>` (slice 10)
+  `Map<String, ThreadHistory>` to `Map<ThreadKey, ThreadHistory>` (slice 10)
 - `lib/core/providers/active_run_provider.dart` - Composite key cache
   lookup (slice 10)
 - `lib/core/providers/source_references_provider.dart` - Composite key cache
