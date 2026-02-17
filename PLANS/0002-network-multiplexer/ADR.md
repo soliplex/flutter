@@ -56,7 +56,7 @@ Bundle run resources into a `RunHandle` class:
 
 ```dart
 class RunHandle {
-  final RunKey key;
+  final ThreadKey key;
   String get roomId => key.roomId;
   String get threadId => key.threadId;
   final String runId;
@@ -75,11 +75,11 @@ class RunHandle {
 resources. Extracting to a standalone class enables multi-run tracking and
 improves testability.
 
-#### 2. RunKey Record Typedef
+#### 2. ThreadKey Record Typedef
 
-Runs are identified by `typedef RunKey = ({String roomId, String threadId})`,
+Runs are identified by `typedef ThreadKey = ({String roomId, String threadId})`,
 a named record providing type-safe composite identity with value equality.
-`RunKey` is used as the map key in `RunRegistry`, the identity field in
+`ThreadKey` is used as the map key in `RunRegistry`, the identity field in
 `RunHandle` and `RunLifecycleEvent`. Convenience getters on both types
 expose `roomId` and `threadId` directly.
 
@@ -87,8 +87,8 @@ expose `roomId` and `threadId` directly.
 
 - Thread IDs may not be globally unique across rooms (depends on backend)
 - Record value equality eliminates string-concatenation keys and `_makeKey()`
-- Type-safe map key: `Map<RunKey, RunHandle>` vs `Map<String, RunHandle>`
-- Registry API takes one param (`RunKey`) instead of two strings
+- Type-safe map key: `Map<ThreadKey, RunHandle>` vs `Map<String, RunHandle>`
+- Registry API takes one param (`ThreadKey`) instead of two strings
 - Event construction is terser: `RunStarted(key: handle.key)`
 - Convenience getters preserve consumer ergonomics: `event.roomId`
 
@@ -153,7 +153,7 @@ the basic improvement is already shipped.
 #### RunHandle
 
 ```dart
-typedef RunKey = ({String roomId, String threadId});
+// ThreadKey is defined in lib/core/models/thread_key.dart
 
 /// Encapsulates resources for a single active run.
 class RunHandle {
@@ -167,7 +167,7 @@ class RunHandle {
     ActiveRunState? initialState,
   }) : state = initialState ?? const IdleState();
 
-  final RunKey key;
+  final ThreadKey key;
   String get roomId => key.roomId;
   String get threadId => key.threadId;
   final String runId;
@@ -191,7 +191,7 @@ class RunHandle {
 ```dart
 /// Manages multiple concurrent AG-UI runs.
 class RunRegistry {
-  final Map<RunKey, RunHandle> _runs = {};
+  final Map<ThreadKey, RunHandle> _runs = {};
   final _controller = StreamController<RunLifecycleEvent>.broadcast();
 
   Stream<RunLifecycleEvent> get lifecycleEvents => _controller.stream;
@@ -204,19 +204,19 @@ class RunRegistry {
   void completeRun(RunHandle handle, CompletedState completed) { ... }
 
   /// Get current state for a thread's run, or null if none.
-  ActiveRunState? getRunState(RunKey key) { ... }
+  ActiveRunState? getRunState(ThreadKey key) { ... }
 
   /// Get the run handle for a thread, or null if none.
-  RunHandle? getHandle(RunKey key) { ... }
+  RunHandle? getHandle(ThreadKey key) { ... }
 
   /// Whether any run (active or completed) is registered for the key.
-  bool hasRun(RunKey key) { ... }
+  bool hasRun(ThreadKey key) { ... }
 
   /// Whether an actively running (not yet completed) run exists for the key.
-  bool hasActiveRun(RunKey key) { ... }
+  bool hasActiveRun(ThreadKey key) { ... }
 
   /// Remove a run and dispose its resources (no lifecycle event).
-  Future<void> removeRun(RunKey key) async { ... }
+  Future<void> removeRun(ThreadKey key) async { ... }
 
   /// Dispose all runs without emitting lifecycle events.
   Future<void> removeAll() async { ... }
@@ -238,7 +238,7 @@ class RunRegistry {
 @immutable
 sealed class RunLifecycleEvent {
   const RunLifecycleEvent({required this.key});
-  final RunKey key;
+  final ThreadKey key;
   String get roomId => key.roomId;
   String get threadId => key.threadId;
 }

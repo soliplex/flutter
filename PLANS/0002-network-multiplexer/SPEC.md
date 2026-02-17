@@ -113,7 +113,7 @@ regardless of whether it was still streaming.
 │                       Service Layer                             │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    RunRegistry                            │   │
-│  │  - Map<RunKey, RunHandle>                                │   │
+│  │  - Map<ThreadKey, RunHandle>                                │   │
 │  │  - Manages run lifecycle                                 │   │
 │  │  - Broadcasts Stream<RunLifecycleEvent>                  │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -129,7 +129,7 @@ regardless of whether it was still streaming.
 
 ### Key Components
 
-**RunKey:** `typedef RunKey = ({String roomId, String threadId})` — a named
+**ThreadKey:** `typedef ThreadKey = ({String roomId, String threadId})` — a named
 record providing a type-safe composite identifier with value equality.
 Used as the map key in RunRegistry, the identity field in RunHandle and
 RunLifecycleEvent. Convenience getters on RunHandle and RunLifecycleEvent
@@ -138,7 +138,7 @@ indirection.
 
 **RunHandle:** Encapsulates resources for a single run:
 
-- `RunKey key` for identity (with `roomId`/`threadId` convenience getters)
+- `ThreadKey key` for identity (with `roomId`/`threadId` convenience getters)
 - `String runId` — backend-generated run ID
 - `CancelToken` for cancellation
 - `StreamSubscription<BaseEvent>` for the event stream
@@ -149,11 +149,11 @@ indirection.
 
 **RunRegistry:** Pure Dart class managing multiple runs:
 
-- `Map<RunKey, RunHandle>` with type-safe record keys
+- `Map<ThreadKey, RunHandle>` with type-safe record keys
 - `registerRun()` adds a RunHandle and emits `RunStarted`
 - `completeRun()` atomically sets terminal state and emits `RunCompleted`
-- `removeRun(RunKey)` removes a run and disposes its resources
-- `getRunState(RunKey)` returns the current state for a run
+- `removeRun(ThreadKey)` removes a run and disposes its resources
+- `getRunState(ThreadKey)` returns the current state for a run
 - `Stream<RunLifecycleEvent>` broadcasts all lifecycle events unconditionally
 
 **ActiveRunNotifier (modified):**
@@ -170,7 +170,7 @@ indirection.
 @immutable
 sealed class RunLifecycleEvent {
   const RunLifecycleEvent({required this.key});
-  final RunKey key;
+  final ThreadKey key;
   String get roomId => key.roomId;
   String get threadId => key.threadId;
 }
@@ -197,7 +197,7 @@ act on. This keeps the registry a faithful event bus — it reports what
 happened without encoding business policy about which events are
 "interesting."
 
-Events use `RunKey` as their identity field with convenience getters for
+Events use `ThreadKey` as their identity field with convenience getters for
 `roomId` and `threadId`. This gives the registry a type-safe map key
 (record value equality, no string concatenation) while keeping consumer
 access clean (`event.roomId` instead of `event.key.roomId`).
