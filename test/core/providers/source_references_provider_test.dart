@@ -88,9 +88,10 @@ void main() {
       addTearDown(container.dispose);
 
       // Pre-populate cache
-      container
-          .read(threadHistoryCacheProvider.notifier)
-          .updateHistory('room-1', 'thread-1', cachedHistory);
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        cachedHistory,
+      );
 
       // Act
       final refs = container.read(
@@ -114,10 +115,9 @@ void main() {
 
       // Pre-populate cache with empty messageStates
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
-            'room-1',
-            'thread-1',
-            ThreadHistory(messages: const []),
-          );
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        ThreadHistory(messages: const []),
+      );
 
       // Act
       final refs = container.read(
@@ -194,9 +194,10 @@ void main() {
       addTearDown(container.dispose);
 
       // Pre-populate cache
-      container
-          .read(threadHistoryCacheProvider.notifier)
-          .updateHistory('room-1', 'thread-1', cachedHistory);
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        cachedHistory,
+      );
 
       // Act
       final refs = container.read(

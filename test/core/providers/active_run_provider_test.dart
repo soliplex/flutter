@@ -132,10 +132,9 @@ void main() {
           TestData.createMessage(id: 'msg-2', text: 'AI response'),
         ];
         container.read(threadHistoryCacheProvider.notifier).updateHistory(
-              'room-abc',
-              'thread-a',
-              ThreadHistory(messages: newMessages),
-            );
+          const (roomId: 'room-abc', threadId: 'thread-a'),
+          ThreadHistory(messages: newMessages),
+        );
 
         // Verify messages are retrievable
         const key = (roomId: 'room-abc', threadId: 'thread-a');
@@ -367,26 +366,20 @@ class _SharedDataCache extends ThreadHistoryCache {
   }
 
   @override
-  Future<ThreadHistory> getHistory(String roomId, String threadId) async {
-    final key = (roomId: roomId, threadId: threadId);
+  Future<ThreadHistory> getHistory(ThreadKey key) async {
     // Check shared data first (simulates persistent cache)
     final cached = _sharedData[key];
     if (cached != null) return cached;
 
     // Delegate to parent for API fetch
-    final history = await super.getHistory(roomId, threadId);
+    final history = await super.getHistory(key);
     // Persist to shared data
     _sharedData[key] = history;
     return history;
   }
 
   @override
-  void updateHistory(
-    String roomId,
-    String threadId,
-    ThreadHistory history,
-  ) {
-    final key = (roomId: roomId, threadId: threadId);
+  void updateHistory(ThreadKey key, ThreadHistory history) {
     _sharedData[key] = history;
     state = Map<ThreadKey, ThreadHistory>.from(_sharedData);
   }

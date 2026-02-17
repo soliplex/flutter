@@ -159,9 +159,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     Set<RagDocument> documents,
   ) {
     if (roomId != null && threadId != null) {
-      ref
-          .read(selectedDocumentsNotifierProvider.notifier)
-          .setForThread(roomId, threadId, documents);
+      ref.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+        (roomId: roomId, threadId: threadId),
+        documents,
+      );
     } else {
       setState(() {
         _pendingDocuments = documents;
@@ -212,13 +213,12 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
       // Seed the history cache with backend-initialized AG-UI state
       if (initialAguiState.isNotEmpty) {
         ref.read(threadHistoryCacheProvider.notifier).updateHistory(
-              room.id,
-              effectiveThread.id,
-              ThreadHistory(
-                messages: const [],
-                aguiState: initialAguiState,
-              ),
-            );
+          (roomId: room.id, threadId: effectiveThread.id),
+          ThreadHistory(
+            messages: const [],
+            aguiState: initialAguiState,
+          ),
+        );
       }
 
       // Update selection to the new thread
@@ -232,9 +232,10 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
           'Pending documents transferred to thread'
           ' ${effectiveThread.id}: ${_pendingDocuments.length} docs',
         );
-        ref
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(room.id, effectiveThread.id, _pendingDocuments);
+        ref.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          (roomId: room.id, threadId: effectiveThread.id),
+          _pendingDocuments,
+        );
         _pendingDocuments = {};
       }
 
@@ -257,7 +258,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     // Get selected documents from provider (now that thread exists)
     final selectedDocuments = ref
         .read(selectedDocumentsNotifierProvider.notifier)
-        .getForThread(room.id, effectiveThread.id);
+        .getForThread((roomId: room.id, threadId: effectiveThread.id));
 
     // Build initial state with filter_documents if documents are selected
     Map<String, dynamic>? initialState;
@@ -281,12 +282,11 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     await _withErrorHandling(
       context,
       () => ref.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: room.id,
-            threadId: effectiveThread.id,
-            userMessage: text,
-            existingRunId: effectiveThread.initialRunId,
-            initialState: initialState,
-          ),
+        key: (roomId: room.id, threadId: effectiveThread.id),
+        userMessage: text,
+        existingRunId: effectiveThread.initialRunId,
+        initialState: initialState,
+      ),
       'send message',
     );
   }

@@ -22,6 +22,7 @@ import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
@@ -167,8 +168,7 @@ class MockActiveRunNotifier extends Notifier<ActiveRunState>
 
   @override
   Future<void> startRun({
-    required String roomId,
-    required String threadId,
+    required ThreadKey key,
     required String userMessage,
     String? existingRunId,
     Map<String, dynamic>? initialState,

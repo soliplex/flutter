@@ -17,8 +17,7 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 /// ```dart
 /// // Start a run
 /// ref.read(activeRunNotifierProvider.notifier).startRun(
-///   roomId: 'room-123',
-///   threadId: 'thread-456',
+///   key: (roomId: 'room-123', threadId: 'thread-456'),
 ///   userMessage: 'Hello!',
 /// );
 ///
@@ -106,7 +105,7 @@ final allMessagesProvider = FutureProvider<List<ChatMessage>>((ref) async {
   final history = cached ??
       await ref
           .read(threadHistoryCacheProvider.notifier)
-          .getHistory(room.id, thread.id);
+          .getHistory((roomId: room.id, threadId: thread.id));
 
   final runState = ref.watch(activeRunNotifierProvider);
   final runMessages = runState.conversation.threadId == thread.id

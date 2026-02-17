@@ -145,7 +145,9 @@ class HistoryPanel extends ConsumerWidget {
     String threadId,
   ) {
     Loggers.room.trace('Thread selected from list: $threadId');
-    ref.read(unreadRunsProvider.notifier).markRead(roomId, threadId);
+    ref
+        .read(unreadRunsProvider.notifier)
+        .markRead((roomId: roomId, threadId: threadId));
     selectThread(
       ref: ref,
       roomId: roomId,

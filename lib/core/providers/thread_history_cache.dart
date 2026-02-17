@@ -17,11 +17,11 @@ typedef ThreadHistoryCacheState = Map<ThreadKey, ThreadHistory>;
 /// ```dart
 /// // Get history (fetches if not cached)
 /// final history = await ref.read(threadHistoryCacheProvider.notifier)
-///     .getHistory(roomId, threadId);
+///     .getHistory(key);
 ///
 /// // Update cache after run completes
 /// ref.read(threadHistoryCacheProvider.notifier)
-///     .updateHistory(roomId, threadId, history);
+///     .updateHistory(key, history);
 /// ```
 class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// Tracks in-flight fetches to prevent duplicate concurrent requests.
@@ -44,9 +44,7 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// Concurrent calls for the same thread share a single fetch request.
   ///
   /// Throws on network/API errors from the backend fetch.
-  Future<ThreadHistory> getHistory(String roomId, String threadId) async {
-    final key = (roomId: roomId, threadId: threadId);
-
+  Future<ThreadHistory> getHistory(ThreadKey key) async {
     // Cache hit
     final cached = state[key];
     if (cached != null) return cached;
@@ -80,8 +78,7 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   ///
   /// Call this on run completion to persist the latest history. Overwrites
   /// any existing cache entry for the thread.
-  void updateHistory(String roomId, String threadId, ThreadHistory history) {
-    final key = (roomId: roomId, threadId: threadId);
+  void updateHistory(ThreadKey key, ThreadHistory history) {
     state = {...state, key: history};
   }
 
@@ -91,17 +88,13 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// Use this when cached data may be stale and a refresh is needed.
   ///
   /// Throws on network/API errors from the backend fetch.
-  Future<ThreadHistory> refreshHistory(
-    String roomId,
-    String threadId,
-  ) async {
-    final key = (roomId: roomId, threadId: threadId);
+  Future<ThreadHistory> refreshHistory(ThreadKey key) async {
     // Remove from cache to force refetch
     state = {...state}..remove(key);
     // Discard any in-flight fetch for this thread (we'll start a new one)
     final _ = _inFlightFetches.remove(key);
     // Fetch fresh data
-    return getHistory(roomId, threadId);
+    return getHistory(key);
   }
 }
 

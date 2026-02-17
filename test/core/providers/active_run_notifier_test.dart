@@ -119,10 +119,9 @@ void main() {
 
         // Start a run
         await testContainer.read(activeRunNotifierProvider.notifier).startRun(
-              roomId: 'room-1',
-              threadId: 'thread-1',
-              userMessage: 'Hello',
-            );
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'Hello',
+        );
 
         // Verify running
         expect(
@@ -201,10 +200,9 @@ void main() {
 
         // Start a run
         await testContainer.read(activeRunNotifierProvider.notifier).startRun(
-              roomId: 'room-1',
-              threadId: 'thread-1',
-              userMessage: 'Hello',
-            );
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'Hello',
+        );
 
         // Call reset multiple times in quick succession
         final futures = <Future<void>>[];
@@ -387,10 +385,9 @@ void main() {
 
       // Start the run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: roomId,
-            threadId: threadId,
-            userMessage: userMessage,
-          );
+        key: (roomId: roomId, threadId: threadId),
+        userMessage: userMessage,
+      );
 
       // Get the current state
       final state = container.read(activeRunNotifierProvider);
@@ -413,9 +410,10 @@ void main() {
         const roomId = 'room-1';
         const threadId = 'thread-1';
 
-        await container
-            .read(activeRunNotifierProvider.notifier)
-            .startRun(roomId: roomId, threadId: threadId, userMessage: 'Test');
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+          key: (roomId: roomId, threadId: threadId),
+          userMessage: 'Test',
+        );
 
         final state = container.read(activeRunNotifierProvider);
 
@@ -432,11 +430,10 @@ void main() {
       const existingRunId = 'existing-run-456';
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: roomId,
-            threadId: threadId,
-            userMessage: 'Test',
-            existingRunId: existingRunId,
-          );
+        key: (roomId: roomId, threadId: threadId),
+        userMessage: 'Test',
+        existingRunId: existingRunId,
+      );
 
       final state = container.read(activeRunNotifierProvider);
 
@@ -459,11 +456,10 @@ void main() {
       const threadId = 'thread-1';
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: roomId,
-            threadId: threadId,
-            userMessage: 'Test',
-            existingRunId: '',
-          );
+        key: (roomId: roomId, threadId: threadId),
+        userMessage: 'Test',
+        existingRunId: '',
+      );
 
       final state = container.read(activeRunNotifierProvider);
 
@@ -502,19 +498,17 @@ void main() {
 
       // Start first run in thread-1
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'First',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'First',
+      );
 
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
       // Start second run in thread-2 — should NOT throw
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-2',
-            userMessage: 'Second',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-2'),
+        userMessage: 'Second',
+      );
 
       // Both runs should be registered
       final registry =
@@ -576,10 +570,9 @@ void main() {
     test('transitions to CompletedState with Cancelled result', () async {
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Cancel the run
       await container.read(activeRunNotifierProvider.notifier).cancelRun();
@@ -602,10 +595,9 @@ void main() {
     test('preserves messages after cancellation', () async {
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Cancel the run
       await container.read(activeRunNotifierProvider.notifier).cancelRun();
@@ -671,10 +663,9 @@ void main() {
 
       // Start a run on thread A
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello from thread A',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello from thread A',
+      );
 
       // Verify running with messages
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
@@ -721,10 +712,9 @@ void main() {
 
       // Start a run on thread A
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello from thread A',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello from thread A',
+      );
 
       // Verify running
       final initialState = container.read(activeRunNotifierProvider);
@@ -767,10 +757,9 @@ void main() {
 
       // Start a run on thread A
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello from thread A',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello from thread A',
+      );
 
       // Verify running with messages
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
@@ -871,10 +860,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Verify running
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
@@ -917,10 +905,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Cache should be empty initially
       const key = (roomId: 'room-1', threadId: 'thread-1');
@@ -994,10 +981,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Verify running
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
@@ -1031,10 +1017,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Add some events before error
       eventStreamController
@@ -1072,10 +1057,9 @@ void main() {
 
         // Start a run
         await container.read(activeRunNotifierProvider.notifier).startRun(
-              roomId: 'room-1',
-              threadId: 'thread-1',
-              userMessage: 'Hello',
-            );
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'Hello',
+        );
 
         // Verify running
         expect(container.read(activeRunNotifierProvider), isA<RunningState>());
@@ -1106,10 +1090,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Add some events
       eventStreamController
@@ -1183,10 +1166,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Verify running
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
@@ -1222,10 +1204,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // Send RUN_FINISHED
       eventStreamController.add(
@@ -1296,10 +1277,9 @@ void main() {
 
       // Start a run (will immediately throw CancellationError)
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       // State should be CompletedState with CancelledResult
       final state = container.read(activeRunNotifierProvider);
@@ -1333,10 +1313,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Test message',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Test message',
+      );
 
       // Messages should still contain the user message
       final state = container.read(activeRunNotifierProvider);
@@ -1365,10 +1344,9 @@ void main() {
 
       // Start a run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Test message',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Test message',
+      );
 
       // Cache should be updated
       const key = (roomId: 'room-1', threadId: 'thread-1');
@@ -1428,13 +1406,11 @@ void main() {
       // Start two runs concurrently without awaiting
       final notifier = container.read(activeRunNotifierProvider.notifier);
       final future1 = notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-1',
+        key: (roomId: 'room-1', threadId: 'thread-1'),
         userMessage: 'First',
       );
       final future2 = notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-2',
+        key: (roomId: 'room-1', threadId: 'thread-2'),
         userMessage: 'Second',
       );
 
@@ -1514,17 +1490,15 @@ void main() {
           ),
         ];
         container.read(threadHistoryCacheProvider.notifier).updateHistory(
-              'room-1',
-              'thread-1',
-              ThreadHistory(messages: historicalMessages),
-            );
+          const (roomId: 'room-1', threadId: 'thread-1'),
+          ThreadHistory(messages: historicalMessages),
+        );
 
         // Start a new run
         await container.read(activeRunNotifierProvider.notifier).startRun(
-              roomId: 'room-1',
-              threadId: 'thread-1',
-              userMessage: 'Second question',
-            );
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'Second question',
+        );
 
         // Verify state includes all messages (history + new)
         final state = container.read(activeRunNotifierProvider);
@@ -1559,17 +1533,15 @@ void main() {
         ),
       ];
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
-            'room-1',
-            'thread-1',
-            ThreadHistory(messages: historicalMessages),
-          );
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        ThreadHistory(messages: historicalMessages),
+      );
 
       // Start a new run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Second question',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Second question',
+      );
 
       // Capture the input sent to the backend
       final captured = verify(
@@ -1603,10 +1575,9 @@ void main() {
 
       // First run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'First message',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'First message',
+      );
 
       // Simulate assistant response
       eventStreamController
@@ -1638,10 +1609,9 @@ void main() {
 
       // Second run should include messages from first run
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Second message',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Second message',
+      );
 
       // Verify all messages are present (2 from first run + 1 new)
       final state = container.read(activeRunNotifierProvider);
@@ -1680,10 +1650,9 @@ void main() {
       };
 
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
-            'room-1',
-            'thread-1',
-            ThreadHistory(messages: const [], aguiState: cachedAguiState),
-          );
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        ThreadHistory(messages: const [], aguiState: cachedAguiState),
+      );
 
       // Start a run with initial state (filter_documents)
       final initialState = <String, dynamic>{
@@ -1693,11 +1662,10 @@ void main() {
       };
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'New question',
-            initialState: initialState,
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'New question',
+        initialState: initialState,
+      );
 
       // Capture the input sent to the backend
       final captured = verify(
@@ -1776,10 +1744,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -1805,10 +1772,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -1834,10 +1800,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -1862,10 +1827,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -1899,10 +1863,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -1941,10 +1904,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final state = container.read(activeRunNotifierProvider);
       expect(state, isA<CompletedState>());
@@ -1967,10 +1929,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -2008,10 +1969,9 @@ void main() {
       addTearDown(container.dispose);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -2046,10 +2006,9 @@ void main() {
       );
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-1',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
 
       final registry =
           container.read(activeRunNotifierProvider.notifier).registry;
@@ -2120,15 +2079,13 @@ void main() {
 
       // Start run A
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-a',
+        key: (roomId: 'room-1', threadId: 'thread-a'),
         userMessage: 'Message A',
       );
 
       // Start run B (becomes current)
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-b',
+        key: (roomId: 'room-1', threadId: 'thread-b'),
         userMessage: 'Message B',
       );
 
@@ -2176,13 +2133,11 @@ void main() {
 
       // Start run A, then run B
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-a',
+        key: (roomId: 'room-1', threadId: 'thread-a'),
         userMessage: 'Message A',
       );
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-b',
+        key: (roomId: 'room-1', threadId: 'thread-b'),
         userMessage: 'Message B',
       );
 
@@ -2215,13 +2170,11 @@ void main() {
 
       // Start run A, then run B
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-a',
+        key: (roomId: 'room-1', threadId: 'thread-a'),
         userMessage: 'Message A',
       );
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-b',
+        key: (roomId: 'room-1', threadId: 'thread-b'),
         userMessage: 'Message B',
       );
 
@@ -2298,10 +2251,9 @@ void main() {
 
       // Start a run in thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello',
+      );
 
       expect(
         container.read(activeRunNotifierProvider),
@@ -2338,10 +2290,9 @@ void main() {
 
       // Start a run in thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello',
+      );
 
       expect(
         container.read(activeRunNotifierProvider),
@@ -2387,10 +2338,9 @@ void main() {
 
       // Start a run in room-1/thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello',
+      );
 
       expect(
         container.read(activeRunNotifierProvider),
@@ -2427,10 +2377,9 @@ void main() {
 
       // Start a run in thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello',
+      );
 
       // Switch to thread-b
       container
@@ -2486,10 +2435,9 @@ void main() {
 
       // Start a run on thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello',
+      );
 
       expect(container.read(activeRunNotifierProvider), isA<RunningState>());
 
@@ -2518,10 +2466,9 @@ void main() {
 
       // Start a run in room-1/thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello',
+      );
 
       expect(
         container.read(activeRunNotifierProvider),
@@ -2598,10 +2545,9 @@ void main() {
 
       // Start run in room-1/thread-a
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-1',
-            threadId: 'thread-a',
-            userMessage: 'Hello from room 1',
-          );
+        key: (roomId: 'room-1', threadId: 'thread-a'),
+        userMessage: 'Hello from room 1',
+      );
 
       // Switch to room-2/thread-a and start a second run
       container.read(currentRoomIdProvider.notifier).set('room-2');
@@ -2611,10 +2557,9 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       await container.read(activeRunNotifierProvider.notifier).startRun(
-            roomId: 'room-2',
-            threadId: 'thread-a',
-            userMessage: 'Hello from room 2',
-          );
+        key: (roomId: 'room-2', threadId: 'thread-a'),
+        userMessage: 'Hello from room 2',
+      );
 
       // Both runs should be active in the registry
       const keyA = (roomId: 'room-1', threadId: 'thread-a');
@@ -2678,8 +2623,7 @@ void main() {
       notifier.registry.lifecycleEvents.listen(events.add);
 
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-1',
+        key: (roomId: 'room-1', threadId: 'thread-1'),
         userMessage: 'Hello',
       );
 
@@ -2712,8 +2656,7 @@ void main() {
       notifier.registry.lifecycleEvents.listen(events.add);
 
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-1',
+        key: (roomId: 'room-1', threadId: 'thread-1'),
         userMessage: 'Hello',
       );
 
@@ -2742,8 +2685,7 @@ void main() {
       notifier.registry.lifecycleEvents.listen(events.add);
 
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-1',
+        key: (roomId: 'room-1', threadId: 'thread-1'),
         userMessage: 'Hello',
       );
 
@@ -2775,8 +2717,7 @@ void main() {
       notifier.registry.lifecycleEvents.listen(events.add);
 
       await notifier.startRun(
-        roomId: 'room-1',
-        threadId: 'thread-1',
+        key: (roomId: 'room-1', threadId: 'thread-1'),
         userMessage: 'Hello',
       );
 

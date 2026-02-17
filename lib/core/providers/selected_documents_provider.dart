@@ -14,7 +14,7 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 /// ```dart
 /// // Update selection for current thread
 /// ref.read(selectedDocumentsNotifierProvider.notifier)
-///     .setForThread(roomId, threadId, selectedDocs);
+///     .setForThread(key, selectedDocs);
 ///
 /// // Get selection for current thread (via convenience provider)
 /// final docs = ref.watch(currentSelectedDocumentsProvider);
@@ -27,25 +27,19 @@ class SelectedDocumentsNotifier
   /// Gets the selection for a specific thread.
   ///
   /// Returns an empty set if no documents are selected for the thread.
-  Set<RagDocument> getForThread(String roomId, String threadId) {
-    return state[(roomId: roomId, threadId: threadId)] ?? {};
+  Set<RagDocument> getForThread(ThreadKey key) {
+    return state[key] ?? {};
   }
 
   /// Updates the selection for a specific thread.
   ///
   /// Replaces any existing selection for the thread.
-  void setForThread(
-    String roomId,
-    String threadId,
-    Set<RagDocument> documents,
-  ) {
-    final key = (roomId: roomId, threadId: threadId);
+  void setForThread(ThreadKey key, Set<RagDocument> documents) {
     state = {...state, key: documents};
   }
 
   /// Clears the selection for a specific thread.
-  void clearForThread(String roomId, String threadId) {
-    final key = (roomId: roomId, threadId: threadId);
+  void clearForThread(ThreadKey key) {
     state = Map.fromEntries(
       state.entries.where((e) => e.key != key),
     );

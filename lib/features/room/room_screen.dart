@@ -99,7 +99,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
           :final threadId,
         ) when threads.any((t) => t.id == threadId)) {
       Loggers.room.debug('Thread selection: last viewed $threadId');
-      ref.read(unreadRunsProvider.notifier).markRead(widget.roomId, threadId);
+      ref
+          .read(unreadRunsProvider.notifier)
+          .markRead((roomId: widget.roomId, threadId: threadId));
       ref.read(threadSelectionProvider.notifier).set(ThreadSelected(threadId));
       return;
     }
@@ -113,7 +115,9 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
 
   /// Selects a thread and persists as last viewed.
   void _selectThread(String threadId) {
-    ref.read(unreadRunsProvider.notifier).markRead(widget.roomId, threadId);
+    ref
+        .read(unreadRunsProvider.notifier)
+        .markRead((roomId: widget.roomId, threadId: threadId));
     selectAndPersistThread(ref: ref, roomId: widget.roomId, threadId: threadId);
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 
 /// Tracks which threads have completed runs the user hasn't viewed yet.
 ///
@@ -11,32 +12,32 @@ class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
   Map<String, Set<String>> build() => {};
 
   /// Marks a thread as having an unread completed run.
-  void markUnread(String roomId, String threadId) {
-    final current = state[roomId] ?? {};
-    if (current.contains(threadId)) return;
+  void markUnread(ThreadKey key) {
+    final current = state[key.roomId] ?? {};
+    if (current.contains(key.threadId)) return;
     state = {
       ...state,
-      roomId: {...current, threadId},
+      key.roomId: {...current, key.threadId},
     };
   }
 
   /// Marks a thread as read (user viewed it).
-  void markRead(String roomId, String threadId) {
-    final current = state[roomId];
-    if (current == null || !current.contains(threadId)) return;
-    final updated = {...current}..remove(threadId);
+  void markRead(ThreadKey key) {
+    final current = state[key.roomId];
+    if (current == null || !current.contains(key.threadId)) return;
+    final updated = {...current}..remove(key.threadId);
     final newState = {...state};
     if (updated.isNotEmpty) {
-      newState[roomId] = updated;
+      newState[key.roomId] = updated;
     } else {
-      newState.remove(roomId);
+      newState.remove(key.roomId);
     }
     state = newState;
   }
 
   /// Whether the given thread has an unread completed run.
-  bool isThreadUnread(String roomId, String threadId) {
-    return state[roomId]?.contains(threadId) ?? false;
+  bool isThreadUnread(ThreadKey key) {
+    return state[key.roomId]?.contains(key.threadId) ?? false;
   }
 
   /// Number of threads with unread runs in the given room.
