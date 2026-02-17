@@ -144,9 +144,11 @@ void main() {
               roomsProvider.overrideWith((ref) async => mockRooms),
               unreadRunsProvider.overrideWith(() {
                 return _TestUnreadRunsNotifier(
-                  initialState: {
-                    'room1': {'thread-1', 'thread-2'},
-                  },
+                  initialState: const UnreadRuns(
+                    byRoom: {
+                      'room1': {'thread-1', 'thread-2'},
+                    },
+                  ),
                 );
               }),
             ],
@@ -182,11 +184,11 @@ void main() {
 
 /// Test-only UnreadRunsNotifier with pre-set initial state.
 class _TestUnreadRunsNotifier extends UnreadRunsNotifier {
-  _TestUnreadRunsNotifier({required Map<String, Set<String>> initialState})
+  _TestUnreadRunsNotifier({required UnreadRuns initialState})
       : _initialState = initialState;
 
-  final Map<String, Set<String>> _initialState;
+  final UnreadRuns _initialState;
 
   @override
-  Map<String, Set<String>> build() => _initialState;
+  UnreadRuns build() => _initialState;
 }

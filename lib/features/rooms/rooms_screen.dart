@@ -127,7 +127,8 @@ class RoomsScreen extends ConsumerWidget {
                             final room = rooms[index];
                             return RoomGridCard(
                               room: room,
-                              unreadCount: unreadRuns[room.id]?.length ?? 0,
+                              unreadCount:
+                                  unreadRuns.unreadCountForRoom(room.id),
                               onTap: () => navigateToRoom(room),
                             );
                           },
@@ -144,7 +145,8 @@ class RoomsScreen extends ConsumerWidget {
                             ),
                             child: RoomListTile(
                               room: room,
-                              unreadCount: unreadRuns[room.id]?.length ?? 0,
+                              unreadCount:
+                                  unreadRuns.unreadCountForRoom(room.id),
                               onTap: () => navigateToRoom(room),
                             ),
                           );

@@ -39,9 +39,9 @@ class _TrackingUnreadRunsNotifier extends UnreadRunsNotifier {
   final List<ThreadKey> markReadCalls = [];
 
   @override
-  Map<String, Set<String>> build() => initialState;
+  UnreadRuns build() => initialState;
 
-  Map<String, Set<String>> initialState = {};
+  UnreadRuns initialState = const UnreadRuns();
 
   @override
   void markRead(ThreadKey key) {
@@ -288,9 +288,11 @@ void main() {
               ),
               unreadRunsProvider.overrideWith(() {
                 return trackingNotifier = _TrackingUnreadRunsNotifier()
-                  ..initialState = {
-                    'room-1': {'thread-1'},
-                  };
+                  ..initialState = const UnreadRuns(
+                    byRoom: {
+                      'room-1': {'thread-1'},
+                    },
+                  );
               }),
             ],
           ),
@@ -325,9 +327,11 @@ void main() {
               currentThreadIdProvider.overrideWith((ref) => null),
               unreadRunsProvider.overrideWith(() {
                 return _TrackingUnreadRunsNotifier()
-                  ..initialState = {
-                    'room-1': {'thread-1'},
-                  };
+                  ..initialState = const UnreadRuns(
+                    byRoom: {
+                      'room-1': {'thread-1'},
+                    },
+                  );
               }),
             ],
           ),
