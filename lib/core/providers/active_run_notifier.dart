@@ -42,7 +42,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Current run handle — the run whose state the notifier exposes to UI.
   RunHandle? _currentHandle;
 
-  /// Subscription to registry lifecycle events for cache updates.
+  /// Subscription to registry lifecycle events.
   StreamSubscription<RunLifecycleEvent>? _lifecycleSub;
 
   /// The run registry for this notifier.
@@ -108,7 +108,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Useful when a thread was just created with an initial run.
   ///
   /// Multiple runs can be active concurrently in different threads. The
-  /// notifier's [state] tracks the most recently started run.
+  /// notifier's [state] tracks the run for the currently viewed thread.
   Future<void> startRun({
     required String roomId,
     required String threadId,
@@ -294,7 +294,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   /// Cancels the current run.
   ///
-  /// Preserves all completed messages but clears streaming state.
+  /// Preserves the conversation so far and marks it as cancelled.
   /// Background runs in other threads are unaffected.
   Future<void> cancelRun() async {
     Loggers.activeRun.debug('cancelRun called');
