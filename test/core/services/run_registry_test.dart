@@ -627,7 +627,9 @@ void main() {
 
       setUp(() {
         completedStates = [];
-        callbackRegistry = RunRegistry()..onRunCompleted = completedStates.add;
+        callbackRegistry = RunRegistry(
+          onRunCompleted: completedStates.add,
+        );
       });
 
       tearDown(() async {

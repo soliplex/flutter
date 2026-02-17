@@ -36,26 +36,27 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
   bool _isStarting = false;
 
+  /// Registry tracking active runs across rooms and threads.
+  late final RunRegistry _registry =
+      RunRegistry(onRunCompleted: _buildCacheUpdater());
+
   /// Current run handle — the run whose state the notifier exposes to UI.
   RunHandle? _currentHandle;
 
   /// Subscription to registry lifecycle events.
   StreamSubscription<RunLifecycleEvent>? _lifecycleSub;
 
-  /// The global run registry.
+  /// The run registry for this notifier.
   ///
   /// Exposed for testing and external access to run tracking state.
-  RunRegistry get registry => RunRegistry.instance;
+  RunRegistry get registry => _registry;
 
   @override
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
 
-    // Set the cache-update callback on the global registry.
-    registry.onRunCompleted = _buildCacheUpdater();
-
     // Mark thread as unread when a non-cancelled background run completes.
-    _lifecycleSub = registry.lifecycleEvents.listen((event) {
+    _lifecycleSub = _registry.lifecycleEvents.listen((event) {
       if (event is RunCompleted) {
         final isBackground = _currentHandle?.key != event.key;
         if (isBackground && event.result is! CancelledResult) {
@@ -72,10 +73,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
       ..onDispose(() {
         _lifecycleSub?.cancel();
-        registry.onRunCompleted = null;
-        registry.removeAll().catchError((Object e, StackTrace st) {
+        _registry.dispose().catchError((Object e, StackTrace st) {
           Loggers.activeRun.error(
-            'Registry cleanup error',
+            'Registry disposal error',
+            error: e,
+            stackTrace: st,
+          );
+        });
+        _currentHandle?.dispose().catchError((Object e, StackTrace st) {
+          Loggers.activeRun.error(
+            'Handle disposal error',
             error: e,
             stackTrace: st,
           );
@@ -234,7 +241,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       state = runningState;
 
       try {
-        await registry.registerRun(handle);
+        await _registry.registerRun(handle);
       } catch (e, st) {
         Loggers.activeRun.error(
           'Failed to register run with registry',
@@ -254,7 +261,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: CancelledResult(reason: e.message),
       );
       state = completed;
-      registry.notifyCompletion(completed);
+      _registry.notifyCompletion(completed);
       _currentHandle = null;
     } catch (e, stackTrace) {
       // Clean up subscription on any error
@@ -273,7 +280,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
       state = completed;
-      registry.notifyCompletion(completed);
+      _registry.notifyCompletion(completed);
       _currentHandle = null;
     } finally {
       _isStarting = false;
@@ -300,7 +307,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: const CancelledResult(reason: 'Cancelled by user'),
       );
-      registry.completeRun(handle, completed);
+      _registry.completeRun(handle, completed);
       state = completed;
     }
   }
@@ -344,7 +351,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       return;
     }
 
-    final handle = registry.getHandle((roomId: roomId, threadId: threadId));
+    final handle = _registry.getHandle((roomId: roomId, threadId: threadId));
     if (handle != null) {
       _currentHandle = handle;
       state = handle.state;
@@ -370,7 +377,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       final newState = _mapResultForRun(handle, handleState, result);
       if (newState is CompletedState) {
-        registry.completeRun(handle, newState);
+        _registry.completeRun(handle, newState);
       } else {
         handle.state = newState;
       }
@@ -402,7 +409,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
-      registry.completeRun(handle, completed);
+      _registry.completeRun(handle, completed);
       _syncUiState(handle, completed);
     }
   }
@@ -417,7 +424,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         ),
         result: const Success(),
       );
-      registry.completeRun(handle, completed);
+      _registry.completeRun(handle, completed);
       _syncUiState(handle, completed);
     }
   }

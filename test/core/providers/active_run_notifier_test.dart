@@ -13,18 +13,12 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
-import 'package:soliplex_frontend/core/services/run_registry.dart';
 
 import '../../helpers/test_helpers.dart';
 
 void main() {
   late MockAgUiClient mockAgUiClient;
   late MockSoliplexApi mockApi;
-
-  // Reset the global singleton before each test to avoid cross-test leakage.
-  setUp(() {
-    RunRegistry.instance = RunRegistry();
-  });
 
   setUpAll(() {
     registerFallbackValue(const SimpleRunAgentInput(messages: []));
