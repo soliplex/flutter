@@ -2,9 +2,7 @@ import 'dart:async';
 
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
-
-/// Composite identifier for a run: (roomId, threadId).
-typedef RunKey = ({String roomId, String threadId});
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 
 /// Encapsulates all resources for a single AG-UI run.
 ///
@@ -34,7 +32,7 @@ class RunHandle {
   bool _disposed = false;
 
   /// Composite key identifying which room/thread this run belongs to.
-  final RunKey key;
+  final ThreadKey key;
 
   /// The room this run belongs to.
   String get roomId => key.roomId;

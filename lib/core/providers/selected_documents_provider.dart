@@ -1,14 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
-
-/// Key for per-thread document selection.
-///
-/// Selections are stored indexed by both room ID and thread ID to ensure
-/// complete isolation between threads, even across different rooms.
-typedef ThreadKey = ({String roomId, String threadId});
 
 /// Notifier that stores document selections per thread.
 ///
