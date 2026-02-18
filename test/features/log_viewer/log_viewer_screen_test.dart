@@ -1,15 +1,32 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme.dart';
+import 'package:soliplex_frontend/features/log_viewer/log_file_saver.dart';
 import 'package:soliplex_frontend/features/log_viewer/log_viewer_screen.dart';
 import 'package:soliplex_frontend/features/log_viewer/widgets/log_level_badge.dart';
 import 'package:soliplex_frontend/features/log_viewer/widgets/log_record_tile.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 import '../../helpers/test_helpers.dart';
+
+class _FakeLogFileSaver with LogFileSaver {
+  int callCount = 0;
+
+  @override
+  Future<String?> save({
+    required String filename,
+    required Uint8List bytes,
+    Rect? shareOrigin,
+  }) async {
+    callCount++;
+    return null;
+  }
+}
 
 /// Duration that exceeds the flush timer so pending records reach the UI.
 const _flushDuration = Duration(milliseconds: 150);
@@ -32,11 +49,14 @@ LogRecord _makeRecord({
   );
 }
 
+final _fakeSaver = _FakeLogFileSaver();
+
 Widget _buildScreen({required MemorySink sink}) {
   return ProviderScope(
     overrides: [
       memorySinkProvider.overrideWithValue(sink),
       shellConfigProvider.overrideWithValue(testSoliplexConfig),
+      logFileSaverProvider.overrideWithValue(_fakeSaver),
     ],
     child: MaterialApp(
       theme: soliplexLightTheme(),
@@ -582,6 +602,64 @@ void main() {
         await tester.pumpWidget(_buildScreen(sink: sink));
 
         expect(find.byType(LogLevelBadge), findsOneWidget);
+      });
+    });
+
+    group('Export button', () {
+      testWidgets('download button is disabled when empty', (tester) async {
+        final sink = MemorySink();
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        final exportButton = tester.widget<IconButton>(
+          find.ancestor(
+            of: find.byIcon(Icons.download),
+            matching: find.byType(IconButton),
+          ),
+        );
+        expect(exportButton.onPressed, isNull);
+      });
+
+      testWidgets('download button is enabled with records', (tester) async {
+        final sink = MemorySink()..write(_makeRecord());
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        final exportButton = tester.widget<IconButton>(
+          find.ancestor(
+            of: find.byIcon(Icons.download),
+            matching: find.byType(IconButton),
+          ),
+        );
+        expect(exportButton.onPressed, isNotNull);
+      });
+
+      testWidgets('download button shows correct icon', (tester) async {
+        final sink = MemorySink();
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        expect(find.byIcon(Icons.download), findsOneWidget);
+      });
+
+      testWidgets('download button has correct tooltip', (tester) async {
+        final sink = MemorySink();
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        final exportButton = tester.widget<IconButton>(
+          find.ancestor(
+            of: find.byIcon(Icons.download),
+            matching: find.byType(IconButton),
+          ),
+        );
+        expect(exportButton.tooltip, 'Export filtered logs');
+      });
+
+      testWidgets('download button appears before clear button',
+          (tester) async {
+        final sink = MemorySink();
+        await tester.pumpWidget(_buildScreen(sink: sink));
+
+        final downloadOffset = tester.getCenter(find.byIcon(Icons.download));
+        final clearOffset = tester.getCenter(find.byIcon(Icons.delete_outline));
+        expect(downloadOffset.dx, lessThan(clearOffset.dx));
       });
     });
 

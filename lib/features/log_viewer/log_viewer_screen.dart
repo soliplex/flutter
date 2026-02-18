@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
+import 'package:soliplex_frontend/features/log_viewer/log_file_saver.dart';
 import 'package:soliplex_frontend/features/log_viewer/log_viewer_controller.dart';
 import 'package:soliplex_frontend/features/log_viewer/widgets/log_record_tile.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
@@ -47,6 +49,13 @@ class _LogViewerScreenState extends ConsumerState<LogViewerScreen> {
       config: ShellConfig(
         title: Text('Logs (${records.length})'),
         actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: records.isEmpty ? null : () => _exportLogs(context),
+              tooltip: 'Export filtered logs',
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.delete_outline),
             onPressed: records.isEmpty ? null : _controller.clearLogs,
@@ -75,6 +84,52 @@ class _LogViewerScreenState extends ConsumerState<LogViewerScreen> {
       ),
     );
   }
+
+  Future<void> _exportLogs(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Compute share origin for iPad/macOS popover positioning.
+    final box = context.findRenderObject() as RenderBox?;
+    final origin =
+        box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+    // Build filename with filesystem-safe timestamp.
+    final now = DateTime.now();
+    final ts = '${now.year}-${_pad(now.month)}-${_pad(now.day)}'
+        '_${_pad(now.hour)}-${_pad(now.minute)}-${_pad(now.second)}';
+    final filename = 'soliplex_logs_$ts.jsonl';
+
+    try {
+      final bytes = _controller.exportFilteredAsJsonlBytes();
+      final saver = ref.read(logFileSaverProvider);
+      final path = await saver.save(
+        filename: filename,
+        bytes: bytes,
+        shareOrigin: origin,
+      );
+      if (!mounted) return;
+      if (path != null) {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Saved to $path'),
+            duration: const Duration(days: 1),
+            showCloseIcon: true,
+            action: SnackBarAction(
+              label: 'Copy path',
+              onPressed: () => Clipboard.setData(ClipboardData(text: path)),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('Export failed: $e')),
+      );
+    }
+  }
+
+  static String _pad(int n) => n.toString().padLeft(2, '0');
 
   Widget _buildEmptyState(BuildContext context) {
     final theme = Theme.of(context);
