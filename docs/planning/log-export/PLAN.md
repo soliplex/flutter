@@ -77,10 +77,10 @@ serialization    UI + platform    patrol E2E
 - [x] Edit `lib/features/log_viewer/log_viewer_screen.dart` — add `Icons.download` button in `Builder`, `_exportLogs()` with `RenderBox` origin, `mounted` check, filesystem-safe timestamp
 - [x] Edit `test/features/log_viewer/log_viewer_screen_test.dart` — button disabled when empty, enabled with records, correct icon/tooltip, `FakeLogFileSaver` override
 - [x] Verify `share_plus` API against installed version (finding #3)
-- [ ] **Gate: pre-commit hooks pass** (dart format, flutter analyze, dart analyze packages, pymarkdown, gitleaks)
+- [x] **Gate: pre-commit hooks pass** (dart format, flutter analyze, dart analyze packages, pymarkdown, gitleaks)
 - [x] **Gate: `flutter test`** — full suite passes (no regressions from new provider)
 - [ ] **Gate: manual — Chrome** — browser downloads `.jsonl` with filtered content
-- [ ] **Gate: manual — macOS** — share sheet opens with `.jsonl.gz`, anchored to button
+- [x] **Gate: manual — macOS** — saves `.jsonl.gz` to Downloads, snackbar with copy path
 - [ ] **Gate: manual — iPad** (if available) — share sheet popover anchored to button
 - [ ] PR created, reviewed, merged to `main`
 
