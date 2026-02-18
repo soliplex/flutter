@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
+import 'package:soliplex_frontend/features/log_viewer/log_record_export.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Manages filter state, stream buffering, and record filtering for the
@@ -100,6 +102,26 @@ class LogViewerController {
 
   void clearLogs() {
     _sink.clear();
+  }
+
+  /// Exports the currently filtered records as JSONL-encoded UTF-8 bytes.
+  ///
+  /// Syncs with the sink's ring buffer so records that haven't been delivered
+  /// through the async stream yet are still captured.
+  /// Records are in chronological order (oldest first).
+  Uint8List exportFilteredAsJsonlBytes() {
+    // Discard any pending stream records and refilter directly from the sink's
+    // ring buffer, which already contains them. This avoids a race with the
+    // async stream delivery (microtask) that _flushPending relies on.
+    _pendingRecords.clear();
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    _refilter();
+    final buffer = StringBuffer();
+    for (final record in _filteredRecords) {
+      buffer.writeln(jsonEncode(record.toExportJson()));
+    }
+    return Uint8List.fromList(utf8.encode(buffer.toString()));
   }
 
   void dispose() {
