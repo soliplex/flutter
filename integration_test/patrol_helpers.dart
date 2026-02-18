@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,9 +15,45 @@ import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/soliplex_config.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_frontend/features/log_viewer/log_file_saver.dart';
 
 import 'patrol_test_config.dart';
 import 'test_log_harness.dart';
+
+/// No-op file saver that prevents OS share sheet / browser download
+/// from opening during Patrol tests.
+class NoOpLogFileSaver implements LogFileSaver {
+  @override
+  Future<String?> save({
+    required String filename,
+    required Uint8List bytes,
+    Rect? shareOrigin,
+  }) async =>
+      null;
+}
+
+/// Spy file saver that captures arguments for E2E verification.
+///
+/// Returns a fake path so the screen shows its success SnackBar,
+/// allowing the test to assert the full UI flow without triggering
+/// the OS share sheet.
+class SpyLogFileSaver implements LogFileSaver {
+  String? lastFilename;
+  Uint8List? lastBytes;
+  Rect? lastShareOrigin;
+
+  @override
+  Future<String?> save({
+    required String filename,
+    required Uint8List bytes,
+    Rect? shareOrigin,
+  }) async {
+    lastFilename = filename;
+    lastBytes = bytes;
+    lastShareOrigin = shareOrigin;
+    return '/mock/export/$filename';
+  }
+}
 
 /// No-auth notifier that immediately resolves to [NoAuthRequired].
 ///
@@ -127,12 +165,14 @@ Future<Authenticated> performRopcExchange({
 
 /// Pump [SoliplexApp] with no-auth provider overrides.
 ///
-/// Standard set of 5 overrides for Patrol E2E tests running against a
-/// `--no-auth-mode` backend.
+/// Standard set of overrides for Patrol E2E tests running against a
+/// `--no-auth-mode` backend. Pass a [logFileSaver] (e.g. [SpyLogFileSaver])
+/// to inspect export calls; defaults to [NoOpLogFileSaver].
 Future<void> pumpTestApp(
   PatrolIntegrationTester $,
-  TestLogHarness harness,
-) async {
+  TestLogHarness harness, {
+  LogFileSaver? logFileSaver,
+}) async {
   await $.pumpWidget(
     ProviderScope(
       overrides: [
@@ -146,6 +186,8 @@ Future<void> pumpTestApp(
         ),
         preloadedBaseUrlProvider.overrideWithValue(backendUrl),
         authProvider.overrideWith(NoAuthNotifier.new),
+        logFileSaverProvider
+            .overrideWithValue(logFileSaver ?? NoOpLogFileSaver()),
       ],
       child: const SoliplexApp(),
     ),
@@ -154,12 +196,13 @@ Future<void> pumpTestApp(
 
 /// Pump [SoliplexApp] with pre-authenticated provider overrides.
 ///
-/// Same 5 overrides as [pumpTestApp] but uses [PreAuthenticatedNotifier]
+/// Same overrides as [pumpTestApp] but uses [PreAuthenticatedNotifier]
 /// to seed real OIDC tokens from ROPC exchange.
 Future<void> pumpAuthenticatedTestApp(
   PatrolIntegrationTester $,
   TestLogHarness harness, {
   required Authenticated tokens,
+  LogFileSaver? logFileSaver,
 }) async {
   await $.pumpWidget(
     ProviderScope(
@@ -174,6 +217,8 @@ Future<void> pumpAuthenticatedTestApp(
         ),
         preloadedBaseUrlProvider.overrideWithValue(backendUrl),
         authProvider.overrideWith(() => PreAuthenticatedNotifier(tokens)),
+        logFileSaverProvider
+            .overrideWithValue(logFileSaver ?? NoOpLogFileSaver()),
       ],
       child: const SoliplexApp(),
     ),

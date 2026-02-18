@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
@@ -214,6 +216,121 @@ void main() {
       for (var i = 0; i < 5; i++) {
         await $.tester.pump(const Duration(milliseconds: 200));
       }
+    } catch (e) {
+      harness.dumpLogs(last: 50);
+      rethrow;
+    } finally {
+      harness
+        ..expectNoErrors()
+        ..dispose();
+    }
+  });
+
+  patrolTest('settings - log viewer export button (no-auth)', ($) async {
+    await verifyBackendOrFail(backendUrl);
+    ignoreKeyboardAssertions();
+
+    harness = TestLogHarness();
+    await harness.initialize();
+
+    final spy = SpyLogFileSaver();
+
+    try {
+      await pumpTestApp($, harness, logFileSaver: spy);
+
+      // Wait for app to boot.
+      final settingsButton = find.byTooltip('Open settings');
+      await waitForCondition(
+        $.tester,
+        condition: () => $.tester.any(settingsButton),
+        timeout: const Duration(seconds: 10),
+        failureMessage: 'Settings button did not appear',
+      );
+      await $.tester.tap(settingsButton);
+      await $.tester.pump(const Duration(milliseconds: 500));
+
+      // Navigate to Log Viewer.
+      await $.tester.tap(find.text('View Logs'));
+      await $.tester.pump(const Duration(milliseconds: 500));
+
+      // Export button should be enabled (boot logs exist).
+      final exportButton = find.ancestor(
+        of: find.byIcon(Icons.download),
+        matching: find.byType(IconButton),
+      );
+      expect(exportButton, findsOneWidget);
+      expect(
+        $.tester.widget<IconButton>(exportButton).onPressed,
+        isNotNull,
+        reason: 'Export should be enabled — boot generated logs',
+      );
+
+      // Tap export → spy captures the bytes without triggering share sheet.
+      await $.tester.tap(exportButton);
+      await $.tester.pump(const Duration(milliseconds: 500));
+
+      // Verify filename pattern: soliplex_logs_YYYY-MM-DD_HH-mm-ss.jsonl
+      expect(spy.lastFilename, isNotNull, reason: 'Saver was not called');
+      expect(
+        spy.lastFilename,
+        matches(
+          RegExp(
+            r'^soliplex_logs_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}\.jsonl$',
+          ),
+        ),
+        reason: 'Filename should be filesystem-safe timestamped JSONL',
+      );
+
+      // Verify exported bytes are valid JSONL with expected fields.
+      expect(spy.lastBytes, isNotNull);
+      final lines = utf8
+          .decode(spy.lastBytes!)
+          .split('\n')
+          .where((l) => l.isNotEmpty)
+          .toList();
+      expect(lines, isNotEmpty, reason: 'Export should contain boot logs');
+
+      for (final line in lines) {
+        final record = jsonDecode(line) as Map<String, dynamic>;
+        expect(record, contains('timestamp'));
+        expect(record, contains('level'));
+        expect(record, contains('logger'));
+        expect(record, contains('message'));
+      }
+
+      // Verify shareOrigin was passed (iPad/macOS popover positioning).
+      expect(
+        spy.lastShareOrigin,
+        isNotNull,
+        reason: 'shareOrigin is required for iPad popover positioning',
+      );
+
+      // Verify SnackBar appeared with the mock path.
+      expect(
+        find.textContaining('Saved to /mock/export/'),
+        findsOneWidget,
+        reason: 'SnackBar should show saved file path',
+      );
+
+      // Clear logs → export button should disable.
+      // Dismiss SnackBar first so clear button is tappable.
+      final closeIcon = find.descendant(
+        of: find.byType(SnackBar),
+        matching: find.byIcon(Icons.close),
+      );
+      if ($.tester.any(closeIcon)) {
+        await $.tester.tap(closeIcon);
+        await $.tester.pump(const Duration(milliseconds: 300));
+      }
+
+      await $.tester.tap(find.byTooltip('Clear all logs'));
+      await $.tester.pump(const Duration(milliseconds: 500));
+
+      expect(
+        $.tester.widget<IconButton>(exportButton).onPressed,
+        isNull,
+        reason: 'Export should be disabled after clearing logs',
+      );
     } catch (e) {
       harness.dumpLogs(last: 50);
       rethrow;
