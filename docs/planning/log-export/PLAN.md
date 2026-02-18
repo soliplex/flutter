@@ -69,16 +69,16 @@ serialization    UI + platform    patrol E2E
 
 **Branch**: `feat/log-export-ui` (from `main` after M1 merged)
 
-- [ ] Edit `pubspec.yaml` — add `share_plus` dependency
-- [ ] Run `flutter pub get` — resolves cleanly
-- [ ] Create `lib/features/log_viewer/log_file_saver.dart` — abstract `LogFileSaver` class + `createLogFileSaver()` factory + `logFileSaverProvider`
-- [ ] Create `lib/features/log_viewer/log_file_saver_native.dart` — gzip + share sheet + `sharePositionOrigin`
-- [ ] Create `lib/features/log_viewer/log_file_saver_web.dart` — Blob + anchor download + `URL.revokeObjectURL`
-- [ ] Edit `lib/features/log_viewer/log_viewer_screen.dart` — add `Icons.download` button in `Builder`, `_exportLogs()` with `RenderBox` origin, `mounted` check, filesystem-safe timestamp
-- [ ] Edit `test/features/log_viewer/log_viewer_screen_test.dart` — button disabled when empty, enabled with records, correct icon/tooltip, `FakeLogFileSaver` override
-- [ ] Verify `share_plus` API against installed version (finding #3)
+- [x] Edit `pubspec.yaml` — add `share_plus` dependency
+- [x] Run `flutter pub get` — resolves cleanly
+- [x] Create `lib/features/log_viewer/log_file_saver.dart` — abstract `LogFileSaver` class + `createLogFileSaver()` factory + `logFileSaverProvider`
+- [x] Create `lib/features/log_viewer/log_file_saver_native.dart` — gzip + share sheet + `sharePositionOrigin`
+- [x] Create `lib/features/log_viewer/log_file_saver_web.dart` — Blob + anchor download + `URL.revokeObjectURL`
+- [x] Edit `lib/features/log_viewer/log_viewer_screen.dart` — add `Icons.download` button in `Builder`, `_exportLogs()` with `RenderBox` origin, `mounted` check, filesystem-safe timestamp
+- [x] Edit `test/features/log_viewer/log_viewer_screen_test.dart` — button disabled when empty, enabled with records, correct icon/tooltip, `FakeLogFileSaver` override
+- [x] Verify `share_plus` API against installed version (finding #3)
 - [ ] **Gate: pre-commit hooks pass** (dart format, flutter analyze, dart analyze packages, pymarkdown, gitleaks)
-- [ ] **Gate: `flutter test`** — full suite passes (no regressions from new provider)
+- [x] **Gate: `flutter test`** — full suite passes (no regressions from new provider)
 - [ ] **Gate: manual — Chrome** — browser downloads `.jsonl` with filtered content
 - [ ] **Gate: manual — macOS** — share sheet opens with `.jsonl.gz`, anchored to button
 - [ ] **Gate: manual — iPad** (if available) — share sheet popover anchored to button
