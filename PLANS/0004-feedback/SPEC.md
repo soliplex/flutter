@@ -34,61 +34,85 @@ Feedback is one-to-one with a run. Re-submitting replaces the previous entry.
 ### Functional Requirements
 
 1. Each completed assistant message shows thumbs-up and thumbs-down buttons.
-2. Tapping a thumb sends feedback to the backend.
-3. Tapping thumbs-down prompts for a reason (text input).
-4. Tapping thumbs-up shows an optional "Add reason" affordance.
-5. Tapping the opposite thumb replaces the previous feedback.
-6. Feedback buttons appear only on non-streaming assistant messages.
+2. Tapping a thumb highlights it and starts a 5-second countdown timer.
+3. Feedback is **not** sent to the backend until the countdown expires or the
+   user submits a reason via the modal.
+4. During the countdown, tapping the active thumb toggles it off (cancels
+   feedback, nothing sent).
+5. During the countdown, tapping the opposite thumb switches direction and
+   restarts the timer.
+6. During the countdown, tapping "Tell us why!" opens a reason modal.
+7. After countdown expires, feedback is sent with `reason: null`. The thumb is
+   locked (no toggle-off).
+8. After submission, tapping the opposite thumb starts a new countdown for the
+   new direction.
+9. Feedback buttons appear only on non-streaming assistant messages.
 
 ### Non-Functional Requirements
 
 - Feedback state is fire-and-forget for v1 (not persisted across sessions).
 - `soliplex_client` remains pure Dart (no Flutter imports).
-- API errors are surfaced to the user (snackbar), not silently swallowed.
+- API errors are logged locally, not surfaced to the user.
 
 ## Use Cases
 
-### Use Case 1: Thumbs Up
+### Use Case 1: Thumbs Up (no reason)
 
 1. Alice reads an assistant response she finds helpful.
-2. Alice taps the thumbs-up icon below the message.
-3. The icon is replaced by a small spinner while the request is in flight.
-4. On success, the spinner is replaced by a highlighted thumbs-up icon.
-5. The frontend sent `{ "feedback": "thumbs_up", "reason": null }` to the
-   backend.
+2. Alice taps the thumbs-up icon.
+3. The icon highlights and a 5-second countdown timer with "Tell us why!"
+   appears.
+4. Alice does not interact further.
+5. The timer expires. The frontend sends
+   `{ "feedback": "thumbs_up", "reason": null }`.
+6. The timer disappears. The thumbs-up icon remains highlighted (locked).
 
 ### Use Case 2: Thumbs Down with Reason
 
 1. Bob reads an inaccurate assistant response.
-2. Bob taps the thumbs-down icon.
-3. A dialog/bottom sheet prompts for a reason.
-4. Bob types "The citation is wrong" and submits.
-5. The icon is replaced by a spinner. On success, it becomes a highlighted
-   thumbs-down. The frontend sent
+2. Bob taps the thumbs-down icon. It highlights, countdown starts.
+3. Bob taps "Tell us why!" before the timer expires.
+4. A modal opens with a text field. The timer is disposed.
+5. Bob types "The citation is wrong" and taps Ok/Send.
+6. The frontend sends
    `{ "feedback": "thumbs_down", "reason": "The citation is wrong" }`.
+7. The modal closes. Thumbs-down remains highlighted (locked).
 
-### Use Case 3: Change Feedback
+### Use Case 3: Toggle Off During Countdown
 
-1. Carol previously gave thumbs-up.
-2. Carol taps thumbs-down instead.
-3. Spinner replaces thumbs-down during the request.
-4. On success, thumbs-up un-highlights and thumbs-down highlights.
-5. The frontend sends the new feedback (replaces the previous one on backend).
+1. Carol accidentally taps thumbs-up. It highlights, countdown starts.
+2. Carol taps thumbs-up again during the countdown.
+3. The icon unhighlights, the timer disappears. Back to idle.
+4. Nothing was sent to the backend.
 
-### Use Case 4: Optional Reason on Thumbs Up
+### Use Case 4: Switch Direction During Countdown
 
-1. Dave taps thumbs-up.
-2. An "Add reason" link/button appears near the thumbs.
-3. Dave taps it, types "Great summary!", submits.
-4. The frontend re-sends `{ "feedback": "thumbs_up", "reason": "Great summary!" }`.
+1. Dave taps thumbs-up. It highlights, 5-second countdown starts.
+2. Dave changes his mind and taps thumbs-down during the countdown.
+3. Thumbs-up unhighlights. Thumbs-down highlights. Timer restarts at 5 seconds.
 
-### Use Case 5: API Error
+### Use Case 5: Switch After Submission
 
-1. Eve taps thumbs-down while offline.
-2. The icon is replaced by a spinner.
-3. The request fails.
-4. The spinner reverts to the original unhighlighted icon.
-5. A snackbar shows an error message.
+1. Eve previously gave thumbs-up (timer expired, feedback sent).
+2. Eve changes her mind and taps thumbs-down.
+3. A new 5-second countdown starts for thumbs-down.
+4. The timer expires. New feedback is sent (backend replaces the previous entry).
+
+### Use Case 6: Cancel Reason Modal
+
+1. Frank taps thumbs-down. It highlights, countdown starts.
+2. Frank taps "Tell us why!". The modal opens (timer disposed).
+3. Frank starts typing but changes his mind. He taps Cancel.
+4. The modal closes. Thumbs-down remains highlighted. Timer resets to 5 seconds
+   and starts counting down again.
+
+### Use Case 7: API Error
+
+1. Grace taps thumbs-up while offline. Countdown runs.
+2. The timer expires. The frontend attempts to send feedback.
+3. The request fails. The error is logged locally.
+4. The UI remains in the submitted state (thumbs-up highlighted). Grace is
+   unaware of the failure.
 
 ## Design
 
@@ -102,29 +126,57 @@ The backend endpoint requires `run_id`. Currently, `MessageState` does not carry
 - `ActiveRunNotifier._correlateMessagesForRun()` (live runs via `RunHandle`)
 - `SoliplexApi._replayEventsToHistory()` (history replay from run data)
 
+### State Machine
+
+```text
+          tap thumb                timer expires
+  [Idle] ──────────> [Countdown] ──────────────> [Submitted]
+              tap active  ^  |                     |
+              thumb       |  | tap "Tell us why!"  | tap opposite
+              (toggle off)|  v                     | thumb
+          <───────── [Countdown]  [Modal] ─────>   |
+  [Idle]    cancel    (reset)       |  |           v
+                        ^          Ok  Cancel   [Countdown]
+                        |          |     |        (new direction)
+                        |          v     v
+                        |   [Submitted] [Countdown]
+                        └──────────────── (reset)
+```
+
+**States:**
+
+- **Idle:** Both thumbs unhighlighted, no timer.
+- **Countdown:** One thumb highlighted, circular timer with "Tell us why!"
+  visible, 5-second countdown running. No backend call yet.
+- **Modal:** Reason dialog open, timer disposed.
+- **Submitted:** Thumb highlighted, no timer, feedback sent to backend.
+  Active thumb locked. Opposite thumb can start a new countdown.
+
 ### Data Flow
 
 ```text
 User taps thumb
     |
     v
-_FeedbackButtons (local StatefulWidget state: idle/loading/submitted)
+_FeedbackButtons (local state: Idle → Countdown, 5s timer starts)
+    |
+    [timer expires OR modal submit]
     |
     v
 onSubmit callback (constructed by MessageList, which has ref access)
     |
     v
 SoliplexApi.submitFeedback(roomId, threadId, runId, feedback, reason)
-    |
+    |                                                [fire-and-forget]
     v
 POST /v1/rooms/{room_id}/agui/{thread_id}/{run_id}/feedback
 ```
 
 No Riverpod provider needed. Feedback state is ephemeral and local to a single
-message widget — it doesn't need to be shared, derived, or persisted. A small
-`_FeedbackButtons` StatefulWidget manages the idle/loading/submitted state
-machine. `MessageList` (a `ConsumerStatefulWidget` with `ref`) constructs the
-API callback and passes it down.
+message widget — it doesn't need to be shared, derived, or persisted. A
+`_FeedbackButtons` StatefulWidget manages the Idle/Countdown/Modal/Submitted
+state machine. `MessageList` (a `ConsumerStatefulWidget` with `ref`) constructs
+the API callback and passes it down.
 
 ### Feedback Values
 
@@ -159,47 +211,63 @@ arbitrary strings like `"test-feedback"`). We chose `"thumbs_up"` /
 
 Represented as a `FeedbackType` enum in `soliplex_client` for type safety.
 
-### No toggle-off (feedback cannot be withdrawn)
+### Deferred sending with countdown timer
 
-Once feedback is submitted, the user can switch between thumbs-up and
-thumbs-down but cannot remove feedback entirely. Tapping the already-active
-thumb is a no-op.
+Feedback is not sent to the backend immediately on thumb tap. Instead, a
+5-second countdown timer starts. The backend call happens only when the timer
+expires (with `reason: null`) or when the user submits a reason via the modal.
 
-**Evidence:** The backend has only a POST endpoint (create/replace). There is no
-DELETE endpoint for feedback. If we allowed toggle-off, the UI would un-highlight
-(suggesting withdrawal) while the backend still stores the old value — misleading
-the user.
+This enables two interactions that immediate sending would not:
 
-### Spinner-while-loading (not optimistic UI)
+1. **Toggle-off:** The user can undo an accidental thumb tap during the
+   countdown (nothing was sent, so no inconsistency).
+2. **Reason input:** The user has a natural window to add a reason before the
+   feedback is committed.
 
-On thumb tap, the icon is replaced by a small spinner. On success, the spinner
-becomes a highlighted thumb. On failure, it reverts to the unhighlighted icon.
+### Toggle-off during countdown only
 
-Three approaches were considered:
+During the countdown, tapping the active thumb cancels the feedback and returns
+to idle. No backend call is made. After the countdown expires (feedback sent),
+toggle-off is not possible.
 
-1. **Optimistic UI:** Highlight immediately, rollback on failure. Requires
-   tracking both displayed state and in-flight state, handling race conditions
-   when the user taps again during a request (cancel? queue? ignore?). ~10-15
-   lines of rollback/concurrency logic.
-2. **Wait-for-success:** Disable the button or do nothing until the response.
-   Simplest, but no visual feedback — the user doesn't know their tap registered.
-3. **Spinner (chosen):** Immediate visual feedback (spinner replaces icon),
-   prevents double-taps naturally (button is replaced), no rollback logic (never
-   showed a false "selected" state). Middle ground between the other two.
+**Rationale:** The backend has only a POST endpoint (create/replace), no DELETE.
+After sending, un-highlighting locally while the backend retains the feedback
+would mislead the user. During the countdown, no call has been made, so
+cancellation is clean.
 
-### Reason UX: prompt on thumbs-down, optional on thumbs-up
+### Switching direction replaces feedback
 
-- **Thumbs-down** shows a dialog prompting for a reason. The reason helps
-  identify what went wrong (citations, accuracy, relevance).
-- **Thumbs-up** shows an optional "Add reason" affordance after submission. Most
-  users won't bother for positive feedback, so we don't block the interaction.
+During the countdown, tapping the opposite thumb cancels the current direction
+and starts a fresh countdown for the new direction. After submission, tapping
+the opposite thumb starts a new countdown — on expiry, the backend replaces the
+previous feedback (upsert behavior confirmed in `save_run_feedback`).
+
+### Unified reason flow for both directions
+
+Both thumbs-up and thumbs-down show the same "Tell us why!" countdown and
+the same reason modal. No asymmetric behavior between directions.
+
+**Rationale:** Simplifies the state machine and UI implementation. Users may
+want to explain positive feedback ("Great summary!") just as much as negative.
+A single code path handles both.
+
+### Fire-and-forget sending, no loading indicator
+
+When the countdown expires or the user submits via the modal, the API call is
+made with no loading spinner. The UI transitions to Submitted immediately. If
+the API call fails, the error is logged locally (via the app logging system).
+The user is not shown an error.
+
+**Rationale:** Feedback is low-stakes. Showing a spinner or error snackbar for
+a thumbs-up failing would be disproportionate friction. The countdown timer
+already provides visual feedback during the decision window. Logging ensures
+failed feedback can be investigated without disrupting the user.
 
 ### No Riverpod provider
 
-Feedback state (idle/loading/submitted) is ephemeral and local to a single
-message's buttons. No other widget needs it, it doesn't survive navigation, and
-it isn't derived from other state. A `_FeedbackButtons` StatefulWidget manages
-the state machine locally.
+Feedback state (Idle/Countdown/Modal/Submitted) is managed by a private
+`_FeedbackButtons` StatefulWidget, not a Riverpod provider. The countdown timer
+is local widget state.
 
 **Evidence:** Compared against Andrea Bizzotto's 4-layer architecture
 (Presentation → Application → Domain → Data). The Application layer is for
@@ -223,12 +291,16 @@ changing existing code.
 ## Acceptance Criteria
 
 - [ ] Thumbs-up and thumbs-down buttons visible on completed assistant messages
-- [ ] Tapping a thumb sends correct payload to backend
-- [ ] Thumbs-down prompts for reason
-- [ ] Thumbs-up shows optional "Add reason" affordance
-- [ ] Tapping opposite thumb replaces feedback
-- [ ] In-flight request shows spinner in place of the tapped thumb
-- [ ] API errors revert spinner to unhighlighted icon + snackbar
+- [ ] Tapping a thumb highlights it and starts 5-second countdown
+- [ ] Countdown expiry sends feedback with `reason: null` to backend
+- [ ] Tapping active thumb during countdown toggles off (nothing sent)
+- [ ] Tapping opposite thumb during countdown switches direction, restarts timer
+- [ ] Tapping opposite thumb after submission starts new countdown
+- [ ] "Tell us why!" opens reason modal (timer disposed)
+- [ ] Modal Ok/Send sends feedback with reason to backend
+- [ ] Modal Cancel closes dialog, resets timer to 5s
+- [ ] After submission, active thumb locked (no toggle-off)
+- [ ] API errors logged locally, UI unaffected
 - [ ] Buttons hidden during streaming
 - [ ] `soliplex_client` remains pure Dart
 - [ ] All tests pass, analyzer clean
