@@ -805,7 +805,8 @@ void main() {
         expect(find.byType(AlertDialog), findsOneWidget);
 
         await tester.tap(find.text('Cancel'));
-        await tester.pumpAndSettle();
+        await tester.pump(); // Process tap
+        await tester.pump(const Duration(seconds: 1)); // Dismiss dialog
 
         // Dialog closed, countdown resumed
         expect(find.byType(AlertDialog), findsNothing);
