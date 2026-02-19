@@ -33,7 +33,7 @@ class FeedbackButtons extends StatefulWidget {
 
 class _FeedbackButtonsState extends State<FeedbackButtons>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller ;
+  late final AnimationController _controller;
 
   _FeedbackPhase _phase = _FeedbackPhase.idle;
   FeedbackType? _direction;
