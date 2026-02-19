@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -73,10 +73,10 @@ theme). The message varies by deployment, not by runtime state.
 This is simpler than a boolean flag plus message fields, and eliminates the
 invalid state of `showBanner: true` with empty message text.
 
-**Why `body` is a plain String:** Compliance banners require verbatim use of
-the organization's required text (~1,300 chars). The body is rendered in a
-scrollable view. No markdown or rich text needed — the official text is plain
-prose. Shell apps pass the exact required text.
+**Why `body` is a String rendered as markdown:** The body is rendered via
+`FlutterMarkdownPlusRenderer` in a scrollable view. This allows shell apps
+to use markdown formatting (headings, lists, emphasis) for readability while
+still supporting plain prose verbatim. Plain text passes through unchanged.
 
 ### 2. Interstitial Within the Login Screen (Not a Separate Route)
 
