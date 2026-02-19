@@ -53,7 +53,7 @@ dev_dependencies:
 
   # Riverpod for testing (explicit version from transitive)
   riverpod: 3.2.1
-  very_good_analysis: ^10.1.0
+  very_good_analysis: ^10.2.0
 flutter:
   uses-material-design: true
   assets:
