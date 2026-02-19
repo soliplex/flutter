@@ -35,14 +35,14 @@ Scaffold(
 
 ## Decision
 
-### 1. LoginMessage as a Configuration Model
+### 1. ConsentNotice as a Configuration Model
 
-Add `LoginMessage` to `SoliplexConfig`:
+Add `ConsentNotice` to `SoliplexConfig`:
 
 ```dart
 @immutable
-class LoginMessage {
-  const LoginMessage({
+class ConsentNotice {
+  const ConsentNotice({
     required this.title,
     required this.body,
     this.acknowledgmentLabel = 'OK',
@@ -58,10 +58,10 @@ class LoginMessage {
 class SoliplexConfig {
   const SoliplexConfig({
     // ...existing fields...
-    this.loginMessage,
+    this.consentNotice,
   });
 
-  final LoginMessage? loginMessage;
+  final ConsentNotice? consentNotice;
 }
 ```
 
@@ -88,7 +88,7 @@ they appear.
 ┌─────────────────────────────────────┐
 │          Login Screen               │
 │                                     │
-│  loginMessage == null?              │
+│  consentNotice == null?              │
 │    ├─ YES → show login options      │
 │    └─ NO → show interstitial        │
 │             ├─ acknowledged?        │
@@ -150,7 +150,7 @@ provider.
 
 ### Positive
 
-- Zero impact on deployments without `loginMessage` configured
+- Zero impact on deployments without `consentNotice` configured
 - Follows existing `SoliplexConfig` pattern — no new mechanism to learn
 - Minimal code change (one new model, login screen modification)
 - Session-scoped acknowledgment is automatic (widget lifecycle)

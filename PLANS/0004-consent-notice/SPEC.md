@@ -82,7 +82,7 @@ Two problems exist today:
 
 ### Use Case 3: Regular Deployment — No Banner
 
-1. Carol navigates to a regular deployment (no `loginMessage` in config).
+1. Carol navigates to a regular deployment (no `consentNotice` in config).
 2. The login screen shows the OIDC provider list immediately, with no
    interstitial.
 3. Behavior is identical to today.
@@ -106,12 +106,12 @@ Two problems exist today:
 
 ## Acceptance Criteria
 
-- [ ] `LoginMessage` model exists with `title`, `body`, `acknowledgmentLabel`
-- [ ] `SoliplexConfig` accepts an optional `loginMessage`
-- [ ] Login screen shows blocking interstitial when `loginMessage` is configured
+- [ ] `ConsentNotice` model exists with `title`, `body`, `acknowledgmentLabel`
+- [ ] `SoliplexConfig` accepts an optional `consentNotice`
+- [ ] Login screen shows blocking interstitial when `consentNotice` is configured
 - [ ] Login form is hidden until user clicks acknowledgment button
 - [ ] Acknowledgment resets on logout / session timeout (session-scoped)
 - [ ] Deep links without session redirect to banner via `/login`
-- [ ] No behavioral change when `loginMessage` is null (default)
+- [ ] No behavioral change when `consentNotice` is null (default)
 - [ ] All existing tests pass
 - [ ] New tests cover interstitial display, acknowledgment, and hide behavior

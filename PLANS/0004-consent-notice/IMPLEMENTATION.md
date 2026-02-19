@@ -24,11 +24,11 @@ appears before login. Regular deployments are unaffected.
 
 ### Tasks
 
-1. Create `lib/core/models/login_message.dart` — immutable model with
+1. Create `lib/core/models/consent_notice.dart` — immutable model with
    `title`, `body`, `acknowledgmentLabel`
-2. Add optional `loginMessage` field to `SoliplexConfig`
-3. Modify `LoginScreen` to read `loginMessage` from config
-4. When `loginMessage` is non-null and not yet acknowledged:
+2. Add optional `consentNotice` field to `SoliplexConfig`
+3. Modify `LoginScreen` to read `consentNotice` from config
+4. When `consentNotice` is non-null and not yet acknowledged:
    - Show the message title, body (scrollable), and acknowledgment button
    - Hide the OIDC provider list
 5. When acknowledged (or no message configured), show login options as today
@@ -36,22 +36,22 @@ appears before login. Regular deployments are unaffected.
 
 ### Files Created
 
-- `lib/core/models/login_message.dart`
-- `test/core/models/login_message_test.dart`
+- `lib/core/models/consent_notice.dart`
+- `test/core/models/consent_notice_test.dart`
 - `test/features/login/login_screen_test.dart` (or extend existing)
 
 ### Files Modified
 
-- `lib/core/models/soliplex_config.dart` (add `loginMessage` field)
+- `lib/core/models/soliplex_config.dart` (add `consentNotice` field)
 - `lib/features/login/login_screen.dart` (show interstitial)
 - `test/core/models/soliplex_config_test.dart` (if exists, update)
 
-### LoginMessage Model
+### ConsentNotice Model
 
 ```dart
 @immutable
-class LoginMessage {
-  const LoginMessage({
+class ConsentNotice {
+  const ConsentNotice({
     required this.title,
     required this.body,
     this.acknowledgmentLabel = 'OK',
@@ -74,11 +74,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final config = ref.watch(shellConfigProvider);
-    final loginMessage = config.loginMessage;
+    final consentNotice = config.consentNotice;
 
     // If message configured and not acknowledged, show interstitial
     final showInterstitial =
-        loginMessage != null && !_messageAcknowledged;
+        consentNotice != null && !_messageAcknowledged;
 
     return Scaffold(
       body: Center(
@@ -87,7 +87,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Padding(
             padding: const EdgeInsets.all(SoliplexSpacing.s6),
             child: showInterstitial
-                ? _buildInterstitial(loginMessage)
+                ? _buildInterstitial(consentNotice)
                 : _buildLoginContent(context),
           ),
         ),
@@ -95,7 +95,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildInterstitial(LoginMessage message) {
+  Widget _buildInterstitial(ConsentNotice message) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,16 +129,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 4. **Custom acknowledgment label:** Button shows the configured label text.
 5. **Default acknowledgment label:** Button shows "OK" when label not
    specified.
-6. **LoginMessage equality and toString.**
+6. **ConsentNotice equality and toString.**
 
 ### Acceptance Criteria
 
-- [ ] `LoginMessage` model created with `title`, `body`,
+- [ ] `ConsentNotice` model created with `title`, `body`,
       `acknowledgmentLabel`
-- [ ] `SoliplexConfig.loginMessage` is optional (null by default)
+- [ ] `SoliplexConfig.consentNotice` is optional (null by default)
 - [ ] Login screen shows interstitial when configured
 - [ ] Login options hidden until acknowledgment
-- [ ] No change when `loginMessage` is null
+- [ ] No change when `consentNotice` is null
 - [ ] All tests pass (TDD)
 - [ ] `dart format .` clean
 - [ ] `flutter analyze --fatal-infos` reports 0 issues
@@ -149,11 +149,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
 **Created:**
 
-- `lib/core/models/login_message.dart` — Message model
+- `lib/core/models/consent_notice.dart` — Message model
 
 **Modified:**
 
-- `lib/core/models/soliplex_config.dart` — Add `loginMessage` field
+- `lib/core/models/soliplex_config.dart` — Add `consentNotice` field
 - `lib/features/login/login_screen.dart` — Show interstitial
 
 ## Definition of Done
@@ -168,4 +168,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 ## Open Questions
 
 1. **Exact banner text:** The shell app will provide the exact required text
-   via `LoginMessage`. We provide the mechanism; they provide the content.
+   via `ConsentNotice`. We provide the mechanism; they provide the content.
