@@ -2283,19 +2283,21 @@ void main() {
         // Verify messageStates is populated correctly
         expect(history.messageStates, hasLength(2));
 
-        // Run 1: user-1 should have citation from chunk-1
+        // Run 1: user-1 should have citation from chunk-1 and runId 'run-1'
         expect(history.messageStates.containsKey('user-1'), isTrue);
         final state1 = history.messageStates['user-1']!;
         expect(state1.sourceReferences, hasLength(1));
         expect(state1.sourceReferences[0].chunkId, 'chunk-1');
         expect(state1.sourceReferences[0].documentId, 'doc-1');
+        expect(state1.runId, 'run-1');
 
-        // Run 2: user-2 should have citation from chunk-2
+        // Run 2: user-2 should have citation from chunk-2 and runId 'run-2'
         expect(history.messageStates.containsKey('user-2'), isTrue);
         final state2 = history.messageStates['user-2']!;
         expect(state2.sourceReferences, hasLength(1));
         expect(state2.sourceReferences[0].chunkId, 'chunk-2');
         expect(state2.sourceReferences[0].documentId, 'doc-2');
+        expect(state2.runId, 'run-2');
       });
 
       test('messageStates is empty when no STATE_SNAPSHOT events', () async {
@@ -2370,9 +2372,11 @@ void main() {
 
         final history = await api.getThreadHistory('room-123', 'thread-456');
 
-        // messageStates has entry for user-1 but with empty sourceReferences
+        // messageStates has entry for user-1 with empty sourceReferences and
+        // runId populated
         expect(history.messageStates, hasLength(1));
         expect(history.messageStates['user-1']!.sourceReferences, isEmpty);
+        expect(history.messageStates['user-1']!.runId, 'run-1');
       });
     });
 
@@ -2469,6 +2473,175 @@ void main() {
           capturedUri?.path,
           equals('/api/v1/rooms/room-123/agui/thread-456/run-789'),
         );
+      });
+    });
+
+    // ============================================================
+    // Feedback
+    // ============================================================
+
+    group('submitFeedback', () {
+      test('sends POST with thumbs_up and no reason', () async {
+        Map<String, dynamic>? capturedBody;
+        Uri? capturedUri;
+
+        when(
+          () => mockTransport.request<void>(
+            'POST',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedUri = invocation.positionalArguments[1] as Uri;
+          capturedBody =
+              invocation.namedArguments[#body] as Map<String, dynamic>?;
+        });
+
+        await api.submitFeedback(
+          'room-123',
+          'thread-456',
+          'run-789',
+          FeedbackType.thumbsUp,
+        );
+
+        expect(
+          capturedUri?.path,
+          equals(
+            '/api/v1/rooms/room-123/agui/thread-456/run-789/feedback',
+          ),
+        );
+        expect(capturedBody?['feedback'], 'thumbs_up');
+        expect(capturedBody?['reason'], isNull);
+      });
+
+      test('sends POST with thumbs_down and a reason', () async {
+        Map<String, dynamic>? capturedBody;
+
+        when(
+          () => mockTransport.request<void>(
+            'POST',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer((invocation) async {
+          capturedBody =
+              invocation.namedArguments[#body] as Map<String, dynamic>?;
+        });
+
+        await api.submitFeedback(
+          'room-123',
+          'thread-456',
+          'run-789',
+          FeedbackType.thumbsDown,
+          reason: 'The citation is wrong',
+        );
+
+        expect(capturedBody?['feedback'], 'thumbs_down');
+        expect(capturedBody?['reason'], 'The citation is wrong');
+      });
+
+      test('validates non-empty roomId', () {
+        expect(
+          () => api.submitFeedback(
+            '',
+            'thread-456',
+            'run-789',
+            FeedbackType.thumbsUp,
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('validates non-empty threadId', () {
+        expect(
+          () => api.submitFeedback(
+            'room-123',
+            '',
+            'run-789',
+            FeedbackType.thumbsUp,
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('validates non-empty runId', () {
+        expect(
+          () => api.submitFeedback(
+            'room-123',
+            'thread-456',
+            '',
+            FeedbackType.thumbsUp,
+          ),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('propagates exceptions', () async {
+        when(
+          () => mockTransport.request<void>(
+            'POST',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenThrow(const NetworkException(message: 'offline'));
+
+        expect(
+          () => api.submitFeedback(
+            'room-123',
+            'thread-456',
+            'run-789',
+            FeedbackType.thumbsUp,
+          ),
+          throwsA(isA<NetworkException>()),
+        );
+      });
+
+      test('supports cancellation', () async {
+        final cancelToken = CancelToken();
+
+        when(
+          () => mockTransport.request<void>(
+            'POST',
+            any(),
+            cancelToken: cancelToken,
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer((_) async {});
+
+        await api.submitFeedback(
+          'room-123',
+          'thread-456',
+          'run-789',
+          FeedbackType.thumbsUp,
+          cancelToken: cancelToken,
+        );
+
+        verify(
+          () => mockTransport.request<void>(
+            'POST',
+            any(),
+            cancelToken: cancelToken,
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).called(1);
       });
     });
 
