@@ -553,6 +553,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     final messageState = MessageState(
       userMessageId: handle.userMessageId,
       sourceReferences: sourceReferences,
+      runId: handle.runId,
     );
 
     return conversation.withMessageState(handle.userMessageId, messageState);
