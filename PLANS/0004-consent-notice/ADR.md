@@ -91,7 +91,7 @@ they appear.
 │  consentNotice == null?              │
 │    ├─ YES → show login options      │
 │    └─ NO → show interstitial        │
-│             ├─ acknowledged?        │
+│             ├─ consentGiven?        │
 │             │  ├─ YES → show login  │
 │             │  └─ NO → show message │
 │             └───────────────────────│
@@ -103,7 +103,7 @@ they appear.
 - **No new routes.** Adding a `/consent` route would require router changes,
   redirect logic, and a new public route entry. The interstitial is part of
   the login flow, not a navigation destination.
-- **Simple state.** A single `_acknowledged` boolean in `_LoginScreenState`
+- **Simple state.** A single `_consentGiven` boolean in `_LoginScreenState`
   controls visibility. Resets automatically when the widget rebuilds (logout
   recreates the route, resetting state).
 - **Session-scoped by default.** Widget state is ephemeral — destroyed on
@@ -135,7 +135,7 @@ through `/login`.
 
 ### 3. Acknowledgment Is Widget State (Not Provider State)
 
-The `_acknowledged` flag lives in `_LoginScreenState`, not in a Riverpod
+The `_consentGiven` flag lives in `_LoginScreenState`, not in a Riverpod
 provider.
 
 **Rationale:**

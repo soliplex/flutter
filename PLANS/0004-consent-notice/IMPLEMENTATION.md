@@ -69,7 +69,7 @@ class ConsentNotice {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isAuthenticating = false;
   String? _errorMessage;
-  bool _messageAcknowledged = false;  // NEW
+  bool _consentGiven = false;  // NEW
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     // If message configured and not acknowledged, show interstitial
     final showInterstitial =
-        consentNotice != null && !_messageAcknowledged;
+        consentNotice != null && !_consentGiven;
 
     return Scaffold(
       body: Center(
@@ -109,7 +109,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
         const SizedBox(height: 24),
         FilledButton(
-          onPressed: () => setState(() => _messageAcknowledged = true),
+          onPressed: () => setState(() => _consentGiven = true),
           child: Text(message.acknowledgmentLabel),
         ),
       ],
