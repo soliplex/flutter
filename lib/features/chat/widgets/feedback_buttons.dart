@@ -3,8 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:soliplex_client/soliplex_client.dart' show FeedbackType;
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/features/chat/widgets/feedback_reason_dialog.dart';
 
-enum _FeedbackPhase { idle, countdown, submitted }
+enum _FeedbackPhase { idle, countdown, modal, submitted }
 
 /// Thumbs-up / thumbs-down feedback buttons with a 5-second countdown.
 ///
@@ -12,6 +13,7 @@ enum _FeedbackPhase { idle, countdown, submitted }
 /// - **Idle**: both thumbs unhighlighted, no timer.
 /// - **Countdown**: one thumb highlighted, circular timer visible, 5-second
 ///   countdown running. No backend call yet.
+/// - **Modal**: countdown paused, reason dialog open.
 /// - **Submitted**: thumb highlighted, no timer, feedback sent to backend.
 ///   Active thumb locked; opposite thumb can start a new countdown.
 class FeedbackButtons extends StatefulWidget {
@@ -72,6 +74,8 @@ class _FeedbackButtonsState extends State<FeedbackButtons>
           // Switch direction — restart countdown
           _startCountdown(tapped);
         }
+      case _FeedbackPhase.modal:
+      // Reason dialog is open; taps on the underlying buttons are a no-op.
       case _FeedbackPhase.submitted:
         if (tapped != _direction) {
           // Start new countdown for opposite thumb
@@ -96,6 +100,27 @@ class _FeedbackButtonsState extends State<FeedbackButtons>
         }
       },
     );
+  }
+
+  Future<void> _onTellUsWhyTap() async {
+    _countdownTimer?.cancel();
+    _controller.stop();
+    setState(() {
+      _phase = _FeedbackPhase.modal;
+    });
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => const FeedbackReasonDialog(),
+    );
+
+    if (!mounted) return;
+
+    if (reason != null) {
+      _submit(reason.trim().isEmpty ? null : reason.trim());
+    } else {
+      _startCountdown(_direction!);
+    }
   }
 
   void _submit(String? reason) {
@@ -138,10 +163,16 @@ class _FeedbackButtonsState extends State<FeedbackButtons>
         ),
         if (_phase == _FeedbackPhase.countdown) ...[
           _CountdownIndicator(controller: _controller),
-          Text(
-            'Tell us why!',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
+          InkWell(
+            onTap: _onTellUsWhyTap,
+            borderRadius: BorderRadius.circular(4),
+            child: Text(
+              'Tell us why!',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.primary,
+                decoration: TextDecoration.underline,
+                decorationColor: theme.colorScheme.primary,
+              ),
             ),
           ),
         ],
