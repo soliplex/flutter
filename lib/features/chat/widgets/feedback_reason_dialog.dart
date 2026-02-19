@@ -27,10 +27,12 @@ class _FeedbackReasonDialogState extends State<FeedbackReasonDialog> {
       content: TextField(
         controller: _controller,
         autofocus: true,
+        maxLines: 5,
+        minLines: 1,
         decoration: const InputDecoration(
           hintText: 'Add a reason (optional)',
         ),
-        onSubmitted: (_) => Navigator.of(context).pop(_controller.text),
+        textInputAction: TextInputAction.newline,
       ),
       actions: [
         TextButton(
