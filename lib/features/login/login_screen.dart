@@ -136,44 +136,46 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ? width * 2 / 3
             : width - SoliplexSpacing.s4 * 2;
 
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxContentWidth),
-            child: Padding(
-              padding: const EdgeInsets.all(SoliplexSpacing.s6),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    notice.title,
-                    style: Theme.of(context).textTheme.headlineLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 48),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: FlutterMarkdownPlusRenderer(
-                        data: notice.body,
-                      ),
+        return SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: maxContentWidth),
+              child: Padding(
+                padding: const EdgeInsets.all(SoliplexSpacing.s6),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      notice.title,
+                      style: Theme.of(context).textTheme.headlineLarge,
+                      textAlign: TextAlign.center,
                     ),
-                  ),
-                  const SizedBox(height: 48),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 400),
-                      child: FilledButton(
-                        onPressed: () => setState(() => _consentGiven = true),
-                        child: Padding(
-                          padding: const EdgeInsetsGeometry.all(
-                            SoliplexSpacing.s2,
-                          ),
-                          child: Text(notice.acknowledgmentLabel),
+                    const SizedBox(height: 48),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: FlutterMarkdownPlusRenderer(
+                          data: notice.body,
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 48),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: FilledButton(
+                          onPressed: () => setState(() => _consentGiven = true),
+                          child: Padding(
+                            padding: const EdgeInsetsGeometry.all(
+                              SoliplexSpacing.s2,
+                            ),
+                            child: Text(notice.acknowledgmentLabel),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
