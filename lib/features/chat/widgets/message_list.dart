@@ -287,24 +287,23 @@ class _MessageListState extends ConsumerState<MessageList> {
 
             void Function(FeedbackType, String?)? onFeedbackSubmit;
             if (userMessageId != null) {
-              final capturedUserId = userMessageId;
+              final roomId = ref.read(currentRoomIdProvider);
+              final threadId = ref.read(currentThreadIdProvider);
+              final runId = ref.read(
+                runIdForUserMessageProvider(userMessageId),
+              );
+              final api = ref.read(apiProvider);
               onFeedbackSubmit = (FeedbackType feedback, String? reason) {
-                final runId = ref.read(
-                  runIdForUserMessageProvider(capturedUserId),
-                );
-                final roomId = ref.read(currentRoomIdProvider);
-                final threadId = ref.read(currentThreadIdProvider);
                 if (runId == null || roomId == null || threadId == null) return;
                 unawaited(
-                  ref
-                      .read(apiProvider)
+                  api
                       .submitFeedback(
-                        roomId,
-                        threadId,
-                        runId,
-                        feedback,
-                        reason: reason,
-                      )
+                    roomId,
+                    threadId,
+                    runId,
+                    feedback,
+                    reason: reason,
+                  )
                       .catchError((Object e, StackTrace st) {
                     Loggers.chat.error(
                       'Feedback submission failed',

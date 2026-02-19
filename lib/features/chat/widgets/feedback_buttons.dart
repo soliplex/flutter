@@ -52,6 +52,9 @@ class _FeedbackButtonsState extends State<FeedbackButtons>
 
   @override
   void dispose() {
+    if (_phase == _FeedbackPhase.countdown || _phase == _FeedbackPhase.modal) {
+      widget.onFeedbackSubmit(_direction!, null);
+    }
     _countdownTimer?.cancel();
     _controller.dispose();
     super.dispose();

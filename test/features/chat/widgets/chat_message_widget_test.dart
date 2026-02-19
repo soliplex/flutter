@@ -898,6 +898,57 @@ void main() {
         expect(capturedFeedback, isNull);
         expect(find.byType(AlertDialog), findsOneWidget);
       });
+
+      testWidgets('disposing during countdown submits feedback',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        expect(capturedFeedback, isNull);
+
+        // Replace widget tree to trigger dispose
+        await tester.pumpWidget(createTestApp(home: const SizedBox()));
+
+        expect(capturedFeedback, FeedbackType.thumbsUp);
+        expect(capturedReason, isNull);
+      });
+
+      testWidgets('disposing during modal submits feedback with null reason',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_down_alt_outlined));
+        await tester.pump();
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(capturedFeedback, isNull);
+
+        // Replace widget tree to trigger dispose
+        await tester.pumpWidget(createTestApp(home: const SizedBox()));
+
+        expect(capturedFeedback, FeedbackType.thumbsDown);
+        expect(capturedReason, isNull);
+      });
     });
   });
 }
