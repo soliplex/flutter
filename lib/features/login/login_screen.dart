@@ -7,7 +7,9 @@ import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/models/consent_notice.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
+import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 import 'package:soliplex_frontend/shared/widgets/platform_adaptive_progress_indicator.dart';
 
 /// Login screen with OIDC provider selection.
@@ -127,39 +129,56 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildInterstitial(ConsentNotice notice) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 400),
-        child: Padding(
-          padding: const EdgeInsets.all(SoliplexSpacing.s6),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                notice.title,
-                style: Theme.of(context).textTheme.headlineLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Text(
-                    notice.body,
-                    style: Theme.of(context).textTheme.bodyLarge,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final maxContentWidth = width >= SoliplexBreakpoints.desktop
+            ? width * 2 / 3
+            : width - SoliplexSpacing.s4 * 2;
+
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxContentWidth),
+            child: Padding(
+              padding: const EdgeInsets.all(SoliplexSpacing.s6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    notice.title,
+                    style: Theme.of(context).textTheme.headlineLarge,
                     textAlign: TextAlign.center,
                   ),
-                ),
+                  const SizedBox(height: 48),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: FlutterMarkdownPlusRenderer(
+                        data: notice.body,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 48),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      child: FilledButton(
+                        onPressed: () => setState(() => _consentGiven = true),
+                        child: Padding(
+                          padding: const EdgeInsetsGeometry.all(
+                            SoliplexSpacing.s2,
+                          ),
+                          child: Text(notice.acknowledgmentLabel),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => setState(() => _consentGiven = true),
-                child: Text(notice.acknowledgmentLabel),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
