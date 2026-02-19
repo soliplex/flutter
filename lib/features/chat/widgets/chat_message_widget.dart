@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:soliplex_client/soliplex_client.dart'
-    show ChatMessage, ChatUser, ErrorMessage, SourceReference, TextMessage;
+    show
+        ChatMessage,
+        ChatUser,
+        ErrorMessage,
+        FeedbackType,
+        SourceReference,
+        TextMessage;
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
+import 'package:soliplex_frontend/features/chat/widgets/feedback_buttons.dart';
 import 'package:soliplex_frontend/shared/widgets/fullscreen_image_viewer.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
@@ -21,6 +28,7 @@ class ChatMessageWidget extends StatelessWidget {
     this.isStreaming = false,
     this.isThinkingStreaming = false,
     this.sourceReferences = const [],
+    this.onFeedbackSubmit,
     super.key,
   });
 
@@ -33,6 +41,13 @@ class ChatMessageWidget extends StatelessWidget {
 
   /// Source references (citations) associated with this message.
   final List<SourceReference> sourceReferences;
+
+  /// Called when the user submits feedback for this assistant message.
+  ///
+  /// When non-null, thumbs-up and thumbs-down buttons are shown below the
+  /// message (only when [isStreaming] is false). When null, no feedback
+  /// buttons are rendered.
+  final void Function(FeedbackType feedback, String? reason)? onFeedbackSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -234,6 +249,8 @@ class ChatMessageWidget extends StatelessWidget {
             icon: Icons.copy,
             onTap: () => _copyToClipboard(context, messageText),
           ),
+          if (onFeedbackSubmit != null)
+            FeedbackButtons(onFeedbackSubmit: onFeedbackSubmit!),
         ],
       ),
     );
