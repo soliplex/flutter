@@ -12,6 +12,17 @@ void main() {
 
       expect(state.userMessageId, 'user-123');
       expect(state.sourceReferences, isEmpty);
+      expect(state.runId, isNull);
+    });
+
+    test('creates with runId', () {
+      final state = MessageState(
+        userMessageId: 'user-123',
+        sourceReferences: const [],
+        runId: 'run-456',
+      );
+
+      expect(state.runId, 'run-456');
     });
 
     test('creates with source references', () {
@@ -64,6 +75,35 @@ void main() {
         final state2 = MessageState(
           userMessageId: 'user-456',
           sourceReferences: const [],
+        );
+
+        expect(state1, isNot(equals(state2)));
+      });
+
+      test('different runId makes states unequal', () {
+        final state1 = MessageState(
+          userMessageId: 'user-123',
+          sourceReferences: const [],
+          runId: 'run-1',
+        );
+        final state2 = MessageState(
+          userMessageId: 'user-123',
+          sourceReferences: const [],
+          runId: 'run-2',
+        );
+
+        expect(state1, isNot(equals(state2)));
+      });
+
+      test('null and non-null runId makes states unequal', () {
+        final state1 = MessageState(
+          userMessageId: 'user-123',
+          sourceReferences: const [],
+        );
+        final state2 = MessageState(
+          userMessageId: 'user-123',
+          sourceReferences: const [],
+          runId: 'run-1',
         );
 
         expect(state1, isNot(equals(state2)));
