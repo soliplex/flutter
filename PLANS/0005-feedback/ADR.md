@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -34,6 +34,10 @@ at the same two sites where `MessageState` is already created:
 
 - `ActiveRunNotifier._correlateMessagesForRun()` — has `RunHandle.runId`
 - `SoliplexApi._replayEventsToHistory()` — has the run ID from the runs map
+
+A `runIdForUserMessageProvider` was added to `source_references_provider.dart`
+to expose `runId` at the UI layer, following the same pattern as the existing
+`sourceReferencesForUserMessageProvider`.
 
 **Rationale:** Avoids creating a parallel data structure. `MessageState` is
 already keyed by user message ID and flows through the provider layer to the UI.
@@ -111,12 +115,12 @@ failed feedback can be investigated without disrupting the user.
 
 ### 9. Local Widget State, No Provider
 
-Feedback state (Idle/Countdown/Modal/Submitted) is managed by a private
-`_FeedbackButtons` StatefulWidget, not a Riverpod provider. The countdown timer
-is local widget state.
+Feedback state (Idle/Countdown/Modal/Submitted) is managed by `FeedbackButtons`
+(a StatefulWidget), not a Riverpod provider. The countdown timer is local widget
+state.
 
 `MessageList` (a `ConsumerStatefulWidget` with `ref` access) constructs the API
-callback and passes it down through `ChatMessageWidget` to `_FeedbackButtons`.
+callback and passes it down through `ChatMessageWidget` to `FeedbackButtons`.
 
 **Rationale:** Feedback state is ephemeral — no other widget needs it, it
 doesn't survive navigation, and it isn't derived from other state. A Riverpod
@@ -143,6 +147,18 @@ assistant messages.
 The actions row is already gated on `!isStreaming`, so feedback buttons
 automatically hide during streaming.
 
+### 12. Submit on Dispose
+
+When `FeedbackButtons` disposes during the countdown or modal phase (e.g., user
+navigates away), feedback is submitted immediately with `reason: null`. The
+user's directional intent is preserved.
+
+**Rationale:** The user deliberately chose a direction. Discarding that intent
+on navigation would silently lose feedback. Since feedback is fire-and-forget
+and low-stakes, submitting with no reason is the safest default. The
+`onFeedbackSubmit` callback is called directly (not via `setState`) since
+`setState` is illegal during `dispose`.
+
 ## Consequences
 
 ### Positive
@@ -154,6 +170,7 @@ automatically hide during streaming.
 - Type-safe feedback values via enum.
 - Deferred sending enables clean toggle-off without a DELETE endpoint.
 - Unified reason flow reduces code paths.
+- Submit-on-dispose prevents silent feedback loss on navigation.
 
 ### Negative
 

@@ -47,6 +47,8 @@ Feedback is one-to-one with a run. Re-submitting replaces the previous entry.
 8. After submission, tapping the opposite thumb starts a new countdown for the
    new direction.
 9. Feedback buttons appear only on non-streaming assistant messages.
+10. If the user navigates away while in the countdown or modal phase, feedback
+    is submitted immediately with `reason: null`.
 
 ### Non-Functional Requirements
 
@@ -73,7 +75,7 @@ Feedback is one-to-one with a run. Re-submitting replaces the previous entry.
 2. Bob taps the thumbs-down icon. It highlights, countdown starts.
 3. Bob taps "Tell us why!" before the timer expires.
 4. A modal opens with a text field. The timer is disposed.
-5. Bob types "The citation is wrong" and taps Ok/Send.
+5. Bob types "The citation is wrong" and taps Send.
 6. The frontend sends
    `{ "feedback": "thumbs_down", "reason": "The citation is wrong" }`.
 7. The modal closes. Thumbs-down remains highlighted (locked).
@@ -114,6 +116,14 @@ Feedback is one-to-one with a run. Re-submitting replaces the previous entry.
 4. The UI remains in the submitted state (thumbs-up highlighted). Grace is
    unaware of the failure.
 
+### Use Case 8: Navigate Away During Countdown
+
+1. Hank taps thumbs-down. It highlights, countdown starts.
+2. Hank navigates to a different page before the timer expires.
+3. The widget disposes. The frontend immediately sends
+   `{ "feedback": "thumbs_down", "reason": null }`.
+4. Hank's feedback is preserved despite leaving the page.
+
 ## Design
 
 ### Key Structural Gap: `runId` at the UI Layer
@@ -126,6 +136,10 @@ The backend endpoint requires `run_id`. Currently, `MessageState` does not carry
 - `ActiveRunNotifier._correlateMessagesForRun()` (live runs via `RunHandle`)
 - `SoliplexApi._replayEventsToHistory()` (history replay from run data)
 
+A `runIdForUserMessageProvider` (in `source_references_provider.dart`) exposes
+`runId` to the UI layer, following the same pattern as
+`sourceReferencesForUserMessageProvider`.
+
 ### State Machine
 
 ```text
@@ -136,12 +150,15 @@ The backend endpoint requires `run_id`. Currently, `MessageState` does not carry
               (toggle off)|  v                     | thumb
           <───────── [Countdown]  [Modal] ─────>   |
   [Idle]    cancel    (reset)       |  |           v
-                        ^          Ok  Cancel   [Countdown]
+                        ^          Send Cancel   [Countdown]
                         |          |     |        (new direction)
                         |          v     v
                         |   [Submitted] [Countdown]
                         └──────────────── (reset)
 ```
+
+On widget dispose during Countdown or Modal, feedback is submitted immediately
+with `reason: null` (the user's directional intent is preserved).
 
 **States:**
 
@@ -158,12 +175,12 @@ The backend endpoint requires `run_id`. Currently, `MessageState` does not carry
 User taps thumb
     |
     v
-_FeedbackButtons (local state: Idle → Countdown, 5s timer starts)
+FeedbackButtons (local state: Idle → Countdown, 5s timer starts)
     |
-    [timer expires OR modal submit]
+    [timer expires OR modal submit OR widget dispose]
     |
     v
-onSubmit callback (constructed by MessageList, which has ref access)
+onFeedbackSubmit callback (constructed by MessageList, which has ref access)
     |
     v
 SoliplexApi.submitFeedback(roomId, threadId, runId, feedback, reason)
@@ -172,11 +189,12 @@ SoliplexApi.submitFeedback(roomId, threadId, runId, feedback, reason)
 POST /v1/rooms/{room_id}/agui/{thread_id}/{run_id}/feedback
 ```
 
-No Riverpod provider needed. Feedback state is ephemeral and local to a single
-message widget — it doesn't need to be shared, derived, or persisted. A
-`_FeedbackButtons` StatefulWidget manages the Idle/Countdown/Modal/Submitted
-state machine. `MessageList` (a `ConsumerStatefulWidget` with `ref`) constructs
-the API callback and passes it down.
+No Riverpod provider needed for feedback state. Feedback state is ephemeral and
+local to a single message widget — it doesn't need to be shared, derived, or
+persisted. A `FeedbackButtons` StatefulWidget manages the
+Idle/Countdown/Modal/Submitted state machine. `MessageList` (a
+`ConsumerStatefulWidget` with `ref`) constructs the API callback and passes it
+down.
 
 ### Feedback Values
 
@@ -265,9 +283,9 @@ failed feedback can be investigated without disrupting the user.
 
 ### No Riverpod provider
 
-Feedback state (Idle/Countdown/Modal/Submitted) is managed by a private
-`_FeedbackButtons` StatefulWidget, not a Riverpod provider. The countdown timer
-is local widget state.
+Feedback state (Idle/Countdown/Modal/Submitted) is managed by `FeedbackButtons`
+(a StatefulWidget), not a Riverpod provider. The countdown timer is local widget
+state.
 
 **Evidence:** Compared against Andrea Bizzotto's 4-layer architecture
 (Presentation → Application → Domain → Data). The Application layer is for
@@ -276,6 +294,17 @@ depends on multiple data sources." Feedback has no such logic — it's a single
 POST with two outcomes. Adding a provider or service layer would create
 pass-through classes. The clipboard copy in the same actions row is already
 handled inline with less complexity.
+
+### Submit on dispose
+
+When the widget disposes during the countdown or modal phase (e.g., the user
+navigates away), feedback is submitted immediately with `reason: null`. The
+user's directional intent (thumbs-up or thumbs-down) is preserved even though
+they left the page.
+
+**Rationale:** The user deliberately chose a direction. Discarding that intent
+on navigation would lose feedback silently. Since feedback is fire-and-forget
+and low-stakes, submitting with no reason is the safest default.
 
 ### Fire-and-forget persistence (v1)
 
@@ -290,17 +319,18 @@ changing existing code.
 
 ## Acceptance Criteria
 
-- [ ] Thumbs-up and thumbs-down buttons visible on completed assistant messages
-- [ ] Tapping a thumb highlights it and starts 5-second countdown
-- [ ] Countdown expiry sends feedback with `reason: null` to backend
-- [ ] Tapping active thumb during countdown toggles off (nothing sent)
-- [ ] Tapping opposite thumb during countdown switches direction, restarts timer
-- [ ] Tapping opposite thumb after submission starts new countdown
-- [ ] "Tell us why!" opens reason modal (timer disposed)
-- [ ] Modal Ok/Send sends feedback with reason to backend
-- [ ] Modal Cancel closes dialog, resets timer to 5s
-- [ ] After submission, active thumb locked (no toggle-off)
-- [ ] API errors logged locally, UI unaffected
-- [ ] Buttons hidden during streaming
-- [ ] `soliplex_client` remains pure Dart
-- [ ] All tests pass, analyzer clean
+- [x] Thumbs-up and thumbs-down buttons visible on completed assistant messages
+- [x] Tapping a thumb highlights it and starts 5-second countdown
+- [x] Countdown expiry sends feedback with `reason: null` to backend
+- [x] Tapping active thumb during countdown toggles off (nothing sent)
+- [x] Tapping opposite thumb during countdown switches direction, restarts timer
+- [x] Tapping opposite thumb after submission starts new countdown
+- [x] "Tell us why!" opens reason modal (timer disposed)
+- [x] Modal Send sends feedback with reason to backend
+- [x] Modal Cancel closes dialog, resets timer to 5s
+- [x] After submission, active thumb locked (no toggle-off)
+- [x] Navigating away during countdown or modal submits feedback immediately
+- [x] API errors logged locally, UI unaffected
+- [x] Buttons hidden during streaming
+- [x] `soliplex_client` remains pure Dart
+- [x] All tests pass, analyzer clean
