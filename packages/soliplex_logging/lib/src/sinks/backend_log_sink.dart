@@ -310,6 +310,9 @@ class BackendLogSink implements LogSink {
     }
   }
 
+  /// Discards all pending (unsent) log records from the disk queue.
+  Future<void> clearPending() => _diskQueue.clear();
+
   @override
   Future<void> close() async {
     if (_closed) return;

@@ -143,6 +143,24 @@ class PlatformDiskQueue implements DiskQueue {
   }
 
   @override
+  Future<void> clear() {
+    final completer = Completer<void>();
+    _writeLock = _writeLock.catchError((_) {}).then((_) async {
+      try {
+        if (_file.existsSync()) _file.deleteSync();
+        if (_fatalFile.existsSync()) _fatalFile.deleteSync();
+        _confirmed = 0;
+        _total = 0;
+        _writeMeta();
+        completer.complete();
+      } on Object catch (e, s) {
+        completer.completeError(e, s);
+      }
+    });
+    return completer.future;
+  }
+
+  @override
   Future<void> close() async {
     await _writeLock.catchError((_) {});
   }

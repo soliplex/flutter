@@ -247,6 +247,23 @@ void main() {
       expect(records[0]['msg'], 'pending-write');
       await newQueue.close();
     });
+
+    test('clear removes all pending records and files', () async {
+      await queue.append({'msg': 'a'});
+      await queue.append({'msg': 'b'});
+      queue.appendSync({'msg': 'fatal'});
+
+      await queue.clear();
+
+      expect(await queue.pendingCount, isZero);
+      expect(await queue.drain(10), isEmpty);
+
+      // Verify new records still work after clear.
+      await queue.append({'msg': 'after-clear'});
+      final records = await queue.drain(10);
+      expect(records, hasLength(1));
+      expect(records[0]['msg'], 'after-clear');
+    });
   });
 
   group('Offset-based architecture', () {
