@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Running, ThreadInfo;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/features/history/history_panel.dart';
 import 'package:soliplex_frontend/features/history/widgets/new_conversation_button.dart';
 import 'package:soliplex_frontend/features/history/widgets/thread_list_item.dart';
@@ -29,6 +31,22 @@ class _TrackingThreadSelectionNotifier extends Notifier<ThreadSelection>
   void set(ThreadSelection value) {
     lastSet = value;
     state = value;
+  }
+}
+
+/// Mock UnreadRunsNotifier that tracks markRead calls.
+class _TrackingUnreadRunsNotifier extends UnreadRunsNotifier {
+  final List<ThreadKey> markReadCalls = [];
+
+  @override
+  UnreadRuns build() => initialState;
+
+  UnreadRuns initialState = const UnreadRuns();
+
+  @override
+  void markRead(ThreadKey key) {
+    markReadCalls.add(key);
+    super.markRead(key);
   }
 }
 
@@ -248,6 +266,87 @@ void main() {
         // Verify navigation occurred
         expect(find.textContaining('Room: room-1'), findsOneWidget);
         expect(find.textContaining('Thread: thread-1'), findsOneWidget);
+      });
+
+      testWidgets('marks thread as read when tapped', (tester) async {
+        final threads = <domain.ThreadInfo>[
+          TestData.createThread(id: 'thread-1', name: 'Thread 1'),
+        ];
+        late _TrackingUnreadRunsNotifier trackingNotifier;
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const HistoryPanel(roomId: 'room-1'),
+            overrides: [
+              threadsProvider('room-1').overrideWith((ref) async => threads),
+              activeRunNotifierOverride(const IdleState()),
+              currentThreadIdProvider.overrideWith((ref) => null),
+              threadSelectionProvider.overrideWith(
+                () => _TrackingThreadSelectionNotifier(
+                  initialSelection: const NoThreadSelected(),
+                ),
+              ),
+              unreadRunsProvider.overrideWith(() {
+                return trackingNotifier = _TrackingUnreadRunsNotifier()
+                  ..initialState = const UnreadRuns(
+                    byRoom: {
+                      'room-1': {'thread-1'},
+                    },
+                  );
+              }),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byType(ThreadListItem));
+        await tester.pump();
+
+        expect(
+          trackingNotifier.markReadCalls,
+          contains(
+            const (roomId: 'room-1', threadId: 'thread-1'),
+          ),
+        );
+      });
+    });
+
+    group('Unread indicators', () {
+      testWidgets('passes hasUnreadRun to ThreadListItem', (tester) async {
+        final threads = <domain.ThreadInfo>[
+          TestData.createThread(id: 'thread-1', name: 'Thread 1'),
+          TestData.createThread(id: 'thread-2', name: 'Thread 2'),
+        ];
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const HistoryPanel(roomId: 'room-1'),
+            overrides: [
+              threadsProvider('room-1').overrideWith((ref) async => threads),
+              activeRunNotifierOverride(const IdleState()),
+              currentThreadIdProvider.overrideWith((ref) => null),
+              unreadRunsProvider.overrideWith(() {
+                return _TrackingUnreadRunsNotifier()
+                  ..initialState = const UnreadRuns(
+                    byRoom: {
+                      'room-1': {'thread-1'},
+                    },
+                  );
+              }),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Find all ThreadListItem widgets
+        final items = tester.widgetList<ThreadListItem>(
+          find.byType(ThreadListItem),
+        );
+        final itemList = items.toList();
+
+        // thread-1 should have unread, thread-2 should not
+        expect(itemList[0].hasUnreadRun, isTrue);
+        expect(itemList[1].hasUnreadRun, isFalse);
       });
     });
   });

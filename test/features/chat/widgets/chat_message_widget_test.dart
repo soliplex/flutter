@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -213,8 +213,8 @@ void main() {
           ),
         );
 
-        // Assert - should use MarkdownBody for assistant messages
-        expect(find.byType(MarkdownBody), findsOneWidget);
+        // Assert - should use markdown renderer for assistant messages
+        expect(find.byType(FlutterMarkdownPlusRenderer), findsOneWidget);
       });
 
       testWidgets('does not render markdown for user messages', (tester) async {
@@ -230,9 +230,49 @@ void main() {
           ),
         );
 
-        // Assert - should use Text for user messages, not MarkdownBody
-        expect(find.byType(MarkdownBody), findsNothing);
+        // Assert - should use Text for user messages, not markdown renderer
+        expect(find.byType(FlutterMarkdownPlusRenderer), findsNothing);
         expect(find.text('**bold** and *italic* text'), findsOneWidget);
+      });
+
+      testWidgets('provides link tap handler to markdown renderer', (
+        tester,
+      ) async {
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: 'Visit [site](https://example.com)',
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        final renderer = tester.widget<FlutterMarkdownPlusRenderer>(
+          find.byType(FlutterMarkdownPlusRenderer),
+        );
+        expect(renderer.onLinkTap, isNotNull);
+      });
+
+      testWidgets('provides image tap handler to markdown renderer', (
+        tester,
+      ) async {
+        final message = TestData.createMessage(
+          user: ChatUser.assistant,
+          text: '![photo](https://example.com/img.png)',
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        final renderer = tester.widget<FlutterMarkdownPlusRenderer>(
+          find.byType(FlutterMarkdownPlusRenderer),
+        );
+        expect(renderer.onImageTap, isNotNull);
       });
 
       testWidgets('renders code blocks with syntax highlighting', (
@@ -252,7 +292,7 @@ void main() {
         );
 
         // Assert - MarkdownBody should render code blocks
-        expect(find.byType(MarkdownBody), findsOneWidget);
+        expect(find.byType(FlutterMarkdownPlusRenderer), findsOneWidget);
         // The code block should be rendered (implementation detail - just
         // verify it doesn't crash)
         await tester.pumpAndSettle();
@@ -476,6 +516,438 @@ void main() {
         );
         final constraints = container.constraints!;
         expect(constraints.maxWidth, 600);
+      });
+    });
+
+    group('Feedback buttons', () {
+      final assistantMessage = TestData.createMessage(
+        user: ChatUser.assistant,
+        text: 'Assistant response',
+      );
+
+      FeedbackType? capturedFeedback;
+      String? capturedReason;
+
+      setUp(() {
+        capturedFeedback = null;
+        capturedReason = null;
+      });
+
+      void onFeedbackSubmit(FeedbackType f, String? r) {
+        capturedFeedback = f;
+        capturedReason = r;
+      }
+
+      testWidgets('shows thumb buttons for non-streaming assistant message',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        expect(find.byIcon(Icons.thumb_up_alt_outlined), findsOneWidget);
+        expect(find.byIcon(Icons.thumb_down_alt_outlined), findsOneWidget);
+      });
+
+      testWidgets('does not show thumb buttons when onFeedbackSubmit is null',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: assistantMessage),
+            ),
+          ),
+        );
+
+        expect(find.byIcon(Icons.thumb_up_alt_outlined), findsNothing);
+        expect(find.byIcon(Icons.thumb_down_alt_outlined), findsNothing);
+      });
+
+      testWidgets('tapping thumbs-up transitions to countdown', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+
+        // Active thumb is now filled
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+        // Countdown visible
+        expect(find.text('5'), findsOneWidget);
+        // "Tell us why!" label visible
+        expect(find.text('Tell us why!'), findsOneWidget);
+        // Nothing sent yet
+        expect(capturedFeedback, isNull);
+      });
+
+      testWidgets('tapping thumbs-down transitions to countdown',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_down_alt_outlined));
+        await tester.pump();
+
+        expect(find.byIcon(Icons.thumb_down), findsOneWidget);
+        expect(find.text('Tell us why!'), findsOneWidget);
+        expect(capturedFeedback, isNull);
+      });
+
+      testWidgets('tapping active thumb during countdown cancels feedback',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        // Start countdown
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+
+        // Tap active thumb — cancel
+        await tester.tap(find.byIcon(Icons.thumb_up));
+        await tester.pump();
+
+        // Back to idle
+        expect(find.byIcon(Icons.thumb_up_alt_outlined), findsOneWidget);
+        expect(find.text('Tell us why!'), findsNothing);
+        expect(capturedFeedback, isNull);
+      });
+
+      testWidgets('tapping opposite thumb during countdown switches direction',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        // Start thumbs-up countdown
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+
+        // Advance time a bit
+        await tester.pump(const Duration(seconds: 2));
+
+        // Switch to thumbs-down
+        await tester.tap(find.byIcon(Icons.thumb_down_alt_outlined));
+        await tester.pump();
+
+        // Thumbs-down is now active, timer reset to 5
+        expect(find.byIcon(Icons.thumb_down), findsOneWidget);
+        expect(find.text('5'), findsOneWidget);
+        expect(capturedFeedback, isNull);
+      });
+
+      testWidgets('countdown expiry sends feedback with null reason',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+
+        // Expire the 5-second countdown
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+
+        expect(capturedFeedback, FeedbackType.thumbsUp);
+        expect(capturedReason, isNull);
+        // In submitted state — thumb still filled
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+        // No countdown
+        expect(find.text('Tell us why!'), findsNothing);
+      });
+
+      testWidgets('active thumb is locked after submission', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        // Submit thumbsUp
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+        expect(capturedFeedback, FeedbackType.thumbsUp);
+        capturedFeedback = null;
+
+        // Tap active thumb — no-op
+        await tester.tap(find.byIcon(Icons.thumb_up));
+        await tester.pump();
+
+        expect(capturedFeedback, isNull);
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+      });
+
+      testWidgets(
+          'tapping opposite thumb after submission starts new countdown',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        // Submit thumbsUp
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump();
+        expect(capturedFeedback, FeedbackType.thumbsUp);
+
+        // Tap thumbs-down — starts new countdown
+        await tester.tap(find.byIcon(Icons.thumb_down_alt_outlined));
+        await tester.pump();
+
+        expect(find.byIcon(Icons.thumb_down), findsOneWidget);
+        expect(find.text('Tell us why!'), findsOneWidget);
+      });
+
+      testWidgets('tapping Tell us why! opens reason dialog', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(find.text('Tell us why'), findsOneWidget);
+        expect(find.text('Cancel'), findsOneWidget);
+        expect(find.text('Send'), findsOneWidget);
+        // Nothing sent yet
+        expect(capturedFeedback, isNull);
+      });
+
+      testWidgets('pressing Cancel in reason dialog restarts countdown',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+
+        await tester.tap(find.text('Cancel'));
+        await tester.pump(); // Process tap
+        await tester.pump(const Duration(seconds: 1)); // Dismiss dialog
+
+        // Dialog closed, countdown resumed
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+        expect(find.text('Tell us why!'), findsOneWidget);
+        expect(capturedFeedback, isNull);
+      });
+
+      testWidgets('pressing Send in reason dialog submits feedback with reason',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+
+        await tester.enterText(find.byType(TextField), 'Very helpful!');
+        await tester.tap(find.text('Send'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(capturedFeedback, FeedbackType.thumbsUp);
+        expect(capturedReason, 'Very helpful!');
+        // In submitted state — thumb still filled, no countdown
+        expect(find.byIcon(Icons.thumb_up), findsOneWidget);
+        expect(find.text('Tell us why!'), findsNothing);
+      });
+
+      testWidgets(
+          'pressing Send with empty text submits feedback with null reason',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_down_alt_outlined));
+        await tester.pump();
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+
+        // Leave text field empty and press Send
+        await tester.tap(find.text('Send'));
+        await tester.pumpAndSettle();
+
+        expect(capturedFeedback, FeedbackType.thumbsDown);
+        expect(capturedReason, isNull);
+      });
+
+      testWidgets('timer does not fire while reason dialog is open',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+
+        // Advance time past the countdown duration — timer was cancelled
+        await tester.pump(const Duration(seconds: 6));
+
+        // Feedback not sent; dialog still open
+        expect(capturedFeedback, isNull);
+        expect(find.byType(AlertDialog), findsOneWidget);
+      });
+
+      testWidgets('disposing during countdown submits feedback',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_up_alt_outlined));
+        await tester.pump();
+        expect(capturedFeedback, isNull);
+
+        // Replace widget tree to trigger dispose
+        await tester.pumpWidget(createTestApp(home: const SizedBox()));
+
+        expect(capturedFeedback, FeedbackType.thumbsUp);
+        expect(capturedReason, isNull);
+      });
+
+      testWidgets('disposing during modal submits feedback with null reason',
+          (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(
+                message: assistantMessage,
+                onFeedbackSubmit: onFeedbackSubmit,
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byIcon(Icons.thumb_down_alt_outlined));
+        await tester.pump();
+        await tester.tap(find.text('Tell us why!'));
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsOneWidget);
+        expect(capturedFeedback, isNull);
+
+        // Replace widget tree to trigger dispose
+        await tester.pumpWidget(createTestApp(home: const SizedBox()));
+
+        expect(capturedFeedback, FeedbackType.thumbsDown);
+        expect(capturedReason, isNull);
       });
     });
   });

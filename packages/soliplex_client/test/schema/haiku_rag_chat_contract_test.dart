@@ -34,6 +34,75 @@ void main() {
       });
     });
 
+    group('citationsHistory field', () {
+      test('citationsHistory field exists and returns List<List<Citation>>?',
+          () {
+        final ragChat = HaikuRagChat();
+        final history = ragChat.citationsHistory;
+        expect(history, isNull);
+      });
+
+      test('can construct with citations history', () {
+        final ragChat = HaikuRagChat(
+          citationsHistory: [
+            [
+              Citation(
+                chunkId: 'c1',
+                content: 'content',
+                documentId: 'd1',
+                documentUri: 'uri',
+              ),
+            ],
+          ],
+        );
+        expect(ragChat.citationsHistory, hasLength(1));
+        expect(ragChat.citationsHistory![0], hasLength(1));
+      });
+
+      test('parses citations_history from JSON', () {
+        final json = {
+          'citation_registry': <String, int>{},
+          'citations_history': [
+            [
+              {
+                'chunk_id': 'c1',
+                'content': 'text',
+                'document_id': 'd1',
+                'document_uri': 'uri',
+              },
+            ],
+            <Map<String, dynamic>>[],
+          ],
+        };
+
+        final ragChat = HaikuRagChat.fromJson(json);
+        expect(ragChat.citationsHistory, hasLength(2));
+        expect(ragChat.citationsHistory![0], hasLength(1));
+        expect(ragChat.citationsHistory![1], isEmpty);
+      });
+
+      test('citations_history roundtrips through JSON', () {
+        final original = HaikuRagChat(
+          citationRegistry: const {},
+          citationsHistory: [
+            [
+              Citation(
+                chunkId: 'c1',
+                content: 'content',
+                documentId: 'd1',
+                documentUri: 'uri',
+              ),
+            ],
+          ],
+        );
+
+        final json = original.toJson();
+        final decoded = HaikuRagChat.fromJson(json);
+        expect(decoded.citationsHistory, hasLength(1));
+        expect(decoded.citationsHistory![0][0].chunkId, 'c1');
+      });
+    });
+
     group('JSON keys required for parsing', () {
       test('parses from haiku.rag.chat state format', () {
         // The generated fromJson requires citation_registry to be present.

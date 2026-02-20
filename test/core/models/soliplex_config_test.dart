@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:soliplex_frontend/core/models/consent_notice.dart';
 import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/logo_config.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
@@ -16,6 +17,7 @@ void main() {
       expect(config.features, equals(const Features()));
       expect(config.theme, equals(const ThemeConfig()));
       expect(config.routes, equals(const RouteConfig()));
+      expect(config.consentNotice, isNull);
     });
 
     test('custom values are preserved', () {
@@ -86,6 +88,43 @@ void main() {
       expect(config.toString(), contains('appName: TestApp'));
       expect(config.toString(), contains('defaultBackendUrl'));
       expect(config.toString(), contains('logo'));
+    });
+
+    group('consentNotice', () {
+      test('custom consentNotice is preserved', () {
+        const notice = ConsentNotice(title: 'Notice', body: 'Body');
+        const config = SoliplexConfig(
+          logo: LogoConfig.soliplex,
+          consentNotice: notice,
+        );
+
+        expect(config.consentNotice, equals(notice));
+      });
+
+      test('copyWith with consentNotice', () {
+        const original = SoliplexConfig(logo: LogoConfig.soliplex);
+        const notice = ConsentNotice(title: 'Notice', body: 'Body');
+        final modified = original.copyWith(consentNotice: notice);
+
+        expect(modified.consentNotice, equals(notice));
+        expect(modified.appName, equals(original.appName));
+      });
+
+      test('equality includes consentNotice', () {
+        const notice = ConsentNotice(title: 'Notice', body: 'Body');
+        const a = SoliplexConfig(
+          logo: LogoConfig.soliplex,
+          consentNotice: notice,
+        );
+        const b = SoliplexConfig(
+          logo: LogoConfig.soliplex,
+          consentNotice: notice,
+        );
+        const c = SoliplexConfig(logo: LogoConfig.soliplex);
+
+        expect(a, equals(b));
+        expect(a, isNot(equals(c)));
+      });
     });
   });
 }

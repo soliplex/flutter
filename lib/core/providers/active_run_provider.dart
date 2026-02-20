@@ -17,8 +17,7 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 /// ```dart
 /// // Start a run
 /// ref.read(activeRunNotifierProvider.notifier).startRun(
-///   roomId: 'room-123',
-///   threadId: 'thread-456',
+///   key: (roomId: 'room-123', threadId: 'thread-456'),
 ///   userMessage: 'Hello!',
 /// );
 ///
@@ -100,16 +99,19 @@ final allMessagesProvider = FutureProvider<List<ChatMessage>>((ref) async {
 
   // Watch cache state to react to updates from updateHistory().
   final cacheState = ref.watch(threadHistoryCacheProvider);
-  final cached = cacheState[thread.id];
+  final cached = cacheState[(roomId: room.id, threadId: thread.id)];
 
   // Use cached history if available, otherwise fetch (which updates cache).
   final history = cached ??
       await ref
           .read(threadHistoryCacheProvider.notifier)
-          .getHistory(room.id, thread.id);
+          .getHistory((roomId: room.id, threadId: thread.id));
 
   final runState = ref.watch(activeRunNotifierProvider);
-  return _mergeMessages(history.messages, runState.messages);
+  final runMessages = runState.conversation.threadId == thread.id
+      ? runState.messages
+      : <ChatMessage>[];
+  return _mergeMessages(history.messages, runMessages);
 });
 
 /// Merges cached and running messages, deduplicating by ID.

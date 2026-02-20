@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 
-/// Cache state: threadId -> thread history (messages + AG-UI state).
-typedef ThreadHistoryCacheState = Map<String, ThreadHistory>;
+/// Cache state: [ThreadKey] -> thread history (messages + AG-UI state).
+typedef ThreadHistoryCacheState = Map<ThreadKey, ThreadHistory>;
 
 /// Provides cached thread history with backend fetch on cache miss.
 ///
@@ -16,15 +17,15 @@ typedef ThreadHistoryCacheState = Map<String, ThreadHistory>;
 /// ```dart
 /// // Get history (fetches if not cached)
 /// final history = await ref.read(threadHistoryCacheProvider.notifier)
-///     .getHistory(roomId, threadId);
+///     .getHistory(key);
 ///
 /// // Update cache after run completes
 /// ref.read(threadHistoryCacheProvider.notifier)
-///     .updateHistory(threadId, history);
+///     .updateHistory(key, history);
 /// ```
 class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// Tracks in-flight fetches to prevent duplicate concurrent requests.
-  final _inFlightFetches = <String, Future<ThreadHistory>>{};
+  final _inFlightFetches = <ThreadKey, Future<ThreadHistory>>{};
 
   @override
   ThreadHistoryCacheState build() {
@@ -43,13 +44,13 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// Concurrent calls for the same thread share a single fetch request.
   ///
   /// Throws on network/API errors from the backend fetch.
-  Future<ThreadHistory> getHistory(String roomId, String threadId) async {
+  Future<ThreadHistory> getHistory(ThreadKey key) async {
     // Cache hit
-    final cached = state[threadId];
+    final cached = state[key];
     if (cached != null) return cached;
 
     // Join existing fetch or start new one
-    return _inFlightFetches[threadId] ??= _fetchAndCache(roomId, threadId);
+    return _inFlightFetches[key] ??= _fetchAndCache(key);
   }
 
   /// Fetches history from backend and caches the result.
@@ -57,22 +58,19 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// On success, caches history and returns it. On error, the exception
   /// is wrapped with thread context and re-thrown. The in-flight tracking
   /// is always cleaned up, allowing subsequent calls to retry the fetch.
-  Future<ThreadHistory> _fetchAndCache(
-    String roomId,
-    String threadId,
-  ) async {
+  Future<ThreadHistory> _fetchAndCache(ThreadKey key) async {
     try {
       final api = ref.read(apiProvider);
-      final history = await api.getThreadHistory(roomId, threadId);
-      state = {...state, threadId: history};
+      final history = await api.getThreadHistory(key.roomId, key.threadId);
+      state = {...state, key: history};
       return history;
     } on Exception catch (e, st) {
       Error.throwWithStackTrace(
-        HistoryFetchException(threadId: threadId, cause: e),
+        HistoryFetchException(threadId: key.threadId, cause: e),
         st,
       );
     } finally {
-      final _ = _inFlightFetches.remove(threadId);
+      final _ = _inFlightFetches.remove(key);
     }
   }
 
@@ -80,8 +78,8 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   ///
   /// Call this on run completion to persist the latest history. Overwrites
   /// any existing cache entry for the thread.
-  void updateHistory(String threadId, ThreadHistory history) {
-    state = {...state, threadId: history};
+  void updateHistory(ThreadKey key, ThreadHistory history) {
+    state = {...state, key: history};
   }
 
   /// Invalidate cache and refetch history for a thread.
@@ -90,16 +88,13 @@ class ThreadHistoryCache extends Notifier<ThreadHistoryCacheState> {
   /// Use this when cached data may be stale and a refresh is needed.
   ///
   /// Throws on network/API errors from the backend fetch.
-  Future<ThreadHistory> refreshHistory(
-    String roomId,
-    String threadId,
-  ) async {
+  Future<ThreadHistory> refreshHistory(ThreadKey key) async {
     // Remove from cache to force refetch
-    state = {...state}..remove(threadId);
+    state = {...state}..remove(key);
     // Discard any in-flight fetch for this thread (we'll start a new one)
-    final _ = _inFlightFetches.remove(threadId);
+    final _ = _inFlightFetches.remove(key);
     // Fetch fresh data
-    return getHistory(roomId, threadId);
+    return getHistory(key);
   }
 }
 

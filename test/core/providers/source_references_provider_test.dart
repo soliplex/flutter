@@ -81,15 +81,17 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           activeRunNotifierOverride(const IdleState()),
+          currentRoomIdProviderOverride('room-1'),
           threadSelectionProviderOverride(const ThreadSelected('thread-1')),
         ],
       );
       addTearDown(container.dispose);
 
       // Pre-populate cache
-      container
-          .read(threadHistoryCacheProvider.notifier)
-          .updateHistory('thread-1', cachedHistory);
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        cachedHistory,
+      );
 
       // Act
       final refs = container.read(
@@ -105,6 +107,7 @@ void main() {
       final container = ProviderContainer(
         overrides: [
           activeRunNotifierOverride(const IdleState()),
+          currentRoomIdProviderOverride('room-1'),
           threadSelectionProviderOverride(const ThreadSelected('thread-1')),
         ],
       );
@@ -112,9 +115,9 @@ void main() {
 
       // Pre-populate cache with empty messageStates
       container.read(threadHistoryCacheProvider.notifier).updateHistory(
-            'thread-1',
-            ThreadHistory(messages: const []),
-          );
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        ThreadHistory(messages: const []),
+      );
 
       // Act
       final refs = container.read(
@@ -184,15 +187,17 @@ void main() {
           activeRunNotifierOverride(
             RunningState(conversation: activeConversation),
           ),
+          currentRoomIdProviderOverride('room-1'),
           threadSelectionProviderOverride(const ThreadSelected('thread-1')),
         ],
       );
       addTearDown(container.dispose);
 
       // Pre-populate cache
-      container
-          .read(threadHistoryCacheProvider.notifier)
-          .updateHistory('thread-1', cachedHistory);
+      container.read(threadHistoryCacheProvider.notifier).updateHistory(
+        const (roomId: 'room-1', threadId: 'thread-1'),
+        cachedHistory,
+      );
 
       // Act
       final refs = container.read(

@@ -19,7 +19,7 @@ slices refactor toward the full Run Registry pattern.
 | 7 | Lifecycle events broadcast | ~80 | Background awareness infrastructure |
 | 8 | Background cache updates | ~60 | Messages persist for backgrounded runs |
 | 9 | Unread run indicators | ~120 | Visual feedback for completed runs |
-| 10 | Cross-room composite key | ~50 | Runs keyed by (roomId, threadId) |
+| 10 | Cross-room composite key | ~200 | Cache + registry keyed by (roomId, threadId) |
 | 11 | Remove room-switch cancellation | ~40 | Full navigation independence |
 
 ## Dependency Structure
@@ -114,10 +114,10 @@ still streaming. No more lost work.
 
 ### Acceptance Criteria
 
-- [ ] Run continues when user navigates away from thread
-- [ ] Run state is preserved when user returns
-- [ ] All existing tests pass (or are updated appropriately)
-- [ ] No memory leaks (run resources are still cleaned up on completion)
+- [x] Run continues when user navigates away from thread
+- [x] Run state is preserved when user returns
+- [x] All existing tests pass (or are updated appropriately)
+- [x] No memory leaks (run resources are still cleaned up on completion)
 
 ---
 
@@ -133,37 +133,46 @@ code and prepares for multi-run tracking.
 ### Tasks
 
 1. Create `lib/core/models/run_handle.dart`
-2. Define `RunHandle` class with: roomId, threadId, cancelToken, subscription,
-   state
-3. Move dispose logic from `RunningInternalState` to `RunHandle`
+2. Define `RunHandle` class with: key (ThreadKey), runId, cancelToken,
+   subscription, userMessageId, previousAguiState, state, isActive
+3. Move dispose logic from `RunningInternalState` to `RunHandle` (idempotent)
 4. Add unit tests for `RunHandle`
 
 ### Files Created
 
+- `lib/core/models/thread_key.dart`
 - `lib/core/models/run_handle.dart`
 - `test/core/models/run_handle_test.dart`
 
 ### RunHandle API
 
 ```dart
+// ThreadKey is defined in lib/core/models/thread_key.dart
+
 class RunHandle {
   RunHandle({
-    required this.roomId,
-    required this.threadId,
+    required this.key,
+    required this.runId,
     required this.cancelToken,
     required this.subscription,
-    this.state = const IdleState(),
-  });
+    required this.userMessageId,
+    required this.previousAguiState,
+    ActiveRunState? initialState,
+  }) : state = initialState ?? const IdleState();
 
-  final String roomId;
-  final String threadId;
+  final ThreadKey key;
+  String get roomId => key.roomId;
+  String get threadId => key.threadId;
+  final String runId;
   final CancelToken cancelToken;
   final StreamSubscription<BaseEvent> subscription;
+  final String userMessageId;
+  final Map<String, dynamic> previousAguiState;
   ActiveRunState state;
-
-  String get key => '$roomId:$threadId';
+  bool get isActive => state.isRunning;
 
   Future<void> dispose() async {
+    // Idempotent — safe to call multiple times.
     cancelToken.cancel();
     await subscription.cancel();
   }
@@ -173,14 +182,17 @@ class RunHandle {
 ### Tests
 
 - Unit: RunHandle holds all resources
+- Unit: isActive reflects state (running vs idle vs completed)
 - Unit: dispose() cancels token and subscription
-- Unit: key property returns correct composite key
+- Unit: dispose() is idempotent (safe to call multiple times)
+- Unit: key has value equality for same roomId/threadId
+- Unit: convenience getters forward to key
 
 ### Acceptance Criteria
 
-- [ ] RunHandle class created with all fields
-- [ ] dispose() properly cleans up resources
-- [ ] All tests pass
+- [x] RunHandle class created with all fields
+- [x] dispose() properly cleans up resources
+- [x] All tests pass
 
 ---
 
@@ -196,8 +208,9 @@ enabling multiple concurrent runs.
 ### Tasks
 
 1. Create `lib/core/services/run_registry.dart`
-2. Define `RunRegistry` class with Map<String, RunHandle>
-3. Implement `registerRun()`, `getRunState()`, `hasActiveRun()`, `cancelRun()`
+2. Define `RunRegistry` class with `Map<ThreadKey, RunHandle>`
+3. Implement `registerRun()`, `getRunState()`, `getHandle()`, `hasRun()`,
+   `hasActiveRun()`, `removeRun()`, `removeAll()`
 4. Add unit tests
 
 ### Files Created
@@ -208,48 +221,65 @@ enabling multiple concurrent runs.
 ### RunRegistry API
 
 ```dart
-class RunRegistry {
-  final Map<String, RunHandle> _runs = {};
+typedef OnRunCompleted = void Function(ThreadKey key, CompletedState completed);
 
-  /// Register a run handle in the registry.
-  void registerRun(RunHandle handle);
+class RunRegistry {
+  RunRegistry({this.onRunCompleted});
+
+  final OnRunCompleted? onRunCompleted;
+  final Map<ThreadKey, RunHandle> _runs = {};
+
+  Stream<RunLifecycleEvent> get lifecycleEvents;
+
+  Future<void> registerRun(RunHandle handle);
+  void completeRun(RunHandle handle, CompletedState completed);
+  void notifyCompletion(ThreadKey key, CompletedState completed);
 
   /// Get current state for a thread's run, or null if none.
-  ActiveRunState? getRunState(String roomId, String threadId);
+  ActiveRunState? getRunState(ThreadKey key);
 
-  /// Check if a run is active for the given thread.
-  bool hasActiveRun(String roomId, String threadId);
+  /// Get the run handle for a thread, or null if none.
+  RunHandle? getHandle(ThreadKey key);
 
-  /// Cancel a specific run.
-  Future<void> cancelRun(String roomId, String threadId);
+  /// Whether any run (active or completed) is registered for the key.
+  bool hasRun(ThreadKey key);
 
-  /// Cancel all runs.
-  Future<void> cancelAll();
+  /// Whether an actively running (not yet completed) run exists for the key.
+  bool hasActiveRun(ThreadKey key);
 
-  /// Number of active runs.
+  /// Remove a run and dispose its resources.
+  Future<void> removeRun(ThreadKey key);
+
+  /// Dispose all runs.
+  Future<void> removeAll();
+
+  int get runCount;
   int get activeRunCount;
+  Iterable<RunHandle> get handles;
 
-  void dispose();
+  Future<void> dispose();
 }
 ```
 
 ### Tests
 
 - Unit: registerRun adds handle to registry
+- Unit: registerRun replaces existing handle for same key
 - Unit: getRunState returns null for unknown thread
 - Unit: getRunState returns state for registered thread
-- Unit: hasActiveRun returns false for unknown thread
-- Unit: hasActiveRun returns true for registered thread
-- Unit: cancelRun disposes handle and removes from map
-- Unit: cancelAll disposes all handles
-- Unit: activeRunCount reflects map size
+- Unit: getHandle returns handle or null
+- Unit: hasRun / hasActiveRun return correct values
+- Unit: removeRun disposes handle and removes from map
+- Unit: removeAll disposes all handles
+- Unit: runCount and activeRunCount reflect map state
+- Unit: composite key isolates same threadId across rooms
 
 ### Acceptance Criteria
 
-- [ ] RunRegistry class created
-- [ ] registerRun adds handles to the map
-- [ ] Basic CRUD operations work
-- [ ] All tests pass
+- [x] RunRegistry class created
+- [x] registerRun adds handles to the map
+- [x] Basic CRUD operations work
+- [x] All tests pass
 
 ---
 
@@ -264,33 +294,34 @@ class. Foundation for all future slices.
 
 ### Tasks
 
-1. Create `lib/core/providers/run_registry_provider.dart`
-2. Modify `ActiveRunNotifier.startRun()` to create RunHandle and register it
-3. Wire up event processing to update RunHandle state
-4. Update tests to verify registration works
-
-### Files Created
-
-- `lib/core/providers/run_registry_provider.dart`
+1. Embed `RunRegistry` as a field in `ActiveRunNotifier` (no separate provider)
+2. Expose `registry` getter for testing and lifecycle event access
+3. Modify `ActiveRunNotifier.startRun()` to create `RunHandle` and register it
+4. Wire up event processing callbacks scoped to each handle via closure
+5. Update tests to verify registration works
 
 ### Files Modified
 
-- `lib/core/providers/active_run_notifier.dart` (use registry)
+- `lib/core/providers/active_run_notifier.dart` (embed registry, refactor
+  startRun)
 - Tests
 
 ### Implementation Notes
 
-The notifier's `startRun()` creates the RunHandle (it already has access to
-AgUiClient, SoliplexApi, ThreadMessageCache via ref) and registers it with the
-registry. The registry is a simple container; run creation logic stays in the
-notifier.
+The registry is owned by `ActiveRunNotifier` as a `late final` field,
+created with the `OnRunCompleted` callback via constructor injection.
+This avoids Riverpod provider proliferation (per issue #127) while
+keeping the registry independently testable. The notifier's `startRun()`
+creates the RunHandle and registers it. Each run's stream subscription
+callbacks capture their own `RunHandle` via closure, so concurrent runs
+don't interfere.
 
 ### Acceptance Criteria
 
-- [ ] `startRun()` creates RunHandle and registers with registry
-- [ ] `ActiveRunNotifier` uses registry for tracking
-- [ ] All existing behavior preserved
-- [ ] All tests pass
+- [x] `startRun()` creates RunHandle and registers with registry
+- [x] `ActiveRunNotifier` uses registry for tracking
+- [x] All existing behavior preserved
+- [x] All tests pass
 
 ---
 
@@ -322,9 +353,9 @@ Each thread has its own streaming response.
 
 ### Acceptance Criteria
 
-- [ ] Multiple threads can have active runs simultaneously
-- [ ] Each run streams independently
-- [ ] All tests pass
+- [x] Multiple threads can have active runs simultaneously
+- [x] Each run streams independently
+- [x] All tests pass
 
 ---
 
@@ -352,19 +383,21 @@ a thread shows its progress instantly.
 ### Implementation
 
 ```dart
-ref.listen(threadSelectionProvider, (previous, next) {
-  if (next is ThreadSelected) {
-    final roomId = ref.read(currentRoomIdProvider);
-    if (roomId != null) {
-      _subscribeToThread(roomId, next.threadId);
-    }
-  }
-});
+ref
+  ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
+  ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle());
 
-void _subscribeToThread(String roomId, String threadId) {
-  final registry = ref.read(runRegistryProvider);
-  state = registry.getRunState(roomId, threadId) ?? const IdleState();
-  // Subscribe to state changes for this thread...
+void _syncCurrentHandle() {
+  final roomId = ref.read(currentRoomIdProvider);
+  final threadId = ref.read(currentThreadIdProvider);
+  if (roomId == null || threadId == null) {
+    _currentHandle = null;
+    state = const IdleState();
+    return;
+  }
+  final key = (roomId: roomId, threadId: threadId);
+  _currentHandle = _registry.getHandle(key);
+  state = _currentHandle?.state ?? const IdleState();
 }
 ```
 
@@ -376,10 +409,10 @@ void _subscribeToThread(String roomId, String threadId) {
 
 ### Acceptance Criteria
 
-- [ ] UI shows correct run state when switching threads
-- [ ] Thread with no run shows IdleState
-- [ ] Smooth transition between threads
-- [ ] All tests pass
+- [x] UI shows correct run state when switching threads
+- [x] Thread with no run shows IdleState
+- [x] Smooth transition between threads
+- [x] All tests pass
 
 ---
 
@@ -394,65 +427,111 @@ Foundation for unread indicators (slice 9).
 
 ### Tasks
 
-1. Add `Stream<RunLifecycleEvent>` to RunRegistry
-2. Define `RunStarted`, `RunCompleted`, `RunErrored` events
-3. Broadcast events when run state changes
-4. Add tests for event stream
+1. Create `lib/core/models/run_lifecycle_event.dart` with sealed event types
+2. Add `Stream<RunLifecycleEvent>` to RunRegistry
+3. Add `completeRun()` to RunRegistry for atomic state + event emission
+4. Wire `ActiveRunNotifier` terminal transitions through `completeRun()`
+5. Add tests for event stream
+
+### Files Created
+
+- `lib/core/models/run_lifecycle_event.dart`
 
 ### Files Modified
 
-- `lib/core/services/run_registry.dart`
-- Tests
+- `lib/core/services/run_registry.dart` (add lifecycle stream and
+  `completeRun()`)
+- `lib/core/providers/active_run_notifier.dart` (delegate terminal transitions
+  to `completeRun()`)
+- `test/core/services/run_registry_test.dart` (lifecycle event tests)
+- `test/core/providers/active_run_notifier_test.dart`
 
 ### Event Definitions
 
 ```dart
+@immutable
 sealed class RunLifecycleEvent {
-  String get roomId;
-  String get threadId;
+  const RunLifecycleEvent({required this.key});
+  final ThreadKey key;
+  String get roomId => key.roomId;
+  String get threadId => key.threadId;
 }
 
+@immutable
 class RunStarted extends RunLifecycleEvent {
-  RunStarted({required this.roomId, required this.threadId});
-  @override final String roomId;
-  @override final String threadId;
+  const RunStarted({required super.key});
 }
 
+@immutable
 class RunCompleted extends RunLifecycleEvent {
-  RunCompleted({
-    required this.roomId,
-    required this.threadId,
-    required this.result,
-  });
-  @override final String roomId;
-  @override final String threadId;
-  final CompletionResult result;
-}
-
-class RunErrored extends RunLifecycleEvent {
-  RunErrored({
-    required this.roomId,
-    required this.threadId,
-    required this.errorMessage,
-  });
-  @override final String roomId;
-  @override final String threadId;
-  final String errorMessage;
+  const RunCompleted({required super.key, required this.result});
+  final CompletionResult result;  // Success, FailedResult, or CancelledResult
 }
 ```
 
+### Design Decisions
+
+**Two event types, not three.** The original spec had `RunStarted`,
+`RunCompleted`, and `RunErrored`. A run that errors has completed — the
+outcome is already encoded in the `CompletionResult` sealed hierarchy
+(`Success`, `FailedResult`). A separate `RunErrored` would duplicate that
+information and force every consumer to handle two event types identically
+in the common case (both slices 8 and 9 react to "run ended" regardless
+of outcome).
+
+**`completeRun()` for atomic transitions.** Without this method, every
+call site would need to both set `handle.state` and emit the event —
+forgetting the emission would be a silent bug. `completeRun()` makes the
+right thing easy and the wrong thing hard.
+
+**Unconditional emission.** The registry emits `RunCompleted` for all
+terminal results including `CancelledResult`. Consumers filter as needed.
+This keeps the registry a faithful event bus rather than embedding business
+policy about which events are "interesting." If a future consumer (e.g.,
+analytics) needs cancellation events, they're available on the stream.
+
+**`ThreadKey` typedef with convenience getters.** A named record typedef
+`({String roomId, String threadId})` provides a type-safe composite
+identifier with value equality. Used as the map key in RunRegistry (no
+string concatenation, no `_makeKey()` helper), the identity field in
+RunHandle and RunLifecycleEvent. Convenience getters on both types expose
+`roomId` and `threadId` directly, so consumers write `event.roomId`
+without `.key` indirection.
+
+### ActiveRunNotifier Integration
+
+Four terminal transition sites in `ActiveRunNotifier` delegate to
+`_registry.completeRun(handle, completed)` instead of setting
+`handle.state` directly:
+
+1. `cancelRun()` — user-initiated cancel
+2. `_processEventForRun()` — `RunFinishedEvent` from stream
+3. `_handleFailureForRun()` — stream error
+4. `_handleDoneForRun()` — stream closes normally
+
+Non-terminal transitions (e.g., `RunningState` with updated messages)
+still set `handle.state` directly — no event needs to fire for
+intermediate updates.
+
 ### Tests
 
-- Unit: RunStarted emitted when run starts
-- Unit: RunCompleted emitted when run finishes
-- Unit: RunErrored emitted when run fails
-- Unit: Events include correct roomId and threadId
+- Unit: RunStarted emitted when registerRun is called
+- Unit: RunCompleted emitted for Success
+- Unit: RunCompleted emitted for FailedResult
+- Unit: RunCompleted emitted for CancelledResult
+- Unit: completeRun sets handle state
+- Unit: stream closed on dispose
+- Integration: stream completion emits RunCompleted via registry
+- Integration: stream error emits RunCompleted with FailedResult
+- Integration: cancelRun emits RunCompleted with CancelledResult
+- Integration: RunFinishedEvent emits RunCompleted via registry
 
 ### Acceptance Criteria
 
-- [ ] Lifecycle events stream exposed
-- [ ] Events emitted at correct times
-- [ ] All tests pass
+- [x] Lifecycle events stream exposed on RunRegistry
+- [x] `completeRun()` atomically sets state and emits event
+- [x] Events emitted for all terminal transitions (success, failure, cancel)
+- [x] All tests pass
 
 ---
 
@@ -473,15 +552,20 @@ navigated away during streaming.
 
 ### Files Modified
 
-- `lib/core/services/run_registry.dart`
-- `lib/core/providers/thread_message_cache.dart` (if needed)
+- `lib/core/services/run_registry.dart` — `OnRunCompleted` callback typedef
+- `lib/core/providers/active_run_notifier.dart` — `_buildCacheUpdater()`
+  passed via `RunRegistry` constructor
+- `lib/core/providers/thread_history_cache.dart`
 - Tests
 
 ### Implementation
 
-Currently, `_updateCacheOnCompletion` is called in `ActiveRunNotifier`. This
-logic needs to move to (or be triggered by) the registry so it works for
-background runs.
+Cache updates are passed to `RunRegistry` via constructor injection of the
+`OnRunCompleted` callback. `ActiveRunNotifier._buildCacheUpdater()` returns
+a closure that merges completed run messages and messageStates into
+`ThreadHistoryCache`. The registry invokes this callback from
+`completeRun()` and `notifyCompletion()`, so background runs update the
+cache without needing the notifier to be in the foreground.
 
 ### Tests
 
@@ -491,9 +575,9 @@ background runs.
 
 ### Acceptance Criteria
 
-- [ ] Background run completion updates cache
-- [ ] User sees all messages when returning
-- [ ] All tests pass
+- [x] Background run completion updates cache
+- [x] User sees all messages when returning
+- [x] All tests pass
 
 ---
 
@@ -522,26 +606,23 @@ Blue dot on threads, count badge on rooms.
 ### Files Modified
 
 - `lib/features/history/widgets/thread_list_item.dart` (add blue dot)
-- `lib/features/rooms/widgets/room_card.dart` (add count badge)
+- `lib/features/rooms/widgets/room_grid_card.dart` (add count badge)
 - Tests
 
-### UnreadRunsNotifier API
+### UnreadRuns / UnreadRunsNotifier API
 
 ```dart
-class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
-  // Map<roomId, Set<threadId>> of threads with unread completed runs
+class UnreadRuns {
+  const UnreadRuns({Map<String, Set<String>> byRoom = const {}});
 
-  /// Mark a thread as having an unread completed run.
-  void markUnread(String roomId, String threadId);
-
-  /// Mark a thread as read (user viewed it).
-  void markRead(String roomId, String threadId);
-
-  /// Check if a thread has unread completed runs.
-  bool hasUnread(String roomId, String threadId);
-
-  /// Get count of unread threads in a room.
+  bool isThreadUnread(ThreadKey key);
   int unreadCountForRoom(String roomId);
+  bool get isEmpty;
+}
+
+class UnreadRunsNotifier extends Notifier<UnreadRuns> {
+  void markUnread(ThreadKey key);
+  void markRead(ThreadKey key);
 }
 ```
 
@@ -563,51 +644,72 @@ class UnreadRunsNotifier extends Notifier<Map<String, Set<String>>> {
 
 - Unit: markUnread adds thread to set
 - Unit: markRead removes thread from set
-- Unit: hasUnread returns correct value
+- Unit: isThreadUnread returns correct value
 - Unit: unreadCountForRoom returns correct count
 - Widget: Thread list item shows blue dot when unread
-- Widget: Room card shows count badge when unread threads exist
+- Widget: Room grid card shows count badge when unread threads exist
 
 ### Acceptance Criteria
 
-- [ ] Blue dot with glow shown on threads with unread completed runs
-- [ ] Count badge shown on rooms with unread threads
-- [ ] Unread status cleared when user views thread
-- [ ] All tests pass
+- [x] Blue dot with glow shown on threads with unread completed runs
+- [x] Count badge shown on rooms with unread threads
+- [x] Unread status cleared when user views thread
+- [x] All tests pass
 
 ---
 
 ## Slice 10: Cross-Room Composite Key
 
-**Branch:** `feat/network-multiplexer/10-composite-key`
+**Branch:** `refact/active-run-notifier-responsibility-scope`
 
-**Target:** ~50 lines
+**Target:** ~200 lines (actual, across 12 files)
 
-**Customer value:** Prepares for cross-room persistence. Avoids threadId
-collisions if backend generates same IDs per room.
+**Customer value:** Eliminates cross-room cache collisions. All data layers
+use composite `ThreadKey` consistently.
+
+**Note:** The `ThreadKey` typedef and `Map<ThreadKey, RunHandle>` were introduced
+in slices 2–3, so the core keying infrastructure already exists. This slice
+audits remaining code paths that may still use threadId alone without roomId
+context.
 
 ### Tasks
 
-1. Ensure all registry operations use `(roomId, threadId)` tuple as key
-2. Update any code that uses threadId alone
-3. Add tests for cross-room scenarios
+1. Audit all code paths for threadId-only lookups (without roomId context)
+2. Verify `_syncCurrentHandle()` constructs a proper `ThreadKey` with both IDs
+3. Add cross-room integration tests if not already covered
 
 ### Files Modified
 
-- `lib/core/services/run_registry.dart` (verify key usage)
-- Any code using threadId-only lookups
-- Tests
+- `lib/core/providers/thread_history_cache.dart` — re-keyed state and APIs
+- `lib/core/services/run_registry.dart` — `OnRunCompleted` and
+  `notifyCompletion` accept `ThreadKey`
+- `lib/core/providers/active_run_notifier.dart` — cache lookups, callback,
+  `notifyCompletion` calls
+- `lib/core/providers/active_run_provider.dart` — composite key cache lookup
+- `lib/core/providers/source_references_provider.dart` — added
+  `currentRoomIdProvider` watch, composite key
+- `lib/features/chat/chat_panel.dart` — added `room.id` to `updateHistory`
+- `test/core/providers/thread_history_cache_test.dart` — all tests + cross-room
+- `test/core/providers/active_run_notifier_test.dart` — cache key assertions
+- `test/core/providers/active_run_provider_test.dart` — test helpers + assertions
+- `test/core/providers/source_references_provider_test.dart` — room override +
+  `updateHistory` calls
+- `test/core/services/run_registry_test.dart` — callback signatures
+- `test/features/chat/chat_panel_test.dart` — cache assertion
 
 ### Tests
 
-- Unit: Same threadId in different rooms are distinct runs
-- Integration: Run in room A thread X, run in room B thread X, both tracked
+- Unit: Same threadId in different rooms produces separate cache entries
+- Unit: All existing cache tests updated to use composite keys
+- Integration: `OnRunCompleted` callback receives `ThreadKey`
 
 ### Acceptance Criteria
 
-- [ ] Runs keyed by (roomId, threadId)
-- [ ] No collisions across rooms
-- [ ] All tests pass
+- [x] `ThreadHistoryCache` keyed by `ThreadKey` instead of `String`
+- [x] All consumers use composite keys for cache access
+- [x] `OnRunCompleted` and `notifyCompletion` pass `ThreadKey`
+- [x] Cross-room test proves no cache collision
+- [x] All 1326 tests pass
 
 ---
 
@@ -639,9 +741,9 @@ original room and response is still there.
 
 ### Acceptance Criteria
 
-- [ ] Runs persist across room navigation
-- [ ] Multiple rooms can have active runs
-- [ ] All tests pass
+- [x] Runs persist across room navigation
+- [x] Multiple rooms can have active runs
+- [x] All tests pass
 
 ---
 
@@ -666,15 +768,24 @@ original room and response is still there.
 **Modified:**
 
 - `lib/core/providers/active_run_notifier.dart` - Remove listener (slice 1),
-  delegate to registry (slice 4), subscribe to current thread (slice 6)
-- `lib/core/providers/thread_message_cache.dart` - Update on background
-  completion (slice 8)
+  own registry field (slice 4), sync current handle on navigation
+  (slice 6), pass cache-update callback via constructor (slice 8), subscribe to lifecycle
+  events for unread indicators (slice 9)
+- `lib/core/providers/thread_history_cache.dart` - Re-keyed from
+  `Map<String, ThreadHistory>` to `Map<ThreadKey, ThreadHistory>` (slice 10)
+- `lib/core/providers/active_run_provider.dart` - Composite key cache
+  lookup (slice 10)
+- `lib/core/providers/source_references_provider.dart` - Composite key cache
+  lookup with roomId watch (slice 10)
+- `lib/features/chat/chat_panel.dart` - roomId in updateHistory (slice 10)
 
 **Created:**
 
+- `lib/core/models/thread_key.dart` - ThreadKey typedef (slice 2)
 - `lib/core/models/run_handle.dart` - RunHandle class (slice 2)
 - `lib/core/services/run_registry.dart` - RunRegistry class (slice 3)
-- `lib/core/providers/run_registry_provider.dart` - Provider (slice 4)
+- `lib/core/models/run_lifecycle_event.dart` - Lifecycle events (slice 7)
+- `lib/core/providers/unread_runs_provider.dart` - Unread indicators (slice 9)
 
 ## Definition of Done (per slice)
 

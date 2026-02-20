@@ -6,6 +6,7 @@ import 'package:soliplex_frontend/core/providers/citations_expanded_provider.dar
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
 import '../../../helpers/test_helpers.dart';
 
@@ -437,6 +438,44 @@ void main() {
             .read(citationsExpandedProvider(_testThreadId))
             .contains('persist-msg:0'),
         isTrue,
+      );
+    });
+  });
+
+  group('CitationsSection markdown rendering', () {
+    testWidgets('renders citation content as markdown', (tester) async {
+      final sourceRefs = [
+        _createSourceReference(
+          content: 'Some **bold** text and a [link](https://example.com).',
+        ),
+      ];
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: CitationsSection(
+            messageId: 'test-msg',
+            sourceReferences: sourceRefs,
+          ),
+          overrides: [
+            threadSelectionProviderOverride(
+              const ThreadSelected(_testThreadId),
+            ),
+          ],
+        ),
+      );
+
+      // Expand section
+      await tester.tap(find.text('1 source'));
+      await tester.pumpAndSettle();
+
+      // Expand individual citation
+      await tester.tap(find.byIcon(Icons.expand_more).last);
+      await tester.pumpAndSettle();
+
+      // Content should be rendered via markdown renderer, not plain Text
+      expect(
+        find.byType(FlutterMarkdownPlusRenderer),
+        findsOneWidget,
       );
     });
   });

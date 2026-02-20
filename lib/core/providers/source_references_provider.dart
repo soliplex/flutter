@@ -3,6 +3,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 
@@ -30,9 +31,41 @@ final sourceReferencesForUserMessageProvider =
   }
 
   // Fall back to cache
+  final roomId = ref.watch(currentRoomIdProvider);
   final threadId = ref.watch(currentThreadIdProvider);
-  if (threadId == null) return const [];
+  if (roomId == null || threadId == null) return const [];
 
-  final cached = ref.watch(threadHistoryCacheProvider)[threadId];
+  final key = (roomId: roomId, threadId: threadId);
+  final cached = ref.watch(threadHistoryCacheProvider)[key];
   return cached?.messageStates[userMessageId]?.sourceReferences ?? const [];
+});
+
+/// Provider for the run ID associated with a user message.
+///
+/// Returns the run ID linked to the given user message ID, or null if not
+/// found or if userMessageId is null. Used to construct the feedback endpoint
+/// URL when submitting thumbs-up/down feedback.
+///
+/// Sources:
+/// 1. Active run's conversation messageStates (if running or completed)
+/// 2. Cached thread history messageStates (for historical threads)
+final runIdForUserMessageProvider =
+    Provider.family<String?, String?>((ref, userMessageId) {
+  if (userMessageId == null) return null;
+
+  // Try active run first
+  final runState = ref.watch(activeRunNotifierProvider);
+  if (runState is! IdleState) {
+    final state = runState.conversation.messageStates[userMessageId];
+    if (state != null) return state.runId;
+  }
+
+  // Fall back to cache
+  final roomId = ref.watch(currentRoomIdProvider);
+  final threadId = ref.watch(currentThreadIdProvider);
+  if (roomId == null || threadId == null) return null;
+
+  final key = (roomId: roomId, threadId: threadId);
+  final cached = ref.watch(threadHistoryCacheProvider)[key];
+  return cached?.messageStates[userMessageId]?.runId;
 });

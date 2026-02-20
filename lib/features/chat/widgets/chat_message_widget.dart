@@ -3,14 +3,23 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show ChatMessage, ChatUser, ErrorMessage, SourceReference, TextMessage;
+    show
+        ChatMessage,
+        ChatUser,
+        ErrorMessage,
+        FeedbackType,
+        SourceReference,
+        TextMessage;
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/citations_section.dart';
-import 'package:soliplex_frontend/features/chat/widgets/code_block_builder.dart';
+import 'package:soliplex_frontend/features/chat/widgets/feedback_buttons.dart';
+import 'package:soliplex_frontend/shared/widgets/fullscreen_image_viewer.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
+
+import 'package:url_launcher/url_launcher.dart';
 
 /// Widget that displays a single chat message.
 class ChatMessageWidget extends StatelessWidget {
@@ -19,6 +28,7 @@ class ChatMessageWidget extends StatelessWidget {
     this.isStreaming = false,
     this.isThinkingStreaming = false,
     this.sourceReferences = const [],
+    this.onFeedbackSubmit,
     super.key,
   });
 
@@ -31,6 +41,13 @@ class ChatMessageWidget extends StatelessWidget {
 
   /// Source references (citations) associated with this message.
   final List<SourceReference> sourceReferences;
+
+  /// Called when the user submits feedback for this assistant message.
+  ///
+  /// When non-null, thumbs-up and thumbs-down buttons are shown below the
+  /// message (only when [isStreaming] is false). When null, no feedback
+  /// buttons are rendered.
+  final void Function(FeedbackType feedback, String? reason)? onFeedbackSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -114,32 +131,14 @@ class ChatMessageWidget extends StatelessWidget {
                       // The markdown is rendered as separate widgets,
                       // if you set selectable: true, you'll have to select
                       // each widget separately.
-                      MarkdownBody(
+                      FlutterMarkdownPlusRenderer(
                         data: text,
-                        styleSheet: MarkdownStyleSheet(
-                          p: theme.textTheme.bodyLarge?.copyWith(
-                            color: message is ErrorMessage
-                                ? theme.colorScheme.error
-                                : theme.colorScheme.onSurface,
-                          ),
-                          code: context.monospace.copyWith(
-                            backgroundColor:
-                                theme.colorScheme.surfaceContainerHigh,
-                          ),
-                          codeblockDecoration: BoxDecoration(
-                            color: theme.colorScheme.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(
-                              soliplexTheme.radii.sm,
-                            ),
-                          ),
+                        onLinkTap: _openLink,
+                        onImageTap: (src, alt) => _openImage(
+                          context,
+                          src,
+                          alt,
                         ),
-                        builders: {
-                          'code': CodeBlockBuilder(
-                            preferredStyle: context.monospace.copyWith(
-                              fontSize: 14,
-                            ),
-                          ),
-                        },
                       ),
                     // Only show streaming indicator when there's actual text
                     // being streamed. When text is empty, the status indicator
@@ -250,7 +249,31 @@ class ChatMessageWidget extends StatelessWidget {
             icon: Icons.copy,
             onTap: () => _copyToClipboard(context, messageText),
           ),
+          if (onFeedbackSubmit != null)
+            FeedbackButtons(onFeedbackSubmit: onFeedbackSubmit!),
         ],
+      ),
+    );
+  }
+
+  Future<void> _openLink(String href, String? title) async {
+    final uri = Uri.tryParse(href);
+    if (uri == null) return;
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } on Exception catch (e, stackTrace) {
+      Loggers.ui.error(
+        'Failed to open link: $href',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  void _openImage(BuildContext context, String src, String? alt) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FullscreenImageViewer(imageUrl: src, altText: alt),
       ),
     );
   }
