@@ -11,6 +11,7 @@ import 'package:soliplex_frontend/core/auth/auth_notifier.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
+import 'package:soliplex_frontend/core/models/consent_notice.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 
@@ -114,6 +115,23 @@ Widget _createAppWithRouter({
       ],
     ),
     child: MaterialApp.router(theme: testThemeData, routerConfig: router),
+  );
+}
+
+Widget _createAppWithConsentNotice({required ConsentNotice notice}) {
+  return UncontrolledProviderScope(
+    container: ProviderContainer(
+      overrides: [
+        shellConfigProvider.overrideWithValue(
+          testSoliplexConfig.copyWith(consentNotice: notice),
+        ),
+        oidcIssuersProvider.overrideWith((ref) async => [_createIssuer()]),
+      ],
+    ),
+    child: MaterialApp(
+      theme: testThemeData,
+      home: const Scaffold(body: LoginScreen()),
+    ),
   );
 }
 
@@ -345,6 +363,84 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Home Screen'), findsOneWidget);
+    });
+  });
+
+  group('Consent notice', () {
+    testWidgets('shows login options when no consentNotice configured', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const LoginScreen(),
+          overrides: [
+            oidcIssuersProvider.overrideWith(
+              (ref) async => [_createIssuer()],
+            ),
+          ],
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sign in with Google'), findsOneWidget);
+    });
+
+    testWidgets('shows interstitial when consentNotice configured', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _createAppWithConsentNotice(
+          notice: const ConsentNotice(
+            title: 'Notice',
+            body: 'You are being monitored.',
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notice'), findsOneWidget);
+      expect(find.text('You are being monitored.'), findsOneWidget);
+      expect(find.text('OK'), findsOneWidget);
+      expect(find.text('Sign in with Google'), findsNothing);
+    });
+
+    testWidgets('dismisses interstitial after tapping acknowledgment button', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _createAppWithConsentNotice(
+          notice: const ConsentNotice(
+            title: 'Notice',
+            body: 'You are being monitored.',
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Notice'), findsNothing);
+      expect(find.text('Sign in with Google'), findsOneWidget);
+    });
+
+    testWidgets('shows custom acknowledgmentLabel', (tester) async {
+      await tester.pumpWidget(
+        _createAppWithConsentNotice(
+          notice: const ConsentNotice(
+            title: 'Notice',
+            body: 'Body',
+            acknowledgmentLabel: 'I Agree',
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      expect(find.text('I Agree'), findsOneWidget);
+      expect(find.text('OK'), findsNothing);
     });
   });
 }

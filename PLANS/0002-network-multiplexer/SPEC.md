@@ -36,8 +36,8 @@ regardless of whether it was still streaming.
 2. Users can start runs in multiple threads concurrently.
 3. When returning to a thread with an active run, the UI shows its current state.
 4. When a run completes in the background, the message cache is updated.
-5. The system broadcasts lifecycle events (start, complete, error) for
-   background awareness.
+5. The system broadcasts lifecycle events (start, complete) for background
+   awareness.
 6. Runs are keyed by (roomId, threadId) to support cross-room persistence.
 
 ### Non-Functional Requirements
@@ -102,18 +102,19 @@ regardless of whether it was still streaming.
 │                       Provider Layer                            │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │              ActiveRunNotifier (modified)                 │   │
-│  │  - Subscribes to current thread's run from registry      │   │
-│  │  - Delegates startRun() to registry                      │   │
+│  │  - Owns RunRegistry via constructor injection            │   │
+│  │  - Injects OnRunCompleted callback for cache updates     │   │
+│  │  - Syncs current handle on room/thread navigation        │   │
 │  │  - Exposes state for current thread only                 │   │
 │  └──────────────────────────┬───────────────────────────────┘   │
 │                             │                                   │
-│                             │ delegates to                      │
+│                             │ uses                              │
 │                             ▼                                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                       Service Layer                             │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │                    RunRegistry                            │   │
-│  │  - Map<(roomId, threadId), RunHandle>                    │   │
+│  │  - Map<ThreadKey, RunHandle>                                │   │
 │  │  - Manages run lifecycle                                 │   │
 │  │  - Broadcasts Stream<RunLifecycleEvent>                  │   │
 │  └──────────────────────────────────────────────────────────┘   │
@@ -129,57 +130,95 @@ regardless of whether it was still streaming.
 
 ### Key Components
 
+**ThreadKey:** `typedef ThreadKey = ({String roomId, String threadId})` — a named
+record providing a type-safe composite identifier with value equality.
+Used as the map key in RunRegistry, the identity field in RunHandle and
+RunLifecycleEvent. Convenience getters on RunHandle and RunLifecycleEvent
+expose `roomId` and `threadId` directly so consumers never need `.key`
+indirection.
+
 **RunHandle:** Encapsulates resources for a single run:
 
+- `ThreadKey key` for identity (with `roomId`/`threadId` convenience getters)
+- `String runId` — backend-generated run ID
 - `CancelToken` for cancellation
 - `StreamSubscription<BaseEvent>` for the event stream
+- `String userMessageId` — ID of the message that triggered the run
+- `Map<String, dynamic> previousAguiState` — state snapshot before the run
 - Current `ActiveRunState` (Idle, Running, Completed)
-- Room and thread IDs
+- `bool isActive` — whether the run is currently running
 
-**RunRegistry:** Pure Dart class managing multiple runs:
+**RunRegistry:** Pure Dart service managing multiple runs:
 
-- `Map<RunKey, RunHandle>` where `RunKey = (roomId, threadId)`
-- `registerRun()` adds a RunHandle to the registry
-- `cancelRun()` cancels a specific run
-- `getRunState()` returns the current state for a run
-- `Stream<RunLifecycleEvent>` broadcasts start/complete/error events
+- `Map<ThreadKey, RunHandle>` with type-safe record keys
+- `registerRun()` adds a RunHandle and emits `RunStarted`
+- `completeRun()` atomically sets terminal state and emits `RunCompleted`
+- `removeRun(ThreadKey)` removes a run and disposes its resources
+- `getRunState(ThreadKey)` returns the current state for a run
+- `Stream<RunLifecycleEvent>` broadcasts all lifecycle events unconditionally
+- `OnRunCompleted? onRunCompleted` — constructor-injected callback for cache updates
 
 **ActiveRunNotifier (modified):**
 
 - Removes thread navigation listener (slice 1)
-- Subscribes to the current thread's run from registry (slice 6)
-- Delegates `startRun()` to registry (slice 4)
+- Owns `RunRegistry` as a field, exposes via `registry` getter (slice 4)
+- Creates `RunHandle` in `startRun()` and registers with registry
+- Syncs `_currentHandle` and exposed state on room/thread navigation (slice 6)
+- Passes `_buildCacheUpdater()` via `RunRegistry` constructor (slice 8)
+- Subscribes to `registry.lifecycleEvents` for unread indicators (slice 9)
 - State reflects current thread only
 
 ### Lifecycle Events
 
 ```dart
+@immutable
 sealed class RunLifecycleEvent {
-  RunKey get key;
+  const RunLifecycleEvent({required this.key});
+  final ThreadKey key;
+  String get roomId => key.roomId;
+  String get threadId => key.threadId;
 }
 
+@immutable
 class RunStarted extends RunLifecycleEvent { ... }
+
+@immutable
 class RunCompleted extends RunLifecycleEvent {
-  final CompletionResult result;
-}
-class RunErrored extends RunLifecycleEvent {
-  final String errorMessage;
+  final CompletionResult result;  // Success, FailedResult, or CancelledResult
 }
 ```
 
-UI components can listen to these events and decide how to present them
-(toast, badge, colored dot, etc.). The design of the alert UI is intentionally
-deferred for separate UX discussion.
+Two event types instead of three. A run that errors *has completed* — the
+outcome is encoded in the existing `CompletionResult` sealed hierarchy
+(`Success`, `FailedResult`, `CancelledResult`), which already provides
+exhaustive pattern matching. A separate `RunErrored` type would duplicate
+information that `FailedResult` already carries and force downstream
+consumers to handle two event types identically in most branches.
+
+The registry emits `RunCompleted` unconditionally for all terminal
+transitions, including cancellations. Consumers decide which results to
+act on. This keeps the registry a faithful event bus — it reports what
+happened without encoding business policy about which events are
+"interesting."
+
+Events use `ThreadKey` as their identity field with convenience getters for
+`roomId` and `threadId`. This gives the registry a type-safe map key
+(record value equality, no string concatenation) while keeping consumer
+access clean (`event.roomId` instead of `event.key.roomId`).
+
+UI components listen to these events and decide how to present them
+(toast, badge, colored dot, etc.). The design of the alert UI is
+intentionally deferred for separate UX discussion.
 
 ## Acceptance Criteria
 
-- [ ] User can navigate away from thread with active run; run continues.
-- [ ] User can return to thread; sees streamed messages.
-- [ ] User can start runs in multiple threads concurrently.
-- [ ] Background run completion updates message cache.
-- [ ] Lifecycle events are broadcast for background awareness.
-- [ ] Runs persist across room navigation.
-- [ ] All existing tests pass or are updated appropriately.
+- [x] User can navigate away from thread with active run; run continues.
+- [x] User can return to thread; sees streamed messages.
+- [x] User can start runs in multiple threads concurrently.
+- [x] Background run completion updates message cache.
+- [x] Lifecycle events are broadcast for background awareness.
+- [x] Runs persist across room navigation.
+- [x] All existing tests pass or are updated appropriately.
 
 ## UI Notification Design
 

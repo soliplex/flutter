@@ -1,8 +1,6 @@
 import 'dart:developer' as developer;
 
 import 'package:soliplex_client/src/domain/source_reference.dart';
-import 'package:soliplex_client/src/schema/agui_features/ask_history.dart'
-    as ask_history;
 import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
 
 Never _throwFromJsonDiagnostic(
@@ -47,12 +45,7 @@ class CitationExtractor {
     Map<String, dynamic> previousState,
     Map<String, dynamic> currentState,
   ) {
-    // Try haiku.rag.chat first (primary format)
-    final haikuRefs = _extractFromHaikuRagChat(previousState, currentState);
-    if (haikuRefs.isNotEmpty) return haikuRefs;
-
-    // Fall back to ask_history
-    return _extractFromAskHistory(previousState, currentState);
+    return _extractFromHaikuRagChat(previousState, currentState);
   }
 
   List<SourceReference> _extractFromHaikuRagChat(
@@ -109,59 +102,6 @@ class CitationExtractor {
   }
 
   SourceReference _citationToSourceReference(Citation c) {
-    return SourceReference(
-      documentId: c.documentId,
-      documentUri: c.documentUri,
-      content: c.content,
-      chunkId: c.chunkId,
-      documentTitle: c.documentTitle,
-      headings: c.headings ?? [],
-      pageNumbers: c.pageNumbers ?? [],
-      index: c.index,
-    );
-  }
-
-  List<SourceReference> _extractFromAskHistory(
-    Map<String, dynamic> previousState,
-    Map<String, dynamic> currentState,
-  ) {
-    final previousData = previousState['ask_history'] as Map<String, dynamic>?;
-    final currentData = currentState['ask_history'] as Map<String, dynamic>?;
-
-    if (currentData == null) return [];
-
-    final previousLength = _getQuestionsLength(previousData);
-    final currentLength = _getQuestionsLength(currentData);
-
-    if (currentLength <= previousLength) return [];
-
-    try {
-      final history = ask_history.AskHistory.fromJson(currentData);
-      final questions = history.questions ?? [];
-
-      return questions
-          .sublist(previousLength)
-          .expand(_extractFromQuestionResponse)
-          .toList();
-    } catch (e, stackTrace) {
-      _throwFromJsonDiagnostic('AskHistory', currentData, e, stackTrace);
-    }
-  }
-
-  int _getQuestionsLength(Map<String, dynamic>? data) {
-    if (data == null) return 0;
-    final questions = data['questions'] as List<dynamic>?;
-    return questions?.length ?? 0;
-  }
-
-  List<SourceReference> _extractFromQuestionResponse(
-    ask_history.QuestionResponseCitations entry,
-  ) {
-    final citations = entry.citations ?? [];
-    return citations.map(_askCitationToSourceReference).toList();
-  }
-
-  SourceReference _askCitationToSourceReference(ask_history.Citation c) {
     return SourceReference(
       documentId: c.documentId,
       documentUri: c.documentUri,

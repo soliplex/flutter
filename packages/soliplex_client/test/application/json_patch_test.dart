@@ -57,26 +57,26 @@ void main() {
 
       test('appends to nested array using "-" syntax', () {
         final state = <String, dynamic>{
-          'ask_history': {
-            'questions': [
-              {'question': 'Q1', 'response': 'R1'},
+          'haiku.rag.chat': {
+            'qa_history': [
+              {'question': 'Q1', 'answer': 'A1'},
             ],
           },
         };
         final operations = [
           {
             'op': 'add',
-            'path': '/ask_history/questions/-',
-            'value': {'question': 'Q2', 'response': 'R2'},
+            'path': '/haiku.rag.chat/qa_history/-',
+            'value': {'question': 'Q2', 'answer': 'A2'},
           },
         ];
 
         final result = applyJsonPatch(state, operations);
 
-        final questions = (result['ask_history']
-            as Map<String, dynamic>)['questions'] as List;
-        expect(questions, hasLength(2));
-        expect((questions[1] as Map<String, dynamic>)['question'], 'Q2');
+        final qaHistory = (result['haiku.rag.chat']
+            as Map<String, dynamic>)['qa_history'] as List;
+        expect(qaHistory, hasLength(2));
+        expect((qaHistory[1] as Map<String, dynamic>)['question'], 'Q2');
       });
 
       test('replaces item in array at index', () {
@@ -368,11 +368,11 @@ void main() {
 
       test('handles complex nested structures', () {
         final state = <String, dynamic>{
-          'ask_history': {
-            'questions': <dynamic>[
+          'haiku.rag.chat': {
+            'qa_history': <dynamic>[
               {
                 'question': 'Q1',
-                'response': 'R1',
+                'answer': 'A1',
                 'citations': <dynamic>[],
               },
             ],
@@ -381,10 +381,10 @@ void main() {
         final operations = [
           {
             'op': 'add',
-            'path': '/ask_history/questions/1',
+            'path': '/haiku.rag.chat/qa_history/1',
             'value': {
               'question': 'Q2',
-              'response': 'R2',
+              'answer': 'A2',
               'citations': [
                 {'chunk_id': 'c1', 'content': 'text'},
               ],
@@ -394,10 +394,10 @@ void main() {
 
         final result = applyJsonPatch(state, operations);
 
-        final askHistory = result['ask_history'] as Map<String, dynamic>;
-        final questions = askHistory['questions'] as List<dynamic>;
-        expect(questions, hasLength(2));
-        final q2 = questions[1] as Map<String, dynamic>;
+        final haikuChat = result['haiku.rag.chat'] as Map<String, dynamic>;
+        final qaHistory = haikuChat['qa_history'] as List<dynamic>;
+        expect(qaHistory, hasLength(2));
+        final q2 = qaHistory[1] as Map<String, dynamic>;
         expect(q2['question'], 'Q2');
         expect(q2['citations'], hasLength(1));
       });

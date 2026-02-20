@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
     show Conversation, Failed, Running, ThreadInfo;
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
+import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/active_run_notifier.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
@@ -15,6 +16,7 @@ import 'package:soliplex_frontend/core/providers/selected_documents_provider.dar
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/core/services/run_registry.dart';
 import 'package:soliplex_frontend/features/chat/chat_panel.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
@@ -37,15 +39,14 @@ class _TrackingActiveRunNotifier extends Notifier<ActiveRunState>
 
   @override
   Future<void> startRun({
-    required String roomId,
-    required String threadId,
+    required ThreadKey key,
     required String userMessage,
     String? existingRunId,
     Map<String, dynamic>? initialState,
   }) async {
     lastStartRun = (
-      roomId: roomId,
-      threadId: threadId,
+      roomId: key.roomId,
+      threadId: key.threadId,
       userMessage: userMessage,
     );
   }
@@ -59,6 +60,11 @@ class _TrackingActiveRunNotifier extends Notifier<ActiveRunState>
   Future<void> reset() async {
     resetCalled = true;
   }
+
+  final RunRegistry _registry = RunRegistry();
+
+  @override
+  RunRegistry get registry => _registry;
 }
 
 /// Mock that tracks thread selection changes.
@@ -636,9 +642,10 @@ void main() {
         await tester.pumpAndSettle();
 
         // Assert: cache contains the seeded state
+        const key = (roomId: 'test-room', threadId: 'seeded-thread');
         final cache = container.read(threadHistoryCacheProvider);
-        expect(cache, contains('seeded-thread'));
-        final history = cache['seeded-thread']!;
+        expect(cache, contains(key));
+        final history = cache[key]!;
         expect(
           history.aguiState,
           containsPair('haiku.rag.chat', isA<Map<String, dynamic>>()),
@@ -812,9 +819,10 @@ void main() {
         await tester.pumpAndSettle();
 
         // Pre-populate selection for the thread
-        container
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, mockThread.id, {doc});
+        container.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          (roomId: mockRoom.id, threadId: mockThread.id),
+          {doc},
+        );
 
         // Force rebuild to see the selection
         await tester.pump();
@@ -828,7 +836,7 @@ void main() {
         // Get selection from provider after "submit"
         final selectionAfter = container
             .read(selectedDocumentsNotifierProvider.notifier)
-            .getForThread(mockRoom.id, mockThread.id);
+            .getForThread((roomId: mockRoom.id, threadId: mockThread.id));
 
         // Assert: Selection still exists in provider
         expect(selectionAfter, contains(doc));
@@ -878,10 +886,10 @@ void main() {
         // Pre-populate selections for both threads
         container
             .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, thread1.id, {doc1});
+            .setForThread((roomId: mockRoom.id, threadId: thread1.id), {doc1});
         container
             .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, thread2.id, {doc2});
+            .setForThread((roomId: mockRoom.id, threadId: thread2.id), {doc2});
 
         // Force rebuild to see thread 1's selection
         await tester.pump();
@@ -940,9 +948,10 @@ void main() {
         await tester.pumpAndSettle();
 
         // Pre-populate selection for existing thread (simulating previous work)
-        container
-            .read(selectedDocumentsNotifierProvider.notifier)
-            .setForThread(mockRoom.id, existingThread.id, {doc});
+        container.read(selectedDocumentsNotifierProvider.notifier).setForThread(
+          (roomId: mockRoom.id, threadId: existingThread.id),
+          {doc},
+        );
 
         // Rebuild
         await tester.pump();

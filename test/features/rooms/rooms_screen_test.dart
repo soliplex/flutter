@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
@@ -128,5 +129,66 @@ void main() {
       // Column should have only one child (the title) when no description
       expect(column.children.length, 1);
     });
+
+    group('Unread badges', () {
+      testWidgets('shows unread count badge on room tile', (tester) async {
+        final mockRooms = [
+          TestData.createRoom(id: 'room1', name: 'Room 1'),
+          TestData.createRoom(id: 'room2', name: 'Room 2'),
+        ];
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const RoomsScreen(),
+            overrides: [
+              roomsProvider.overrideWith((ref) async => mockRooms),
+              unreadRunsProvider.overrideWith(() {
+                return _TestUnreadRunsNotifier(
+                  initialState: const UnreadRuns(
+                    byRoom: {
+                      'room1': {'thread-1', 'thread-2'},
+                    },
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Badge showing count "2" for room1
+        expect(find.text('2'), findsOneWidget);
+      });
+
+      testWidgets('hides badge when no unread runs', (tester) async {
+        final mockRooms = [
+          TestData.createRoom(id: 'room1', name: 'Room 1'),
+        ];
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const RoomsScreen(),
+            overrides: [
+              roomsProvider.overrideWith((ref) async => mockRooms),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // No count badges should appear
+        expect(find.text('0'), findsNothing);
+      });
+    });
   });
+}
+
+/// Test-only UnreadRunsNotifier with pre-set initial state.
+class _TestUnreadRunsNotifier extends UnreadRunsNotifier {
+  _TestUnreadRunsNotifier({required UnreadRuns initialState})
+      : _initialState = initialState;
+
+  final UnreadRuns _initialState;
+
+  @override
+  UnreadRuns build() => _initialState;
 }

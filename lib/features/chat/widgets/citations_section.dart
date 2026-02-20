@@ -7,6 +7,9 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chunk_visualization_page.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/markdown_theme_extension.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Expandable section showing source citations for a message.
 ///
@@ -266,11 +269,10 @@ class _SourceReferenceRow extends ConsumerWidget {
                             soliplexTheme.radii.sm,
                           ),
                         ),
-                        constraints: const BoxConstraints(maxHeight: 150),
+                        constraints: const BoxConstraints(maxHeight: 250),
                         child: SingleChildScrollView(
-                          child: Text(
-                            sourceReference.content,
-                            style: theme.textTheme.bodySmall,
+                          child: _CitationMarkdown(
+                            data: sourceReference.content,
                           ),
                         ),
                       ),
@@ -324,6 +326,43 @@ class _SourceReferenceRow extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+/// Renders citation content as markdown, scaled to `bodySmall`.
+///
+/// Overrides the app-level [MarkdownThemeExtension] so that paragraph text
+/// matches the surrounding citation typography instead of the chat-message
+/// default (`bodyMedium`).
+class _CitationMarkdown extends StatelessWidget {
+  const _CitationMarkdown({required this.data});
+
+  final String data;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mdTheme = theme.extension<MarkdownThemeExtension>();
+    final smallBody = theme.textTheme.bodySmall;
+
+    return Theme(
+      data: theme.copyWith(
+        extensions: {
+          ...theme.extensions.values,
+          if (mdTheme != null) mdTheme.copyWith(body: smallBody),
+        },
+      ),
+      child: FlutterMarkdownPlusRenderer(
+        data: data,
+        onLinkTap: _openLink,
+      ),
+    );
+  }
+
+  Future<void> _openLink(String href, String? title) async {
+    final uri = Uri.tryParse(href);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }
 
