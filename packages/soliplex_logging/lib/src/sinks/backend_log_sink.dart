@@ -128,9 +128,26 @@ class BackendLogSink implements LogSink {
   @visibleForTesting
   DateTime? backoffUntil;
 
+  /// Tracks whether the next HTTP response log should be suppressed
+  /// because the preceding request was to the log-shipping endpoint.
+  bool _skipNextHttpResponse = false;
+
   @override
   void write(LogRecord record) {
     if (_closed) return;
+
+    // Don't ship logs about log-shipping itself (avoids feedback loop).
+    if (record.loggerName == 'HTTP') {
+      if (record.message.contains(endpoint)) {
+        _skipNextHttpResponse = true;
+        return;
+      }
+      if (_skipNextHttpResponse && record.message.startsWith('HTTP ')) {
+        _skipNextHttpResponse = false;
+        return;
+      }
+      _skipNextHttpResponse = false;
+    }
 
     final json = _recordToJson(record);
 
