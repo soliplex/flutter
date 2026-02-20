@@ -97,6 +97,43 @@ void main() {
       expect(log['level'], 'info');
     });
 
+    test('filters out HTTP logs about the log-shipping endpoint', () async {
+      final sink = createSink()
+        // This record mimics what HttpLogNotifier emits for a log POST.
+        ..write(
+          LogRecord(
+            level: LogLevel.debug,
+            message: 'POST https://api.example.com/logs',
+            timestamp: DateTime.utc(2026, 2, 6, 12),
+            loggerName: 'HTTP',
+          ),
+        )
+        // The corresponding response should also be filtered.
+        ..write(
+          LogRecord(
+            level: LogLevel.debug,
+            message: 'HTTP 200 response',
+            timestamp: DateTime.utc(2026, 2, 6, 12),
+            loggerName: 'HTTP',
+          ),
+        )
+        // A normal record should still be accepted.
+        ..write(makeRecord());
+
+      await sink.flush();
+      await sink.close();
+
+      expect(capturedRequests, hasLength(1));
+      final body =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final logs = body['logs']! as List;
+      expect(logs, hasLength(1));
+      expect(
+        (logs[0] as Map<String, Object?>)['message'],
+        'Test message',
+      );
+    });
+
     test('resource attributes included in payload', () async {
       final sink = createSink()..write(makeRecord());
       await sink.flush();
