@@ -90,9 +90,9 @@ void main() {
       expect(logs, hasLength(1));
 
       final log = logs[0] as Map<String, Object?>;
-      expect(log['installId'], 'install-001');
-      expect(log['sessionId'], 'session-001');
-      expect(log['userId'], 'user-001');
+      expect(log['install_id'], 'install-001');
+      expect(log['session_id'], 'session-001');
+      expect(log['user_id'], 'user-001');
       expect(log['message'], 'Test message');
       expect(log['level'], 'info');
     });
@@ -1044,10 +1044,10 @@ void main() {
             jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
         final logs = body['logs']! as List<Object?>;
         final record = logs.first! as Map<String, Object?>;
-        final activeRun = record['activeRun']! as Map<String, Object?>;
+        final activeRun = record['active_run']! as Map<String, Object?>;
 
-        expect(activeRun['threadId'], 'thread-123');
-        expect(activeRun['runId'], 'run-456');
+        expect(activeRun['thread_id'], 'thread-123');
+        expect(activeRun['run_id'], 'run-456');
       });
 
       test('activeRun is null when threadId not set', () async {
@@ -1060,7 +1060,7 @@ void main() {
         final logs = body['logs']! as List<Object?>;
         final record = logs.first! as Map<String, Object?>;
 
-        expect(record['activeRun'], isNull);
+        expect(record['active_run'], isNull);
       });
     });
   });

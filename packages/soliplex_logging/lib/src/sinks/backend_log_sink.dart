@@ -359,14 +359,14 @@ class BackendLogSink implements LogSink {
       'message': record.message,
       'attributes': _safeAttributes(record.attributes),
       'error': record.error?.toString(),
-      'stackTrace': record.stackTrace?.toString(),
-      'spanId': record.spanId,
-      'traceId': record.traceId,
-      'installId': installId,
-      'sessionId': sessionId,
-      'userId': userId,
-      'activeRun':
-          threadId != null ? {'threadId': threadId, 'runId': runId} : null,
+      'stack_trace': record.stackTrace?.toString(),
+      'span_id': record.spanId,
+      'trace_id': record.traceId,
+      'install_id': installId,
+      'session_id': sessionId,
+      'user_id': userId,
+      'active_run':
+          threadId != null ? {'thread_id': threadId, 'run_id': runId} : null,
     };
   }
 
