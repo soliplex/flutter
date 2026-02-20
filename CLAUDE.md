@@ -73,6 +73,9 @@ and reactive rebuilds. Nothing more. Rules:
 
 ## Development Rules
 
+- Use `equatable` for value equality — extend `Equatable` and declare
+  `props`. Only include fields that define identity in `props`; exclude
+  derived getters and diagnostic fields (e.g. `stackTrace`)
 - KISS, YAGNI, SOLID - simple solutions over clever ones
 - Edit existing files; do not create new ones without need
 - Match surrounding code style exactly

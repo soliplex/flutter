@@ -340,16 +340,15 @@ void main() {
       await tester.tap(find.text('Submit Answer'));
       await tester.pumpAndSettle();
 
-      // Assert - snackbar shown with error message and retry action
+      // Assert - snackbar shown with error message
       expect(find.byType(SnackBar), findsOneWidget);
       expect(find.textContaining('Network error'), findsOneWidget);
-      expect(find.text('Retry'), findsOneWidget);
 
-      // Assert - button should still be enabled (input preserved)
-      final submitButton = tester.widget<FilledButton>(
-        find.widgetWithText(FilledButton, 'Submit Answer'),
+      // Assert - action button shows Retry and is enabled (input preserved)
+      final retryButton = tester.widget<FilledButton>(
+        find.widgetWithText(FilledButton, 'Retry'),
       );
-      expect(submitButton.onPressed, isNotNull);
+      expect(retryButton.onPressed, isNotNull);
     });
 
     testWidgets('can retake quiz after completion', (tester) async {

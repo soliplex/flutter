@@ -45,6 +45,31 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Detect submission failures and show snackbar.
+    ref.listen(quizSessionProvider(_sessionKey), (prev, next) {
+      if (next is! QuizInProgress) return;
+      if (next.questionState is! SubmissionFailed) return;
+      final failed = next.questionState as SubmissionFailed;
+
+      final message = switch (failed.error) {
+        NetworkException(:final message) => 'Network error: $message',
+        AuthException() => 'Session expired. Please sign in again.',
+        final SoliplexException e =>
+          'Something went wrong: $e\nPlease try again.',
+        final e => 'Unexpected error: $e',
+      };
+      Loggers.quiz.error(
+        'Quiz submit failed: $message',
+        error: failed.error,
+        stackTrace: failed.stackTrace,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    });
+
     final quizAsync = ref.watch(quizProvider(_sessionKey));
     final features = ref.watch(featuresProvider);
 
@@ -217,6 +242,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         selectedOption,
       Answered(input: MultipleChoiceInput(:final selectedOption)) =>
         selectedOption,
+      SubmissionFailed(input: MultipleChoiceInput(:final selectedOption)) =>
+        selectedOption,
       _ => null,
     };
 
@@ -335,6 +362,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       Composing(input: TextInput(:final text)) => text,
       Submitting(input: TextInput(:final text)) => text,
       Answered(input: TextInput(:final text)) => text,
+      SubmissionFailed(input: TextInput(:final text)) => text,
       _ => '',
     };
     if (_answerController.text != providerText) {
@@ -428,6 +456,10 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           onPressed: _nextQuestion,
           child: Text(session.isLastQuestion ? 'See Results' : 'Next Question'),
         ),
+      SubmissionFailed(:final input) => FilledButton(
+          onPressed: input.isValid ? _submitAnswer : null,
+          child: const Text('Retry'),
+        ),
     };
   }
 
@@ -512,65 +544,9 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         .updateInput(MultipleChoiceInput(option));
   }
 
-  Future<void> _submitAnswer() async {
+  void _submitAnswer() {
     Loggers.quiz.debug('Answer submitted for quiz ${widget.quizId}');
-    try {
-      await ref.read(quizSessionProvider(_sessionKey).notifier).submitAnswer();
-    } on NetworkException catch (e, stackTrace) {
-      Loggers.quiz.error(
-        'Quiz submit failed: Network error - ${e.message}',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Network error: ${e.message}'),
-            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
-          ),
-        );
-      }
-    } on AuthException catch (e, stackTrace) {
-      Loggers.quiz.error(
-        'Quiz submit failed: Auth error - ${e.message}',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Session expired. Please sign in again.'),
-          ),
-        );
-      }
-    } on SoliplexException catch (e, stackTrace) {
-      Loggers.quiz.error(
-        'Quiz submit failed: $e',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Something went wrong: $e\nPlease try again.'),
-          ),
-        );
-      }
-    } catch (e, stackTrace) {
-      Loggers.quiz.error(
-        'Quiz submit failed: $e',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Unexpected error: $e'),
-            action: SnackBarAction(label: 'Retry', onPressed: _submitAnswer),
-          ),
-        );
-      }
-    }
+    ref.read(quizSessionProvider(_sessionKey).notifier).submitAnswer();
   }
 
   void _nextQuestion() {
