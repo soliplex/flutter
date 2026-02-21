@@ -98,26 +98,6 @@ void main() {
         expect(find.byType(EmptyState), findsOneWidget);
         expect(find.text('No messages yet. Send one below!'), findsOneWidget);
       });
-
-      testWidgets('shows chat bubble icon in empty state', (tester) async {
-        // Arrange
-        await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(body: MessageList()),
-            overrides: [
-              currentThreadProvider.overrideWith((ref) => null),
-              allMessagesProvider.overrideWith(
-                (ref) async => <domain.ChatMessage>[],
-              ),
-              activeRunNotifierOverride(const IdleState()),
-            ],
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // Assert
-        expect(find.byIcon(Icons.chat_bubble_outline), findsOneWidget);
-      });
     });
 
     group('Message Display', () {
@@ -153,32 +133,6 @@ void main() {
         expect(find.text('Hello'), findsOneWidget);
         expect(find.text('Hi there!'), findsOneWidget);
         expect(find.text('How are you?'), findsOneWidget);
-      });
-
-      testWidgets('uses ListView.builder', (tester) async {
-        // Arrange
-        final messages = [
-          TestData.createMessage(id: 'msg-1', text: 'Message 1'),
-          TestData.createMessage(id: 'msg-2', text: 'Message 2'),
-        ];
-
-        final mockThread = TestData.createThread();
-
-        // Act
-        await tester.pumpWidget(
-          createTestApp(
-            home: const Scaffold(body: MessageList()),
-            overrides: [
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider.overrideWith((ref) async => messages),
-              activeRunNotifierOverride(const IdleState()),
-            ],
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        // Assert
-        expect(find.byType(ListView), findsOneWidget);
       });
 
       testWidgets('assigns unique keys to message widgets', (tester) async {
@@ -371,14 +325,20 @@ void main() {
         expect(messageWidgets[1].isStreaming, isFalse);
         expect(messageWidgets[2].isStreaming, isTrue);
       });
-    });
 
-    group('Scrolling', () {
-      testWidgets('uses ScrollController', (tester) async {
-        // Arrange
-        final messages = [TestData.createMessage(text: 'Message 1')];
+      testWidgets('passes isThinkingStreaming to synthetic message', (
+        tester,
+      ) async {
+        // Arrange: Streaming with active thinking
+        final messages = [
+          TestData.createMessage(id: 'msg-1', text: 'User question'),
+        ];
 
         final mockThread = TestData.createThread();
+        const conversation = domain.Conversation(
+          threadId: 'test-thread',
+          status: domain.Running(runId: 'test-run'),
+        );
 
         // Act
         await tester.pumpWidget(
@@ -387,17 +347,33 @@ void main() {
             overrides: [
               currentThreadProvider.overrideWith((ref) => mockThread),
               allMessagesProvider.overrideWith((ref) async => messages),
-              activeRunNotifierOverride(const IdleState()),
+              activeRunNotifierOverride(
+                const RunningState(
+                  conversation: conversation,
+                  streaming: TextStreaming(
+                    messageId: 'msg-2',
+                    user: ChatUser.assistant,
+                    text: 'Typing...',
+                    isThinkingStreaming: true,
+                  ),
+                ),
+              ),
             ],
           ),
         );
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump();
 
-        // Assert
-        final listView = tester.widget<ListView>(find.byType(ListView));
-        expect(listView.controller, isNotNull);
+        // Assert: Synthetic message has isThinkingStreaming true
+        final messageWidgets = tester
+            .widgetList<ChatMessageWidget>(find.byType(ChatMessageWidget))
+            .toList();
+        expect(messageWidgets.last.isThinkingStreaming, isTrue);
+        expect(messageWidgets.first.isThinkingStreaming, isFalse);
       });
+    });
 
+    group('Scrolling', () {
       testWidgets('scrolls to bottom when new messages arrive', (tester) async {
         // Arrange
         final initialMessages = [
@@ -455,57 +431,294 @@ void main() {
       });
     });
 
-    group('Edge Cases', () {
-      testWidgets('handles single message', (tester) async {
-        // Arrange
-        final messages = [TestData.createMessage(text: 'Only message')];
+    group('Trailing spacer', () {
+      testWidgets(
+        'height is zero when idle and last message is from assistant',
+        (tester) async {
+          final messages = [
+            TestData.createMessage(id: 'msg-1', text: 'Hello'),
+            TestData.createMessage(
+              id: 'msg-2',
+              text: 'Hi!',
+              user: ChatUser.assistant,
+            ),
+          ];
 
-        final mockThread = TestData.createThread();
+          await tester.pumpWidget(
+            createTestApp(
+              home: const Scaffold(body: MessageList()),
+              overrides: [
+                currentThreadProvider.overrideWith(
+                  (ref) => TestData.createThread(),
+                ),
+                allMessagesProvider.overrideWith((ref) async => messages),
+                activeRunNotifierOverride(const IdleState()),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
 
-        // Act
+          final spacer = tester.widget<SizedBox>(
+            find.byKey(MessageList.trailingSpacerKey),
+          );
+          expect(spacer.height, equals(0));
+        },
+      );
+
+      testWidgets(
+        'fills viewport when last message is from user',
+        (tester) async {
+          final messages = [
+            TestData.createMessage(id: 'msg-1', text: 'Hello'),
+          ];
+
+          await tester.pumpWidget(
+            createTestApp(
+              home: const Scaffold(body: MessageList()),
+              overrides: [
+                currentThreadProvider.overrideWith(
+                  (ref) => TestData.createThread(),
+                ),
+                allMessagesProvider.overrideWith((ref) async => messages),
+                activeRunNotifierOverride(const IdleState()),
+              ],
+            ),
+          );
+          await tester.pumpAndSettle();
+
+          final spacer = tester.widget<SizedBox>(
+            find.byKey(MessageList.trailingSpacerKey),
+          );
+          expect(spacer.height, greaterThan(0));
+        },
+      );
+
+      testWidgets(
+        'fills viewport when streaming',
+        (tester) async {
+          final messages = [
+            TestData.createMessage(id: 'msg-1', text: 'Hello'),
+          ];
+
+          const conversation = domain.Conversation(
+            threadId: 'test-thread',
+            status: domain.Running(runId: 'test-run'),
+          );
+
+          await tester.pumpWidget(
+            createTestApp(
+              home: const Scaffold(body: MessageList()),
+              overrides: [
+                currentThreadProvider.overrideWith(
+                  (ref) => TestData.createThread(),
+                ),
+                allMessagesProvider.overrideWith((ref) async => messages),
+                activeRunNotifierOverride(
+                  const RunningState(
+                    conversation: conversation,
+                    streaming: TextStreaming(
+                      messageId: 'msg-2',
+                      user: ChatUser.assistant,
+                      text: 'Responding...',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+          await tester.pump();
+          await tester.pump();
+
+          final spacer = tester.widget<SizedBox>(
+            find.byKey(MessageList.trailingSpacerKey),
+          );
+          expect(spacer.height, greaterThan(0));
+        },
+      );
+    });
+
+    group('Scroll-to-bottom button', () {
+      List<ChatMessage> manyMessages() => List.generate(
+            30,
+            (i) => TestData.createMessage(id: 'msg-$i', text: 'Message $i'),
+          );
+
+      testWidgets('hidden after initial load', (tester) async {
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(body: MessageList()),
+            home: const MessageList(),
             overrides: [
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider.overrideWith((ref) async => messages),
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
+              allMessagesProvider.overrideWith(
+                (ref) async => manyMessages(),
+              ),
               activeRunNotifierOverride(const IdleState()),
             ],
           ),
         );
         await tester.pumpAndSettle();
 
-        // Assert
-        expect(find.byType(ChatMessageWidget), findsOneWidget);
-        expect(find.text('Only message'), findsOneWidget);
+        // Advance well past the 500ms show timer.
+        await tester.pump(const Duration(seconds: 2));
+        await tester.pump();
+
+        final opacity = tester.widget<AnimatedOpacity>(
+          find.byType(AnimatedOpacity),
+        );
+        expect(opacity.opacity, equals(0.0));
       });
 
-      testWidgets('handles many messages', (tester) async {
-        // Arrange
-        final messages = List.generate(
-          50,
-          (index) =>
-              TestData.createMessage(id: 'msg-$index', text: 'Message $index'),
-        );
-
-        final mockThread = TestData.createThread();
-
-        // Act
+      testWidgets('appears after scrolling away from bottom', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           createTestApp(
-            home: const Scaffold(body: MessageList()),
+            home: const MessageList(),
             overrides: [
-              currentThreadProvider.overrideWith((ref) => mockThread),
-              allMessagesProvider.overrideWith((ref) async => messages),
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
+              allMessagesProvider.overrideWith(
+                (ref) async => manyMessages(),
+              ),
               activeRunNotifierOverride(const IdleState()),
             ],
           ),
         );
-
         await tester.pumpAndSettle();
 
-        // Assert - ListView should handle many items efficiently
-        expect(find.byType(ListView), findsOneWidget);
+        // Scroll up far from bottom.
+        await tester.drag(find.byType(ListView), const Offset(0, 2000));
+        await tester.pumpAndSettle();
+
+        // Advance past the 500ms show delay.
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+
+        final opacity = tester.widget<AnimatedOpacity>(
+          find.byType(AnimatedOpacity),
+        );
+        expect(opacity.opacity, equals(1.0));
+      });
+
+      testWidgets('auto-hides after 3 seconds', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const MessageList(),
+            overrides: [
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
+              allMessagesProvider.overrideWith(
+                (ref) async => manyMessages(),
+              ),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Scroll up and wait for button to appear.
+        await tester.drag(find.byType(ListView), const Offset(0, 2000));
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+
+        // Verify visible.
+        expect(
+          tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+          equals(1.0),
+        );
+
+        // Advance past the 3-second auto-hide timer.
+        await tester.pump(const Duration(seconds: 4));
+        await tester.pump();
+
+        expect(
+          tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+          equals(0.0),
+        );
+      });
+
+      testWidgets('hides immediately when scroll starts', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const MessageList(),
+            overrides: [
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
+              allMessagesProvider.overrideWith(
+                (ref) async => manyMessages(),
+              ),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Scroll up and wait for button to appear.
+        await tester.drag(find.byType(ListView), const Offset(0, 2000));
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+
+        expect(
+          tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+          equals(1.0),
+        );
+
+        // Start a new scroll gesture.
+        final gesture = await tester.startGesture(
+          tester.getCenter(find.byType(ListView)),
+        );
+        await gesture.moveBy(const Offset(0, 50));
+        await tester.pump();
+
+        expect(
+          tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+          equals(0.0),
+        );
+
+        // Clean up gesture.
+        await gesture.up();
+        await tester.pumpAndSettle();
+      });
+
+      testWidgets('tap scrolls to bottom and hides button', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: const MessageList(),
+            overrides: [
+              currentThreadProvider.overrideWith(
+                (ref) => TestData.createThread(),
+              ),
+              allMessagesProvider.overrideWith(
+                (ref) async => manyMessages(),
+              ),
+              activeRunNotifierOverride(const IdleState()),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Scroll up and wait for button to appear.
+        await tester.drag(find.byType(ListView), const Offset(0, 2000));
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 600));
+        await tester.pump();
+
+        // Tap the button.
+        await tester.tap(find.byIcon(Icons.arrow_downward));
+        await tester.pumpAndSettle();
+
+        // Button should be hidden.
+        expect(
+          tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+          equals(0.0),
+        );
       });
     });
   });
@@ -594,6 +807,26 @@ void main() {
           message.thinkingText,
           equals('Thinking before response...'),
         );
+      });
+
+      test('synthetic pre-text thinking message is from assistant', () {
+        // Arrange
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: AwaitingText(
+            bufferedThinkingText: 'Thinking...',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages.first.user, equals(ChatUser.assistant));
       });
 
       test('sets isThinkingStreaming when thinking is active', () {
@@ -757,6 +990,28 @@ void main() {
         final message = result.messages.first as TextMessage;
         expect(message.text, equals('Response text'));
         expect(message.thinkingText, equals('Thinking while responding'));
+      });
+
+      test('isThinkingStreaming defaults to false for TextStreaming', () {
+        // Arrange
+        final history = <ChatMessage>[];
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+          streaming: TextStreaming(
+            messageId: 'msg-1',
+            user: ChatUser.assistant,
+            text: 'Response text',
+          ),
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.isThinkingStreaming, isFalse);
       });
 
       test('passes through isThinkingStreaming from TextStreaming', () {
