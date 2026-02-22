@@ -5,16 +5,18 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-// Import implementation directly since package uses conditional exports
+// Import implementations directly since package uses conditional exports
+import 'package:soliplex_client_native/src/clients/cronet_http_client.dart';
 import 'package:soliplex_client_native/src/clients/cupertino_http_client.dart';
 import 'package:soliplex_client_native/src/platform/platform.dart';
 
 /// Tests for platform detection.
 ///
-/// Note: Tests that instantiate CupertinoHttpClient directly require native
-/// libraries and can only run in a real Flutter app environment (macOS/iOS).
+/// Note: Tests that instantiate CupertinoHttpClient or CronetHttpClient
+/// directly require native libraries and can only run in a real Flutter app
+/// environment (macOS/iOS for Cupertino, Android for Cronet).
 /// In the standard `flutter test` environment, these tests are skipped because
-/// the cupertino_http FFI bindings aren't available.
+/// the native FFI bindings aren't available.
 void main() {
   group('createPlatformClient', () {
     // Check if we can load native libraries (only possible in macOS/iOS app)
@@ -74,9 +76,35 @@ void main() {
     );
 
     test(
-      'returns DartHttpClient on non-Apple platforms',
-      skip: Platform.isMacOS || Platform.isIOS
-          ? 'Running on Apple platform'
+      'returns CronetHttpClient on Android',
+      skip: !Platform.isAndroid ? 'Not running on Android' : null,
+      () {
+        final client = createPlatformClient();
+        expect(client, isA<CronetHttpClient>());
+        client.close();
+      },
+    );
+
+    test(
+      'CronetHttpClient respects custom timeout',
+      skip: !Platform.isAndroid ? 'Not running on Android' : null,
+      () {
+        final client = createPlatformClient(
+          defaultTimeout: const Duration(seconds: 45),
+        );
+        expect(client, isA<CronetHttpClient>());
+        expect(
+          (client as CronetHttpClient).defaultTimeout,
+          equals(const Duration(seconds: 45)),
+        );
+        client.close();
+      },
+    );
+
+    test(
+      'returns DartHttpClient on non-Apple non-Android platforms',
+      skip: Platform.isMacOS || Platform.isIOS || Platform.isAndroid
+          ? 'Running on Apple or Android platform'
           : null,
       () {
         final client = createPlatformClient();
