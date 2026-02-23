@@ -1086,9 +1086,10 @@ void main() {
     });
 
     test('shrinks as content grows below the target offset', () {
-      // Target at offset 100, viewport 600, content has grown to 500.
-      // realContent = 800 + 600 - 200 = 1200
-      // spacer = (100 + 600 - 500) = 200
+      // realContent = maxScrollExtent + viewportDimension - currentSpacer
+      //             = 800 + 600 - 200 = 1200
+      // spacer = targetOffset + viewportDimension - realContent
+      //        = 100 + 600 - 1200 = -500 → clamped to 0
       final result = sut.computeSpacerHeight(
         isStreaming: true,
         lastMessageUser: ChatUser.user,
@@ -1098,9 +1099,39 @@ void main() {
         viewportDimension: 600,
         currentSpacerHeight: 200,
       );
-      // realContent = 800 + 600 - 200 = 1200
-      // spacer = 100 + 600 - 1200 = -500 → clamped to 0
       expect(result, equals(0));
+    });
+
+    test('returns 0 when lastMessageUser is null and not streaming', () {
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: false,
+          lastMessageUser: null,
+          viewportHeight: 600,
+          targetScrollOffset: null,
+          maxScrollExtent: null,
+          viewportDimension: null,
+          currentSpacerHeight: 0,
+        ),
+        equals(0),
+      );
+    });
+
+    test(
+        'returns viewportHeight when targetScrollOffset set but no scroll '
+        'metrics', () {
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: true,
+          lastMessageUser: ChatUser.user,
+          viewportHeight: 600,
+          targetScrollOffset: 100,
+          maxScrollExtent: null,
+          viewportDimension: null,
+          currentSpacerHeight: 0,
+        ),
+        equals(600),
+      );
     });
 
     test('clamps to 0 when content fills the viewport', () {
