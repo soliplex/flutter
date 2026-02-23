@@ -5,40 +5,38 @@ import 'package:soliplex_client/soliplex_client.dart';
 /// Coordinates scrolling to a target message after the user sends.
 ///
 /// Tracks which message to scroll to, whether a scroll sequence is in-flight,
-/// and the computed scroll offset for dynamic spacer sizing.
+/// and the computed scroll offset that anchors the target position.
 class ScrollToMessageSession {
-  /// Prevents re-triggering scroll for the same message across rebuilds.
-  String? lastScrolledId;
+  String? _lastScrolledId;
+  String? _targetMessageId;
+  bool _isScheduled = false;
 
   /// Message currently being scrolled to; controls GlobalKey assignment.
-  String? targetMessageId;
-
-  /// Guards against scheduling multiple scroll-to-target callbacks.
-  bool isScheduled = false;
+  String? get targetMessageId => _targetMessageId;
 
   /// Scroll offset that places the user message at the viewport top.
-  /// Set by jumpToReveal; used to compute a dynamic spacer that
-  /// prevents scrolling past this position.
+  /// Set after positioning completes; used to compute a dynamic spacer
+  /// that prevents scrolling past this position.
   double? targetScrollOffset;
 
   /// Whether [id] should trigger a new scroll sequence.
   bool shouldScrollTo(String id, List<ChatMessage> messages) =>
-      id != lastScrolledId && !isScheduled && messages.any((m) => m.id == id);
+      id != _lastScrolledId && !_isScheduled && messages.any((m) => m.id == id);
 
   /// Starts a scroll sequence for [id].
   void scheduleFor(String id) {
-    lastScrolledId = id;
-    targetMessageId = id;
-    isScheduled = true;
+    _lastScrolledId = id;
+    _targetMessageId = id;
+    _isScheduled = true;
   }
 
   /// Ends the current scroll sequence.
   void finish() {
-    isScheduled = false;
-    targetMessageId = null;
+    _isScheduled = false;
+    _targetMessageId = null;
   }
 
   /// Returns the appropriate key for a message in itemBuilder.
   Key keyFor(String messageId, GlobalKey scrollKey) =>
-      messageId == targetMessageId ? scrollKey : ValueKey(messageId);
+      messageId == _targetMessageId ? scrollKey : ValueKey(messageId);
 }

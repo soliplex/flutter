@@ -17,8 +17,7 @@ Normal scrolling resumes once the response fills the viewport.
 
 ### Scroll-to-bottom button
 
-When the user scrolls away from the latest content during a streaming
-response, a floating button appears to let them jump back to the bottom.
-The button uses timer-based visibility: brief delay before appearing,
-auto-hides after a few seconds of inactivity, and hides immediately
-when the user starts scrolling.
+When the user scrolls away from the latest content, a floating button
+appears to let them jump back to the bottom. The button uses timer-based
+visibility: brief delay before appearing, auto-hides after a few seconds
+of inactivity, and hides immediately when the user starts scrolling.

@@ -113,7 +113,7 @@ DisplayMessagesResult computeDisplayMessages(
 
 /// Computes trailing spacer height for the message list.
 ///
-/// - When idle with last message from assistant: 0 (no scrolling past).
+/// - When not streaming and last message is not from user: 0.
 /// - Before positioning: full [viewportHeight] (allows scroll-to-target).
 /// - After positioning ([targetScrollOffset] set): dynamically shrinks
 ///   as content grows below the user message. Formula:
@@ -148,15 +148,11 @@ double computeSpacerHeight({
 /// Features:
 /// - Scrollable list of messages using ListView.builder
 /// - On send, scrolls the user's message to the top of the viewport
+/// - Scroll-to-bottom floating button when scrolled away from latest content
 /// - Empty state when no messages exist
 ///
 /// The list uses [allMessagesProvider] which merges historical messages
 /// (from API) with active run messages (streaming).
-///
-/// Example:
-/// ```dart
-/// MessageList()
-/// ```
 class MessageList extends ConsumerStatefulWidget {
   /// Creates a message list widget.
   const MessageList({super.key});
@@ -213,8 +209,6 @@ class _MessageListState extends ConsumerState<MessageList> {
     super.dispose();
   }
 
-  /// Tracks whether the user is at the bottom of the list.
-  ///
   /// The trailing spacer may add extra scroll extent, so the "content bottom"
   /// (last real message at the viewport bottom) is at
   /// maxScrollExtent - _spacerHeight.
@@ -224,23 +218,20 @@ class _MessageListState extends ConsumerState<MessageList> {
     final pos = _scrollController.position;
     const threshold = 50.0;
     final contentBottom = pos.maxScrollExtent - _spacerHeight;
-    _scrollButton.isAtBottom = pos.pixels >= (contentBottom - threshold);
+    _scrollButton.updateScrollPosition(
+      isAtBottom: pos.pixels >= (contentBottom - threshold),
+    );
   }
 
   /// Scrolls the target message to the top of the viewport.
   ///
   /// Computes the exact scroll offset from the target's RenderObject
-  /// position. Falls back to a two-step jump when the widget is off-screen:
-  /// first jumps to content bottom (forcing ListView to build the target),
+  /// position. Falls back to a retry loop when the widget is off-screen:
+  /// jumps to content bottom (forcing ListView to build the target),
   /// then positions precisely on the next frame.
   void _scrollToTarget() {
-    if (!mounted || !_scrollController.hasClients) return;
-
-    final ctx = _scrollTargetKey.currentContext;
-    if (ctx != null) {
-      _jumpToReveal(ctx);
-      _finishScrollToTarget();
-      return;
+    if (_jumpToReveal()) {
+      return _finishScrollToTarget();
     }
 
     // Target not yet built — jump to content bottom so ListView builds it.
@@ -253,6 +244,7 @@ class _MessageListState extends ConsumerState<MessageList> {
   }
 
   void _jumpToContentBottom() {
+    if (!mounted || !_scrollController.hasClients) return;
     final pos = _scrollController.position;
     final target =
         (pos.maxScrollExtent - _spacerHeight).clamp(0.0, pos.maxScrollExtent);
@@ -261,10 +253,7 @@ class _MessageListState extends ConsumerState<MessageList> {
 
   void _retryScrollToTarget({required int retriesLeft}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_scrollController.hasClients) return;
-      final ctx = _scrollTargetKey.currentContext;
-      if (ctx != null) {
-        _jumpToReveal(ctx);
+      if (_jumpToReveal()) {
         _finishScrollToTarget();
       } else if (retriesLeft > 0) {
         // Re-jump to current content bottom — maxScrollExtent may have
@@ -272,6 +261,10 @@ class _MessageListState extends ConsumerState<MessageList> {
         _jumpToContentBottom();
         _retryScrollToTarget(retriesLeft: retriesLeft - 1);
       } else {
+        Loggers.chat.warning(
+          'Scroll-to-target retries exhausted '
+          'target=${_scrollSession.targetMessageId}',
+        );
         _finishScrollToTarget();
       }
     });
@@ -282,17 +275,42 @@ class _MessageListState extends ConsumerState<MessageList> {
     if (mounted) setState(() {});
   }
 
-  /// Jumps to the scroll offset that places [ctx]'s widget at the viewport
+  /// Jumps to the scroll offset that places ctx's widget at the viewport
   /// top (alignment 0.0) and records the offset for dynamic spacer sizing.
-  void _jumpToReveal(BuildContext ctx) {
+  ///
+  /// Returns true if positioning succeeded, false otherwise.
+  bool _jumpToReveal() {
+    if (!mounted || !_scrollController.hasClients) return false;
+
+    final ctx = _scrollTargetKey.currentContext;
+    if (ctx == null) return false;
+
     final renderObject = ctx.findRenderObject();
-    if (renderObject == null) return;
-    final viewport = RenderAbstractViewport.of(renderObject);
+    if (renderObject == null) {
+      Loggers.chat.warning(
+        'Scroll target has no render object '
+        'target=${_scrollSession.targetMessageId}',
+      );
+      return false;
+    }
+
+    final viewport = RenderAbstractViewport.maybeOf(renderObject);
+    if (viewport == null) {
+      Loggers.chat.warning(
+        'Scroll target is not inside a viewport '
+        'target=${_scrollSession.targetMessageId}',
+      );
+      return false;
+    }
+
     final offset = viewport.getOffsetToReveal(renderObject, 0).offset;
     final pos = _scrollController.position;
     final clamped = offset.clamp(0.0, pos.maxScrollExtent);
+
     _scrollController.jumpTo(clamped);
     _scrollSession.targetScrollOffset = clamped;
+
+    return true;
   }
 
   @override
@@ -384,9 +402,7 @@ class _MessageListState extends ConsumerState<MessageList> {
         NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             if (notification is ScrollStartNotification) {
-              _scrollButton
-                ..cancel()
-                ..hide();
+              _scrollButton.hide();
             } else if (notification is ScrollEndNotification) {
               _scrollButton.scheduleAppearance();
             }
@@ -496,9 +512,8 @@ class _MessageListState extends ConsumerState<MessageList> {
                 child: InkWell(
                   customBorder: const CircleBorder(),
                   onTap: () {
-                    _scrollButton
-                      ..hide()
-                      ..cancel();
+                    _scrollButton.hide();
+                    if (!_scrollController.hasClients) return;
                     final pos = _scrollController.position;
                     final target = (pos.maxScrollExtent - _spacerHeight)
                         .clamp(0.0, pos.maxScrollExtent);
