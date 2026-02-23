@@ -7,6 +7,22 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 
+/// Provider for the client-side [ToolRegistry].
+///
+/// Default: empty registry (no tools). White-label apps override this in
+/// [ProviderScope.overrides] to inject custom tool definitions:
+///
+/// ```dart
+/// toolRegistryProvider.overrideWithValue(
+///   const ToolRegistry()
+///       .register(myGpsTool)
+///       .register(myDbLookupTool),
+/// ),
+/// ```
+final toolRegistryProvider = Provider<ToolRegistry>((ref) {
+  return const ToolRegistry();
+});
+
 /// HTTP client wrapper that delegates all operations except close().
 ///
 /// Used to inject a shared HTTP client into consumers that call close()
