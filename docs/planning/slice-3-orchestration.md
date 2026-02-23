@@ -300,6 +300,6 @@ After implementation, before merging:
 
 1. **Codex review** -- safety invariant (every path reaches terminal state),
    concurrency correctness, `replaceRun` CAS semantics
-2. **Gemini review** (3.1 pro) -- orchestration completeness, edge cases,
+2. **Gemini review** (`gemini-3.1-pro-preview`) -- orchestration completeness, edge cases,
    test coverage vs safety table alignment
 3. Both reviews addressed before moving to Slice 4

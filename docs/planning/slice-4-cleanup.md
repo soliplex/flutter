@@ -90,5 +90,5 @@ gh api repos/{owner}/{repo}/branches/refactor/notifier-stream-setup 2>&1 | grep 
 After implementation, before merging:
 
 1. **Codex review** -- verify PR closure comments are accurate
-2. **Gemini review** (3.1 pro) -- verify no useful work is lost from closed PRs
+2. **Gemini review** (`gemini-3.1-pro-preview`) -- verify no useful work is lost from closed PRs
 3. Both reviews addressed before final merge to main

@@ -49,7 +49,7 @@ slice-1 merges to main first, then slice-2 retargets to main, etc.
 **AI review (gate -- must pass before next slice):**
 
 - [ ] **Codex review** of PR diff -- event processor state transitions correctness
-- [ ] **Gemini `read_files`** (3.1 pro) of changed files -- architecture alignment, test gaps
+- [ ] **Gemini `read_files`** (`gemini-3.1-pro-preview`) of changed files -- architecture alignment, test gaps
 - [ ] All review feedback addressed
 
 #### Autonomous test commands
@@ -92,7 +92,7 @@ flutter test
 **AI review (gate -- must pass before next slice):**
 
 - [ ] **Codex review** of PR diff -- mock fidelity vs real AG-UI protocol
-- [ ] **Gemini `read_files`** (3.1 pro) of changed files -- harness ergonomics, missing edge cases
+- [ ] **Gemini `read_files`** (`gemini-3.1-pro-preview`) of changed files -- harness ergonomics, missing edge cases
 - [ ] All review feedback addressed
 
 #### Autonomous test commands
@@ -137,7 +137,7 @@ flutter test
 **AI review (gate -- must pass before next slice):**
 
 - [ ] **Codex review** of PR diff -- safety invariant, concurrency, CAS semantics
-- [ ] **Gemini `read_files`** (3.1 pro) of changed files -- orchestration completeness, edge cases
+- [ ] **Gemini `read_files`** (`gemini-3.1-pro-preview`) of changed files -- orchestration completeness, edge cases
 - [ ] All review feedback addressed
 
 #### Autonomous test commands
@@ -175,7 +175,7 @@ flutter test
 **AI review (gate -- must pass before merge):**
 
 - [ ] **Codex review** of PR closure comments -- accuracy
-- [ ] **Gemini `read_files`** (3.1 pro) of closed PR diffs -- no useful work lost
+- [ ] **Gemini `read_files`** (`gemini-3.1-pro-preview`) of closed PR diffs -- no useful work lost
 - [ ] All review feedback addressed
 
 #### Autonomous test commands
@@ -198,7 +198,7 @@ For each slice:
   4. Run format + analyze
   5. Commit + push + create PR
   6. Codex review (critical eye on correctness)
-  7. Gemini review (3.1 pro, architecture + coverage)
+  7. Gemini review (`gemini-3.1-pro-preview`, architecture + coverage)
   8. Address feedback, re-run tests
   9. ✅ Merge only after both reviews pass
   10. Next slice branches from merged result

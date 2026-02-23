@@ -170,5 +170,5 @@ group('toolRegistryProvider', () {
 After implementation, before merging:
 
 1. **Codex review** -- correctness of event processor state transitions
-2. **Gemini review** (3.1 pro) -- architecture alignment, test coverage gaps
+2. **Gemini review** (`gemini-3.1-pro-preview`) -- architecture alignment, test coverage gaps
 3. Both reviews addressed before moving to Slice 2

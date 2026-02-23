@@ -217,5 +217,5 @@ final run1Events = [
 After implementation, before merging:
 
 1. **Codex review** -- mock fidelity vs real AG-UI protocol, test coverage gaps
-2. **Gemini review** (3.1 pro) -- harness ergonomics, missing edge cases
+2. **Gemini review** (`gemini-3.1-pro-preview`) -- harness ergonomics, missing edge cases
 3. Both reviews addressed before moving to Slice 3
