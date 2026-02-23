@@ -314,6 +314,37 @@ void main() {
     });
   });
 
+  group('toolRegistryProvider', () {
+    test('returns empty ToolRegistry by default', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final registry = container.read(toolRegistryProvider);
+
+      expect(registry.isEmpty, isTrue);
+      expect(registry.toolDefinitions, isEmpty);
+    });
+
+    test('can be overridden with tools', () {
+      final tool = ClientTool(
+        definition: const Tool(name: 'test_tool', description: 'A test tool'),
+        executor: (_) async => 'result',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          toolRegistryProvider
+              .overrideWithValue(const ToolRegistry().register(tool)),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final registry = container.read(toolRegistryProvider);
+
+      expect(registry.toolDefinitions, hasLength(1));
+      expect(registry.toolDefinitions.first.name, equals('test_tool'));
+    });
+  });
+
   group('Resource ownership - config change does not close shared client', () {
     // Regression tests for https://github.com/soliplex/flutter/issues/27
     // When agUiClientProvider is disposed (due to config change), it must NOT

@@ -209,73 +209,370 @@ void main() {
     });
 
     group('tool call events', () {
-      test('ToolCallStartEvent adds tool call to conversation', () {
-        const event = ToolCallStartEvent(
-          toolCallId: 'tool-1',
-          toolCallName: 'search',
-        );
+      group('ToolCallStart status', () {
+        test('creates ToolCallInfo with status streaming', () {
+          const event = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
 
-        final result = processEvent(conversation, streaming, event);
+          final result = processEvent(conversation, streaming, event);
 
-        expect(result.conversation.toolCalls, hasLength(1));
-        expect(result.conversation.toolCalls.first.id, equals('tool-1'));
-        expect(result.conversation.toolCalls.first.name, equals('search'));
+          expect(result.conversation.toolCalls, hasLength(1));
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.id, equals('tc-1'));
+          expect(tc.name, equals('search'));
+          expect(tc.status, equals(ToolCallStatus.streaming));
+        });
+
+        test('accumulates tool names in activity across multiple starts', () {
+          const event1 = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          final result1 = processEvent(conversation, streaming, event1);
+
+          const event2 = ToolCallStartEvent(
+            toolCallId: 'tc-2',
+            toolCallName: 'summarize',
+          );
+          final result2 = processEvent(
+            result1.conversation,
+            result1.streaming,
+            event2,
+          );
+
+          final awaitingText = result2.streaming as app_streaming.AwaitingText;
+          final activity =
+              awaitingText.currentActivity as app_streaming.ToolCallActivity;
+          expect(activity.allToolNames, equals({'search', 'summarize'}));
+        });
       });
 
-      test('ToolCallEndEvent removes tool call from active list', () {
-        final conversationWithTool = conversation.withToolCall(
-          const ToolCallInfo(id: 'tool-1', name: 'search'),
-        );
-        const event = ToolCallEndEvent(toolCallId: 'tool-1');
+      group('ToolCallArgs accumulation', () {
+        test('single delta fills arguments', () {
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          final afterStart = processEvent(conversation, streaming, startEvent);
 
-        final result = processEvent(conversationWithTool, streaming, event);
+          const argsEvent = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: '{"q":"test"}',
+          );
+          final result = processEvent(
+            afterStart.conversation,
+            afterStart.streaming,
+            argsEvent,
+          );
 
-        expect(result.conversation.toolCalls, isEmpty);
+          expect(
+            result.conversation.toolCalls.first.arguments,
+            equals('{"q":"test"}'),
+          );
+        });
+
+        test('multiple deltas concatenate', () {
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          final afterStart = processEvent(conversation, streaming, startEvent);
+
+          const args1 = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: '{"q":',
+          );
+          final afterArgs1 = processEvent(
+            afterStart.conversation,
+            afterStart.streaming,
+            args1,
+          );
+
+          const args2 = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: ' "test"}',
+          );
+          final result = processEvent(
+            afterArgs1.conversation,
+            afterArgs1.streaming,
+            args2,
+          );
+
+          expect(
+            result.conversation.toolCalls.first.arguments,
+            equals('{"q": "test"}'),
+          );
+        });
+
+        test('zero-arg tool has empty arguments', () {
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'get_time',
+          );
+          final afterStart = processEvent(conversation, streaming, startEvent);
+
+          // No ToolCallArgsEvent — go straight to end
+          const endEvent = ToolCallEndEvent(toolCallId: 'tc-1');
+          final result = processEvent(
+            afterStart.conversation,
+            afterStart.streaming,
+            endEvent,
+          );
+
+          expect(
+            result.conversation.toolCalls.first.arguments,
+            isEmpty,
+          );
+        });
+
+        test('args for non-existent toolCallId are ignored', () {
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          final afterStart = processEvent(conversation, streaming, startEvent);
+
+          const argsEvent = ToolCallArgsEvent(
+            toolCallId: 'tc-nonexistent',
+            delta: '{"q":"test"}',
+          );
+          final result = processEvent(
+            afterStart.conversation,
+            afterStart.streaming,
+            argsEvent,
+          );
+
+          // tc-1's arguments remain empty
+          expect(
+            result.conversation.toolCalls.first.arguments,
+            isEmpty,
+          );
+        });
       });
 
-      test('multiple ToolCallStartEvents accumulate tool names in activity',
-          () {
-        const event1 = ToolCallStartEvent(
-          toolCallId: 'tc-1',
-          toolCallName: 'search',
-        );
-        final result1 = processEvent(conversation, streaming, event1);
+      group('ToolCallEnd status transition', () {
+        test('transitions from streaming to pending', () {
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          final afterStart = processEvent(conversation, streaming, startEvent);
 
-        const event2 = ToolCallStartEvent(
-          toolCallId: 'tc-2',
-          toolCallName: 'summarize',
-        );
-        final result2 = processEvent(
-          result1.conversation,
-          result1.streaming,
-          event2,
-        );
+          const argsEvent = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: '{"q":"test"}',
+          );
+          final afterArgs = processEvent(
+            afterStart.conversation,
+            afterStart.streaming,
+            argsEvent,
+          );
 
-        final awaitingText = result2.streaming as app_streaming.AwaitingText;
-        final activity =
-            awaitingText.currentActivity as app_streaming.ToolCallActivity;
-        expect(activity.allToolNames, equals({'search', 'summarize'}));
+          const endEvent = ToolCallEndEvent(toolCallId: 'tc-1');
+          final result = processEvent(
+            afterArgs.conversation,
+            afterArgs.streaming,
+            endEvent,
+          );
+
+          expect(result.conversation.toolCalls, hasLength(1));
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.pending));
+          expect(tc.arguments, equals('{"q":"test"}'));
+        });
+
+        test('keeps tool in conversation.toolCalls', () {
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+              status: ToolCallStatus.streaming,
+            ),
+          );
+          const event = ToolCallEndEvent(toolCallId: 'tc-1');
+
+          final result = processEvent(conversationWithTool, streaming, event);
+
+          expect(result.conversation.toolCalls, hasLength(1));
+          expect(result.conversation.toolCalls.first.id, equals('tc-1'));
+        });
+
+        test('does not change activity', () {
+          const awaitingWithTool = app_streaming.AwaitingText(
+            currentActivity: app_streaming.ToolCallActivity(toolName: 'search'),
+          );
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+              status: ToolCallStatus.streaming,
+            ),
+          );
+          const event = ToolCallEndEvent(toolCallId: 'tc-1');
+
+          final result = processEvent(
+            conversationWithTool,
+            awaitingWithTool,
+            event,
+          );
+
+          expect(
+            (result.streaming as app_streaming.AwaitingText).currentActivity,
+            isA<app_streaming.ToolCallActivity>(),
+          );
+        });
       });
 
-      test('ToolCallEndEvent does not change activity', () {
-        const awaitingWithTool = app_streaming.AwaitingText(
-          currentActivity: app_streaming.ToolCallActivity(toolName: 'search'),
-        );
-        final conversationWithTool = conversation.withToolCall(
-          const ToolCallInfo(id: 'tc-1', name: 'search'),
-        );
-        const event = ToolCallEndEvent(toolCallId: 'tc-1');
+      group('multiple tools accumulate independently', () {
+        test('two sequential tool calls have correct args and status', () {
+          // Start tool A
+          const startA = ToolCallStartEvent(
+            toolCallId: 'tc-a',
+            toolCallName: 'search',
+          );
+          var result = processEvent(conversation, streaming, startA);
 
-        final result = processEvent(
-          conversationWithTool,
-          awaitingWithTool,
-          event,
-        );
+          // Args for tool A
+          const argsA = ToolCallArgsEvent(
+            toolCallId: 'tc-a',
+            delta: '{"q":"alice"}',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            argsA,
+          );
 
-        expect(
-          (result.streaming as app_streaming.AwaitingText).currentActivity,
-          isA<app_streaming.ToolCallActivity>(),
-        );
+          // End tool A
+          const endA = ToolCallEndEvent(toolCallId: 'tc-a');
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            endA,
+          );
+
+          // Start tool B
+          const startB = ToolCallStartEvent(
+            toolCallId: 'tc-b',
+            toolCallName: 'summarize',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            startB,
+          );
+
+          // Args for tool B
+          const argsB = ToolCallArgsEvent(
+            toolCallId: 'tc-b',
+            delta: '{"text":"hello"}',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            argsB,
+          );
+
+          // End tool B
+          const endB = ToolCallEndEvent(toolCallId: 'tc-b');
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            endB,
+          );
+
+          // Both tools present, both pending, correct args
+          expect(result.conversation.toolCalls, hasLength(2));
+
+          final toolA =
+              result.conversation.toolCalls.firstWhere((tc) => tc.id == 'tc-a');
+          expect(toolA.status, equals(ToolCallStatus.pending));
+          expect(toolA.arguments, equals('{"q":"alice"}'));
+
+          final toolB =
+              result.conversation.toolCalls.firstWhere((tc) => tc.id == 'tc-b');
+          expect(toolB.status, equals(ToolCallStatus.pending));
+          expect(toolB.arguments, equals('{"text":"hello"}'));
+        });
+      });
+
+      group('regression — existing behavior preserved', () {
+        test('ToolCallActivity still tracks tool names', () {
+          const event = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+
+          final result = processEvent(conversation, streaming, event);
+
+          final awaitingText = result.streaming as app_streaming.AwaitingText;
+          final activity =
+              awaitingText.currentActivity as app_streaming.ToolCallActivity;
+          expect(activity.allToolNames, contains('search'));
+        });
+
+        test('text and tool calls coexist', () {
+          // Start text
+          const textStart = TextMessageStartEvent(messageId: 'msg-1');
+          var result = processEvent(conversation, streaming, textStart);
+
+          // Stream text content
+          const textContent = TextMessageContentEvent(
+            messageId: 'msg-1',
+            delta: 'Here are the results: ',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            textContent,
+          );
+
+          // End text
+          const textEnd = TextMessageEndEvent(messageId: 'msg-1');
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            textEnd,
+          );
+
+          // Then tool call
+          const toolStart = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            toolStart,
+          );
+
+          const toolArgs = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: '{"q":"test"}',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            toolArgs,
+          );
+
+          const toolEnd = ToolCallEndEvent(toolCallId: 'tc-1');
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            toolEnd,
+          );
+
+          // Both text message and tool call present
+          expect(result.conversation.messages, hasLength(1));
+          expect(result.conversation.toolCalls, hasLength(1));
+          expect(
+            result.conversation.toolCalls.first.status,
+            equals(ToolCallStatus.pending),
+          );
+        });
       });
     });
 
