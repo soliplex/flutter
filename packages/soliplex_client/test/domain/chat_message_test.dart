@@ -258,6 +258,62 @@ void main() {
       expect(str, contains('tc-msg-id'));
       expect(str, contains('2'));
     });
+
+    test('fromExecuted creates message from executed tool calls', () {
+      final message = ToolCallMessage.fromExecuted(
+        id: 'tc-exec-1',
+        toolCalls: const [
+          ToolCallInfo(
+            id: 'tc1',
+            name: 'get_secret_number',
+            arguments: '{"name":"alice"}',
+            status: ToolCallStatus.completed,
+            result: '42',
+          ),
+          ToolCallInfo(
+            id: 'tc2',
+            name: 'get_secret_number',
+            arguments: '{"name":"bob"}',
+            status: ToolCallStatus.failed,
+            result: 'Error: unknown name',
+          ),
+        ],
+      );
+
+      expect(message.user, equals(ChatUser.assistant));
+      expect(message.id, equals('tc-exec-1'));
+      expect(message.toolCalls, hasLength(2));
+      expect(message.toolCalls[0].status, equals(ToolCallStatus.completed));
+      expect(message.toolCalls[0].result, equals('42'));
+      expect(message.toolCalls[1].status, equals(ToolCallStatus.failed));
+      expect(message.toolCalls[1].result, equals('Error: unknown name'));
+      expect(message.createdAt, isNotNull);
+    });
+
+    test('fromExecuted sets auto-generated timestamp', () {
+      final before = DateTime.now();
+      final message = ToolCallMessage.fromExecuted(
+        id: 'tc-exec-2',
+        toolCalls: const [
+          ToolCallInfo(
+            id: 'tc1',
+            name: 'search',
+            status: ToolCallStatus.completed,
+            result: 'found',
+          ),
+        ],
+      );
+      final after = DateTime.now();
+
+      expect(
+        message.createdAt.isAfter(before.subtract(const Duration(seconds: 1))),
+        isTrue,
+      );
+      expect(
+        message.createdAt.isBefore(after.add(const Duration(seconds: 1))),
+        isTrue,
+      );
+    });
   });
 
   group('GenUiMessage', () {

@@ -153,6 +153,23 @@ class ToolCallMessage extends ChatMessage {
     );
   }
 
+  /// Creates a [ToolCallMessage] from a list of executed tool calls.
+  ///
+  /// Used after client-side tool execution to append results to the
+  /// conversation before starting a continuation run. The [toolCalls]
+  /// should have `status: completed` or `status: failed` with results
+  /// populated.
+  factory ToolCallMessage.fromExecuted({
+    required String id,
+    required List<ToolCallInfo> toolCalls,
+  }) {
+    return ToolCallMessage(
+      id: id,
+      toolCalls: toolCalls,
+      createdAt: DateTime.now(),
+    );
+  }
+
   /// List of tool calls in this message.
   final List<ToolCallInfo> toolCalls;
 
