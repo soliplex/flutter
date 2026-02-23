@@ -114,6 +114,36 @@ void main() {
       final tool2 = aguiMessages[2] as ToolMessage;
       expect(tool2.toolCallId, equals('tc-2'));
       expect(tool2.content, equals('7'));
+
+      // Step 7: Append ToolCallMessage, process Run 2 (text response)
+      conversation = conversation.withAppendedMessage(toolMsg);
+      conversation = conversation.copyWith(toolCalls: []);
+
+      final run2Events = [
+        const RunStartedEvent(threadId: 't1', runId: 'run-2'),
+        const TextMessageStartEvent(messageId: 'msg-2'),
+        const TextMessageContentEvent(
+          messageId: 'msg-2',
+          delta: "Alice's number is 42, Bob's is 7",
+        ),
+        const TextMessageEndEvent(messageId: 'msg-2'),
+        const RunFinishedEvent(threadId: 't1', runId: 'run-2'),
+      ];
+
+      streaming = const AwaitingText();
+      for (final event in run2Events) {
+        final result = processEvent(conversation, streaming, event);
+        conversation = result.conversation;
+        streaming = result.streaming;
+      }
+
+      // Step 8: Final conversation has ToolCallMessage + TextMessage
+      expect(conversation.messages, hasLength(2));
+      expect(conversation.messages[0], isA<ToolCallMessage>());
+      expect(conversation.messages[1], isA<TextMessage>());
+      final finalText = conversation.messages[1] as TextMessage;
+      expect(finalText.text, contains('42'));
+      expect(finalText.text, contains('7'));
     });
 
     test('tool failure isolation — one fails, other succeeds', () async {
@@ -291,16 +321,25 @@ void main() {
         expect(events1, hasLength(5));
         expect(client.runAgentCallCount, equals(1));
 
-        // Run 2
-        final events2 = await client
-            .runAgent(
-              'agentic_chat',
-              const SimpleRunAgentInput(threadId: 't1'),
-            )
-            .toList();
-        expect(events2, hasLength(5));
+        // Run 2 — process events through conversation state
+        var conversation = Conversation.empty(threadId: 't1');
+        StreamingState streaming = const AwaitingText();
+
+        final stream2 = client.runAgent(
+          'agentic_chat',
+          const SimpleRunAgentInput(threadId: 't1'),
+        );
+        await for (final event in stream2) {
+          final result = processEvent(conversation, streaming, event);
+          conversation = result.conversation;
+          streaming = result.streaming;
+        }
+
         expect(client.runAgentCallCount, equals(2));
-        expect(events2[1], isA<TextMessageStartEvent>());
+        expect(conversation.messages, hasLength(1));
+        expect(conversation.messages[0], isA<TextMessage>());
+        final textMsg = conversation.messages[0] as TextMessage;
+        expect(textMsg.text, equals("Alice's number is 42"));
       });
 
       test('default stream is empty when onRunAgent is null', () async {

@@ -163,6 +163,14 @@ class ToolCallMessage extends ChatMessage {
     required String id,
     required List<ToolCallInfo> toolCalls,
   }) {
+    assert(
+      toolCalls.every(
+        (tc) =>
+            tc.status == ToolCallStatus.completed ||
+            tc.status == ToolCallStatus.failed,
+      ),
+      'All tool calls must have terminal status (completed or failed)',
+    );
     return ToolCallMessage(
       id: id,
       toolCalls: toolCalls,
