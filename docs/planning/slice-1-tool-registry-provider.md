@@ -154,6 +154,7 @@ group('toolRegistryProvider', () {
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
+- [ ] `dart doc --dry-run` -- 0 issues
 - [ ] `dart test packages/soliplex_client/` -- all pass
 - [ ] `flutter test` -- all pass (app-level)
 - [ ] `toolRegistryProvider` exists and returns empty `ToolRegistry` by default

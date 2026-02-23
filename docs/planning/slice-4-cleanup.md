@@ -82,6 +82,7 @@ gh api repos/{owner}/{repo}/branches/refactor/notifier-stream-setup 2>&1 | grep 
 - [ ] Remote branch `refactor/notifier-stream-setup` deleted
 - [ ] Full test suite passes on the complete stacked branch
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
+- [ ] `dart doc --dry-run` -- 0 issues
 
 ---
 

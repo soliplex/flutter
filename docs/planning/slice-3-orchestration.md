@@ -276,6 +276,7 @@ These tests verify no path leaves `ExecutingToolsState` as the final state:
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
+- [ ] `dart doc --dry-run` -- 0 issues
 - [ ] `flutter test` -- all pass
 - [ ] `onDone` with pending tools triggers execution, not completion
 - [ ] Tools execute in parallel with per-tool error isolation

@@ -201,6 +201,7 @@ final run1Events = [
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
+- [ ] `dart doc --dry-run` -- 0 issues
 - [ ] `flutter test` -- all pass
 - [ ] `buildMockEventStream()` produces deterministic AG-UI event streams
 - [ ] `FakeAgUiClient.onRunAgent` supports per-call stream responses
