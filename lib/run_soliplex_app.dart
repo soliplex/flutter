@@ -34,6 +34,17 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 ///   );
 /// }
 /// ```
+///
+/// **Client-side tools:** To register tools that the LLM can invoke on the
+/// client, add a `toolRegistryProvider` override to the `ProviderScope`:
+///
+/// ```dart
+/// toolRegistryProvider.overrideWithValue(
+///   const ToolRegistry()
+///       .register(myGpsTool)
+///       .register(myDbLookupTool),
+/// ),
+/// ```
 Future<void> runSoliplexApp({
   required SoliplexConfig config,
 }) async {
