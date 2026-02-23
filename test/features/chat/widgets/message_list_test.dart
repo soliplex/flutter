@@ -12,7 +12,7 @@ import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart';
 import 'package:soliplex_frontend/features/chat/widgets/message_list.dart'
-    as sut show computeDisplayMessages;
+    as sut show computeDisplayMessages, computeSpacerHeight;
 import 'package:soliplex_frontend/shared/widgets/empty_state.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
@@ -1036,6 +1036,102 @@ void main() {
         // Assert
         expect(result.isThinkingStreaming, isTrue);
       });
+    });
+  });
+
+  group('computeSpacerHeight', () {
+    test('returns 0 when not streaming and last message is from assistant', () {
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: false,
+          lastMessageUser: ChatUser.assistant,
+          viewportHeight: 600,
+          targetScrollOffset: null,
+          maxScrollExtent: null,
+          viewportDimension: null,
+          currentSpacerHeight: 0,
+        ),
+        equals(0),
+      );
+    });
+
+    test('returns viewportHeight when last message is from user', () {
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: false,
+          lastMessageUser: ChatUser.user,
+          viewportHeight: 600,
+          targetScrollOffset: null,
+          maxScrollExtent: null,
+          viewportDimension: null,
+          currentSpacerHeight: 0,
+        ),
+        equals(600),
+      );
+    });
+
+    test('returns viewportHeight when streaming without target offset', () {
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: true,
+          lastMessageUser: ChatUser.assistant,
+          viewportHeight: 600,
+          targetScrollOffset: null,
+          maxScrollExtent: null,
+          viewportDimension: null,
+          currentSpacerHeight: 0,
+        ),
+        equals(600),
+      );
+    });
+
+    test('shrinks as content grows below the target offset', () {
+      // Target at offset 100, viewport 600, content has grown to 500.
+      // realContent = 800 + 600 - 200 = 1200
+      // spacer = (100 + 600 - 500) = 200
+      final result = sut.computeSpacerHeight(
+        isStreaming: true,
+        lastMessageUser: ChatUser.user,
+        viewportHeight: 600,
+        targetScrollOffset: 100,
+        maxScrollExtent: 800,
+        viewportDimension: 600,
+        currentSpacerHeight: 200,
+      );
+      // realContent = 800 + 600 - 200 = 1200
+      // spacer = 100 + 600 - 1200 = -500 → clamped to 0
+      expect(result, equals(0));
+    });
+
+    test('clamps to 0 when content fills the viewport', () {
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: true,
+          lastMessageUser: ChatUser.user,
+          viewportHeight: 600,
+          targetScrollOffset: 100,
+          maxScrollExtent: 1000,
+          viewportDimension: 600,
+          currentSpacerHeight: 0,
+        ),
+        equals(0),
+      );
+    });
+
+    test('clamps to viewportHeight maximum', () {
+      // When content is very small, spacer should not exceed viewportHeight.
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: true,
+          lastMessageUser: ChatUser.user,
+          viewportHeight: 600,
+          targetScrollOffset: 100,
+          maxScrollExtent: 100,
+          viewportDimension: 600,
+          currentSpacerHeight: 600,
+        ),
+        equals(600),
+      );
     });
   });
 }
