@@ -1,3 +1,24 @@
+/// Lightweight AG-UI test harness for client-side tool calling.
+///
+/// This harness is **intentionally not a full AG-UI protocol mock**. It covers
+/// only the behaviors needed for tool-call orchestration tests (Slices 2-3):
+///
+/// **What it provides:**
+/// - Deterministic event stream replay from inline event lists
+/// - Multi-run sequencing (Run 1 → tool calls → Run 2 → text response)
+/// - Call counting for verifying continuation run count
+///
+/// **What it does NOT model:**
+/// - `CancelToken` propagation or cancellation semantics
+/// - Input validation (endpoint format, message content)
+/// - SSE parsing, HTTP transport, or network errors
+/// - Retry/backoff logic
+/// - Resource cleanup beyond no-op `close()`
+///
+/// For tests that need cancellation or error injection, use `MockAgUiClient`
+/// from `test_helpers.dart` (mocktail-based) instead.
+library;
+
 import 'dart:async';
 
 import 'package:soliplex_client/soliplex_client.dart';
@@ -6,6 +27,9 @@ import 'package:soliplex_client/soliplex_client.dart';
 ///
 /// Wraps [Stream.fromIterable] with optional per-event delay for timing tests.
 /// Tests compose event lists inline — no scenario-builder classes needed.
+///
+/// Used by tool-call integration tests to simulate backend responses without
+/// network calls.
 Stream<BaseEvent> buildMockEventStream(
   List<BaseEvent> events, {
   Duration? interEventDelay,
@@ -19,10 +43,19 @@ Stream<BaseEvent> buildMockEventStream(
   });
 }
 
-/// Fake AG-UI client for deterministic testing.
+/// Fake AG-UI client for deterministic tool-call testing.
 ///
-/// Returns pre-configured event streams via [onRunAgent] callback.
-/// Tracks call count for multi-run verification.
+/// Extends [AgUiClient] with only [runAgent] and [close] overridden.
+/// All other methods (convenience endpoints, retry logic) inherit from
+/// [AgUiClient] but delegate to the overridden [runAgent].
+///
+/// **Use cases:**
+/// - Verifying multi-hop tool execution (Run 1 → tools → Run 2 → text)
+/// - Counting continuation runs via [runAgentCallCount]
+/// - Returning different event streams per call via [onRunAgent]
+///
+/// **Not suitable for:** cancellation tests, error injection, timeout
+/// simulation. Use `MockAgUiClient` (mocktail) for those scenarios.
 class FakeAgUiClient extends AgUiClient {
   /// Creates a fake client with a dummy configuration.
   FakeAgUiClient() : super(config: AgUiClientConfig(baseUrl: 'http://fake'));
