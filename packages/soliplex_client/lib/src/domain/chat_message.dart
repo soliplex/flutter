@@ -213,7 +213,10 @@ class LoadingMessage extends ChatMessage {
 
 /// Status of a tool call.
 enum ToolCallStatus {
-  /// Tool call is pending execution.
+  /// Tool call is still receiving argument chunks via ToolCallArgs deltas.
+  streaming,
+
+  /// Tool call arguments are complete, ready to execute.
   pending,
 
   /// Tool call is currently executing.

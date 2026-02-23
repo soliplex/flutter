@@ -42,62 +42,62 @@ class HaikuRagChat {
   });
 
   factory HaikuRagChat.fromJson(Map<String, dynamic> json) => HaikuRagChat(
-    citationRegistry: Map.from(
-      json["citation_registry"]!,
-    ).map((k, v) => MapEntry<String, int>(k, v)),
-    citations: json["citations"] == null
-        ? []
-        : List<Citation>.from(
-            json["citations"]!.map((x) => Citation.fromJson(x)),
-          ),
-    citationsHistory: json["citations_history"] == null
-        ? []
-        : List<List<Citation>>.from(
-            json["citations_history"]!.map(
-              (x) => List<Citation>.from(
-                x.map((y) => Citation.fromJson(y)),
+        citationRegistry: Map.from(
+          json["citation_registry"]!,
+        ).map((k, v) => MapEntry<String, int>(k, v)),
+        citations: json["citations"] == null
+            ? []
+            : List<Citation>.from(
+                json["citations"]!.map((x) => Citation.fromJson(x)),
               ),
-            ),
-          ),
-    documentFilter: json["document_filter"] == null
-        ? []
-        : List<String>.from(json["document_filter"]!.map((x) => x)),
-    initialContext: json["initial_context"],
-    qaHistory: json["qa_history"] == null
-        ? []
-        : List<QaResponse>.from(
-            json["qa_history"]!.map((x) => QaResponse.fromJson(x)),
-          ),
-    sessionContext: json["session_context"] == null
-        ? null
-        : SessionContext.fromJson(json["session_context"]),
-    sessionId: json["session_id"],
-  );
+        citationsHistory: json["citations_history"] == null
+            ? []
+            : List<List<Citation>>.from(
+                json["citations_history"]!.map(
+                  (x) => List<Citation>.from(
+                    x.map((y) => Citation.fromJson(y)),
+                  ),
+                ),
+              ),
+        documentFilter: json["document_filter"] == null
+            ? []
+            : List<String>.from(json["document_filter"]!.map((x) => x)),
+        initialContext: json["initial_context"],
+        qaHistory: json["qa_history"] == null
+            ? []
+            : List<QaResponse>.from(
+                json["qa_history"]!.map((x) => QaResponse.fromJson(x)),
+              ),
+        sessionContext: json["session_context"] == null
+            ? null
+            : SessionContext.fromJson(json["session_context"]),
+        sessionId: json["session_id"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "citation_registry": Map.from(
-      citationRegistry!,
-    ).map((k, v) => MapEntry<String, dynamic>(k, v)),
-    "citations": citations == null
-        ? []
-        : List<dynamic>.from(citations!.map((x) => x.toJson())),
-    "citations_history": citationsHistory == null
-        ? []
-        : List<dynamic>.from(
-            citationsHistory!.map(
-              (x) => List<dynamic>.from(x.map((y) => y.toJson())),
-            ),
-          ),
-    "document_filter": documentFilter == null
-        ? []
-        : List<dynamic>.from(documentFilter!.map((x) => x)),
-    "initial_context": initialContext,
-    "qa_history": qaHistory == null
-        ? []
-        : List<dynamic>.from(qaHistory!.map((x) => x.toJson())),
-    "session_context": sessionContext?.toJson(),
-    "session_id": sessionId,
-  };
+        "citation_registry": Map.from(
+          citationRegistry!,
+        ).map((k, v) => MapEntry<String, dynamic>(k, v)),
+        "citations": citations == null
+            ? []
+            : List<dynamic>.from(citations!.map((x) => x.toJson())),
+        "citations_history": citationsHistory == null
+            ? []
+            : List<dynamic>.from(
+                citationsHistory!.map(
+                  (x) => List<dynamic>.from(x.map((y) => y.toJson())),
+                ),
+              ),
+        "document_filter": documentFilter == null
+            ? []
+            : List<dynamic>.from(documentFilter!.map((x) => x)),
+        "initial_context": initialContext,
+        "qa_history": qaHistory == null
+            ? []
+            : List<dynamic>.from(qaHistory!.map((x) => x.toJson())),
+        "session_context": sessionContext?.toJson(),
+        "session_id": sessionId,
+      };
 }
 
 ///Resolved citation with full metadata for display/visual grounding.
@@ -126,34 +126,33 @@ class Citation {
   });
 
   factory Citation.fromJson(Map<String, dynamic> json) => Citation(
-    chunkId: json["chunk_id"],
-    content: json["content"],
-    documentId: json["document_id"],
-    documentTitle: json["document_title"],
-    documentUri: json["document_uri"],
-    headings: json["headings"] == null
-        ? []
-        : List<String>.from(json["headings"]!.map((x) => x)),
-    index: json["index"],
-    pageNumbers: json["page_numbers"] == null
-        ? []
-        : List<int>.from(json["page_numbers"]!.map((x) => x)),
-  );
+        chunkId: json["chunk_id"],
+        content: json["content"],
+        documentId: json["document_id"],
+        documentTitle: json["document_title"],
+        documentUri: json["document_uri"],
+        headings: json["headings"] == null
+            ? []
+            : List<String>.from(json["headings"]!.map((x) => x)),
+        index: json["index"],
+        pageNumbers: json["page_numbers"] == null
+            ? []
+            : List<int>.from(json["page_numbers"]!.map((x) => x)),
+      );
 
   Map<String, dynamic> toJson() => {
-    "chunk_id": chunkId,
-    "content": content,
-    "document_id": documentId,
-    "document_title": documentTitle,
-    "document_uri": documentUri,
-    "headings": headings == null
-        ? []
-        : List<dynamic>.from(headings!.map((x) => x)),
-    "index": index,
-    "page_numbers": pageNumbers == null
-        ? []
-        : List<dynamic>.from(pageNumbers!.map((x) => x)),
-  };
+        "chunk_id": chunkId,
+        "content": content,
+        "document_id": documentId,
+        "document_title": documentTitle,
+        "document_uri": documentUri,
+        "headings":
+            headings == null ? [] : List<dynamic>.from(headings!.map((x) => x)),
+        "index": index,
+        "page_numbers": pageNumbers == null
+            ? []
+            : List<dynamic>.from(pageNumbers!.map((x) => x)),
+      };
 }
 
 ///A Q&A pair from conversation history with citations.
@@ -173,32 +172,32 @@ class QaResponse {
   });
 
   factory QaResponse.fromJson(Map<String, dynamic> json) => QaResponse(
-    answer: json["answer"],
-    citations: json["citations"] == null
-        ? []
-        : List<Citation>.from(
-            json["citations"]!.map((x) => Citation.fromJson(x)),
-          ),
-    confidence: json["confidence"]?.toDouble(),
-    question: json["question"],
-    questionEmbedding: json["question_embedding"] == null
-        ? []
-        : List<double>.from(
-            json["question_embedding"]!.map((x) => x?.toDouble()),
-          ),
-  );
+        answer: json["answer"],
+        citations: json["citations"] == null
+            ? []
+            : List<Citation>.from(
+                json["citations"]!.map((x) => Citation.fromJson(x)),
+              ),
+        confidence: json["confidence"]?.toDouble(),
+        question: json["question"],
+        questionEmbedding: json["question_embedding"] == null
+            ? []
+            : List<double>.from(
+                json["question_embedding"]!.map((x) => x?.toDouble()),
+              ),
+      );
 
   Map<String, dynamic> toJson() => {
-    "answer": answer,
-    "citations": citations == null
-        ? []
-        : List<dynamic>.from(citations!.map((x) => x.toJson())),
-    "confidence": confidence,
-    "question": question,
-    "question_embedding": questionEmbedding == null
-        ? []
-        : List<dynamic>.from(questionEmbedding!.map((x) => x)),
-  };
+        "answer": answer,
+        "citations": citations == null
+            ? []
+            : List<dynamic>.from(citations!.map((x) => x.toJson())),
+        "confidence": confidence,
+        "question": question,
+        "question_embedding": questionEmbedding == null
+            ? []
+            : List<dynamic>.from(questionEmbedding!.map((x) => x)),
+      };
 }
 
 ///Compressed summary of conversation history for research graph.
@@ -209,14 +208,14 @@ class SessionContext {
   SessionContext({this.lastUpdated, this.summary});
 
   factory SessionContext.fromJson(Map<String, dynamic> json) => SessionContext(
-    lastUpdated: json["last_updated"] == null
-        ? null
-        : DateTime.parse(json["last_updated"]),
-    summary: json["summary"],
-  );
+        lastUpdated: json["last_updated"] == null
+            ? null
+            : DateTime.parse(json["last_updated"]),
+        summary: json["summary"],
+      );
 
   Map<String, dynamic> toJson() => {
-    "last_updated": lastUpdated?.toIso8601String(),
-    "summary": summary,
-  };
+        "last_updated": lastUpdated?.toIso8601String(),
+        "summary": summary,
+      };
 }

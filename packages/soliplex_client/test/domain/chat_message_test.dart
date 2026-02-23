@@ -541,11 +541,12 @@ void main() {
 
   group('ToolCallStatus', () {
     test('has expected values', () {
+      expect(ToolCallStatus.values, contains(ToolCallStatus.streaming));
       expect(ToolCallStatus.values, contains(ToolCallStatus.pending));
       expect(ToolCallStatus.values, contains(ToolCallStatus.executing));
       expect(ToolCallStatus.values, contains(ToolCallStatus.completed));
       expect(ToolCallStatus.values, contains(ToolCallStatus.failed));
-      expect(ToolCallStatus.values, hasLength(4));
+      expect(ToolCallStatus.values, hasLength(5));
     });
   });
 }

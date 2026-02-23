@@ -52,24 +52,34 @@ Message _convertTextMessage(TextMessage message) {
 }
 
 List<Message> _convertToolCallMessage(ToolCallMessage message) {
-  final result = <Message>[];
-
-  // Convert to AssistantMessage with toolCalls
   final toolCalls = message.toolCalls
       .map(
         (tc) => ToolCall(
           id: tc.id,
-          function: FunctionCall(name: tc.name, arguments: tc.arguments),
+          function: FunctionCall(
+            name: tc.name,
+            arguments: tc.arguments.isEmpty ? '{}' : tc.arguments,
+          ),
         ),
       )
       .toList();
 
-  result.add(AssistantMessage(id: message.id, toolCalls: toolCalls));
+  final result = <Message>[
+    AssistantMessage(id: message.id, toolCalls: toolCalls),
+  ];
 
-  // Add ToolMessage for each completed tool call
+  // Add ToolMessage for each completed or failed tool call.
+  // Failed tool calls send their error to the model so it can respond.
   for (final tc in message.toolCalls) {
-    if (tc.status == ToolCallStatus.completed) {
-      result.add(ToolMessage(toolCallId: tc.id, content: tc.result));
+    if (tc.status == ToolCallStatus.completed ||
+        tc.status == ToolCallStatus.failed) {
+      result.add(
+        ToolMessage(
+          id: 'tool_result_${tc.id}',
+          toolCallId: tc.id,
+          content: tc.result,
+        ),
+      );
     }
   }
 

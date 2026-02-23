@@ -331,6 +331,7 @@ void main() {
 
     group('ToolCallStatus enum', () {
       test('all values accessible', () {
+        expect(ToolCallStatus.streaming, isA<ToolCallStatus>());
         expect(ToolCallStatus.pending, isA<ToolCallStatus>());
         expect(ToolCallStatus.executing, isA<ToolCallStatus>());
         expect(ToolCallStatus.completed, isA<ToolCallStatus>());
