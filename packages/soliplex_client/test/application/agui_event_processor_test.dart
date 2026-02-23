@@ -350,6 +350,52 @@ void main() {
             isEmpty,
           );
         });
+
+        test('args after ToolCallEnd are ignored (status guard)', () {
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'search',
+          );
+          var result = processEvent(conversation, streaming, startEvent);
+
+          const argsEvent = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: '{"q":"test"}',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            argsEvent,
+          );
+
+          const endEvent = ToolCallEndEvent(toolCallId: 'tc-1');
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            endEvent,
+          );
+
+          // Late args after end — should be ignored
+          const lateArgs = ToolCallArgsEvent(
+            toolCallId: 'tc-1',
+            delta: ', "extra":"junk"}',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            lateArgs,
+          );
+
+          // Arguments unchanged from before end
+          expect(
+            result.conversation.toolCalls.first.arguments,
+            equals('{"q":"test"}'),
+          );
+          expect(
+            result.conversation.toolCalls.first.status,
+            equals(ToolCallStatus.pending),
+          );
+        });
       });
 
       group('ToolCallEnd status transition', () {
@@ -421,6 +467,54 @@ void main() {
           expect(
             (result.streaming as app_streaming.AwaitingText).currentActivity,
             isA<app_streaming.ToolCallActivity>(),
+          );
+        });
+
+        test('duplicate ToolCallEnd does not downgrade status', () {
+          // Tool already in pending status (simulating after first end)
+          final conversationWithPendingTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+              status: ToolCallStatus.pending,
+              arguments: '{"q":"test"}',
+            ),
+          );
+          const duplicateEnd = ToolCallEndEvent(toolCallId: 'tc-1');
+
+          final result = processEvent(
+            conversationWithPendingTool,
+            streaming,
+            duplicateEnd,
+          );
+
+          // Status should remain pending, not be re-set
+          expect(
+            result.conversation.toolCalls.first.status,
+            equals(ToolCallStatus.pending),
+          );
+        });
+
+        test('ToolCallEnd does not downgrade executing status', () {
+          final conversationWithExecutingTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+              status: ToolCallStatus.executing,
+            ),
+          );
+          const lateEnd = ToolCallEndEvent(toolCallId: 'tc-1');
+
+          final result = processEvent(
+            conversationWithExecutingTool,
+            streaming,
+            lateEnd,
+          );
+
+          // Status should remain executing
+          expect(
+            result.conversation.toolCalls.first.status,
+            equals(ToolCallStatus.executing),
           );
         });
       });
