@@ -298,8 +298,11 @@ EventProcessingResult _processToolCallArgs(
   String toolCallId,
   String delta,
 ) {
+  // Only accumulate args while the tool call is still streaming.
+  // Late deltas after ToolCallEnd are ignored to prevent mutation of
+  // finalized arguments.
   final updatedToolCalls = conversation.toolCalls.map((tc) {
-    if (tc.id == toolCallId) {
+    if (tc.id == toolCallId && tc.status == ToolCallStatus.streaming) {
       return tc.copyWith(arguments: tc.arguments + delta);
     }
     return tc;
@@ -316,11 +319,12 @@ EventProcessingResult _processToolCallEnd(
   StreamingState streaming,
   String toolCallId,
 ) {
-  // Transition matching tool call from streaming → pending.
+  // Only transition streaming → pending. Guard prevents downgrading tools
+  // that are already executing/completed/failed (e.g. duplicate ToolCallEnd).
   // Keep the tool in conversation.toolCalls (execution happens in Slice 3).
   // Activity persists until the next activity starts — don't change it here.
   final updatedToolCalls = conversation.toolCalls.map((tc) {
-    if (tc.id == toolCallId) {
+    if (tc.id == toolCallId && tc.status == ToolCallStatus.streaming) {
       return tc.copyWith(status: ToolCallStatus.pending);
     }
     return tc;
