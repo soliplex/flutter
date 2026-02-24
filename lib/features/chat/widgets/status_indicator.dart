@@ -8,41 +8,36 @@ import 'package:soliplex_client/soliplex_client.dart'
         TextStreaming,
         ThinkingActivity,
         ToolCallActivity;
+import 'package:soliplex_frontend/core/models/active_run_state.dart';
 
 /// Status indicator showing what the assistant is currently doing.
 ///
 /// Uses the current activity from streaming state which persists until the
 /// next activity starts, ensuring rapid events (like tool calls) are visible.
+/// Also shows client-side tool execution status via [ExecutingToolsState].
 class StatusIndicator extends StatelessWidget {
   /// Creates a status indicator.
   const StatusIndicator({
-    required this.streaming,
+    required this.runState,
     super.key,
   });
 
-  /// The streaming state containing current activity.
-  final StreamingState streaming;
+  /// The active run state containing current activity information.
+  final ActiveRunState runState;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    // Get current activity from streaming state
-    final activity = switch (streaming) {
-      AwaitingText(:final currentActivity) => currentActivity,
-      TextStreaming(:final currentActivity) => currentActivity,
-    };
-
-    // Map activity to status text
-    final statusText = switch (activity) {
-      ThinkingActivity() => 'Thinking',
-      ToolCallActivity() => 'Calling: ${activity.allToolNames.join(', ')}',
-      RespondingActivity() => 'Responding',
-      ProcessingActivity() => 'Processing',
+    final statusText = switch (runState) {
+      ExecutingToolsState(:final pendingTools) =>
+        'Executing: ${pendingTools.map((t) => t.name).join(', ')}',
+      _ => _streamingStatusText(runState.streaming),
     };
 
     return Semantics(
       label: statusText,
+      excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
@@ -72,5 +67,20 @@ class StatusIndicator extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Maps streaming state activity to status text.
+  static String _streamingStatusText(StreamingState streaming) {
+    final activity = switch (streaming) {
+      AwaitingText(:final currentActivity) => currentActivity,
+      TextStreaming(:final currentActivity) => currentActivity,
+    };
+
+    return switch (activity) {
+      ThinkingActivity() => 'Thinking',
+      ToolCallActivity() => 'Calling: ${activity.allToolNames.join(', ')}',
+      RespondingActivity() => 'Responding',
+      ProcessingActivity() => 'Processing',
+    };
   }
 }

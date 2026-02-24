@@ -109,9 +109,8 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                     },
                   ),
 
-                  // Status indicator (above input, shown only when streaming)
-                  if (isStreaming)
-                    StatusIndicator(streaming: runState.streaming),
+                  // Status indicator (above input, shown when running)
+                  if (isStreaming) StatusIndicator(runState: runState),
 
                   // Input
                   ChatInput(
