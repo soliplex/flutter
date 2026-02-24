@@ -11,7 +11,6 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/core/logging/device_alias.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
-import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
@@ -145,7 +144,7 @@ final backendLogSinkProvider = FutureProvider<BackendLogSink?>((ref) async {
     flushGate: () {
       try {
         final runState = ref.read(activeRunNotifierProvider);
-        return runState is! RunningState;
+        return !runState.isRunning;
       } catch (_) {
         return true;
       }

@@ -34,6 +34,7 @@ import 'package:soliplex_frontend/core/services/run_registry.dart';
 /// ```
 class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
+  late ToolRegistry _toolRegistry;
   bool _isStarting = false;
 
   /// Registry tracking active runs across rooms and threads.
@@ -54,6 +55,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   @override
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
+    _toolRegistry = ref.watch(toolRegistryProvider);
 
     // Mark thread as unread when a non-cancelled background run completes.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
@@ -121,7 +123,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     Loggers.activeRun.debug(
       'startRun called: room=$roomId, thread=$threadId',
     );
-    StreamSubscription<BaseEvent>? subscription;
     String? runId;
     RunningState? pendingState;
 
@@ -215,30 +216,12 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         cancelToken: cancelToken,
       );
 
-      // Create the handle. The subscription captures this handle via closure.
-      // Safe because events are delivered asynchronously (next microtask),
-      // and the handle is assigned synchronously after listen().
-      late final RunHandle handle;
-
-      // Process events — each run's callbacks are scoped to its own handle
-      // ignore: cancel_subscriptions - stored in RunHandle and cancelled
-      subscription = eventStream.listen(
-        (event) => _processEventForRun(handle, event),
-        onError: (Object error, StackTrace stackTrace) {
-          final effectiveStack = stackTrace.toString().isNotEmpty
-              ? stackTrace
-              : StackTrace.current;
-          _handleFailureForRun(handle, error, effectiveStack);
-        },
-        onDone: () => _handleDoneForRun(handle),
-        cancelOnError: false,
-      );
-
-      handle = RunHandle(
+      // Create the handle with subscription wired up.
+      final handle = _createHandleWithSubscription(
         key: key,
         runId: runId,
         cancelToken: cancelToken,
-        subscription: subscription,
+        eventStream: eventStream,
         userMessageId: userMessageObj.id,
         previousAguiState: cachedAguiState,
         initialState: runningState,
@@ -264,7 +247,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     } on CancellationError catch (e, st) {
       // User cancelled - clean up resources
       Loggers.activeRun.info('Run cancelled', error: e, stackTrace: st);
-      await subscription?.cancel();
       final conv = pendingState?.conversation ?? state.conversation;
       final completed = CompletedState(
         conversation: conv.withStatus(
@@ -276,13 +258,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       registry.notifyCompletion(key, completed);
       _currentHandle = null;
     } catch (e, stackTrace) {
-      // Clean up subscription on any error
       Loggers.activeRun.error(
         'Run failed with exception',
         error: e,
         stackTrace: stackTrace,
       );
-      await subscription?.cancel();
       final conv = pendingState?.conversation ?? state.conversation;
       final errorMsg = e.toString();
       final completed = CompletedState(
@@ -302,26 +282,25 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Cancels the current run.
   ///
   /// Preserves the conversation so far and marks it as cancelled.
-  /// Background runs in other threads are unaffected.
+  /// Works for both streaming ([RunningState]) and tool execution
+  /// ([ExecutingToolsState]). Background runs in other threads are unaffected.
   Future<void> cancelRun() async {
     Loggers.activeRun.debug('cancelRun called');
     final handle = _currentHandle;
     if (handle == null) return;
 
-    _currentHandle = null;
-    await handle.dispose();
-
+    // Abort synchronously before disposing to prevent race with onDone.
+    // If dispose() yields, onDone could fire and complete the run as Success
+    // before we get a chance to mark it Cancelled.
     final handleState = handle.state;
-    if (handleState is RunningState) {
-      final completed = CompletedState(
-        conversation: handleState.conversation.withStatus(
-          const domain.Cancelled(reason: 'User cancelled'),
-        ),
-        result: const CancelledResult(reason: 'Cancelled by user'),
+    if (handleState is RunningState || handleState is ExecutingToolsState) {
+      _abortToCompleted(
+        handle,
+        const CancelledResult(reason: 'Cancelled by user'),
       );
-      _registry.completeRun(handle, completed);
-      state = completed;
     }
+
+    await handle.dispose();
   }
 
   /// Resets to idle state, clearing all messages and state.
@@ -427,18 +406,289 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   }
 
   /// Handles stream completion for a specific run.
-  void _handleDoneForRun(RunHandle handle) {
+  ///
+  /// If the conversation has pending tool calls, transitions to
+  /// [ExecutingToolsState] and starts client-side tool execution.
+  /// Otherwise, completes normally.
+  void _handleDoneForRun(RunHandle handle, {int depth = 0}) {
     final handleState = handle.state;
-    if (handleState is RunningState) {
-      final completed = CompletedState(
-        conversation: handleState.conversation.withStatus(
-          const domain.Completed(),
-        ),
-        result: const Success(),
+    if (handleState is! RunningState) return;
+
+    final pendingTools = handleState.conversation.toolCalls
+        .where((tc) => tc.status == ToolCallStatus.pending)
+        .toList();
+
+    if (pendingTools.isNotEmpty) {
+      Loggers.toolExecution.debug(
+        'Stream done with ${pendingTools.length} pending tools '
+        '(depth=$depth): ${pendingTools.map((t) => t.name).join(', ')}',
       );
-      _registry.completeRun(handle, completed);
-      _syncUiState(handle, completed);
+      final executingState = ExecutingToolsState(
+        conversation: handleState.conversation,
+        pendingTools: pendingTools,
+      );
+      handle.state = executingState;
+      _syncUiState(handle, executingState);
+      _executeToolsAndContinue(handle, depth: depth);
+      return;
     }
+
+    final completed = CompletedState(
+      conversation: handleState.conversation.withStatus(
+        const domain.Completed(),
+      ),
+      result: const Success(),
+    );
+    _registry.completeRun(handle, completed);
+    _syncUiState(handle, completed);
+  }
+
+  /// Maximum number of tool-execution → continuation hops before aborting.
+  static const _maxToolDepth = 10;
+
+  /// Executes pending tools and starts a continuation run with results.
+  ///
+  /// This is the core orchestration method for client-side tool calling.
+  /// After tool execution, it creates a new backend run, streams events,
+  /// and replaces the old handle in the registry.
+  Future<void> _executeToolsAndContinue(
+    RunHandle handle, {
+    required int depth,
+  }) async {
+    // Circuit breaker: prevent infinite tool loops.
+    if (depth >= _maxToolDepth) {
+      Loggers.toolExecution.error(
+        'Tool execution depth limit reached ($depth)',
+      );
+      _abortToCompleted(
+        handle,
+        const FailedResult(
+          errorMessage: 'Tool execution depth limit exceeded',
+        ),
+      );
+      return;
+    }
+
+    try {
+      final handleState = handle.state;
+      if (handleState is! ExecutingToolsState) return;
+
+      final pendingTools = handleState.pendingTools;
+      Loggers.toolExecution.debug(
+        'Executing ${pendingTools.length} tools (depth=$depth): '
+        '${pendingTools.map((t) => t.name).join(', ')}',
+      );
+
+      // Execute all tools in parallel, catching per-tool failures.
+      final results = await Future.wait(
+        pendingTools.map((toolCall) async {
+          Loggers.toolExecution.debug(
+            'Executing tool "${toolCall.name}" (${toolCall.id})',
+          );
+          try {
+            final result = await _toolRegistry.execute(toolCall);
+            Loggers.toolExecution.debug(
+              'Tool "${toolCall.name}" completed '
+              '(${result.length} chars result)',
+            );
+            return toolCall.copyWith(
+              status: ToolCallStatus.completed,
+              result: result,
+            );
+          } catch (e, st) {
+            Loggers.toolExecution.error(
+              'Tool "${toolCall.name}" failed',
+              error: e,
+              stackTrace: st,
+            );
+            return toolCall.copyWith(
+              status: ToolCallStatus.failed,
+              result: e.toString(),
+            );
+          }
+        }),
+      );
+
+      // Safety checks: bail if state changed during async execution.
+      if (handle.cancelToken.isCancelled) {
+        Loggers.toolExecution.debug(
+          'Cancelled during tool execution, aborting continuation',
+        );
+        return;
+      }
+      if (_registry.getHandle(handle.key) != handle) {
+        Loggers.toolExecution.debug(
+          'Handle replaced during tool execution, aborting continuation',
+        );
+        return;
+      }
+
+      final completedCount =
+          results.where((r) => r.status == ToolCallStatus.completed).length;
+      final failedCount =
+          results.where((r) => r.status == ToolCallStatus.failed).length;
+      Loggers.toolExecution.debug(
+        'All tools finished: $completedCount completed, $failedCount failed',
+      );
+
+      // Build ToolCallMessage with executed results.
+      final toolCallMessage = ToolCallMessage.fromExecuted(
+        id: 'tc_${DateTime.now().millisecondsSinceEpoch}',
+        toolCalls: results,
+      );
+
+      // Update conversation: append tool call message, clear pending tools.
+      final conversation = handleState.conversation
+          .withAppendedMessage(toolCallMessage)
+          .copyWith(toolCalls: const []);
+
+      // Create a new backend run for the continuation.
+      Loggers.toolExecution.debug('Creating continuation run (depth=$depth)');
+      final api = ref.read(apiProvider);
+      final runInfo = await api.createRun(
+        handle.key.roomId,
+        handle.key.threadId,
+      );
+
+      // Post-API safety checks.
+      if (handle.cancelToken.isCancelled) return;
+      if (_registry.getHandle(handle.key) != handle) return;
+
+      // Build AG-UI messages for the continuation run.
+      final aguiMessages = convertToAgui(conversation.messages);
+
+      final continuationConversation = conversation.withStatus(
+        domain.Running(runId: runInfo.id),
+      );
+
+      final endpoint =
+          'rooms/${handle.key.roomId}/agui/${handle.key.threadId}/${runInfo.id}';
+
+      final input = SimpleRunAgentInput(
+        threadId: handle.key.threadId,
+        runId: runInfo.id,
+        messages: aguiMessages,
+        state: conversation.aguiState,
+      );
+
+      // Start streaming the continuation.
+      final cancelToken = CancelToken();
+      final eventStream = _agUiClient.runAgent(
+        endpoint,
+        input,
+        cancelToken: cancelToken,
+      );
+
+      final runningState = RunningState(conversation: continuationConversation);
+
+      final newHandle = _createHandleWithSubscription(
+        key: handle.key,
+        runId: runInfo.id,
+        cancelToken: cancelToken,
+        eventStream: eventStream,
+        userMessageId: handle.userMessageId,
+        previousAguiState: handle.previousAguiState,
+        initialState: runningState,
+        depth: depth + 1,
+      );
+
+      Loggers.toolExecution.debug(
+        'Continuation run ${runInfo.id} streaming started',
+      );
+
+      // Atomically swap the old handle for the new one.
+      final swapped = await _registry.replaceRun(handle, newHandle);
+      if (!swapped) {
+        Loggers.toolExecution.debug(
+          'replaceRun returned false — handle was replaced externally',
+        );
+        await newHandle.dispose();
+        return;
+      }
+
+      // Update _currentHandle only if it still points to the old handle.
+      if (identical(_currentHandle, handle)) {
+        _currentHandle = newHandle;
+        state = runningState;
+      }
+
+      Loggers.toolExecution.debug(
+        'Continuation run ${runInfo.id} handoff complete (depth=$depth)',
+      );
+    } catch (e, st) {
+      Loggers.toolExecution.error(
+        'Tool execution loop failed',
+        error: e,
+        stackTrace: st,
+      );
+      _abortToCompleted(
+        handle,
+        FailedResult(errorMessage: e.toString(), stackTrace: st),
+      );
+    }
+  }
+
+  /// Aborts a run to completed state, clearing pending tool calls.
+  ///
+  /// Used when tool execution encounters an unrecoverable error or when
+  /// the circuit breaker triggers.
+  void _abortToCompleted(RunHandle handle, CompletionResult result) {
+    final handleState = handle.state;
+    final conversation = switch (handleState) {
+      RunningState(:final conversation) => conversation,
+      ExecutingToolsState(:final conversation) => conversation,
+      _ => handle.state.conversation,
+    };
+
+    final domainStatus = switch (result) {
+      FailedResult(:final errorMessage) => domain.Failed(error: errorMessage),
+      CancelledResult(:final reason) => domain.Cancelled(reason: reason),
+      Success() => const domain.Completed(),
+    };
+
+    final completed = CompletedState(
+      conversation:
+          conversation.copyWith(toolCalls: const []).withStatus(domainStatus),
+      result: result,
+    );
+    _registry.completeRun(handle, completed);
+    _syncUiState(handle, completed);
+  }
+
+  /// Creates a [RunHandle] for a continuation run and wires up streaming.
+  ///
+  /// Bundles the late-final handle pattern with subscription setup. The
+  /// subscription is stored inside the returned handle (not leaked).
+  RunHandle _createHandleWithSubscription({
+    required ThreadKey key,
+    required String runId,
+    required CancelToken cancelToken,
+    required Stream<BaseEvent> eventStream,
+    required String userMessageId,
+    required Map<String, dynamic> previousAguiState,
+    required RunningState initialState,
+    int depth = 0,
+  }) {
+    late final RunHandle handle;
+    return handle = RunHandle(
+      key: key,
+      runId: runId,
+      cancelToken: cancelToken,
+      subscription: eventStream.listen(
+        (event) => _processEventForRun(handle, event),
+        onError: (Object error, StackTrace stackTrace) {
+          final effectiveStack = stackTrace.toString().isNotEmpty
+              ? stackTrace
+              : StackTrace.current;
+          _handleFailureForRun(handle, error, effectiveStack);
+        },
+        onDone: () => _handleDoneForRun(handle, depth: depth),
+        cancelOnError: false,
+      ),
+      userMessageId: userMessageId,
+      previousAguiState: previousAguiState,
+      initialState: initialState,
+    );
   }
 
   /// Syncs the notifier's exposed state if this handle is the one the UI
@@ -496,11 +746,28 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     final conversation = _correlateMessagesForRun(handle, result);
 
     final newState = switch (conversation.status) {
-      domain.Completed() => CompletedState(
-          conversation: conversation,
-          streaming: result.streaming,
-          result: const Success(),
-        ),
+      domain.Completed() => () {
+          // If tools are pending, keep as RunningState so _handleDoneForRun
+          // can detect them and start client-side tool execution.
+          final hasPendingTools = conversation.toolCalls
+              .any((tc) => tc.status == ToolCallStatus.pending);
+          if (hasPendingTools) {
+            Loggers.toolExecution.debug(
+              'RunFinished with pending tools — keeping RunningState',
+            );
+            return previousState.copyWith(
+              conversation: conversation.withStatus(
+                domain.Running(runId: previousState.runId),
+              ),
+              streaming: result.streaming,
+            );
+          }
+          return CompletedState(
+            conversation: conversation,
+            streaming: result.streaming,
+            result: const Success(),
+          );
+        }(),
       domain.Failed(:final error) => () {
           Loggers.activeRun.error('Run completed with failure: $error');
           return CompletedState(

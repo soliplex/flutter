@@ -258,10 +258,15 @@ final logConfigControllerProvider = Provider<void>((ref) {
         if (sink != null) {
           try {
             final runState = ref.read(activeRunNotifierProvider);
-            if (runState is RunningState) {
-              sink
-                ..threadId = runState.threadId
-                ..runId = runState.runId;
+            switch (runState) {
+              case RunningState(:final threadId, :final runId):
+                sink
+                  ..threadId = threadId
+                  ..runId = runId;
+              case ExecutingToolsState(:final conversation):
+                sink.threadId = conversation.threadId;
+              default:
+                break;
             }
           } catch (_) {
             // activeRunNotifierProvider may not be initialized yet.
@@ -276,16 +281,22 @@ final logConfigControllerProvider = Provider<void>((ref) {
       (previous, next) {
         final sink = cachedBackendSink;
         if (sink == null) return;
-        if (next is RunningState) {
-          sink
-            ..threadId = next.threadId
-            ..runId = next.runId;
-        } else {
-          sink
-            ..threadId = null
-            ..runId = null;
+        switch (next) {
+          case RunningState(:final threadId, :final runId):
+            sink
+              ..threadId = threadId
+              ..runId = runId;
+          case ExecutingToolsState(:final conversation):
+            // Keep threadId context during tool execution (still "running").
+            sink
+              ..threadId = conversation.threadId
+              ..runId = null;
+          default:
+            sink
+              ..threadId = null
+              ..runId = null;
         }
-        if (previous is RunningState && next is CompletedState) {
+        if (previous != null && previous.isRunning && next is CompletedState) {
           unawaited(sink.flush(force: true));
         }
       },
