@@ -9,7 +9,7 @@ on:
       - ".markdownlint.json"
       - "LICENSE"
   pull_request:
-    branches: [main]
+    branches: [main, 'feat/**', 'fix/**', 'refactor/**', 'chore/**']
     paths-ignore:
       - "docs/**"
       - "**.md"
@@ -34,22 +34,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Setup Dart environment
+        uses: ./.github/actions/setup-dart-env
 
       - name: Check formatting
         run: |
@@ -60,13 +46,21 @@ jobs:
       - name: Analyze code
         run: flutter analyze --fatal-infos
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      - name: Check documentation
+        run: |
+          dart doc --dry-run
+          for dir in packages/*/; do
+            echo "::group::dart doc $dir"
+            (cd "$dir" && dart doc --dry-run)
+            echo "::endgroup::"
+          done
 
       - name: Lint markdown
-        run: npx markdownlint-cli "**/*.md"
+        run: |
+          pip install pymarkdownlnt==0.9.35
+          pymarkdown --set extensions.front-matter.enabled=\$!True \
+            --disable-rules MD013,MD024,MD033,MD036,MD041,MD060 \
+            scan docs/ *.md
 
   test:
     runs-on: ubuntu-latest
@@ -90,28 +84,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - name: Setup Dart environment
+        uses: ./.github/actions/setup-dart-env
         with:
-          channel: stable
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-
-      - name: Install dependencies
-        working-directory: ${{ matrix.target.path }}
-        run: |
-          if [ "${{ matrix.target.runner }}" = "flutter" ]; then
-            flutter pub get
-          else
-            dart pub get
-          fi
+          working-directory: ${{ matrix.target.path }}
+          runner: ${{ matrix.target.runner }}
 
       - name: Generate random seed
         id: seed
@@ -149,8 +126,8 @@ jobs:
             exit 1
           fi
           COVERAGE_INT=${COVERAGE%.*}
-          if [ "$COVERAGE_INT" -lt 78 ]; then
-            echo "::error::Coverage ${COVERAGE}% is below minimum 78%"
+          if [ "$COVERAGE_INT" -lt 80 ]; then
+            echo "::error::Coverage ${COVERAGE}% is below minimum 80%"
             exit 1
           fi
           echo "::notice::Coverage check passed with ${COVERAGE}%"
@@ -165,37 +142,27 @@ jobs:
 
       - name: Notify Slack on failure
         if: failure() && env.SLACK_NOTIFY_URL != ''
-        env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-        run: |
-          curl -sf -X POST \
-            --data-urlencode \
-            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Tests failed for ${{ matrix.target.name }} on ${{ github.ref }}:\n${COMMIT_MSG}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\", \"icon_emoji\": \":flutter:\"}" \
-            "$SLACK_NOTIFY_URL"
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ env.SLACK_NOTIFY_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "channel": "#soliplex",
+              "username": "flutter-ci",
+              "text": ${{ toJson(format(':x: Tests failed for {0} on {1}:\n{2}\n{3}/{4}/actions/runs/{5}', matrix.target.name, github.ref, github.event.head_commit.message, github.server_url, github.repository, github.run_id)) }},
+              "icon_emoji": ":flutter:"
+            }
 
   build-web:
-    needs: [lint, test]
+    needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
-      - name: Cache pub dependencies
-        uses: actions/cache@v5
-        with:
-          path: ~/.pub-cache
-          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-pub-
-
-      - name: Install dependencies
-        run: flutter pub get
+      - name: Setup Dart environment
+        uses: ./.github/actions/setup-dart-env
 
       - name: Build web
         run: flutter build web --release
@@ -209,10 +176,14 @@ jobs:
 
       - name: Notify Slack on failure
         if: failure() && env.SLACK_NOTIFY_URL != ''
-        env:
-          COMMIT_MSG: ${{ github.event.head_commit.message }}
-        run: |
-          curl -sf -X POST \
-            --data-urlencode \
-            "payload={\"channel\": \"#soliplex\", \"username\": \"flutter-ci\", \"text\": \":x: Web build failed on ${{ github.ref }}:\n${COMMIT_MSG}\nhttps://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\", \"icon_emoji\": \":flutter:\"}" \
-            "$SLACK_NOTIFY_URL"
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ env.SLACK_NOTIFY_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "channel": "#soliplex",
+              "username": "flutter-ci",
+              "text": ${{ toJson(format(':x: Web build failed on {0}:\n{1}\n{2}/{3}/actions/runs/{4}', github.ref, github.event.head_commit.message, github.server_url, github.repository, github.run_id)) }},
+              "icon_emoji": ":flutter:"
+            }
