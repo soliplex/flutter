@@ -59,7 +59,7 @@ void main() {
     expect(first['message'], 'Hello from pipeline');
     expect(first['level'], 'info');
     expect(first['logger'], 'Integration');
-    expect(first['installId'], 'i-1');
+    expect(first['install_id'], 'i-1');
     expect(
       (first['attributes']! as Map<String, Object?>)['view'],
       'home',
@@ -88,8 +88,8 @@ void main() {
       'logger': 'Test',
       'message': 'Before crash',
       'attributes': <String, Object?>{},
-      'installId': 'i-1',
-      'sessionId': 's-1',
+      'install_id': 'i-1',
+      'session_id': 's-1',
     });
     await queue1.close();
 

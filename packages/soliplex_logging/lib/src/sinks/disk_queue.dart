@@ -38,6 +38,9 @@ abstract class DiskQueue {
   /// Number of pending (unsent) records.
   Future<int> get pendingCount;
 
+  /// Removes all pending records from the queue.
+  Future<void> clear();
+
   /// Closes the queue and releases resources.
   Future<void> close();
 }

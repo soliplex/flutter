@@ -46,6 +46,11 @@ class PlatformDiskQueue implements DiskQueue {
   Future<int> get pendingCount async => _queue.length;
 
   @override
+  Future<void> clear() async {
+    _queue.clear();
+  }
+
+  @override
   Future<void> close() async {
     _queue.clear();
   }

@@ -128,9 +128,26 @@ class BackendLogSink implements LogSink {
   @visibleForTesting
   DateTime? backoffUntil;
 
+  /// Tracks whether the next HTTP response log should be suppressed
+  /// because the preceding request was to the log-shipping endpoint.
+  bool _skipNextHttpResponse = false;
+
   @override
   void write(LogRecord record) {
     if (_closed) return;
+
+    // Don't ship logs about log-shipping itself (avoids feedback loop).
+    if (record.loggerName == 'HTTP') {
+      if (record.message.contains(endpoint)) {
+        _skipNextHttpResponse = true;
+        return;
+      }
+      if (_skipNextHttpResponse && record.message.startsWith('HTTP ')) {
+        _skipNextHttpResponse = false;
+        return;
+      }
+      _skipNextHttpResponse = false;
+    }
 
     final json = _recordToJson(record);
 
@@ -310,6 +327,9 @@ class BackendLogSink implements LogSink {
     }
   }
 
+  /// Discards all pending (unsent) log records from the disk queue.
+  Future<void> clearPending() => _diskQueue.clear();
+
   @override
   Future<void> close() async {
     if (_closed) return;
@@ -359,14 +379,14 @@ class BackendLogSink implements LogSink {
       'message': record.message,
       'attributes': _safeAttributes(record.attributes),
       'error': record.error?.toString(),
-      'stackTrace': record.stackTrace?.toString(),
-      'spanId': record.spanId,
-      'traceId': record.traceId,
-      'installId': installId,
-      'sessionId': sessionId,
-      'userId': userId,
-      'activeRun':
-          threadId != null ? {'threadId': threadId, 'runId': runId} : null,
+      'stack_trace': record.stackTrace?.toString(),
+      'span_id': record.spanId,
+      'trace_id': record.traceId,
+      'install_id': installId,
+      'session_id': sessionId,
+      'user_id': userId,
+      'active_run':
+          threadId != null ? {'thread_id': threadId, 'run_id': runId} : null,
     };
   }
 

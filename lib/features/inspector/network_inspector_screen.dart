@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:soliplex_frontend/core/logging/backend_logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/inspector/models/http_event_group.dart';
@@ -30,6 +31,7 @@ class _NetworkInspectorScreenState
 
   void _clearRequests() {
     ref.read(httpLogProvider.notifier).clear();
+    ref.read(backendLogSinkProvider).whenData((sink) => sink?.clearPending());
   }
 
   @override
