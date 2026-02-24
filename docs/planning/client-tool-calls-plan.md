@@ -38,7 +38,6 @@ slice-1 merges to main first, then slice-2 retargets to main, etc.
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues (errors, warnings, AND infos)
-- [ ] `dart doc --dry-run` -- 0 issues (dartdoc generates without errors)
 - [ ] No `// ignore:` directives added
 
 **Tests (autonomous):**
@@ -81,7 +80,6 @@ flutter test
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
-- [ ] `dart doc --dry-run` -- 0 issues (dartdoc generates without errors)
 - [ ] No `// ignore:` directives added
 
 **Tests (autonomous):**
@@ -125,7 +123,6 @@ flutter test
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
-- [ ] `dart doc --dry-run` -- 0 issues (dartdoc generates without errors)
 - [ ] No `// ignore:` directives added
 
 **Tests (autonomous):**
@@ -173,7 +170,6 @@ flutter test
 
 - [ ] `dart format .` -- no changes
 - [ ] `flutter analyze --fatal-infos` -- 0 issues
-- [ ] `dart doc --dry-run` -- 0 issues (dartdoc generates without errors)
 - [ ] `flutter test` -- full suite passes
 
 **AI review (gate -- must pass before merge):**
