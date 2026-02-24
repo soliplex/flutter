@@ -476,7 +476,6 @@ void main() {
             const ToolCallInfo(
               id: 'tc-1',
               name: 'search',
-              status: ToolCallStatus.pending,
               arguments: '{"q":"test"}',
             ),
           );
