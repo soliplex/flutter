@@ -139,12 +139,21 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         leading: isDesktop ? _buildSidebarToggle() : _buildBackButton(),
         title: _buildRoomDropdown(),
         actions: [
+          if (currentRoom != null) _buildInfoButton(currentRoom),
           if (quizzes.isNotEmpty) _buildQuizButton(quizzes),
           if (features.enableSettings) _buildSettingsButton(),
         ],
         drawer: isDesktop ? null : HistoryPanel(roomId: widget.roomId),
       ),
       body: isDesktop ? _buildDesktopLayout(context) : const ChatPanel(),
+    );
+  }
+
+  Widget _buildInfoButton(Room room) {
+    return IconButton(
+      icon: const Icon(Icons.info_outline),
+      tooltip: 'Room information',
+      onPressed: () => context.push('/rooms/${widget.roomId}/info'),
     );
   }
 

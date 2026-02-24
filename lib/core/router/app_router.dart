@@ -15,6 +15,7 @@ import 'package:soliplex_frontend/features/log_viewer/log_viewer_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
+import 'package:soliplex_frontend/features/room/widgets/room_info_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/backend_versions_screen.dart';
 import 'package:soliplex_frontend/features/settings/settings_screen.dart';
@@ -99,6 +100,9 @@ bool isRouteVisible(String route, Features features, RouteConfig routes) {
 
     // /rooms/:roomId - exactly 2 segments
     if (segments.length == 2) return true;
+
+    // /rooms/:roomId/info - exactly 3 segments with 'info' at [2]
+    if (segments.length == 3 && segments[2] == 'info') return true;
 
     // /rooms/:roomId/quiz/:quizId - exactly 4 segments with 'quiz' at [2]
     if (segments.length == 4 && segments[2] == 'quiz') {
@@ -284,6 +288,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             final threadId = state.uri.queryParameters['thread'];
             return NoTransitionPage(
               child: RoomScreen(roomId: roomId, initialThreadId: threadId),
+            );
+          },
+        ),
+      if (routeConfig.showRoomsRoute)
+        GoRoute(
+          path: '/rooms/:roomId/info',
+          name: 'room-info',
+          pageBuilder: (context, state) {
+            final roomId = state.pathParameters['roomId']!;
+            return NoTransitionPage(
+              child: RoomInfoScreen(roomId: roomId),
             );
           },
         ),

@@ -1,5 +1,9 @@
 import 'package:meta/meta.dart';
 
+import 'package:soliplex_client/src/domain/mcp_client_toolset.dart';
+import 'package:soliplex_client/src/domain/room_agent.dart';
+import 'package:soliplex_client/src/domain/room_tool.dart';
+
 /// Represents a room from the backend.
 @immutable
 class Room {
@@ -11,6 +15,13 @@ class Room {
     this.metadata = const {},
     this.quizzes = const {},
     this.suggestions = const [],
+    this.welcomeMessage = '',
+    this.enableAttachments = false,
+    this.allowMcp = false,
+    this.agent,
+    this.tools = const {},
+    this.mcpClientToolsets = const {},
+    this.aguiFeatureNames = const [],
   });
 
   /// Unique identifier for the room.
@@ -25,11 +36,33 @@ class Room {
   /// Metadata for the room (empty map if not provided).
   final Map<String, dynamic> metadata;
 
-  /// Quizzes available in this room, keyed by quiz ID with title as value.
+  /// Quizzes available in this room, keyed by quiz ID with title
+  /// as value.
   final Map<String, String> quizzes;
 
   /// Suggested prompts to show when starting a new thread.
   final List<String> suggestions;
+
+  /// Welcome message shown when entering the room.
+  final String welcomeMessage;
+
+  /// Whether file attachments are enabled for this room.
+  final bool enableAttachments;
+
+  /// Whether MCP server access is allowed for this room.
+  final bool allowMcp;
+
+  /// Agent configuration for this room.
+  final RoomAgent? agent;
+
+  /// Tools configured in this room, keyed by tool name.
+  final Map<String, RoomTool> tools;
+
+  /// MCP client toolsets configured in this room.
+  final Map<String, McpClientToolset> mcpClientToolsets;
+
+  /// AG-UI feature names enabled for this room.
+  final List<String> aguiFeatureNames;
 
   /// Quiz IDs available in this room.
   List<String> get quizIds => quizzes.keys.toList();
@@ -51,6 +84,13 @@ class Room {
     Map<String, dynamic>? metadata,
     Map<String, String>? quizzes,
     List<String>? suggestions,
+    String? welcomeMessage,
+    bool? enableAttachments,
+    bool? allowMcp,
+    RoomAgent? agent,
+    Map<String, RoomTool>? tools,
+    Map<String, McpClientToolset>? mcpClientToolsets,
+    List<String>? aguiFeatureNames,
   }) {
     return Room(
       id: id ?? this.id,
@@ -59,6 +99,13 @@ class Room {
       metadata: metadata ?? this.metadata,
       quizzes: quizzes ?? this.quizzes,
       suggestions: suggestions ?? this.suggestions,
+      welcomeMessage: welcomeMessage ?? this.welcomeMessage,
+      enableAttachments: enableAttachments ?? this.enableAttachments,
+      allowMcp: allowMcp ?? this.allowMcp,
+      agent: agent ?? this.agent,
+      tools: tools ?? this.tools,
+      mcpClientToolsets: mcpClientToolsets ?? this.mcpClientToolsets,
+      aguiFeatureNames: aguiFeatureNames ?? this.aguiFeatureNames,
     );
   }
 

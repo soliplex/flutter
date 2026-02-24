@@ -16,9 +16,29 @@ void main() {
       expect(room.hasDescription, isFalse);
       expect(room.hasQuizzes, isFalse);
       expect(room.hasSuggestions, isFalse);
+      expect(room.welcomeMessage, equals(''));
+      expect(room.enableAttachments, isFalse);
+      expect(room.allowMcp, isFalse);
+      expect(room.agent, isNull);
+      expect(room.tools, isEmpty);
+      expect(room.mcpClientToolsets, isEmpty);
+      expect(room.aguiFeatureNames, isEmpty);
     });
 
     test('creates with all fields', () {
+      const agent = DefaultRoomAgent(
+        id: 'agent-1',
+        modelName: 'gpt-4o',
+        retries: 3,
+        providerType: 'openai',
+      );
+      const tool = RoomTool(
+        name: 'search',
+        description: 'Search docs',
+        kind: 'search',
+      );
+      const toolset = McpClientToolset(kind: 'http');
+
       const room = Room(
         id: 'room-1',
         name: 'Test Room',
@@ -26,6 +46,13 @@ void main() {
         metadata: {'key': 'value'},
         quizzes: {'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'},
         suggestions: ['How can I help?', 'Tell me more'],
+        welcomeMessage: 'Welcome!',
+        enableAttachments: true,
+        allowMcp: true,
+        agent: agent,
+        tools: {'search': tool},
+        mcpClientToolsets: {'toolset-1': toolset},
+        aguiFeatureNames: ['feature1'],
       );
 
       expect(room.id, equals('room-1'));
@@ -36,11 +63,24 @@ void main() {
         room.quizzes,
         equals({'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'}),
       );
-      expect(room.suggestions, equals(['How can I help?', 'Tell me more']));
+      expect(
+        room.suggestions,
+        equals(['How can I help?', 'Tell me more']),
+      );
       expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));
       expect(room.hasDescription, isTrue);
       expect(room.hasQuizzes, isTrue);
       expect(room.hasSuggestions, isTrue);
+      expect(room.welcomeMessage, equals('Welcome!'));
+      expect(room.enableAttachments, isTrue);
+      expect(room.allowMcp, isTrue);
+      expect(room.agent, equals(agent));
+      expect(room.tools, equals({'search': tool}));
+      expect(
+        room.mcpClientToolsets,
+        equals({'toolset-1': toolset}),
+      );
+      expect(room.aguiFeatureNames, equals(['feature1']));
     });
 
     group('copyWith', () {
