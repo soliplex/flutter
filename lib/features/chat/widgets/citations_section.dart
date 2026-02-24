@@ -393,6 +393,7 @@ class _PdfViewButton extends ConsumerWidget {
         roomId: roomId,
         chunkId: sourceReference.chunkId,
         documentTitle: sourceReference.displayTitle,
+        pageNumbers: sourceReference.pageNumbers,
       ),
       tooltip: 'View page',
       visualDensity: VisualDensity.compact,
