@@ -3,21 +3,23 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_client/soliplex_client.dart' hide State;
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/chunk_visualization_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 
-/// Full-screen page for viewing PDF chunk page images with zoom support.
+/// Full-screen page for viewing PDF chunk page images with rotation and zoom.
 ///
-/// Shows loading state, handles errors with retry, and displays images with
-/// pinch-to-zoom via InteractiveViewer.
-class ChunkVisualizationPage extends ConsumerWidget {
+/// Displays images in a horizontal [PageView] carousel with per-image rotation
+/// via the AppBar rotate button, pinch-to-zoom via [InteractiveViewer], and
+/// double-tap to reset zoom.
+class ChunkVisualizationPage extends ConsumerStatefulWidget {
   /// Creates a page for the given room and chunk.
   const ChunkVisualizationPage({
     required this.roomId,
     required this.chunkId,
     required this.documentTitle,
+    this.pageNumbers = const [],
     super.key,
   });
 
@@ -30,12 +32,18 @@ class ChunkVisualizationPage extends ConsumerWidget {
   /// Document title for the app bar.
   final String documentTitle;
 
+  /// Actual PDF page numbers corresponding to each image.
+  ///
+  /// When non-empty, these are displayed instead of 1-based indices.
+  final List<int> pageNumbers;
+
   /// Navigates to this page.
   static Future<void> show({
     required BuildContext context,
     required String roomId,
     required String chunkId,
     required String documentTitle,
+    List<int> pageNumbers = const [],
   }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -43,18 +51,51 @@ class ChunkVisualizationPage extends ConsumerWidget {
           roomId: roomId,
           chunkId: chunkId,
           documentTitle: documentTitle,
+          pageNumbers: pageNumbers,
         ),
       ),
     );
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ChunkVisualizationPage> createState() =>
+      _ChunkVisualizationPageState();
+}
+
+class _ChunkVisualizationPageState
+    extends ConsumerState<ChunkVisualizationPage> {
+  final PageController _pageController = PageController();
+  int _currentPage = 0;
+  Map<int, int> _quarterTurns = {};
+  bool _isScaled = false;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  /// Returns a page label using actual PDF page numbers when available,
+  /// falling back to 1-based indices.
+  String _pageLabel(int currentIndex, int totalImages) {
+    final pages = widget.pageNumbers;
+    if (pages.length == totalImages) {
+      return '${pages[currentIndex]} / ${pages.last}';
+    }
+    return '${currentIndex + 1} / $totalImages';
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final asyncValue = ref.watch(
-      chunkVisualizationProvider((roomId: roomId, chunkId: chunkId)),
+      chunkVisualizationProvider(
+        (roomId: widget.roomId, chunkId: widget.chunkId),
+      ),
     );
 
     final theme = Theme.of(context);
+    final visualization = asyncValue.asData?.value;
+    final hasData = visualization?.hasImages ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -69,18 +110,43 @@ class ChunkVisualizationPage extends ConsumerWidget {
             const SizedBox(width: SoliplexSpacing.s2),
             Expanded(
               child: Text(
-                documentTitle,
+                widget.documentTitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
         ),
+        actions: [
+          if (hasData && visualization!.imageCount > 1)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+              child: Center(
+                child: Text(
+                  _pageLabel(_currentPage, visualization.imageCount),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          if (hasData)
+            IconButton(
+              icon: const Icon(Icons.rotate_right),
+              tooltip: 'Rotate',
+              onPressed: () => setState(() {
+                _quarterTurns = Map.of(_quarterTurns)
+                  ..[_currentPage] =
+                      ((_quarterTurns[_currentPage] ?? 0) + 1) % 4;
+              }),
+            ),
+        ],
       ),
       body: asyncValue.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) =>
-            _buildError(context, ref, error, stackTrace, theme),
+            _buildError(context, error, stackTrace, theme),
         data: (visualization) => _buildContent(context, visualization, theme),
       ),
     );
@@ -88,13 +154,12 @@ class ChunkVisualizationPage extends ConsumerWidget {
 
   Widget _buildError(
     BuildContext context,
-    WidgetRef ref,
     Object error,
     StackTrace? stackTrace,
     ThemeData theme,
   ) {
     Loggers.chat.error(
-      'ChunkVisualization error for chunk $chunkId',
+      'ChunkVisualization error for chunk ${widget.chunkId}',
       error: error,
       stackTrace: stackTrace,
     );
@@ -109,11 +174,7 @@ class ChunkVisualizationPage extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.error_outline,
-            size: 48,
-            color: theme.colorScheme.error,
-          ),
+          Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
           const SizedBox(height: SoliplexSpacing.s4),
           Text(
             message,
@@ -123,7 +184,9 @@ class ChunkVisualizationPage extends ConsumerWidget {
           const SizedBox(height: SoliplexSpacing.s4),
           FilledButton.icon(
             onPressed: () => ref.invalidate(
-              chunkVisualizationProvider((roomId: roomId, chunkId: chunkId)),
+              chunkVisualizationProvider(
+                (roomId: widget.roomId, chunkId: widget.chunkId),
+              ),
             ),
             icon: const Icon(Icons.refresh),
             label: const Text('Retry'),
@@ -160,46 +223,107 @@ class ChunkVisualizationPage extends ConsumerWidget {
       );
     }
 
-    return InteractiveViewer(
-      constrained: false,
-      minScale: 0.5,
-      maxScale: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(SoliplexSpacing.s4),
-        child: Column(
-          children: [
-            for (var i = 0; i < visualization.imageCount; i++) ...[
-              if (i > 0) const SizedBox(height: SoliplexSpacing.s4),
-              _PageImage(
-                imageBase64: visualization.imagesBase64[i],
-                pageNumber: i + 1,
-                totalPages: visualization.imageCount,
-              ),
-            ],
-          ],
+    // Clamp current page if data refreshed with fewer images.
+    if (_currentPage >= visualization.imageCount) {
+      _currentPage = visualization.imageCount - 1;
+    }
+
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pageController,
+          onPageChanged: (i) => setState(() {
+            _currentPage = i;
+            _isScaled = false;
+          }),
+          physics: _isScaled ? const NeverScrollableScrollPhysics() : null,
+          itemCount: visualization.imageCount,
+          itemBuilder: (context, i) => _PageImage(
+            imageBase64: visualization.imagesBase64[i],
+            quarterTurns: _quarterTurns[i] ?? 0,
+            onScaleChanged: (scaled) => setState(() => _isScaled = scaled),
+          ),
         ),
-      ),
+        if (visualization.imageCount > 1)
+          Positioned(
+            bottom: SoliplexSpacing.s4,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _DotIndicator(
+                count: visualization.imageCount,
+                current: _currentPage,
+                onPageTap: (page) => _pageController.animateToPage(
+                  page,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
 
-class _PageImage extends StatelessWidget {
+class _PageImage extends StatefulWidget {
   const _PageImage({
     required this.imageBase64,
-    required this.pageNumber,
-    required this.totalPages,
+    required this.quarterTurns,
+    required this.onScaleChanged,
   });
 
   final String imageBase64;
-  final int pageNumber;
-  final int totalPages;
+  final int quarterTurns;
+  final ValueChanged<bool> onScaleChanged;
 
-  Uint8List? _decodeImage() {
+  @override
+  State<_PageImage> createState() => _PageImageState();
+}
+
+class _PageImageState extends State<_PageImage> {
+  Uint8List? _imageBytes;
+  late final TransformationController _transformController;
+  bool _wasScaled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageBytes = _decodeImage(widget.imageBase64);
+    _transformController = TransformationController();
+    _transformController.addListener(_onTransformChanged);
+  }
+
+  @override
+  void didUpdateWidget(_PageImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.imageBase64 != oldWidget.imageBase64) {
+      _imageBytes = _decodeImage(widget.imageBase64);
+    }
+  }
+
+  @override
+  void dispose() {
+    _transformController
+      ..removeListener(_onTransformChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onTransformChanged() {
+    final isScaled = _transformController.value.getMaxScaleOnAxis() > 1.01;
+    if (isScaled != _wasScaled) {
+      _wasScaled = isScaled;
+      widget.onScaleChanged(isScaled);
+    }
+  }
+
+  Uint8List? _decodeImage(String base64Data) {
     try {
-      return base64Decode(imageBase64);
+      return base64Decode(base64Data);
     } on FormatException catch (e, s) {
       Loggers.chat.error(
-        'Failed to decode base64 for page $pageNumber',
+        'Failed to decode base64 image',
         error: e,
         stackTrace: s,
       );
@@ -210,42 +334,36 @@ class _PageImage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final soliplexTheme = SoliplexTheme.of(context);
-    final imageBytes = _decodeImage();
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          constraints: const BoxConstraints(maxWidth: 300, maxHeight: 400),
-          decoration: BoxDecoration(
-            border: Border.all(color: theme.colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: imageBytes != null
-              ? Image.memory(
-                  imageBytes,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stack) {
-                    Loggers.chat.error(
-                      'Image decode error for page $pageNumber',
-                      error: error,
-                      stackTrace: stack,
-                    );
-                    return _buildBrokenImage(theme);
-                  },
-                )
-              : _buildBrokenImage(theme),
-        ),
-        const SizedBox(height: SoliplexSpacing.s2),
-        Text(
-          'Page $pageNumber of $totalPages',
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+    return GestureDetector(
+      onDoubleTap: () {
+        _transformController.value = Matrix4.identity();
+      },
+      child: InteractiveViewer(
+        transformationController: _transformController,
+        panEnabled: _wasScaled,
+        minScale: 1,
+        maxScale: 4,
+        child: Center(
+          child: RotatedBox(
+            quarterTurns: widget.quarterTurns,
+            child: _imageBytes != null
+                ? Image.memory(
+                    _imageBytes!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stack) {
+                      Loggers.chat.error(
+                        'Image decode error',
+                        error: error,
+                        stackTrace: stack,
+                      );
+                      return _buildBrokenImage(theme);
+                    },
+                  )
+                : _buildBrokenImage(theme),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -259,6 +377,52 @@ class _PageImage extends StatelessWidget {
           Icons.broken_image,
           color: theme.colorScheme.onErrorContainer,
           size: 48,
+        ),
+      ),
+    );
+  }
+}
+
+class _DotIndicator extends StatelessWidget {
+  const _DotIndicator({
+    required this.count,
+    required this.current,
+    required this.onPageTap,
+  });
+
+  final int count;
+  final int current;
+  final ValueChanged<int> onPageTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      label: 'Page ${current + 1} of $count',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(
+          count,
+          (i) => GestureDetector(
+            onTap: () => onPageTap(i),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 8,
+              ),
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == current
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

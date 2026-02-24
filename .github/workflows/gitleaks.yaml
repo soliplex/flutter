@@ -6,6 +6,9 @@ on:
       - '**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -44,12 +47,14 @@ jobs:
 
       - name: Notify Slack on failure
         if: failure()
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_NOTIFY_URL }}
-          SLACK_CHANNEL: soliplex
-          SLACK_USERNAME: gitleaks-ci
-          SLACK_ICON_EMOJI: ':rotating_light:'
-          SLACK_COLOR: danger
-          SLACK_TITLE: Gitleaks Secret Scan Failed
-          SLACK_MESSAGE: 'Potential secrets detected on ${{ github.ref_name }} in: ${{ steps.parse-report.outputs.matched_files }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\n $GITHUB_OUTPUT'
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ secrets.SLACK_NOTIFY_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "channel": "#soliplex",
+              "username": "gitleaks-ci",
+              "text": ${{ toJson(format(':rotating_light: Potential secrets detected on {0} in: {1}\n{2}/{3}/actions/runs/{4}', github.ref_name, steps.parse-report.outputs.matched_files, github.server_url, github.repository, github.run_id)) }},
+              "icon_emoji": ":rotating_light:"
+            }
