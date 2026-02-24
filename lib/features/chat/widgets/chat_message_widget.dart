@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -341,34 +342,31 @@ class ThinkingSection extends StatefulWidget {
 }
 
 class _ThinkingSectionState extends State<ThinkingSection> {
-  late bool _isExpanded;
-  late bool _wasStreaming;
+  bool _isExpanded = false;
+  bool _showCopied = false;
+  Timer? _copiedTimer;
 
   @override
-  void initState() {
-    super.initState();
-    _isExpanded = widget.thinkingText.isNotEmpty || widget.isStreaming;
-    _wasStreaming = widget.isStreaming;
+  void dispose() {
+    _copiedTimer?.cancel();
+    super.dispose();
   }
 
-  @override
-  void didUpdateWidget(ThinkingSection oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    // Auto-expand when streaming starts
-    if (widget.isStreaming && !_wasStreaming) {
-      setState(() {
-        _isExpanded = true;
+  Future<void> _copyThinkingText() async {
+    try {
+      await Clipboard.setData(ClipboardData(text: widget.thinkingText));
+      setState(() => _showCopied = true);
+      _copiedTimer?.cancel();
+      _copiedTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _showCopied = false);
       });
+    } on PlatformException catch (e, stackTrace) {
+      Loggers.ui.error(
+        'Clipboard copy failed',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
-    // Auto-collapse when streaming ends
-    else if (!widget.isStreaming && _wasStreaming) {
-      setState(() {
-        _isExpanded = false;
-      });
-    }
-
-    _wasStreaming = widget.isStreaming;
   }
 
   @override
@@ -387,7 +385,6 @@ class _ThinkingSectionState extends State<ThinkingSection> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header (always visible)
           InkWell(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
             borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
@@ -408,6 +405,15 @@ class _ThinkingSectionState extends State<ThinkingSection> {
                     ),
                   ),
                   const Spacer(),
+                  GestureDetector(
+                    onTap: _copyThinkingText,
+                    child: Icon(
+                      _showCopied ? Icons.check : Icons.copy,
+                      size: 16,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Icon(
                     _isExpanded ? Icons.expand_less : Icons.expand_more,
                     size: 20,
@@ -417,17 +423,20 @@ class _ThinkingSectionState extends State<ThinkingSection> {
               ),
             ),
           ),
-
-          // Content (expandable)
           if (_isExpanded)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-              child: SelectionArea(
-                child: Text(
-                  widget.thinkingText,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    fontStyle: FontStyle.italic,
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: SingleChildScrollView(
+                  child: SelectionArea(
+                    child: Text(
+                      widget.thinkingText,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -950,5 +950,115 @@ void main() {
         expect(capturedReason, isNull);
       });
     });
+
+    group('ThinkingSection', () {
+      Widget buildThinkingSection({
+        String thinkingText = 'Some reasoning',
+        bool isStreaming = false,
+      }) {
+        return createTestApp(
+          home: Scaffold(
+            body: ThinkingSection(
+              thinkingText: thinkingText,
+              isStreaming: isStreaming,
+            ),
+          ),
+        );
+      }
+
+      testWidgets('starts collapsed', (tester) async {
+        await tester.pumpWidget(
+          buildThinkingSection(thinkingText: 'Hidden reasoning'),
+        );
+
+        expect(find.text('Thinking'), findsOneWidget);
+        expect(find.text('Hidden reasoning'), findsNothing);
+      });
+
+      testWidgets('stays collapsed when streaming', (tester) async {
+        await tester.pumpWidget(
+          buildThinkingSection(isStreaming: true),
+        );
+
+        expect(find.text('Thinking'), findsOneWidget);
+        expect(find.text('Some reasoning'), findsNothing);
+      });
+
+      testWidgets('expands when header is tapped', (tester) async {
+        await tester.pumpWidget(
+          buildThinkingSection(thinkingText: 'Visible reasoning'),
+        );
+
+        expect(find.text('Visible reasoning'), findsNothing);
+
+        await tester.tap(find.text('Thinking'));
+        await tester.pump();
+
+        expect(find.text('Visible reasoning'), findsOneWidget);
+      });
+
+      testWidgets('collapses when header is tapped again', (tester) async {
+        await tester.pumpWidget(
+          buildThinkingSection(thinkingText: 'Toggle me'),
+        );
+
+        // Expand
+        await tester.tap(find.text('Thinking'));
+        await tester.pump();
+        expect(find.text('Toggle me'), findsOneWidget);
+
+        // Collapse
+        await tester.tap(find.text('Thinking'));
+        await tester.pump();
+        expect(find.text('Toggle me'), findsNothing);
+      });
+
+      testWidgets('shows copy icon in header', (tester) async {
+        await tester.pumpWidget(
+          buildThinkingSection(),
+        );
+
+        expect(
+          find.descendant(
+            of: find.byType(ThinkingSection),
+            matching: find.byIcon(Icons.copy),
+          ),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets(
+        'copy icon changes to check on tap and reverts after 2 seconds',
+        (tester) async {
+          await tester.pumpWidget(
+            buildThinkingSection(thinkingText: 'Copy this'),
+          );
+
+          final copyFinder = find.descendant(
+            of: find.byType(ThinkingSection),
+            matching: find.byIcon(Icons.copy),
+          );
+          final checkFinder = find.descendant(
+            of: find.byType(ThinkingSection),
+            matching: find.byIcon(Icons.check),
+          );
+
+          expect(copyFinder, findsOneWidget);
+          expect(checkFinder, findsNothing);
+
+          await tester.tap(copyFinder);
+          await tester.pump();
+
+          expect(copyFinder, findsNothing);
+          expect(checkFinder, findsOneWidget);
+
+          // After 2 seconds, reverts
+          await tester.pump(const Duration(seconds: 2));
+
+          expect(copyFinder, findsOneWidget);
+          expect(checkFinder, findsNothing);
+        },
+      );
+    });
   });
 }

@@ -397,12 +397,14 @@ class TestData {
     ChatUser user = ChatUser.user,
     String text = 'Test message',
     bool isStreaming = false,
+    String thinkingText = '',
   }) {
     return TextMessage.create(
       id: id,
       user: user,
       text: text,
       isStreaming: isStreaming,
+      thinkingText: thinkingText,
     );
   }
 
