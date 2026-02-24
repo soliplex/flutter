@@ -6,14 +6,12 @@ on:
     paths-ignore:
       - "docs/**"
       - "**.md"
-      - ".markdownlint.json"
       - "LICENSE"
   pull_request:
     branches: [main, 'feat/**', 'fix/**', 'refactor/**', 'chore/**']
     paths-ignore:
       - "docs/**"
       - "**.md"
-      - ".markdownlint.json"
       - "LICENSE"
   workflow_dispatch:
 
@@ -48,12 +46,18 @@ jobs:
 
       - name: Check documentation
         run: |
-          dart doc --dry-run
+          pids=()
+          dart doc --dry-run &
+          pids+=($!)
           for dir in packages/*/; do
-            echo "::group::dart doc $dir"
-            (cd "$dir" && dart doc --dry-run)
-            echo "::endgroup::"
+            (cd "$dir" && dart doc --dry-run) &
+            pids+=($!)
           done
+          fail=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || fail=1
+          done
+          exit $fail
 
       - name: Lint markdown
         run: |
@@ -113,11 +117,13 @@ jobs:
           echo "::error::Tests failed with ordering seed: $SEED"
           echo "Reproduce with: --test-randomize-ordering-seed=$SEED"
 
+      - name: Install lcov
+        if: matrix.target.name == 'app'
+        uses: hrishikesh-kadam/setup-lcov@v1
+
       - name: Check coverage threshold
         if: matrix.target.name == 'app'
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq lcov
           COVERAGE=$(lcov --summary coverage/lcov.info 2>&1 \
             | grep "lines" | sed 's/.*: \([0-9.]*\)%.*/\1/')
           echo "Coverage: ${COVERAGE}%"
