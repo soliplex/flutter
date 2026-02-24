@@ -5,7 +5,7 @@ Timeless design preferences for the Soliplex frontend. These capture
 
 ## Message list
 
-### User message pinned to viewport top on send
+### User message placed to viewport top on send
 
 When the user sends a message, it should be positioned at the top of
 the viewport — not scrolled to the bottom. This keeps the user's
