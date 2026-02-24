@@ -538,10 +538,17 @@ void main() {
     });
 
     group('Scroll-to-bottom button', () {
-      List<ChatMessage> manyMessages() => List.generate(
-            30,
-            (i) => TestData.createMessage(id: 'msg-$i', text: 'Message $i'),
-          );
+      List<ChatMessage> manyMessages() => [
+            ...List.generate(
+              30,
+              (i) => TestData.createMessage(id: 'msg-$i', text: 'Message $i'),
+            ),
+            TestData.createMessage(
+              id: 'msg-final',
+              user: ChatUser.assistant,
+              text: 'Final reply',
+            ),
+          ];
 
       testWidgets('hidden after initial load', (tester) async {
         await tester.pumpWidget(
@@ -1088,7 +1095,7 @@ void main() {
     test('shrinks as content grows below the target offset', () {
       // realContent = maxScrollExtent + viewportDimension - currentSpacer
       //             = 800 + 600 - 200 = 1200
-      // spacer = targetOffset + viewportDimension - realContent
+      // spacer = targetOffset + viewportHeight - realContent
       //        = 100 + 600 - 1200 = -500 → clamped to 0
       final result = sut.computeSpacerHeight(
         isStreaming: true,
@@ -1164,5 +1171,43 @@ void main() {
         equals(600),
       );
     });
+
+    test('computes partial spacer when content partially fills viewport', () {
+      // realContent = maxScrollExtent + viewportDimension - currentSpacer
+      //             = 200 + 600 - 200 = 600
+      // spacer = targetOffset + viewportHeight - realContent
+      //        = 100 + 600 - 600 = 100
+      expect(
+        sut.computeSpacerHeight(
+          isStreaming: true,
+          lastMessageUser: ChatUser.user,
+          viewportHeight: 600,
+          targetScrollOffset: 100,
+          maxScrollExtent: 200,
+          viewportDimension: 600,
+          currentSpacerHeight: 200,
+        ),
+        equals(100),
+      );
+    });
+
+    test(
+      'returns viewportHeight when targetScrollOffset set but '
+      'viewportDimension is null',
+      () {
+        expect(
+          sut.computeSpacerHeight(
+            isStreaming: true,
+            lastMessageUser: ChatUser.user,
+            viewportHeight: 600,
+            targetScrollOffset: 100,
+            maxScrollExtent: 500,
+            viewportDimension: null,
+            currentSpacerHeight: 0,
+          ),
+          equals(600),
+        );
+      },
+    );
   });
 }

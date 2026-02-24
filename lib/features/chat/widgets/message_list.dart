@@ -19,6 +19,7 @@ import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/source_references_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
+import 'package:soliplex_frontend/features/chat/widgets/anchored_scroll_controller.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_message_widget.dart';
 import 'package:soliplex_frontend/features/chat/widgets/scroll_button_controller.dart';
 import 'package:soliplex_frontend/features/chat/widgets/scroll_to_message_session.dart';
@@ -113,13 +114,15 @@ DisplayMessagesResult computeDisplayMessages(
 
 /// Computes trailing spacer height for the message list.
 ///
-/// - When not streaming and last message is not from user: 0.
+/// - No scroll session and not streaming and last message not from user: 0.
 /// - Before positioning: full [viewportHeight] (allows scroll-to-target).
 /// - After positioning ([targetScrollOffset] set): dynamically shrinks
 ///   as content grows below the user message. Formula:
-///     spacer = clamp(targetOffset + viewportDimension - realContent)
-///   This keeps maxScrollExtent = targetOffset until content fills the
-///   viewport, then spacer drops to 0 and normal scrolling resumes.
+///     spacer = clamp(targetOffset + viewportHeight - realContent)
+///   Uses [viewportHeight] (fresh, from LayoutBuilder) rather than
+///   [viewportDimension] (stale, from scroll metrics) so the spacer
+///   accounts for viewport size changes (e.g. status indicator removal).
+///   The spacer persists after streaming ends when content < viewport.
 @visibleForTesting
 double computeSpacerHeight({
   required bool isStreaming,
@@ -130,14 +133,17 @@ double computeSpacerHeight({
   required double? viewportDimension,
   required double currentSpacerHeight,
 }) {
-  final needsSpacer = isStreaming || lastMessageUser == ChatUser.user;
-  if (!needsSpacer) return 0;
+  if (targetScrollOffset == null &&
+      !isStreaming &&
+      lastMessageUser != ChatUser.user) {
+    return 0;
+  }
   if (targetScrollOffset != null &&
       maxScrollExtent != null &&
       viewportDimension != null) {
     final realContent =
         maxScrollExtent + viewportDimension - currentSpacerHeight;
-    return (targetScrollOffset + viewportDimension - realContent)
+    return (targetScrollOffset + viewportHeight - realContent)
         .clamp(0.0, viewportHeight);
   }
   return viewportHeight;
@@ -166,9 +172,10 @@ class MessageList extends ConsumerStatefulWidget {
 }
 
 class _MessageListState extends ConsumerState<MessageList> {
-  final ScrollController _scrollController = ScrollController();
+  final _scrollController = AnchoredScrollController();
   final GlobalKey _scrollTargetKey = GlobalKey();
-  final _scrollSession = ScrollToMessageSession();
+  late final _scrollSession =
+      ScrollToMessageSession(controller: _scrollController);
   final _scrollButton = ScrollButtonController();
   bool _hasScrolledOnLoad = false;
   double _spacerHeight = 0;
@@ -209,17 +216,13 @@ class _MessageListState extends ConsumerState<MessageList> {
     super.dispose();
   }
 
-  /// The trailing spacer may add extra scroll extent, so the "content bottom"
-  /// (last real message at the viewport bottom) is at
-  /// maxScrollExtent - _spacerHeight.
   void _onScroll() {
     if (!_scrollController.hasClients) return;
 
     final pos = _scrollController.position;
     const threshold = 50.0;
-    final contentBottom = pos.maxScrollExtent - _spacerHeight;
     _scrollButton.updateScrollPosition(
-      isAtBottom: pos.pixels >= (contentBottom - threshold),
+      isAtBottom: pos.pixels >= (pos.maxScrollExtent - threshold),
     );
   }
 
@@ -253,6 +256,7 @@ class _MessageListState extends ConsumerState<MessageList> {
 
   void _retryScrollToTarget({required int retriesLeft}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollSession.isScheduled) return;
       if (_jumpToReveal()) {
         _finishScrollToTarget();
       } else if (retriesLeft > 0) {
@@ -294,6 +298,8 @@ class _MessageListState extends ConsumerState<MessageList> {
       return false;
     }
 
+    if (!renderObject.attached) return false;
+
     final viewport = RenderAbstractViewport.maybeOf(renderObject);
     if (viewport == null) {
       Loggers.chat.warning(
@@ -311,6 +317,102 @@ class _MessageListState extends ConsumerState<MessageList> {
     _scrollSession.targetScrollOffset = clamped;
 
     return true;
+  }
+
+  /// Detects a new user message from an active run and schedules scrolling.
+  ///
+  /// Done in build (not a listener) so the message is guaranteed in the
+  /// display list. Must run before [_recomputeSpacerAndAnchor] so that
+  /// [ScrollToMessageSession.scheduleFor] clears the stale
+  /// targetScrollOffset, allowing the spacer to start at full viewport.
+  void _detectNewMessageAndScheduleScroll(
+    ActiveRunState runState,
+    List<ChatMessage> messages,
+    bool isStreaming,
+  ) {
+    Loggers.chat.debug(
+      'DETECT: runState=${runState.runtimeType} '
+      'isStreaming=$isStreaming '
+      'msgCount=${messages.length} '
+      'lastScrolledId=${_scrollSession.lastScrolledIdDebug} '
+      'sessionScheduled=${_scrollSession.isScheduled}',
+    );
+    if (runState is! RunningState) return;
+
+    final lastUserMsg =
+        runState.messages.where((m) => m.user == ChatUser.user).lastOrNull;
+    final inDisplayList =
+        lastUserMsg != null && messages.any((m) => m.id == lastUserMsg.id);
+    final shouldScroll = lastUserMsg != null &&
+        _scrollSession.shouldScrollTo(lastUserMsg.id, messages);
+    Loggers.chat.debug(
+      'DETECT_RUN: lastUserMsg=${lastUserMsg?.id} '
+      'inDisplayList=$inDisplayList '
+      'shouldScroll=$shouldScroll',
+    );
+    if (lastUserMsg != null &&
+        _scrollSession.shouldScrollTo(lastUserMsg.id, messages)) {
+      _scrollSession.scheduleFor(lastUserMsg.id);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scrollToTarget();
+      });
+    }
+  }
+
+  /// Recomputes [_spacerHeight] and the controller's anchor offset.
+  ///
+  /// Tracks whether streaming content filled the viewport and releases
+  /// the anchor when streaming ends in that case.
+  void _recomputeSpacerAndAnchor({
+    required bool isStreaming,
+    required ChatUser? lastMessageUser,
+    required double viewportHeight,
+  }) {
+    final hasClients = _scrollController.hasClients;
+    final pos = hasClients ? _scrollController.position : null;
+
+    final oldSpacerHeight = _spacerHeight;
+    _spacerHeight = computeSpacerHeight(
+      isStreaming: isStreaming,
+      lastMessageUser: lastMessageUser,
+      viewportHeight: viewportHeight,
+      targetScrollOffset: _scrollSession.targetScrollOffset,
+      maxScrollExtent: _scrollController.realMaxScrollExtent,
+      viewportDimension: pos?.viewportDimension,
+      currentSpacerHeight: _spacerHeight,
+    );
+
+    if (isStreaming &&
+        _spacerHeight == 0 &&
+        _scrollSession.targetScrollOffset != null) {
+      _scrollSession.markContentFilled();
+    }
+
+    if (!isStreaming && _scrollSession.tryReleaseContentFilled()) {
+      _spacerHeight = 0;
+    }
+
+    if (_spacerHeight != oldSpacerHeight) {
+      final realMaxExt = _scrollController.realMaxScrollExtent;
+      final realContent = (realMaxExt != null && pos?.viewportDimension != null)
+          ? realMaxExt + pos!.viewportDimension - oldSpacerHeight
+          : null;
+      Loggers.chat.debug(
+        'SPACER: $oldSpacerHeight -> $_spacerHeight | '
+        'streaming=$isStreaming '
+        'lastUser=$lastMessageUser '
+        'targetOff=${_scrollSession.targetScrollOffset} '
+        'realMaxExt=${realMaxExt?.toStringAsFixed(1)} '
+        'inflatedMaxExt='
+        '${pos?.maxScrollExtent.toStringAsFixed(1)} '
+        'vpDim='
+        '${pos?.viewportDimension.toStringAsFixed(1)} '
+        'vpHeight=${viewportHeight.toStringAsFixed(1)} '
+        'realContent='
+        '${realContent?.toStringAsFixed(1)} '
+        'pixels=${pos?.pixels.toStringAsFixed(1)}',
+      );
+    }
   }
 
   @override
@@ -365,46 +467,49 @@ class _MessageListState extends ConsumerState<MessageList> {
       );
     }
 
-    final lastMessage = messages.isNotEmpty ? messages.last : null;
-    final hasClients = _scrollController.hasClients;
-    final pos = hasClients ? _scrollController.position : null;
-    _spacerHeight = computeSpacerHeight(
+    _detectNewMessageAndScheduleScroll(runState, messages, isStreaming);
+    _recomputeSpacerAndAnchor(
       isStreaming: isStreaming,
-      lastMessageUser: lastMessage?.user,
+      lastMessageUser: messages.lastOrNull?.user,
       viewportHeight: viewportHeight,
-      targetScrollOffset: _scrollSession.targetScrollOffset,
-      maxScrollExtent: pos?.maxScrollExtent,
-      viewportDimension: pos?.viewportDimension,
-      currentSpacerHeight: _spacerHeight,
     );
-    final needsSpacer = isStreaming || lastMessage?.user == ChatUser.user;
-    if (!needsSpacer) {
-      _scrollSession.targetScrollOffset = null;
-    }
-
-    // Detect new user message from an active run and schedule scroll.
-    // Done here in build (not in a listener) so _spacerHeight is guaranteed
-    // fresh and the message is guaranteed in the display list.
-    if (runState is RunningState) {
-      final lastUserMsg =
-          runState.messages.where((m) => m.user == ChatUser.user).lastOrNull;
-      if (lastUserMsg != null &&
-          _scrollSession.shouldScrollTo(lastUserMsg.id, messages)) {
-        _scrollSession.scheduleFor(lastUserMsg.id);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToTarget();
-        });
-      }
-    }
 
     return Stack(
       children: [
         NotificationListener<ScrollNotification>(
           onNotification: (notification) {
             if (notification is ScrollStartNotification) {
+              if (notification.dragDetails != null &&
+                  _scrollSession.isScheduled) {
+                // finish() is safe mid-frame; setState must be deferred
+                // since notification callbacks run during layout.
+                _scrollSession.finish();
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) setState(() {});
+                });
+              }
               _scrollButton.hide();
             } else if (notification is ScrollEndNotification) {
-              _scrollButton.scheduleAppearance();
+              final pos = _scrollController.position;
+              Loggers.chat.debug(
+                'SCROLL_END: '
+                'pixels=${pos.pixels.toStringAsFixed(1)} '
+                'maxExt='
+                '${pos.maxScrollExtent.toStringAsFixed(1)} '
+                'realMaxExt='
+                '${_scrollController.realMaxScrollExtent?.toStringAsFixed(1)} '
+                'isAtBottom='
+                '${pos.pixels >= pos.maxScrollExtent - 50} '
+                'spacer='
+                '${_spacerHeight.toStringAsFixed(1)} '
+                'sessionScheduled='
+                '${_scrollSession.isScheduled} '
+                'targetOff='
+                '${_scrollSession.targetScrollOffset}',
+              );
+              if (!_scrollSession.isScheduled) {
+                _scrollButton.scheduleAppearance();
+              }
             }
             return false;
           },
@@ -514,14 +619,16 @@ class _MessageListState extends ConsumerState<MessageList> {
                   onTap: () {
                     _scrollButton.hide();
                     if (!_scrollController.hasClients) return;
-                    final pos = _scrollController.position;
-                    final target = (pos.maxScrollExtent - _spacerHeight)
-                        .clamp(0.0, pos.maxScrollExtent);
-                    _scrollController.animateTo(
-                      target,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOut,
-                    );
+                    _scrollSession.targetScrollOffset = null;
+                    setState(() {});
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted || !_scrollController.hasClients) return;
+                      _scrollController.animateTo(
+                        _scrollController.position.maxScrollExtent,
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOut,
+                      );
+                    });
                   },
                   child: Padding(
                     padding: const EdgeInsets.all(12),
