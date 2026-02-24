@@ -19,6 +19,7 @@ class ChunkVisualizationPage extends ConsumerStatefulWidget {
     required this.roomId,
     required this.chunkId,
     required this.documentTitle,
+    this.pageNumbers = const [],
     super.key,
   });
 
@@ -31,12 +32,18 @@ class ChunkVisualizationPage extends ConsumerStatefulWidget {
   /// Document title for the app bar.
   final String documentTitle;
 
+  /// Actual PDF page numbers corresponding to each image.
+  ///
+  /// When non-empty, these are displayed instead of 1-based indices.
+  final List<int> pageNumbers;
+
   /// Navigates to this page.
   static Future<void> show({
     required BuildContext context,
     required String roomId,
     required String chunkId,
     required String documentTitle,
+    List<int> pageNumbers = const [],
   }) {
     return Navigator.of(context).push<void>(
       MaterialPageRoute(
@@ -44,6 +51,7 @@ class ChunkVisualizationPage extends ConsumerStatefulWidget {
           roomId: roomId,
           chunkId: chunkId,
           documentTitle: documentTitle,
+          pageNumbers: pageNumbers,
         ),
       ),
     );
@@ -67,6 +75,16 @@ class _ChunkVisualizationPageState
     super.dispose();
   }
 
+  /// Returns a page label using actual PDF page numbers when available,
+  /// falling back to 1-based indices.
+  String _pageLabel(int currentIndex, int totalImages) {
+    final pages = widget.pageNumbers;
+    if (pages.length == totalImages) {
+      return '${pages[currentIndex]} / ${pages.last}';
+    }
+    return '${currentIndex + 1} / $totalImages';
+  }
+
   @override
   Widget build(BuildContext context) {
     final asyncValue = ref.watch(
@@ -76,7 +94,8 @@ class _ChunkVisualizationPageState
     );
 
     final theme = Theme.of(context);
-    final hasData = asyncValue.asData?.value.hasImages ?? false;
+    final visualization = asyncValue.asData?.value;
+    final hasData = visualization?.hasImages ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -99,6 +118,19 @@ class _ChunkVisualizationPageState
           ],
         ),
         actions: [
+          if (hasData && visualization!.imageCount > 1)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: SoliplexSpacing.s2),
+              child: Center(
+                child: Text(
+                  _pageLabel(_currentPage, visualization.imageCount),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
           if (hasData)
             IconButton(
               icon: const Icon(Icons.rotate_right),
@@ -221,6 +253,11 @@ class _ChunkVisualizationPageState
               child: _DotIndicator(
                 count: visualization.imageCount,
                 current: _currentPage,
+                onPageTap: (page) => _pageController.animateToPage(
+                  page,
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeInOut,
+                ),
               ),
             ),
           ),
@@ -347,10 +384,15 @@ class _PageImageState extends State<_PageImage> {
 }
 
 class _DotIndicator extends StatelessWidget {
-  const _DotIndicator({required this.count, required this.current});
+  const _DotIndicator({
+    required this.count,
+    required this.current,
+    required this.onPageTap,
+  });
 
   final int count;
   final int current;
+  final ValueChanged<int> onPageTap;
 
   @override
   Widget build(BuildContext context) {
@@ -361,15 +403,24 @@ class _DotIndicator extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: List.generate(
           count,
-          (i) => Container(
-            width: 8,
-            height: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: i == current
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+          (i) => GestureDetector(
+            onTap: () => onPageTap(i),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 4,
+                vertical: 8,
+              ),
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: i == current
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant
+                          .withValues(alpha: 0.3),
+                ),
+              ),
             ),
           ),
         ),

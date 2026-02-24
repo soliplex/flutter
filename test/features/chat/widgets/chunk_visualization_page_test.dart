@@ -23,12 +23,14 @@ void main() {
     String roomId = 'room-1',
     String chunkId = 'chunk-1',
     String documentTitle = 'Test Document',
+    List<int> pageNumbers = const [],
   }) {
     return createTestApp(
       home: ChunkVisualizationPage(
         roomId: roomId,
         chunkId: chunkId,
         documentTitle: documentTitle,
+        pageNumbers: pageNumbers,
       ),
       overrides: [apiProvider.overrideWithValue(mockApi)],
     );
@@ -153,6 +155,78 @@ void main() {
         expect(find.byIcon(Icons.rotate_right), findsOneWidget);
       });
 
+      testWidgets('shows page number in AppBar for multi-page', (
+        tester,
+      ) async {
+        when(
+          () => mockApi.getChunkVisualization('room-1', 'chunk-1'),
+        ).thenAnswer(
+          (_) async => ChunkVisualization(
+            chunkId: 'chunk-1',
+            documentUri: 'doc.pdf',
+            imagesBase64: const [_base64Png, _base64Png],
+          ),
+        );
+
+        await tester.pumpWidget(buildPage());
+        await tester.pumpAndSettle();
+
+        expect(find.text('1 / 2'), findsOneWidget);
+
+        // Navigate to page 2 and verify label updates.
+        final pageView = tester.widget<PageView>(find.byType(PageView));
+        pageView.controller!.jumpToPage(1);
+        await tester.pumpAndSettle();
+
+        expect(find.text('2 / 2'), findsOneWidget);
+      });
+
+      testWidgets('shows actual PDF page numbers when provided', (
+        tester,
+      ) async {
+        when(
+          () => mockApi.getChunkVisualization('room-1', 'chunk-1'),
+        ).thenAnswer(
+          (_) async => ChunkVisualization(
+            chunkId: 'chunk-1',
+            documentUri: 'doc.pdf',
+            imagesBase64: const [_base64Png, _base64Png, _base64Png],
+          ),
+        );
+
+        await tester.pumpWidget(
+          buildPage(pageNumbers: [53, 54, 55]),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('53 / 55'), findsOneWidget);
+
+        final pageView = tester.widget<PageView>(find.byType(PageView));
+        pageView.controller!.jumpToPage(1);
+        await tester.pumpAndSettle();
+
+        expect(find.text('54 / 55'), findsOneWidget);
+      });
+
+      testWidgets('hides page number in AppBar for single-page', (
+        tester,
+      ) async {
+        when(
+          () => mockApi.getChunkVisualization('room-1', 'chunk-1'),
+        ).thenAnswer(
+          (_) async => ChunkVisualization(
+            chunkId: 'chunk-1',
+            documentUri: 'doc.pdf',
+            imagesBase64: const [_base64Png],
+          ),
+        );
+
+        await tester.pumpWidget(buildPage());
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining(RegExp(r'\d+ / \d+')), findsNothing);
+      });
+
       testWidgets('back button pops the page', (tester) async {
         when(
           () => mockApi.getChunkVisualization('room-1', 'chunk-1'),
@@ -269,6 +343,36 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.bySemanticsLabel('Page 1 of 2'), findsOneWidget);
+      });
+
+      testWidgets('tapping dot navigates to that page', (tester) async {
+        when(
+          () => mockApi.getChunkVisualization('room-1', 'chunk-1'),
+        ).thenAnswer(
+          (_) async => ChunkVisualization(
+            chunkId: 'chunk-1',
+            documentUri: 'doc.pdf',
+            imagesBase64: const [_base64Png, _base64Png, _base64Png],
+          ),
+        );
+
+        await tester.pumpWidget(buildPage());
+        await tester.pumpAndSettle();
+
+        final pageView = tester.widget<PageView>(find.byType(PageView));
+        expect(pageView.controller!.page, 0);
+
+        // Tap the third dot (index 2).
+        final dots = find.descendant(
+          of: find.bySemanticsLabel('Page 1 of 3'),
+          matching: find.byType(GestureDetector),
+        );
+        expect(dots, findsNWidgets(3));
+
+        await tester.tap(dots.at(2));
+        await tester.pumpAndSettle();
+
+        expect(pageView.controller!.page, 2);
       });
 
       testWidgets('hides dots for single-page', (tester) async {
