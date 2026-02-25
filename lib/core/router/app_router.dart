@@ -9,6 +9,7 @@ import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
+import 'package:soliplex_frontend/features/auth/signed_out_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/inspector/network_inspector_screen.dart';
 import 'package:soliplex_frontend/features/log_viewer/log_viewer_screen.dart';
@@ -144,7 +145,7 @@ String _normalizePath(String path) {
 /// Home ('/') is public so users can configure the backend URL before auth.
 /// When [RouteConfig.showHomeRoute] is false, the '/' route doesn't exist
 /// (no fallback) - requests to '/' will hit the error page.
-const _publicRoutes = {'/', '/login', '/auth/callback'};
+const _publicRoutes = {'/', '/login', '/auth/callback', '/signedout'};
 
 /// Application router provider.
 ///
@@ -182,14 +183,23 @@ final routerProvider = Provider<GoRouter>((ref) {
   final isOAuthCallback = capturedParams is WebCallbackParams;
   Loggers.router.debug('isOAuthCallback = $isOAuthCallback');
 
+  // Check if browser URL has a post-logout redirect path (e.g., '/signedout').
+  // GoRouter's initialLocation overrides the browser hash, so we must
+  // capture the path before GoRouter takes over.
+  final capturedPath = ref.read(capturedInitialPathProvider);
+
   // Use configured initial route or default to /
   final configuredInitial = routeConfig.initialRoute;
   final validatedInitial =
       isRouteVisible(configuredInitial, features, routeConfig)
           ? configuredInitial
           : getDefaultAuthenticatedRoute(features, routeConfig);
-  // Route to callback screen if we have OAuth tokens to process
-  final initialPath = isOAuthCallback ? '/auth/callback' : validatedInitial;
+  // Priority: OAuth callback > captured hash path > configured initial route
+  final initialPath = isOAuthCallback
+      ? '/auth/callback'
+      : capturedPath == '/signedout'
+          ? '/signedout'
+          : validatedInitial;
   Loggers.router.debug('Initial location: $initialPath');
 
   return GoRouter(
@@ -219,8 +229,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (isExplicitSignOut) {
           Loggers.router.info('Explicit sign-out detected');
         }
-        final target =
-            isExplicitSignOut && routeConfig.showHomeRoute ? '/' : '/login';
+        final target = isExplicitSignOut ? '/signedout' : '/login';
         Loggers.router.debug('redirecting to $target');
         return target;
       }
@@ -252,6 +261,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'auth-callback',
         pageBuilder: (context, state) =>
             const NoTransitionPage(child: AuthCallbackScreen()),
+      ),
+      // Post-logout landing page - chrome-less like other auth screens
+      GoRoute(
+        path: '/signedout',
+        name: 'signed-out',
+        pageBuilder: (context, state) =>
+            const NoTransitionPage(child: SignedOutScreen()),
       ),
       if (routeConfig.showHomeRoute)
         GoRoute(

@@ -70,9 +70,12 @@ Future<void> runSoliplexApp({
     return true; // Handled — prevent default error reporting.
   };
 
-  // Capture OAuth callback params BEFORE GoRouter initializes.
-  // GoRouter may modify the URL, losing the callback tokens.
+  // Capture URL state BEFORE GoRouter initializes (it overwrites the URL).
+  // GoRouter's initialLocation overrides the browser hash, so we must
+  // capture both OAuth callback params and the hash path (for post-logout
+  // redirect from IdP) before GoRouter takes over.
   final callbackParams = CallbackParamsCapture.captureNow();
+  final initialHashPath = CallbackParamsCapture.captureInitialHashPath();
 
   // Clear URL params immediately after capture (security: remove tokens).
   // Must happen before GoRouter initializes to avoid URL state conflicts.
@@ -108,6 +111,8 @@ Future<void> runSoliplexApp({
         // Inject shell configuration via ProviderScope (no global state)
         shellConfigProvider.overrideWithValue(config),
         capturedCallbackParamsProvider.overrideWithValue(callbackParams),
+        if (initialHashPath != null)
+          capturedInitialPathProvider.overrideWithValue(initialHashPath),
         // Fulfills the contract of preloadedPrefsProvider, enabling
         // synchronous log config initialization (no race condition).
         preloadedPrefsProvider.overrideWithValue(prefs),

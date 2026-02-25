@@ -19,6 +19,7 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
+import 'package:soliplex_frontend/features/auth/signed_out_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
@@ -116,14 +117,19 @@ Widget createRouterAppAt(
         return GoRouter(
           initialLocation: initialLocation,
           redirect: (context, state) {
-            const publicRoutes = {'/', '/login', '/auth/callback'};
+            const publicRoutes = {
+              '/',
+              '/login',
+              '/auth/callback',
+              '/signedout',
+            };
             final isPublicRoute = publicRoutes.contains(state.matchedLocation);
             if (!hasAccess && !isPublicRoute) {
               final target = switch (currentAuthState) {
                 Unauthenticated(
                   reason: UnauthenticatedReason.explicitSignOut,
                 ) =>
-                  '/',
+                  '/signedout',
                 _ => '/login',
               };
               return target;
@@ -144,6 +150,11 @@ Widget createRouterAppAt(
               path: '/',
               name: 'home',
               builder: (_, __) => const Scaffold(body: HomeScreen()),
+            ),
+            GoRoute(
+              path: '/signedout',
+              name: 'signed-out',
+              builder: (_, __) => const SignedOutScreen(),
             ),
             GoRoute(
               path: '/rooms',
@@ -405,7 +416,7 @@ void main() {
       expect(find.byType(LoginScreen), findsOneWidget);
     });
 
-    testWidgets('explicit sign-out redirects to home', (tester) async {
+    testWidgets('explicit sign-out redirects to /signedout', (tester) async {
       final container = ProviderContainer(
         overrides: [
           shellConfigProvider.overrideWithValue(testSoliplexConfig),
@@ -437,12 +448,12 @@ void main() {
 
       expect(find.byType(RoomsScreen), findsOneWidget);
 
-      // Explicit sign-out → home (to choose different backend)
+      // Explicit sign-out → /signedout
       await (container.read(authProvider.notifier) as _ControllableAuthNotifier)
           .signOut();
       await tester.pumpAndSettle();
 
-      expect(find.byType(HomeScreen), findsOneWidget);
+      expect(find.byType(SignedOutScreen), findsOneWidget);
     });
 
     testWidgets('token refresh preserves navigation location', (tester) async {
@@ -534,6 +545,14 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.byType(LoginScreen), findsOneWidget);
+    });
+
+    testWidgets('authenticated user at /signedout redirects to /rooms', (
+      tester,
+    ) async {
+      await tester.pumpWidget(createRouterAppAt('/signedout'));
+      await tester.pumpAndSettle();
+      expect(find.byType(RoomsScreen), findsOneWidget);
     });
 
     testWidgets('NoAuthRequired user at /login redirects to /rooms', (
@@ -946,10 +965,10 @@ void main() {
       expect(find.byType(RoomsScreen), findsOneWidget);
     });
 
-    testWidgets('sign-out redirects to /login regardless of config', (
+    testWidgets('sign-out redirects to /signedout regardless of config', (
       tester,
     ) async {
-      // Setup: showHomeRoute: false - verify sign-out goes to /login not /
+      // Setup: showHomeRoute: false - verify sign-out goes to /signedout
       final container = ProviderContainer(
         overrides: [
           shellConfigProvider.overrideWithValue(
@@ -991,8 +1010,8 @@ void main() {
           .signOut();
       await tester.pumpAndSettle();
 
-      // Expect: Redirects to /login (not / which would crash)
-      expect(find.byType(LoginScreen), findsOneWidget);
+      // Expect: Redirects to /signedout (dedicated post-logout page)
+      expect(find.byType(SignedOutScreen), findsOneWidget);
     });
 
     testWidgets('no redirect loop when already on target route', (

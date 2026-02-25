@@ -32,10 +32,12 @@ class NativeAuthFlow implements AuthFlow {
     required FlutterAppAuth appAuth,
     required String redirectScheme,
   })  : _appAuth = appAuth,
-        _redirectUri = '$redirectScheme://callback';
+        _redirectUri = '$redirectScheme://callback',
+        _logoutRedirectUri = '$redirectScheme://signedout';
 
   final FlutterAppAuth _appAuth;
   final String _redirectUri;
+  final String _logoutRedirectUri;
 
   @override
   bool get isWeb => false;
@@ -85,7 +87,7 @@ class NativeAuthFlow implements AuthFlow {
         EndSessionRequest(
           idTokenHint: idToken,
           discoveryUrl: discoveryUrl,
-          postLogoutRedirectUrl: _redirectUri,
+          postLogoutRedirectUrl: _logoutRedirectUri,
         ),
       );
     } on Exception catch (e, s) {
