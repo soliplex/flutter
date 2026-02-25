@@ -67,7 +67,7 @@ class _RoomInfoBody extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 16),
             child: Text(
               room.description,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyLarge,
             ),
           ),
         if (room.agent != null) _AgentCard(agent: room.agent!),
@@ -103,8 +103,8 @@ class _SectionCard extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0.5,
                     ),
               ),
@@ -129,20 +129,23 @@ class _InfoRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 120,
             child: Text(
               label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color:
+                    theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: theme.textTheme.bodySmall,
+              style: theme.textTheme.bodyMedium,
             ),
           ),
         ],
@@ -218,13 +221,13 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
             children: [
               Text(
                 'System Prompt',
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.copy, size: 16),
+                icon: const Icon(Icons.copy, size: 18),
                 onPressed: () {
                   Clipboard.setData(
                     ClipboardData(text: widget.prompt),
@@ -237,7 +240,7 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
                   );
                 },
                 tooltip: 'Copy system prompt',
-                iconSize: 16,
+                iconSize: 18,
                 constraints: const BoxConstraints(
                   minWidth: 32,
                   minHeight: 32,
@@ -257,9 +260,9 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
               child: SelectableText(
                 widget.prompt,
                 maxLines: _expanded ? null : _collapsedMaxLines,
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   fontFamily: 'monospace',
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
             ),
@@ -293,7 +296,7 @@ class _FeaturesCard extends StatelessWidget {
           value: room.enableAttachments ? 'Enabled' : 'Disabled',
         ),
         _InfoRow(
-          label: 'MCP Allowed',
+          label: 'Allow MCP',
           value: room.allowMcp ? 'Yes' : 'No',
         ),
         if (room.aguiFeatureNames.isNotEmpty)
@@ -317,59 +320,29 @@ class _ToolsCard extends StatelessWidget {
     return _SectionCard(
       title: 'TOOLS (${tools.length})',
       children: [
-        for (final entry in tools.entries)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      entry.value.isRagTool
-                          ? Icons.search
-                          : Icons.build_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      entry.key,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '[${entry.value.kind}]',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    if (entry.value.allowMcp) ...[
-                      const SizedBox(width: 4),
-                      Icon(
-                        Icons.hub_outlined,
-                        size: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ],
-                  ],
-                ),
-                if (entry.value.description.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 24),
-                    child: Text(
-                      entry.value.description,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-              ],
+        for (final entry in tools.entries) ...[
+          if (entry.key != tools.keys.first) ...[
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            entry.key,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 8),
+          _InfoRow(label: 'Kind', value: entry.value.kind),
+          if (entry.value.description.isNotEmpty)
+            _InfoRow(label: 'Description', value: entry.value.description),
+          if (entry.value.allowMcp)
+            _InfoRow(
+              label: 'Allow MCP',
+              value: entry.value.allowMcp ? 'Yes' : 'No',
+            ),
+        ],
       ],
     );
   }
@@ -386,50 +359,23 @@ class _McpToolsetsCard extends StatelessWidget {
     return _SectionCard(
       title: 'MCP CLIENT TOOLSETS (${toolsets.length})',
       children: [
-        for (final entry in toolsets.entries)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.hub_outlined,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      entry.key,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontFamily: 'monospace',
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '[${entry.value.kind}]',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-                if (entry.value.allowedTools != null)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 24),
-                    child: Text(
-                      'Allowed: '
-                      '${entry.value.allowedTools!.join(', ')}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-              ],
+        for (final entry in toolsets.entries) ...[
+          if (entry.key != toolsets.keys.first) const SizedBox(height: 20),
+          Text(
+            entry.key,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
             ),
           ),
+          const SizedBox(height: 4),
+          _InfoRow(label: 'Kind', value: entry.value.kind),
+          if (entry.value.allowedTools != null)
+            _InfoRow(
+              label: 'Allowed Tools',
+              value: entry.value.allowedTools!.join(', '),
+            ),
+        ],
       ],
     );
   }
@@ -464,7 +410,7 @@ class _DocumentsCard extends StatelessWidget {
             if (docs.isEmpty) {
               return Text(
                 'No documents in this room.',
-                style: theme.textTheme.bodySmall?.copyWith(
+                style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               );
@@ -476,14 +422,20 @@ class _DocumentsCard extends StatelessWidget {
                 itemCount: docs.length,
                 itemBuilder: (context, index) {
                   final doc = docs[index];
-                  return ListTile(
-                    dense: true,
-                    visualDensity: VisualDensity.compact,
-                    leading: Icon(getFileTypeIcon(doc.title), size: 20),
-                    title: Text(
-                      doc.title,
-                      style: theme.textTheme.bodySmall,
-                      overflow: TextOverflow.ellipsis,
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Icon(getFileTypeIcon(doc.title), size: 22),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            doc.title,
+                            style: theme.textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   );
                 },
@@ -498,7 +450,7 @@ class _DocumentsCard extends StatelessWidget {
             children: [
               Icon(
                 Icons.error_outline,
-                size: 16,
+                size: 18,
                 color: theme.colorScheme.error,
               ),
               const SizedBox(width: 8),

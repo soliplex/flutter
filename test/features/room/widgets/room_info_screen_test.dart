@@ -81,6 +81,11 @@ void main() {
     });
 
     testWidgets('shows tools section', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
       final room = _createRoomWithAgent();
 
       await tester.pumpWidget(
@@ -94,15 +99,68 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.scrollUntilVisible(
-        find.text('rag_search'),
-        200,
-        scrollable: find.byType(Scrollable).first,
+      expect(find.text('rag_search'), findsOneWidget);
+      expect(find.text('Search knowledge base'), findsOneWidget);
+    });
+
+    testWidgets('shows divider between tools', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      const room = Room(
+        id: 'room-1',
+        name: 'Test Room',
+        tools: {
+          'tool_a': RoomTool(
+            name: 'tool_a',
+            description: 'First tool',
+            kind: 'search',
+          ),
+          'tool_b': RoomTool(
+            name: 'tool_b',
+            description: 'Second tool',
+            kind: 'bare',
+          ),
+        },
+      );
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('rag_search'), findsOneWidget);
-      expect(find.text('Search knowledge base'), findsOneWidget);
+      expect(find.byType(Divider), findsOneWidget);
+    });
+
+    testWidgets('shows MCP detail line for MCP-enabled tools', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final room = _createRoomWithAgent();
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Allow MCP'), findsWidgets);
+      expect(find.text('Yes'), findsWidgets);
     });
 
     testWidgets('shows documents with count', (tester) async {
