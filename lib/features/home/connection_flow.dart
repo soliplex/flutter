@@ -132,7 +132,7 @@ class ConnectionSuccess extends ConnectionProbeResult {
 class ConnectionFailure extends ConnectionProbeResult {
   const ConnectionFailure(this.error);
 
-  /// The error from the first (HTTPS) attempt.
+  /// The error that caused the connection to fail.
   final Object error;
 }
 

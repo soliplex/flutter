@@ -243,6 +243,20 @@ void main() {
         expect(find.text('Please enter a server URL'), findsNothing);
       });
 
+      testWidgets('rejects URL with unsupported scheme', (tester) async {
+        await tester.pumpWidget(createTestApp(home: const HomeScreen()));
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'ftp://myserver.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+
+        expect(
+          find.text('Only http:// and https:// URLs are supported'),
+          findsOneWidget,
+        );
+      });
+
       testWidgets('rejects URL with spaces', (tester) async {
         await tester.pumpWidget(createTestApp(home: const HomeScreen()));
 
@@ -623,13 +637,11 @@ void main() {
     });
 
     group('insecure connection warning', () {
-      testWidgets('shows warning when connecting over HTTP via fallback', (
-        tester,
-      ) async {
-        final mockTransport = MockHttpTransport();
-        // HTTPS fails with network error
+      /// Stubs [transport] so HTTPS fails with a network error and HTTP
+      /// succeeds, triggering the insecure-connection fallback path.
+      void stubHttpFallback(MockHttpTransport transport) {
         when(
-          () => mockTransport.request<Map<String, dynamic>>(
+          () => transport.request<Map<String, dynamic>>(
             'GET',
             Uri.parse('https://example.com/api/login'),
             body: any(named: 'body'),
@@ -639,9 +651,8 @@ void main() {
             fromJson: any(named: 'fromJson'),
           ),
         ).thenThrow(const NetworkException(message: 'connection refused'));
-        // HTTP succeeds
         when(
-          () => mockTransport.request<Map<String, dynamic>>(
+          () => transport.request<Map<String, dynamic>>(
             'GET',
             Uri.parse('http://example.com/api/login'),
             body: any(named: 'body'),
@@ -651,6 +662,13 @@ void main() {
             fromJson: any(named: 'fromJson'),
           ),
         ).thenAnswer((_) async => <String, dynamic>{});
+      }
+
+      testWidgets('shows warning when connecting over HTTP via fallback', (
+        tester,
+      ) async {
+        final mockTransport = MockHttpTransport();
+        stubHttpFallback(mockTransport);
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -662,10 +680,13 @@ void main() {
           ),
         );
 
+        // Use pump() not pumpAndSettle() — the spinner animates behind
+        // the modal dialog, so pumpAndSettle never finishes.
         final urlField = find.byType(TextFormField);
         await tester.enterText(urlField, 'example.com');
         await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump();
 
         // Should show insecurity warning dialog
         expect(find.text('Insecure Connection'), findsOneWidget);
@@ -679,28 +700,7 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('https://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(const NetworkException(message: 'connection refused'));
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('http://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        stubHttpFallback(mockTransport);
 
         late _MockAuthNotifier mockAuth;
 
@@ -719,9 +719,11 @@ void main() {
         final urlField = find.byType(TextFormField);
         await tester.enterText(urlField, 'example.com');
         await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump();
 
-        // Accept the warning
+        // Accept the warning — dismissing the dialog clears _isConnecting
+        // via finally, so pumpAndSettle works after this point.
         await tester.tap(find.text('I understand, connect anyway'));
         await tester.pumpAndSettle();
 
@@ -734,28 +736,7 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('https://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(const NetworkException(message: 'connection refused'));
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('http://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        stubHttpFallback(mockTransport);
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -770,9 +751,11 @@ void main() {
         final urlField = find.byType(TextFormField);
         await tester.enterText(urlField, 'example.com');
         await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump();
 
-        // Decline the warning
+        // Decline the warning — dismissing the dialog clears _isConnecting
+        // via finally, so pumpAndSettle works after this point.
         await tester.tap(find.text('Cancel'));
         await tester.pumpAndSettle();
 
@@ -810,7 +793,8 @@ void main() {
         final urlField = find.byType(TextFormField);
         await tester.enterText(urlField, 'http://localhost:8000');
         await tester.tap(find.text('Connect'));
-        await tester.pumpAndSettle();
+        await tester.pump();
+        await tester.pump();
 
         // Should show insecurity warning
         expect(find.text('Insecure Connection'), findsOneWidget);

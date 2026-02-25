@@ -61,8 +61,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (value == null || value.trim().isEmpty) {
       return 'Please enter a server URL';
     }
-    if (value.trim().contains(' ')) {
+    final trimmed = value.trim();
+    if (trimmed.contains(' ')) {
       return 'URL cannot contain spaces';
+    }
+    if (trimmed.contains('://') &&
+        !trimmed.toLowerCase().startsWith('http://') &&
+        !trimmed.toLowerCase().startsWith('https://')) {
+      return 'Only http:// and https:// URLs are supported';
     }
     return null;
   }
@@ -111,7 +117,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
 
       if (!mounted) return;
-      setState(() => _isConnecting = false);
 
       switch (probeResult) {
         case ConnectionFailure(:final error):
