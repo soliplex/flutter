@@ -3,9 +3,10 @@ import 'package:soliplex_client/soliplex_client.dart';
 
 /// State for an active AG-UI run.
 ///
-/// This is a sealed class hierarchy with 3 states:
+/// This is a sealed class hierarchy with 4 states:
 /// - [IdleState]: No active run (sentinel state)
-/// - [RunningState]: Run is executing
+/// - [RunningState]: Run is executing (streaming events)
+/// - [ExecutingToolsState]: Tools are executing client-side between runs
 /// - [CompletedState]: Run finished (success, error, or cancelled)
 ///
 /// Use pattern matching for exhaustive handling:
@@ -15,6 +16,8 @@ import 'package:soliplex_client/soliplex_client.dart';
 ///     // No active run
 ///   case RunningState(:final threadId, :final streaming):
 ///     // Run is active
+///   case ExecutingToolsState(:final pendingTools):
+///     // Client-side tool execution in progress
 ///   case CompletedState(:final result):
 ///     switch (result) {
 ///       case Success():
@@ -42,8 +45,8 @@ sealed class ActiveRunState {
   /// Tool calls currently being executed.
   List<ToolCallInfo> get activeToolCalls => conversation.toolCalls;
 
-  /// Whether a run is currently executing.
-  bool get isRunning => this is RunningState;
+  /// Whether a run is currently executing (streaming or executing tools).
+  bool get isRunning => this is RunningState || this is ExecutingToolsState;
 }
 
 /// No run is currently active. Sentinel state.
@@ -127,6 +130,55 @@ class RunningState extends ActiveRunState {
   @override
   String toString() => 'RunningState(threadId: $threadId, '
       'messages: ${messages.length}, streaming: $streaming)';
+}
+
+/// Client-side tool execution is in progress between runs.
+///
+/// The SSE stream has ended; tools are executing locally. Once all tools
+/// complete, a continuation run is started with the results.
+@immutable
+class ExecutingToolsState extends ActiveRunState {
+  /// Creates an executing tools state.
+  const ExecutingToolsState({
+    required this.conversation,
+    required this.pendingTools,
+  });
+
+  @override
+  final Conversation conversation;
+
+  /// The tool calls currently being executed.
+  final List<ToolCallInfo> pendingTools;
+
+  /// The SSE stream is dead during tool execution.
+  @override
+  StreamingState get streaming => const AwaitingText();
+
+  /// The ID of the thread this run belongs to.
+  String get threadId => conversation.threadId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ExecutingToolsState &&
+          conversation == other.conversation &&
+          _listEquals(pendingTools, other.pendingTools);
+
+  @override
+  int get hashCode => Object.hash(conversation, Object.hashAll(pendingTools));
+
+  @override
+  String toString() => 'ExecutingToolsState(threadId: $threadId, '
+      'pendingTools: ${pendingTools.map((t) => t.name).join(', ')})';
+
+  static bool _listEquals(List<ToolCallInfo> a, List<ToolCallInfo> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
 /// A run has completed (success, error, or cancelled).

@@ -46,4 +46,7 @@ abstract final class Loggers {
 
   /// Telemetry and backend log shipping events.
   static final telemetry = LogManager.instance.getLogger('Telemetry');
+
+  /// Client-side tool execution orchestration.
+  static final toolExecution = LogManager.instance.getLogger('ToolExecution');
 }

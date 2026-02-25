@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
@@ -73,6 +74,35 @@ class RunRegistry {
     handle.state = completed;
     _controller.add(RunCompleted(key: handle.key, result: completed.result));
     onRunCompleted?.call(handle.key, completed);
+  }
+
+  /// Atomically replaces an old run handle with a new one (CAS).
+  ///
+  /// Used by tool execution continuations to swap the old run's handle with
+  /// the newly created continuation run. Returns `true` if the swap succeeded.
+  /// Returns `false` if [oldHandle] is no longer the registered handle for its
+  /// key (i.e., it was replaced by another call).
+  ///
+  /// On success: registers [newHandle], emits [RunContinued], disposes old.
+  /// On failure: the registry is unchanged and the caller should dispose
+  /// [newHandle].
+  Future<bool> replaceRun(RunHandle oldHandle, RunHandle newHandle) async {
+    _checkNotDisposed();
+    if (_runs[oldHandle.key] != oldHandle) return false;
+
+    _runs[newHandle.key] = newHandle;
+    _controller.add(RunContinued(key: newHandle.key));
+
+    try {
+      await oldHandle.dispose();
+    } catch (e, st) {
+      Loggers.toolExecution.error(
+        'Failed to dispose old handle during replaceRun',
+        error: e,
+        stackTrace: st,
+      );
+    }
+    return true;
   }
 
   /// Notifies the completion callback for runs that failed before

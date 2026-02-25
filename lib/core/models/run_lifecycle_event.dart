@@ -23,6 +23,15 @@ class RunStarted extends RunLifecycleEvent {
   const RunStarted({required super.key});
 }
 
+/// Emitted when a run is replaced by a continuation (tool execution loop).
+///
+/// Unlike [RunCompleted], this does NOT trigger unread indicators — the
+/// conversation is still in progress, just starting a new backend run.
+@immutable
+class RunContinued extends RunLifecycleEvent {
+  const RunContinued({required super.key});
+}
+
 /// Emitted when a run reaches a terminal state (success, failure, or cancel).
 @immutable
 class RunCompleted extends RunLifecycleEvent {

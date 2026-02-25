@@ -621,6 +621,140 @@ void main() {
       });
     });
 
+    group('replaceRun', () {
+      test('happy path: swaps handles and emits RunContinued', () async {
+        final oldHandle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        final newHandle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-2'),
+            ),
+          ),
+        );
+
+        await registry.registerRun(oldHandle);
+
+        final events = <RunLifecycleEvent>[];
+        registry.lifecycleEvents.listen(events.add);
+
+        final result = await registry.replaceRun(oldHandle, newHandle);
+
+        expect(result, isTrue);
+        expect(registry.getHandle(defaultKey), same(newHandle));
+        expect(oldHandle.cancelToken.isCancelled, isTrue);
+        expect(registry.runCount, 1);
+
+        await Future<void>.delayed(Duration.zero);
+        expect(events, hasLength(1));
+        expect(events.first, isA<RunContinued>());
+        final continued = events.first as RunContinued;
+        expect(continued.roomId, 'room-1');
+        expect(continued.threadId, 'thread-1');
+      });
+
+      test('stale handle: returns false and does not modify registry',
+          () async {
+        final staleHandle = createHandle();
+        await registry.registerRun(staleHandle);
+
+        // Replace with a newer handle
+        final currentHandle = createHandle();
+        await registry.registerRun(currentHandle);
+
+        // Try to replace the stale one
+        final attemptedNew = createHandle();
+        final result = await registry.replaceRun(staleHandle, attemptedNew);
+
+        expect(result, isFalse);
+        expect(registry.getHandle(defaultKey), same(currentHandle));
+      });
+
+      test('swallows disposal errors from old handle', () async {
+        // Creating a handle whose subscription controller is already closed
+        // causes disposal to potentially throw. The registry should swallow.
+        final oldHandle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        final newHandle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-2'),
+            ),
+          ),
+        );
+
+        await registry.registerRun(oldHandle);
+
+        // Dispose old handle first — so replaceRun's dispose is a no-op
+        await oldHandle.dispose();
+
+        // Should not throw even though old handle was pre-disposed
+        final result = await registry.replaceRun(oldHandle, newHandle);
+        expect(result, isTrue);
+      });
+
+      test('throws on disposed registry', () async {
+        final oldHandle = createHandle();
+        final newHandle = createHandle();
+        await registry.registerRun(oldHandle);
+        await registry.dispose();
+
+        expect(
+          () => registry.replaceRun(oldHandle, newHandle),
+          throwsStateError,
+        );
+      });
+
+      test('registers new handle BEFORE disposing old', () async {
+        // Verify ordering: new handle is accessible before old is cleaned up
+        final oldHandle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-1'),
+            ),
+          ),
+        );
+        final newHandle = createHandle(
+          initialState: const RunningState(
+            conversation: Conversation(
+              threadId: 'thread-1',
+              status: domain.Running(runId: 'run-2'),
+            ),
+          ),
+        );
+
+        await registry.registerRun(oldHandle);
+
+        // Listen for the RunContinued event — at that point the new handle
+        // must be registered but old should still not be disposed yet.
+        var newHandleVisible = false;
+        registry.lifecycleEvents.listen((event) {
+          if (event is RunContinued) {
+            newHandleVisible = registry.getHandle(defaultKey) == newHandle;
+          }
+        });
+
+        await registry.replaceRun(oldHandle, newHandle);
+
+        expect(newHandleVisible, isTrue);
+      });
+    });
+
     group('onRunCompleted callback', () {
       late RunRegistry callbackRegistry;
       late List<CompletedState> completedStates;

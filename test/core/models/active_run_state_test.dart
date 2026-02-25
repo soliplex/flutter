@@ -310,6 +310,141 @@ void main() {
       });
     });
 
+    group('ExecutingToolsState', () {
+      test('creates with conversation and pending tools', () {
+        const conversation = domain.Conversation(
+          threadId: 'thread-1',
+          toolCalls: [ToolCallInfo(id: 'tc-1', name: 'search')],
+          status: domain.Running(runId: 'run-1'),
+        );
+        const pendingTools = [ToolCallInfo(id: 'tc-1', name: 'search')];
+
+        const state = ExecutingToolsState(
+          conversation: conversation,
+          pendingTools: pendingTools,
+        );
+
+        expect(state.conversation, equals(conversation));
+        expect(state.pendingTools, hasLength(1));
+        expect(state.pendingTools.first.name, 'search');
+      });
+
+      test('streaming returns AwaitingText (SSE stream is dead)', () {
+        const state = ExecutingToolsState(
+          conversation: domain.Conversation(
+            threadId: 'thread-1',
+            status: domain.Running(runId: 'run-1'),
+          ),
+          pendingTools: [ToolCallInfo(id: 'tc-1', name: 'search')],
+        );
+
+        expect(state.streaming, isA<AwaitingText>());
+      });
+
+      test('isRunning returns true', () {
+        const state = ExecutingToolsState(
+          conversation: domain.Conversation(
+            threadId: 'thread-1',
+            status: domain.Running(runId: 'run-1'),
+          ),
+          pendingTools: [ToolCallInfo(id: 'tc-1', name: 'search')],
+        );
+
+        expect(state.isRunning, isTrue);
+      });
+
+      test('threadId delegates to conversation', () {
+        const state = ExecutingToolsState(
+          conversation: domain.Conversation(
+            threadId: 'thread-99',
+            status: domain.Running(runId: 'run-1'),
+          ),
+          pendingTools: [ToolCallInfo(id: 'tc-1', name: 'search')],
+        );
+
+        expect(state.threadId, 'thread-99');
+      });
+
+      test('equality based on conversation and pendingTools', () {
+        const conversation = domain.Conversation(
+          threadId: 'thread-1',
+          status: domain.Running(runId: 'run-1'),
+        );
+        const tools = [ToolCallInfo(id: 'tc-1', name: 'search')];
+
+        const state1 = ExecutingToolsState(
+          conversation: conversation,
+          pendingTools: tools,
+        );
+        const state2 = ExecutingToolsState(
+          conversation: conversation,
+          pendingTools: tools,
+        );
+        const state3 = ExecutingToolsState(
+          conversation: conversation,
+          pendingTools: [ToolCallInfo(id: 'tc-2', name: 'fetch')],
+        );
+
+        expect(state1, equals(state2));
+        expect(state1, isNot(equals(state3)));
+      });
+
+      test('hashCode is consistent with equality', () {
+        const conversation = domain.Conversation(
+          threadId: 'thread-1',
+          status: domain.Running(runId: 'run-1'),
+        );
+        const tools = [ToolCallInfo(id: 'tc-1', name: 'search')];
+
+        const state1 = ExecutingToolsState(
+          conversation: conversation,
+          pendingTools: tools,
+        );
+        const state2 = ExecutingToolsState(
+          conversation: conversation,
+          pendingTools: tools,
+        );
+
+        expect(state1.hashCode, equals(state2.hashCode));
+      });
+
+      test('toString shows threadId and tool names', () {
+        const state = ExecutingToolsState(
+          conversation: domain.Conversation(
+            threadId: 'thread-1',
+            status: domain.Running(runId: 'run-1'),
+          ),
+          pendingTools: [
+            ToolCallInfo(id: 'tc-1', name: 'search'),
+            ToolCallInfo(id: 'tc-2', name: 'fetch'),
+          ],
+        );
+
+        final str = state.toString();
+        expect(str, contains('threadId: thread-1'));
+        expect(str, contains('search'));
+        expect(str, contains('fetch'));
+      });
+
+      test('pattern matching with destructuring', () {
+        const ActiveRunState state = ExecutingToolsState(
+          conversation: domain.Conversation(
+            threadId: 'thread-1',
+            status: domain.Running(runId: 'run-1'),
+          ),
+          pendingTools: [ToolCallInfo(id: 'tc-1', name: 'search')],
+        );
+
+        final toolNames = switch (state) {
+          ExecutingToolsState(:final pendingTools) =>
+            pendingTools.map((t) => t.name).toList(),
+          _ => <String>[],
+        };
+
+        expect(toolNames, ['search']);
+      });
+    });
+
     group('pattern matching', () {
       test('exhaustive switch on ActiveRunState', () {
         const conversation = domain.Conversation(
@@ -324,6 +459,10 @@ void main() {
         final states = <ActiveRunState>[
           const IdleState(),
           const RunningState(conversation: conversation),
+          const ExecutingToolsState(
+            conversation: conversation,
+            pendingTools: [ToolCallInfo(id: 'tc-1', name: 'search')],
+          ),
           const CompletedState(
             conversation: completedConversation,
             result: Success(),
@@ -334,6 +473,7 @@ void main() {
           final description = switch (state) {
             IdleState() => 'idle',
             RunningState() => 'running',
+            ExecutingToolsState() => 'executing_tools',
             CompletedState() => 'completed',
           };
           expect(description, isNotEmpty);
