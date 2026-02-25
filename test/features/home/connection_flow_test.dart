@@ -1,10 +1,231 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 import 'package:soliplex_frontend/features/home/connection_flow.dart';
 
 import '../../helpers/test_helpers.dart';
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(Uri.parse('https://example.com'));
+  });
+
+  group('probeConnection', () {
+    late MockHttpTransport transport;
+
+    setUp(() {
+      transport = MockHttpTransport();
+    });
+
+    void stubRequest(Uri url, {Object? error}) {
+      final invocation = when(
+        () => transport.request<Map<String, dynamic>>(
+          'GET',
+          url,
+          body: any(named: 'body'),
+          headers: any(named: 'headers'),
+          timeout: any(named: 'timeout'),
+          cancelToken: any(named: 'cancelToken'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      );
+      if (error != null) {
+        invocation.thenThrow(error);
+      } else {
+        invocation.thenAnswer((_) async => <String, dynamic>{});
+      }
+    }
+
+    test('returns success on HTTPS when input already has https', () async {
+      stubRequest(Uri.parse('https://example.com/api/login'));
+
+      final result = await probeConnection(
+        input: 'https://example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionSuccess>());
+      final success = result as ConnectionSuccess;
+      expect(success.url, 'https://example.com');
+      expect(success.isInsecure, isFalse);
+    });
+
+    test('returns success on HTTPS for bare hostname', () async {
+      stubRequest(Uri.parse('https://example.com/api/login'));
+
+      final result = await probeConnection(
+        input: 'example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionSuccess>());
+      final success = result as ConnectionSuccess;
+      expect(success.url, 'https://example.com');
+      expect(success.isInsecure, isFalse);
+    });
+
+    test('falls back to HTTP on HTTPS network error', () async {
+      stubRequest(
+        Uri.parse('https://example.com/api/login'),
+        error: const NetworkException(message: 'connection refused'),
+      );
+      stubRequest(Uri.parse('http://example.com/api/login'));
+
+      final result = await probeConnection(
+        input: 'example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionSuccess>());
+      final success = result as ConnectionSuccess;
+      expect(success.url, 'http://example.com');
+      expect(success.isInsecure, isTrue);
+    });
+
+    test('returns failure when both HTTPS and HTTP fail', () async {
+      stubRequest(
+        Uri.parse('https://example.com/api/login'),
+        error: const NetworkException(message: 'connection refused'),
+      );
+      stubRequest(
+        Uri.parse('http://example.com/api/login'),
+        error: const NetworkException(message: 'connection refused'),
+      );
+
+      final result = await probeConnection(
+        input: 'example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionFailure>());
+    });
+
+    test('returns failure for explicit https with network error', () async {
+      stubRequest(
+        Uri.parse('https://example.com/api/login'),
+        error: const NetworkException(message: 'connection refused'),
+      );
+
+      final result = await probeConnection(
+        input: 'https://example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionFailure>());
+      // Should NOT have tried HTTP — user explicitly chose HTTPS.
+      verifyNever(
+        () => transport.request<Map<String, dynamic>>(
+          'GET',
+          Uri.parse('http://example.com/api/login'),
+          body: any(named: 'body'),
+          headers: any(named: 'headers'),
+          timeout: any(named: 'timeout'),
+          cancelToken: any(named: 'cancelToken'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      );
+    });
+
+    test('does not fall back to HTTP on non-network HTTPS error', () async {
+      stubRequest(
+        Uri.parse('https://example.com/api/login'),
+        error: const ApiException(statusCode: 500, message: 'Internal error'),
+      );
+
+      final result = await probeConnection(
+        input: 'example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionFailure>());
+      // Should NOT have tried HTTP
+      verifyNever(
+        () => transport.request<Map<String, dynamic>>(
+          'GET',
+          Uri.parse('http://example.com/api/login'),
+          body: any(named: 'body'),
+          headers: any(named: 'headers'),
+          timeout: any(named: 'timeout'),
+          cancelToken: any(named: 'cancelToken'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      );
+    });
+
+    test('skips probing when input already has http scheme', () async {
+      stubRequest(Uri.parse('http://localhost:8000/api/login'));
+
+      final result = await probeConnection(
+        input: 'http://localhost:8000',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionSuccess>());
+      final success = result as ConnectionSuccess;
+      expect(success.url, 'http://localhost:8000');
+      expect(success.isInsecure, isTrue);
+      // Should NOT have tried HTTPS
+      verifyNever(
+        () => transport.request<Map<String, dynamic>>(
+          'GET',
+          Uri.parse('https://localhost:8000/api/login'),
+          body: any(named: 'body'),
+          headers: any(named: 'headers'),
+          timeout: any(named: 'timeout'),
+          cancelToken: any(named: 'cancelToken'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      );
+    });
+
+    test('preserves auth providers from successful probe', () async {
+      when(
+        () => transport.request<Map<String, dynamic>>(
+          'GET',
+          Uri.parse('https://example.com/api/login'),
+          body: any(named: 'body'),
+          headers: any(named: 'headers'),
+          timeout: any(named: 'timeout'),
+          cancelToken: any(named: 'cancelToken'),
+          fromJson: any(named: 'fromJson'),
+        ),
+      ).thenAnswer(
+        (_) async => <String, dynamic>{
+          'google': {
+            'title': 'Google',
+            'server_url': 'https://accounts.google.com',
+            'client_id': 'client-123',
+            'scope': 'openid email',
+          },
+        },
+      );
+
+      final result = await probeConnection(
+        input: 'example.com',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionSuccess>());
+      final success = result as ConnectionSuccess;
+      expect(success.providers, hasLength(1));
+      expect(success.providers.first.name, 'Google');
+    });
+
+    test('handles hostname with port', () async {
+      stubRequest(Uri.parse('https://example.com:8443/api/login'));
+
+      final result = await probeConnection(
+        input: 'example.com:8443',
+        transport: transport,
+      );
+
+      expect(result, isA<ConnectionSuccess>());
+      final success = result as ConnectionSuccess;
+      expect(success.url, 'https://example.com:8443');
+    });
+  });
+
   group('determinePreConnectAction', () {
     group('when backend has not changed', () {
       test('returns none regardless of auth state', () {
@@ -178,6 +399,49 @@ void main() {
       final url1 = normalizeUrl('http://example.com');
       final url2 = normalizeUrl('http://example.com/');
       expect(url1, equals(url2));
+    });
+  });
+
+  group('addScheme', () {
+    test('preserves existing https scheme', () {
+      expect(addScheme('https://example.com'), 'https://example.com');
+    });
+
+    test('preserves existing http scheme', () {
+      expect(addScheme('http://example.com'), 'http://example.com');
+    });
+
+    test('preserves https with port', () {
+      expect(addScheme('https://example.com:8443'), 'https://example.com:8443');
+    });
+
+    test('prepends https to bare hostname', () {
+      expect(addScheme('example.com'), 'https://example.com');
+    });
+
+    test('prepends https to hostname with port', () {
+      expect(addScheme('example.com:8443'), 'https://example.com:8443');
+    });
+
+    test('prepends https to localhost', () {
+      expect(addScheme('localhost'), 'https://localhost');
+    });
+
+    test('prepends https to localhost with port', () {
+      expect(addScheme('localhost:8000'), 'https://localhost:8000');
+    });
+
+    test('prepends https to IP address', () {
+      expect(addScheme('192.168.1.1'), 'https://192.168.1.1');
+    });
+
+    test('prepends https to IP address with port', () {
+      expect(addScheme('192.168.1.1:8000'), 'https://192.168.1.1:8000');
+    });
+
+    test('is case-insensitive for existing scheme', () {
+      expect(addScheme('HTTP://example.com'), 'HTTP://example.com');
+      expect(addScheme('HTTPS://example.com'), 'HTTPS://example.com');
     });
   });
 

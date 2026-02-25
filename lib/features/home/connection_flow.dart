@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/auth/auth_state.dart';
 
 /// Action to perform before fetching auth providers during backend connection.
@@ -99,6 +100,120 @@ PostConnectResult determinePostConnectResult({
     Unauthenticated() => const RequireLoginResult(shouldExitNoAuthMode: false),
     AuthLoading() => const RequireLoginResult(shouldExitNoAuthMode: false),
   };
+}
+
+/// Result of probing a backend URL for connectivity.
+@immutable
+sealed class ConnectionProbeResult {
+  const ConnectionProbeResult();
+}
+
+/// Backend was reached successfully.
+@immutable
+class ConnectionSuccess extends ConnectionProbeResult {
+  const ConnectionSuccess({
+    required this.url,
+    required this.providers,
+    required this.isInsecure,
+  });
+
+  /// The resolved URL (with scheme) that successfully connected.
+  final String url;
+
+  /// Auth providers returned by the backend.
+  final List<AuthProviderConfig> providers;
+
+  /// Whether the connection uses HTTP (not HTTPS).
+  final bool isInsecure;
+}
+
+/// Backend could not be reached over any scheme.
+@immutable
+class ConnectionFailure extends ConnectionProbeResult {
+  const ConnectionFailure(this.error);
+
+  /// The error from the first (HTTPS) attempt.
+  final Object error;
+}
+
+/// Probes the backend by trying HTTPS first, falling back to HTTP on network
+/// errors.
+///
+/// If the input already has an explicit scheme, only that scheme is tried.
+/// For schemeless input, tries `https://` first. If that fails with a
+/// [NetworkException], tries `http://`. Non-network errors (4xx, 5xx) are
+/// not retried since they indicate the server was reachable.
+Future<ConnectionProbeResult> probeConnection({
+  required String input,
+  required HttpTransport transport,
+}) async {
+  final hasExplicitScheme = input.toLowerCase().startsWith('http://') ||
+      input.toLowerCase().startsWith('https://');
+  final isExplicitHttp = input.toLowerCase().startsWith('http://');
+  final httpsUrl = addScheme(input);
+
+  // If user explicitly typed http://, only try that.
+  if (isExplicitHttp) {
+    try {
+      final providers = await fetchAuthProviders(
+        transport: transport,
+        baseUrl: Uri.parse(input),
+      );
+      return ConnectionSuccess(
+        url: input,
+        providers: providers,
+        isInsecure: true,
+      );
+    } on Object catch (e) {
+      return ConnectionFailure(e);
+    }
+  }
+
+  // Try HTTPS (either explicit or added by addScheme).
+  try {
+    final providers = await fetchAuthProviders(
+      transport: transport,
+      baseUrl: Uri.parse(httpsUrl),
+    );
+    return ConnectionSuccess(
+      url: httpsUrl,
+      providers: providers,
+      isInsecure: false,
+    );
+  } on NetworkException catch (e) {
+    // Only fall back to HTTP if no explicit scheme was given.
+    if (hasExplicitScheme) return ConnectionFailure(e);
+  } on Object catch (e) {
+    return ConnectionFailure(e);
+  }
+
+  // HTTPS had a network error and input had no scheme — try HTTP.
+  final httpUrl = 'http://$input';
+  try {
+    final providers = await fetchAuthProviders(
+      transport: transport,
+      baseUrl: Uri.parse(httpUrl),
+    );
+    return ConnectionSuccess(
+      url: httpUrl,
+      providers: providers,
+      isInsecure: true,
+    );
+  } on Object catch (e) {
+    return ConnectionFailure(e);
+  }
+}
+
+/// Prepends `https://` if the input has no scheme.
+///
+/// If the input already starts with `http://` or `https://` (case-insensitive),
+/// it is returned as-is.
+String addScheme(String input) {
+  final lower = input.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    return input;
+  }
+  return 'https://$input';
 }
 
 /// Normalizes a URL for comparison by removing trailing slash.
