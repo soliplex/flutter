@@ -63,24 +63,6 @@ final Provider<ToolRegistry> toolRegistryProvider =
       registry = registry.register(
         ClientTool(definition: tool, executor: _serverSideToolExecutor),
       );
-
-      // Also register under `kind` for backend direct dispatch.
-      // The backend's LLM calls tools by `kind` (e.g. "get_current_datetime")
-      // but tool_name is the fully-qualified registry name
-      // (e.g. "soliplex.tools.get_current_datetime").
-      final kind = toolDef['kind'] as String?;
-      if (kind != null && kind.isNotEmpty && kind != tool.name) {
-        registry = registry.register(
-          ClientTool(
-            definition: Tool(
-              name: kind,
-              description: tool.description,
-              parameters: tool.parameters,
-            ),
-            executor: _serverSideToolExecutor,
-          ),
-        );
-      }
     }
   }
 

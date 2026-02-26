@@ -383,7 +383,7 @@ void main() {
       expect(registry.contains('execute_python'), isTrue);
     });
 
-    test('registers room tools under both tool_name and kind', () {
+    test('registers room tools under tool_name only', () {
       const room = Room(
         id: 'room-1',
         name: 'Test',
@@ -407,35 +407,13 @@ void main() {
         isTrue,
         reason: 'Should be registered under tool_name',
       );
+      // kind is NOT registered as a separate client tool — it would
+      // conflict with the AG-UI agent's own tool of the same name.
       expect(
         registry.contains('get_current_datetime'),
-        isTrue,
-        reason: 'Should also be registered under kind',
+        isFalse,
+        reason: 'Should not duplicate under kind',
       );
-    });
-
-    test('skips kind registration when kind equals tool_name', () {
-      const room = Room(
-        id: 'room-1',
-        name: 'Test',
-        toolDefinitions: [
-          {
-            'kind': 'my_tool',
-            'tool_name': 'my_tool',
-            'tool_description': 'Same name tool',
-          },
-        ],
-      );
-      final container = ProviderContainer(
-        overrides: [currentRoomProvider.overrideWithValue(room)],
-      );
-      addTearDown(container.dispose);
-
-      final registry = container.read(toolRegistryProvider);
-
-      expect(registry.contains('my_tool'), isTrue);
-      // execute_python + my_tool = 2 (not 3, because kind == tool_name)
-      expect(registry.toolDefinitions, hasLength(2));
     });
 
     test('returns only client tools when no room is selected', () {
