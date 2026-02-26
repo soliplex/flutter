@@ -8,9 +8,10 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
-import 'package:soliplex_frontend/core/providers/monty_bridge_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/services/thread_bridge_cache.dart';
 import 'package:soliplex_frontend/core/services/tool_definition_converter.dart';
+import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 import 'package:soliplex_monty/soliplex_monty.dart';
 
 /// Static client-side tools. White-label apps override this in
@@ -33,99 +34,93 @@ final clientToolRegistryProvider = Provider<ToolRegistry>((ref) {
 /// executed server-side. The client never invokes this executor.
 Future<String> _serverSideToolExecutor(ToolCallInfo _) async => '';
 
-/// Per-room [MontyBridge] with host functions from room tool definitions.
-///
-/// Returns `null` when no room is selected or the room has no tools.
-/// Creates a new bridge each time the room changes, registering all
-/// room tool definitions as host functions.
-///
-/// Host function handlers use `ref.read(toolRegistryProvider)` lazily
-/// at call time to avoid circular watch dependencies.
-///
-/// Both this provider and [toolRegistryProvider] use explicit type
-/// annotations to break Dart's top-level cycle detection. The closures
-/// reference each other but are only evaluated by Riverpod at watch/read
-/// time, not at variable initialization.
-final Provider<MontyBridge?> montyBridgeProvider =
-    Provider<MontyBridge?>((ref) {
-  final room = ref.watch(currentRoomProvider);
-  if (room == null || !room.hasToolDefinitions) return null;
-
-  final bridge = DefaultMontyBridge();
-  final mappings = roomToolDefsToMappings(room.toolDefinitions);
-
-  Loggers.montyBridge.info(
-    'Creating bridge for room "${room.name}" '
-    'with ${mappings.length} host functions',
-  );
-
-  for (final mapping in mappings) {
-    bridge.register(
-      HostFunction(
-        schema: mapping.schema,
-        handler: (args) async {
-          // Lazy read at call time — no circular watch dependency.
-          final registry = ref.read(toolRegistryProvider);
-          final toolCall = ToolCallInfo(
-            id: 'monty_${mapping.pythonName}_'
-                '${DateTime.now().millisecondsSinceEpoch}',
-            name: mapping.registryName,
-            arguments: jsonEncode(args),
-          );
-          Loggers.montyBridge.debug(
-            'Dispatching ${mapping.pythonName} '
-            '→ ${mapping.registryName}',
-          );
-          return registry.execute(toolCall);
-        },
-      ),
-    );
-  }
-
-  ref.onDispose(() {
-    Loggers.montyBridge.debug('Disposing bridge');
-    bridge.dispose();
-  });
-  return bridge;
-});
-
 /// Merged registry: client-side tools + current room's negotiated tools +
-/// execute_python (when MontyBridge is available).
+/// execute_python (when room has tool definitions).
 ///
-/// ActiveRunNotifier already watches this — no changes needed there.
 /// Room tools are definition-only (no client executor). They're sent to
 /// the backend so the LLM knows about them, but executed server-side.
 ///
+/// The execute_python tool uses [threadBridgeCacheProvider] to get a
+/// per-thread [MontyBridge]. The active thread is read from the Zone
+/// via [activeThreadKey], set by `ActiveRunNotifier`.
+///
 /// Provider dependency chain (no cycles):
 /// ```text
-/// currentRoomProvider
-///     | watch               | watch
-/// montyBridgeProvider     clientToolRegistryProvider
-///     | watch               | watch
-///     └──> toolRegistryProvider <──┘
-///              | watch
-///         ActiveRunNotifier (unchanged)
+/// currentRoomProvider ──[watch]──→ toolRegistryProvider
+/// clientToolRegistryProvider ──[watch]──→ toolRegistryProvider
+/// threadBridgeCacheProvider ──[read]──→ (from executor closure)
+/// toolRegistryProvider ──[read]──→ (from host function closures)
 /// ```
-///
-/// Host function handlers use `ref.read(toolRegistryProvider)` lazily
-/// at call time — not a watch, so no cycle.
-///
 final Provider<ToolRegistry> toolRegistryProvider =
     Provider<ToolRegistry>((ref) {
   var registry = ref.watch(clientToolRegistryProvider);
   final room = ref.watch(currentRoomProvider);
   if (room != null) {
-    for (final tool in roomToolsToAgUi(room)) {
+    for (final toolDef in room.toolDefinitions) {
+      final tool = toolDefinitionToAgUiTool(toolDef);
+      if (tool.name.isEmpty) continue;
+
       registry = registry.register(
         ClientTool(definition: tool, executor: _serverSideToolExecutor),
       );
+
+      // Also register under `kind` for backend direct dispatch.
+      // The backend's LLM calls tools by `kind` (e.g. "get_current_datetime")
+      // but tool_name is the fully-qualified registry name
+      // (e.g. "soliplex.tools.get_current_datetime").
+      final kind = toolDef['kind'] as String?;
+      if (kind != null && kind.isNotEmpty && kind != tool.name) {
+        registry = registry.register(
+          ClientTool(
+            definition: Tool(
+              name: kind,
+              description: tool.description,
+              parameters: tool.parameters,
+            ),
+            executor: _serverSideToolExecutor,
+          ),
+        );
+      }
     }
   }
 
-  // Add execute_python when MontyBridge is available.
-  final bridge = ref.watch(montyBridgeProvider);
-  if (bridge != null) {
-    registry = registry.register(createExecutePythonTool(bridge));
+  // Add execute_python when room has tool definitions.
+  // Each thread gets its own bridge via threadBridgeCacheProvider.
+  if (room != null && room.hasToolDefinitions) {
+    final cacheNotifier = ref.read(threadBridgeCacheProvider.notifier);
+    final mappings = roomToolDefsToMappings(room.toolDefinitions);
+
+    registry = registry.register(
+      ClientTool(
+        definition: PythonExecutorTool.definition,
+        executor: (toolCall) async {
+          final key = activeThreadKey;
+          if (key == null) return 'Error: No thread context for execute_python';
+
+          final args = jsonDecode(toolCall.arguments) as Map<String, dynamic>;
+          final code = args['code'] as String? ?? '';
+          if (code.isEmpty) return 'Error: No code provided';
+
+          try {
+            final bridge = cacheNotifier.getOrCreate(key, mappings);
+            final output = StringBuffer();
+            await for (final event in bridge.execute(code)) {
+              if (event is TextMessageContentEvent) output.write(event.delta);
+              if (event is RunErrorEvent) return 'Error: ${event.message}';
+            }
+            return output.isEmpty
+                ? 'Code executed successfully with no output.'
+                : output.toString();
+            // MontyPlatform throws StateError when the interpreter is stuck
+            // in active state. We must catch it to return a tool result
+            // instead of crashing the run.
+            // ignore: avoid_catching_errors
+          } on StateError catch (e) {
+            return 'Error: ${e.message}';
+          }
+        },
+      ),
+    );
   }
 
   return registry;

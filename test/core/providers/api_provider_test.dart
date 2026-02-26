@@ -383,6 +383,61 @@ void main() {
       expect(registry.contains('execute_python'), isTrue);
     });
 
+    test('registers room tools under both tool_name and kind', () {
+      const room = Room(
+        id: 'room-1',
+        name: 'Test',
+        toolDefinitions: [
+          {
+            'kind': 'get_current_datetime',
+            'tool_name': 'soliplex.tools.get_current_datetime',
+            'tool_description': 'Get current date/time',
+          },
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: [currentRoomProvider.overrideWithValue(room)],
+      );
+      addTearDown(container.dispose);
+
+      final registry = container.read(toolRegistryProvider);
+
+      expect(
+        registry.contains('soliplex.tools.get_current_datetime'),
+        isTrue,
+        reason: 'Should be registered under tool_name',
+      );
+      expect(
+        registry.contains('get_current_datetime'),
+        isTrue,
+        reason: 'Should also be registered under kind',
+      );
+    });
+
+    test('skips kind registration when kind equals tool_name', () {
+      const room = Room(
+        id: 'room-1',
+        name: 'Test',
+        toolDefinitions: [
+          {
+            'kind': 'my_tool',
+            'tool_name': 'my_tool',
+            'tool_description': 'Same name tool',
+          },
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: [currentRoomProvider.overrideWithValue(room)],
+      );
+      addTearDown(container.dispose);
+
+      final registry = container.read(toolRegistryProvider);
+
+      expect(registry.contains('my_tool'), isTrue);
+      // execute_python + my_tool = 2 (not 3, because kind == tool_name)
+      expect(registry.toolDefinitions, hasLength(2));
+    });
+
     test('returns only client tools when no room is selected', () {
       final clientTool = ClientTool(
         definition: const Tool(
