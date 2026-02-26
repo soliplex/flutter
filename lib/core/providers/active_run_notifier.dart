@@ -55,7 +55,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   @override
   ActiveRunState build() {
     _agUiClient = ref.watch(agUiClientProvider);
-    _toolRegistry = ref.watch(toolRegistryProvider);
+    _toolRegistry = ref.read(toolRegistryProvider);
+    ref.listen(toolRegistryProvider, (_, next) => _toolRegistry = next);
 
     // Mark thread as unread when a non-cancelled background run completes.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
@@ -206,6 +207,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
+        tools: _toolRegistry.toolDefinitions,
         state: mergedState,
       );
 
@@ -568,6 +570,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: handle.key.threadId,
         runId: runInfo.id,
         messages: aguiMessages,
+        tools: _toolRegistry.toolDefinitions,
         state: conversation.aguiState,
       );
 
