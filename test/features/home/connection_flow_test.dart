@@ -47,7 +47,7 @@ void main() {
 
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
-      expect(success.url, 'https://example.com');
+      expect(success.url, Uri.parse('https://example.com'));
       expect(success.isInsecure, isFalse);
     });
 
@@ -61,7 +61,7 @@ void main() {
 
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
-      expect(success.url, 'https://example.com');
+      expect(success.url, Uri.parse('https://example.com'));
       expect(success.isInsecure, isFalse);
     });
 
@@ -79,7 +79,7 @@ void main() {
 
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
-      expect(success.url, 'http://example.com');
+      expect(success.url, Uri.parse('http://example.com'));
       expect(success.isInsecure, isTrue);
     });
 
@@ -163,7 +163,7 @@ void main() {
 
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
-      expect(success.url, 'http://localhost:8000');
+      expect(success.url, Uri.parse('http://localhost:8000'));
       expect(success.isInsecure, isTrue);
       // Should NOT have tried HTTPS
       verifyNever(
@@ -222,7 +222,7 @@ void main() {
 
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
-      expect(success.url, 'https://example.com:8443');
+      expect(success.url, Uri.parse('https://example.com:8443'));
     });
   });
 
@@ -378,70 +378,39 @@ void main() {
     });
   });
 
-  group('normalizeUrl', () {
+  group('normalizeUri', () {
     test('removes trailing slash', () {
-      expect(normalizeUrl('http://example.com/'), 'http://example.com');
+      expect(
+        normalizeUri(Uri.parse('http://example.com/')),
+        Uri.parse('http://example.com'),
+      );
     });
 
     test('preserves URL without trailing slash', () {
-      expect(normalizeUrl('http://example.com'), 'http://example.com');
+      expect(
+        normalizeUri(Uri.parse('http://example.com')),
+        Uri.parse('http://example.com'),
+      );
     });
 
     test('handles URL with path and trailing slash', () {
-      expect(normalizeUrl('http://example.com/api/'), 'http://example.com/api');
+      expect(
+        normalizeUri(Uri.parse('http://example.com/api/')),
+        Uri.parse('http://example.com/api'),
+      );
     });
 
     test('handles URL with port', () {
-      expect(normalizeUrl('http://localhost:8000/'), 'http://localhost:8000');
+      expect(
+        normalizeUri(Uri.parse('http://localhost:8000/')),
+        Uri.parse('http://localhost:8000'),
+      );
     });
 
     test('treats URLs differing only by trailing slash as equal', () {
-      final url1 = normalizeUrl('http://example.com');
-      final url2 = normalizeUrl('http://example.com/');
+      final url1 = normalizeUri(Uri.parse('http://example.com'));
+      final url2 = normalizeUri(Uri.parse('http://example.com/'));
       expect(url1, equals(url2));
-    });
-  });
-
-  group('addScheme', () {
-    test('preserves existing https scheme', () {
-      expect(addScheme('https://example.com'), 'https://example.com');
-    });
-
-    test('preserves existing http scheme', () {
-      expect(addScheme('http://example.com'), 'http://example.com');
-    });
-
-    test('preserves https with port', () {
-      expect(addScheme('https://example.com:8443'), 'https://example.com:8443');
-    });
-
-    test('prepends https to bare hostname', () {
-      expect(addScheme('example.com'), 'https://example.com');
-    });
-
-    test('prepends https to hostname with port', () {
-      expect(addScheme('example.com:8443'), 'https://example.com:8443');
-    });
-
-    test('prepends https to localhost', () {
-      expect(addScheme('localhost'), 'https://localhost');
-    });
-
-    test('prepends https to localhost with port', () {
-      expect(addScheme('localhost:8000'), 'https://localhost:8000');
-    });
-
-    test('prepends https to IP address', () {
-      expect(addScheme('192.168.1.1'), 'https://192.168.1.1');
-    });
-
-    test('prepends https to IP address with port', () {
-      expect(addScheme('192.168.1.1:8000'), 'https://192.168.1.1:8000');
-    });
-
-    test('is case-insensitive for existing scheme', () {
-      expect(addScheme('HTTP://example.com'), 'HTTP://example.com');
-      expect(addScheme('HTTPS://example.com'), 'HTTPS://example.com');
     });
   });
 

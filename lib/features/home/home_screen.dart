@@ -58,18 +58,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   String? _validateUrl(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Please enter a server URL';
-    }
-    final trimmed = value.trim();
-    if (trimmed.contains(' ')) {
-      return 'URL cannot contain spaces';
-    }
-    if (trimmed.contains('://') &&
-        !trimmed.toLowerCase().startsWith('http://') &&
-        !trimmed.toLowerCase().startsWith('https://')) {
-      return 'Only http:// and https:// URLs are supported';
-    }
+    // http://example.com, https://example.com, example.com:8000, example:8000, example.com
+
+    if (value == null) return null;
+
+    final containsWhiteSpace = RegExp(r'\s').hasMatch(value.trim());
+
+    if (containsWhiteSpace) return "Can't contain whitespaces";
+
+    final separatorIndex = value.indexOf(RegExp(r':\/\/'));
+
+    if (separatorIndex == -1) return null;
+
+    final schemeText = value.substring(0, separatorIndex);
+
+    if (!['http', 'https'].contains(schemeText)) return 'Unsupported scheme';
+
     return null;
   }
 
@@ -137,11 +141,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _onConnectionSuccess(
-    String url,
+    Uri url,
     List<AuthProviderConfig> providers,
   ) async {
-    final currentUrl = ref.read(configProvider).baseUrl;
-    final isBackendChange = normalizeUrl(url) != normalizeUrl(currentUrl);
+    final currentUrl = Uri.parse(ref.read(configProvider).baseUrl);
+    final isBackendChange = normalizeUri(url) != normalizeUri(currentUrl);
 
     // Determine and execute pre-connect cleanup action.
     final preConnectAction = determinePreConnectAction(
@@ -160,7 +164,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Persist the resolved URL (with scheme).
     try {
-      await ref.read(configProvider.notifier).setBaseUrl(url);
+      await ref.read(configProvider.notifier).setBaseUrl(url.toString());
       Loggers.ui.debug(
         'HomeScreen: URL saved, config.baseUrl is now: '
         '${ref.read(configProvider).baseUrl}',
@@ -297,6 +301,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 key: _formKey,
                 child: TextFormField(
                   controller: _urlController,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _validateUrl,
                   decoration: InputDecoration(
                     labelText: 'Backend URL',
@@ -316,7 +321,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   keyboardType: TextInputType.url,
                   textInputAction: TextInputAction.go,
-                  onFieldSubmitted: (_) => _connect(),
+                  // onFieldSubmitted: (_) => _connect(),
                   enabled: !_isConnecting,
                 ),
               ),

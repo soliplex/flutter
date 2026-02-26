@@ -118,7 +118,7 @@ class ConnectionSuccess extends ConnectionProbeResult {
   });
 
   /// The resolved URL (with scheme) that successfully connected.
-  final String url;
+  final Uri url;
 
   /// Auth providers returned by the backend.
   final List<AuthProviderConfig> providers;
@@ -147,79 +147,64 @@ Future<ConnectionProbeResult> probeConnection({
   required String input,
   required HttpTransport transport,
 }) async {
-  final hasExplicitScheme = input.toLowerCase().startsWith('http://') ||
-      input.toLowerCase().startsWith('https://');
-  final isExplicitHttp = input.toLowerCase().startsWith('http://');
-  final httpsUrl = addScheme(input);
+  final trimmedInput = input.trim();
 
-  // If user explicitly typed http://, only try that.
-  if (isExplicitHttp) {
-    try {
-      final providers = await fetchAuthProviders(
-        transport: transport,
-        baseUrl: Uri.parse(input),
-      );
-      return ConnectionSuccess(
-        url: input,
-        providers: providers,
-        isInsecure: true,
-      );
-    } on Object catch (e) {
-      return ConnectionFailure(e);
+  final matchedScheme = RegExp(r'https?:\/\/').stringMatch(trimmedInput);
+  final hasScheme =
+      matchedScheme != null && !['http', 'https'].contains(matchedScheme);
+
+  try {
+    return await _attempt(
+      transport,
+      hasScheme ? trimmedInput : 'https://$trimmedInput',
+      isFallback: false,
+    );
+  } on NetworkException {
+    return _attempt(
+      transport,
+      'http://$trimmedInput',
+    );
+  } on Object catch (e) {
+    return ConnectionFailure(e);
+  }
+}
+
+Future<ConnectionProbeResult> _attempt(
+  HttpTransport transport,
+  String url, {
+  bool isFallback = true,
+}) async {
+  try {
+    final uri = Uri.tryParse(url);
+
+    if (uri == null) {
+      return ConnectionFailure(ArgumentError('Failed to parse URI'));
     }
-  }
 
-  // Try HTTPS (either explicit or added by addScheme).
-  try {
     final providers = await fetchAuthProviders(
       transport: transport,
-      baseUrl: Uri.parse(httpsUrl),
+      baseUrl: uri,
     );
-    return ConnectionSuccess(
-      url: httpsUrl,
-      providers: providers,
-      isInsecure: false,
-    );
-  } on NetworkException catch (e) {
-    // Only fall back to HTTP if no explicit scheme was given.
-    if (hasExplicitScheme) return ConnectionFailure(e);
-  } on Object catch (e) {
-    return ConnectionFailure(e);
-  }
 
-  // HTTPS had a network error and input had no scheme — try HTTP.
-  final httpUrl = 'http://$input';
-  try {
-    final providers = await fetchAuthProviders(
-      transport: transport,
-      baseUrl: Uri.parse(httpUrl),
-    );
     return ConnectionSuccess(
-      url: httpUrl,
+      url: uri,
       providers: providers,
-      isInsecure: true,
+      isInsecure: uri.scheme == 'http',
     );
   } on Object catch (e) {
+    if (!isFallback && e is NetworkException) rethrow;
     return ConnectionFailure(e);
   }
 }
 
-/// Prepends `https://` if the input has no scheme.
-///
-/// If the input already starts with `http://` or `https://` (case-insensitive),
-/// it is returned as-is.
-String addScheme(String input) {
-  final lower = input.toLowerCase();
-  if (lower.startsWith('http://') || lower.startsWith('https://')) {
-    return input;
-  }
-  return 'https://$input';
-}
-
-/// Normalizes a URL for comparison by removing trailing slash.
+/// Normalizes a URI for comparison by removing trailing slash.
 ///
 /// This ensures `http://example.com` and `http://example.com/` are treated
 /// as the same backend, preventing unnecessary auth state resets.
-String normalizeUrl(String url) {
-  return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+Uri normalizeUri(Uri uri) {
+  final path = uri.path;
+  if (path.endsWith('/')) {
+    return uri.replace(path: path.substring(0, path.length - 1));
+  }
+  return uri;
 }
