@@ -105,6 +105,92 @@ void main() {
     return registry;
   }
 
+  group('tool definitions forwarding', () {
+    test('initial run includes registered tool definitions', () async {
+      final toolRegistry = buildRegistry({
+        'my_tool': (_) async => 'result',
+      });
+
+      SimpleRunAgentInput? capturedInput;
+      fakeAgUiClient.onRunAgent = (endpoint, input) {
+        capturedInput ??= input;
+        return buildMockEventStream(textResponseEvents());
+      };
+
+      stubCreateRun();
+
+      final container = createContainer(toolRegistry: toolRegistry);
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(capturedInput?.tools, hasLength(1));
+      expect(capturedInput?.tools?.first.name, 'my_tool');
+    });
+
+    test('continuation run includes registered tool definitions', () async {
+      final toolRegistry = buildRegistry({
+        'my_tool': (_) async => 'result',
+      });
+
+      final capturedInputs = <SimpleRunAgentInput>[];
+      var runCallCount = 0;
+      fakeAgUiClient.onRunAgent = (endpoint, input) {
+        capturedInputs.add(input);
+        runCallCount++;
+        if (runCallCount == 1) return buildMockEventStream(toolCallEvents());
+        return buildMockEventStream(textResponseEvents());
+      };
+
+      stubCreateRun();
+
+      final container = createContainer(toolRegistry: toolRegistry);
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Call the tool',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      // Both initial and continuation runs should carry tool definitions.
+      expect(capturedInputs, hasLength(2));
+      for (final input in capturedInputs) {
+        expect(input.tools, hasLength(1));
+        expect(input.tools?.first.name, 'my_tool');
+      }
+    });
+
+    test('empty registry sends empty tools list', () async {
+      SimpleRunAgentInput? capturedInput;
+      fakeAgUiClient.onRunAgent = (endpoint, input) {
+        capturedInput ??= input;
+        return buildMockEventStream(textResponseEvents());
+      };
+
+      stubCreateRun();
+
+      // No toolRegistry override → default empty registry.
+      final container = createContainer();
+      addTearDown(container.dispose);
+
+      await container.read(activeRunNotifierProvider.notifier).startRun(
+        key: (roomId: 'room-1', threadId: 'thread-1'),
+        userMessage: 'Hello',
+      );
+
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      expect(capturedInput?.tools, isEmpty);
+    });
+  });
+
   group('ActiveRunNotifier tool call orchestration', () {
     group('happy path', () {
       test('single tool → continuation → text response', () async {
