@@ -11,6 +11,10 @@ class Room {
     this.metadata = const {},
     this.quizzes = const {},
     this.suggestions = const [],
+    this.welcomeMessage = '',
+    this.enableAttachments = false,
+    this.toolDefinitions = const [],
+    this.aguiFeatureNames = const [],
   });
 
   /// Unique identifier for the room.
@@ -31,6 +35,21 @@ class Room {
   /// Suggested prompts to show when starting a new thread.
   final List<String> suggestions;
 
+  /// Welcome message shown when entering the room.
+  final String welcomeMessage;
+
+  /// Whether file attachments are enabled for this room.
+  final bool enableAttachments;
+
+  /// Raw tool definitions from the backend (validated dicts).
+  ///
+  /// Stored as raw maps to keep the Room model backend-shape-agnostic.
+  /// Convert to ag_ui Tool objects at the provider layer.
+  final List<Map<String, dynamic>> toolDefinitions;
+
+  /// AG-UI feature names advertised by this room.
+  final List<String> aguiFeatureNames;
+
   /// Quiz IDs available in this room.
   List<String> get quizIds => quizzes.keys.toList();
 
@@ -43,6 +62,15 @@ class Room {
   /// Whether the room has any suggestions.
   bool get hasSuggestions => suggestions.isNotEmpty;
 
+  /// Whether the room has a welcome message.
+  bool get hasWelcomeMessage => welcomeMessage.isNotEmpty;
+
+  /// Whether the room has any tool definitions.
+  bool get hasToolDefinitions => toolDefinitions.isNotEmpty;
+
+  /// Whether the room has any AG-UI feature names.
+  bool get hasAguiFeatures => aguiFeatureNames.isNotEmpty;
+
   /// Creates a copy of this room with the given fields replaced.
   Room copyWith({
     String? id,
@@ -51,6 +79,10 @@ class Room {
     Map<String, dynamic>? metadata,
     Map<String, String>? quizzes,
     List<String>? suggestions,
+    String? welcomeMessage,
+    bool? enableAttachments,
+    List<Map<String, dynamic>>? toolDefinitions,
+    List<String>? aguiFeatureNames,
   }) {
     return Room(
       id: id ?? this.id,
@@ -59,6 +91,10 @@ class Room {
       metadata: metadata ?? this.metadata,
       quizzes: quizzes ?? this.quizzes,
       suggestions: suggestions ?? this.suggestions,
+      welcomeMessage: welcomeMessage ?? this.welcomeMessage,
+      enableAttachments: enableAttachments ?? this.enableAttachments,
+      toolDefinitions: toolDefinitions ?? this.toolDefinitions,
+      aguiFeatureNames: aguiFeatureNames ?? this.aguiFeatureNames,
     );
   }
 

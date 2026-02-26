@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:soliplex_client/soliplex_client.dart';
@@ -6,21 +8,127 @@ import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
+import 'package:soliplex_frontend/core/providers/monty_bridge_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/services/tool_definition_converter.dart';
+import 'package:soliplex_monty/soliplex_monty.dart';
 
-/// Provider for the client-side [ToolRegistry].
-///
-/// Default: empty registry (no tools). White-label apps override this in
+/// Static client-side tools. White-label apps override this in
 /// [ProviderScope.overrides] to inject custom tool definitions:
 ///
 /// ```dart
-/// toolRegistryProvider.overrideWithValue(
+/// clientToolRegistryProvider.overrideWithValue(
 ///   const ToolRegistry()
 ///       .register(myGpsTool)
 ///       .register(myDbLookupTool),
 /// ),
 /// ```
-final toolRegistryProvider = Provider<ToolRegistry>((ref) {
+final clientToolRegistryProvider = Provider<ToolRegistry>((ref) {
   return const ToolRegistry();
+});
+
+/// No-op executor for server-side tools.
+///
+/// Room tools are sent to the backend so the LLM knows they exist, but
+/// executed server-side. The client never invokes this executor.
+Future<String> _serverSideToolExecutor(ToolCallInfo _) async => '';
+
+/// Per-room [MontyBridge] with host functions from room tool definitions.
+///
+/// Returns `null` when no room is selected or the room has no tools.
+/// Creates a new bridge each time the room changes, registering all
+/// room tool definitions as host functions.
+///
+/// Host function handlers use `ref.read(toolRegistryProvider)` lazily
+/// at call time to avoid circular watch dependencies.
+///
+/// Both this provider and [toolRegistryProvider] use explicit type
+/// annotations to break Dart's top-level cycle detection. The closures
+/// reference each other but are only evaluated by Riverpod at watch/read
+/// time, not at variable initialization.
+final Provider<MontyBridge?> montyBridgeProvider =
+    Provider<MontyBridge?>((ref) {
+  final room = ref.watch(currentRoomProvider);
+  if (room == null || !room.hasToolDefinitions) return null;
+
+  final bridge = DefaultMontyBridge();
+  final mappings = roomToolDefsToMappings(room.toolDefinitions);
+
+  Loggers.montyBridge.info(
+    'Creating bridge for room "${room.name}" '
+    'with ${mappings.length} host functions',
+  );
+
+  for (final mapping in mappings) {
+    bridge.register(
+      HostFunction(
+        schema: mapping.schema,
+        handler: (args) async {
+          // Lazy read at call time — no circular watch dependency.
+          final registry = ref.read(toolRegistryProvider);
+          final toolCall = ToolCallInfo(
+            id: 'monty_${mapping.pythonName}_'
+                '${DateTime.now().millisecondsSinceEpoch}',
+            name: mapping.registryName,
+            arguments: jsonEncode(args),
+          );
+          Loggers.montyBridge.debug(
+            'Dispatching ${mapping.pythonName} '
+            '→ ${mapping.registryName}',
+          );
+          return registry.execute(toolCall);
+        },
+      ),
+    );
+  }
+
+  ref.onDispose(() {
+    Loggers.montyBridge.debug('Disposing bridge');
+    bridge.dispose();
+  });
+  return bridge;
+});
+
+/// Merged registry: client-side tools + current room's negotiated tools +
+/// execute_python (when MontyBridge is available).
+///
+/// ActiveRunNotifier already watches this — no changes needed there.
+/// Room tools are definition-only (no client executor). They're sent to
+/// the backend so the LLM knows about them, but executed server-side.
+///
+/// Provider dependency chain (no cycles):
+/// ```text
+/// currentRoomProvider
+///     | watch               | watch
+/// montyBridgeProvider     clientToolRegistryProvider
+///     | watch               | watch
+///     └──> toolRegistryProvider <──┘
+///              | watch
+///         ActiveRunNotifier (unchanged)
+/// ```
+///
+/// Host function handlers use `ref.read(toolRegistryProvider)` lazily
+/// at call time — not a watch, so no cycle.
+///
+final Provider<ToolRegistry> toolRegistryProvider =
+    Provider<ToolRegistry>((ref) {
+  var registry = ref.watch(clientToolRegistryProvider);
+  final room = ref.watch(currentRoomProvider);
+  if (room != null) {
+    for (final tool in roomToolsToAgUi(room)) {
+      registry = registry.register(
+        ClientTool(definition: tool, executor: _serverSideToolExecutor),
+      );
+    }
+  }
+
+  // Add execute_python when MontyBridge is available.
+  final bridge = ref.watch(montyBridgeProvider);
+  if (bridge != null) {
+    registry = registry.register(createExecutePythonTool(bridge));
+  }
+
+  return registry;
 });
 
 /// HTTP client wrapper that delegates all operations except close().

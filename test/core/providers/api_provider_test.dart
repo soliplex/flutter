@@ -6,6 +6,7 @@ import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
+import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -314,12 +315,12 @@ void main() {
     });
   });
 
-  group('toolRegistryProvider', () {
+  group('clientToolRegistryProvider', () {
     test('returns empty ToolRegistry by default', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
-      final registry = container.read(toolRegistryProvider);
+      final registry = container.read(clientToolRegistryProvider);
 
       expect(registry.isEmpty, isTrue);
       expect(registry.toolDefinitions, isEmpty);
@@ -332,8 +333,69 @@ void main() {
       );
       final container = ProviderContainer(
         overrides: [
-          toolRegistryProvider
+          clientToolRegistryProvider
               .overrideWithValue(const ToolRegistry().register(tool)),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final registry = container.read(clientToolRegistryProvider);
+
+      expect(registry.toolDefinitions, hasLength(1));
+      expect(registry.toolDefinitions.first.name, equals('test_tool'));
+    });
+  });
+
+  group('toolRegistryProvider', () {
+    test('merges client tools with room tools', () {
+      final clientTool = ClientTool(
+        definition: const Tool(
+          name: 'client_tool',
+          description: 'A client tool',
+        ),
+        executor: (_) async => 'result',
+      );
+      const room = Room(
+        id: 'room-1',
+        name: 'Test',
+        toolDefinitions: [
+          {
+            'tool_name': 'server_tool',
+            'tool_description': 'A server tool',
+          },
+        ],
+      );
+      final container = ProviderContainer(
+        overrides: [
+          clientToolRegistryProvider
+              .overrideWithValue(const ToolRegistry().register(clientTool)),
+          currentRoomProvider.overrideWithValue(room),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final registry = container.read(toolRegistryProvider);
+
+      // 3 tools: client_tool + server_tool + execute_python (MontyBridge)
+      expect(registry.toolDefinitions, hasLength(3));
+      expect(registry.contains('client_tool'), isTrue);
+      expect(registry.contains('server_tool'), isTrue);
+      expect(registry.contains('execute_python'), isTrue);
+    });
+
+    test('returns only client tools when no room is selected', () {
+      final clientTool = ClientTool(
+        definition: const Tool(
+          name: 'client_tool',
+          description: 'A client tool',
+        ),
+        executor: (_) async => 'result',
+      );
+      final container = ProviderContainer(
+        overrides: [
+          clientToolRegistryProvider
+              .overrideWithValue(const ToolRegistry().register(clientTool)),
+          currentRoomProvider.overrideWithValue(null),
         ],
       );
       addTearDown(container.dispose);
@@ -341,7 +403,7 @@ void main() {
       final registry = container.read(toolRegistryProvider);
 
       expect(registry.toolDefinitions, hasLength(1));
-      expect(registry.toolDefinitions.first.name, equals('test_tool'));
+      expect(registry.contains('client_tool'), isTrue);
     });
   });
 
