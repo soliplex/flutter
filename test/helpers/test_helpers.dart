@@ -302,6 +302,29 @@ Override documentsProviderOverride(String roomId, [List<RagDocument>? docs]) {
   );
 }
 
+/// Mock notifier that returns an error state for documents.
+class ErrorDocumentsNotifier extends DocumentsNotifier {
+  ErrorDocumentsNotifier(super.roomId);
+
+  bool retryCalled = false;
+
+  @override
+  AsyncValue<List<RagDocument>> build() =>
+      AsyncValue.error(Exception('load failed'), StackTrace.empty);
+
+  @override
+  void retry() => retryCalled = true;
+}
+
+/// Creates an override for documentsProvider with an error state.
+///
+/// Returns the override and the notifier so tests can verify retry calls.
+(Override, ErrorDocumentsNotifier) documentsErrorOverride(String roomId) {
+  final notifier = ErrorDocumentsNotifier(roomId);
+  final override = documentsProvider(roomId).overrideWith(() => notifier);
+  return (override, notifier);
+}
+
 /// Mock HttpTransport for testing with mocktail.
 class MockHttpTransport extends Mock implements HttpTransport {}
 
