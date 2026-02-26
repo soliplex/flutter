@@ -145,6 +145,35 @@ class SoliplexApi {
     );
   }
 
+  /// Gets the MCP token for a room.
+  ///
+  /// Parameters:
+  /// - [roomId]: The room ID (must not be empty)
+  ///
+  /// Returns the MCP token string.
+  ///
+  /// Throws:
+  /// - [ArgumentError] if [roomId] is empty
+  /// - [NotFoundException] if room not found (404)
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<String> getMcpToken(
+    String roomId, {
+    CancelToken? cancelToken,
+  }) async {
+    _requireNonEmpty(roomId, 'roomId');
+
+    final response = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(pathSegments: ['rooms', roomId, 'mcp_token']),
+      cancelToken: cancelToken,
+    );
+
+    return response['mcp_token'] as String;
+  }
+
   /// Gets documents available for narrowing RAG in a room.
   ///
   /// Parameters:

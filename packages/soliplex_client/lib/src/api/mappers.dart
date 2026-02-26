@@ -231,15 +231,34 @@ Map<String, dynamic> roomToJson(Room room) {
 
 /// Creates a [RagDocument] from JSON.
 RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
+  final uri = (json['uri'] as String?) ?? '';
   // title can be null - fall back to uri, then 'Untitled'
   final title =
-      (json['title'] as String?) ?? (json['uri'] as String?) ?? 'Untitled';
-  return RagDocument(id: json['id'] as String, title: title);
+      (json['title'] as String?) ?? (uri.isNotEmpty ? uri : 'Untitled');
+
+  final createdRaw = json['created_at'] as String?;
+  final updatedRaw = json['updated_at'] as String?;
+
+  return RagDocument(
+    id: json['id'] as String,
+    title: title,
+    uri: uri,
+    metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    createdAt: createdRaw != null ? parseTimestamp(createdRaw) : null,
+    updatedAt: updatedRaw != null ? parseTimestamp(updatedRaw) : null,
+  );
 }
 
 /// Converts a [RagDocument] to JSON.
 Map<String, dynamic> ragDocumentToJson(RagDocument doc) {
-  return {'id': doc.id, 'title': doc.title};
+  return {
+    'id': doc.id,
+    'title': doc.title,
+    if (doc.uri.isNotEmpty) 'uri': doc.uri,
+    if (doc.metadata.isNotEmpty) 'metadata': doc.metadata,
+    if (doc.createdAt != null) 'created_at': formatTimestamp(doc.createdAt!),
+    if (doc.updatedAt != null) 'updated_at': formatTimestamp(doc.updatedAt!),
+  };
 }
 
 // ============================================================

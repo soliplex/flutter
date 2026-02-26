@@ -229,12 +229,37 @@ void main() {
         final json = <String, dynamic>{
           'id': 'doc-uuid-123',
           'title': 'User Manual.pdf',
+          'uri': 'file:///docs/manual.pdf',
+          'metadata': {'source': 'upload', 'content-type': 'application/pdf'},
+          'created_at': '2025-01-15T10:30:00.000',
+          'updated_at': '2025-02-20T14:00:00.000',
         };
 
         final doc = ragDocumentFromJson(json);
 
         expect(doc.id, equals('doc-uuid-123'));
         expect(doc.title, equals('User Manual.pdf'));
+        expect(doc.uri, equals('file:///docs/manual.pdf'));
+        expect(
+          doc.metadata,
+          equals({'source': 'upload', 'content-type': 'application/pdf'}),
+        );
+        expect(doc.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
+        expect(doc.updatedAt, equals(DateTime.utc(2025, 2, 20, 14)));
+      });
+
+      test('defaults optional fields gracefully', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': 'Manual.pdf',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.uri, equals(''));
+        expect(doc.metadata, equals(const <String, dynamic>{}));
+        expect(doc.createdAt, isNull);
+        expect(doc.updatedAt, isNull);
       });
 
       test('falls back to uri when title is null', () {
@@ -265,20 +290,46 @@ void main() {
     });
 
     group('ragDocumentToJson', () {
-      test('serializes correctly', () {
-        const doc = RagDocument(id: 'doc-uuid-123', title: 'User Manual.pdf');
+      test('serializes correctly with all fields', () {
+        final doc = RagDocument(
+          id: 'doc-uuid-123',
+          title: 'User Manual.pdf',
+          uri: 'file:///docs/manual.pdf',
+          metadata: const {'source': 'upload'},
+          createdAt: DateTime.utc(2025, 1, 15, 10, 30),
+          updatedAt: DateTime.utc(2025, 2, 20, 14),
+        );
 
         final json = ragDocumentToJson(doc);
 
         expect(json['id'], equals('doc-uuid-123'));
         expect(json['title'], equals('User Manual.pdf'));
+        expect(json['uri'], equals('file:///docs/manual.pdf'));
+        expect(json['metadata'], equals({'source': 'upload'}));
+        expect(json['created_at'], equals('2025-01-15T10:30:00.000'));
+        expect(json['updated_at'], equals('2025-02-20T14:00:00.000'));
+      });
+
+      test('excludes empty/null optional fields', () {
+        const doc = RagDocument(id: 'doc-uuid-123', title: 'Manual.pdf');
+
+        final json = ragDocumentToJson(doc);
+
+        expect(json.containsKey('uri'), isFalse);
+        expect(json.containsKey('metadata'), isFalse);
+        expect(json.containsKey('created_at'), isFalse);
+        expect(json.containsKey('updated_at'), isFalse);
       });
     });
 
     test('roundtrip serialization', () {
-      const original = RagDocument(
+      final original = RagDocument(
         id: 'doc-uuid-123',
         title: 'User Manual.pdf',
+        uri: 'file:///docs/manual.pdf',
+        metadata: const {'source': 'upload'},
+        createdAt: DateTime.utc(2025, 1, 15, 10, 30),
+        updatedAt: DateTime.utc(2025, 2, 20, 14),
       );
 
       final json = ragDocumentToJson(original);
@@ -286,6 +337,10 @@ void main() {
 
       expect(restored.id, equals(original.id));
       expect(restored.title, equals(original.title));
+      expect(restored.uri, equals(original.uri));
+      expect(restored.metadata, equals(original.metadata));
+      expect(restored.createdAt, equals(original.createdAt));
+      expect(restored.updatedAt, equals(original.updatedAt));
     });
   });
 

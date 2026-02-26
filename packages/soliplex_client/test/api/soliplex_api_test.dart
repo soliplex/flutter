@@ -2885,5 +2885,79 @@ void main() {
         ).called(1);
       });
     });
+
+    // ============================================================
+    // MCP Token
+    // ============================================================
+
+    group('getMcpToken', () {
+      test('returns token string from response', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'mcp_token': 'abc.token.xyz',
+          },
+        );
+
+        final token = await api.getMcpToken('room-123');
+
+        expect(token, equals('abc.token.xyz'));
+      });
+
+      test('uses correct URL', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room_id': 'room-123',
+            'mcp_token': 'token',
+          },
+        );
+
+        await api.getMcpToken('room-123');
+
+        final captured = verify(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            captureAny(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).captured.single as Uri;
+
+        expect(
+          captured.path,
+          equals('/api/v1/rooms/room-123/mcp_token'),
+        );
+      });
+
+      test('throws ArgumentError for empty roomId', () {
+        expect(
+          () => api.getMcpToken(''),
+          throwsA(isA<ArgumentError>()),
+        );
+      });
+    });
   });
 }

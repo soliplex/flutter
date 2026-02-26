@@ -7,7 +7,14 @@ import 'package:meta/meta.dart';
 @immutable
 class RagDocument {
   /// Creates a RAG document.
-  const RagDocument({required this.id, required this.title});
+  const RagDocument({
+    required this.id,
+    required this.title,
+    this.uri = '',
+    this.metadata = const {},
+    this.createdAt,
+    this.updatedAt,
+  });
 
   /// Unique identifier for the document (UUID).
   final String id;
@@ -15,9 +22,35 @@ class RagDocument {
   /// Display title of the document.
   final String title;
 
+  /// Document URI (e.g. file path or URL).
+  final String uri;
+
+  /// Arbitrary metadata from the backend.
+  final Map<String, dynamic> metadata;
+
+  /// When the document was created.
+  final DateTime? createdAt;
+
+  /// When the document was last updated.
+  final DateTime? updatedAt;
+
   /// Creates a copy of this document with the given fields replaced.
-  RagDocument copyWith({String? id, String? title}) {
-    return RagDocument(id: id ?? this.id, title: title ?? this.title);
+  RagDocument copyWith({
+    String? id,
+    String? title,
+    String? uri,
+    Map<String, dynamic>? metadata,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return RagDocument(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      uri: uri ?? this.uri,
+      metadata: metadata ?? this.metadata,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 
   @override
@@ -30,5 +63,5 @@ class RagDocument {
   int get hashCode => id.hashCode;
 
   @override
-  String toString() => 'RagDocument(id: $id, title: $title)';
+  String toString() => 'RagDocument(id: $id, title: $title, uri: $uri)';
 }
