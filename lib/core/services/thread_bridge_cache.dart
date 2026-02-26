@@ -7,7 +7,6 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
-import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_monty/soliplex_monty.dart';
 
 /// Per-thread [MontyBridge] state — maps each (room, thread) to its bridge.
@@ -21,8 +20,7 @@ typedef ThreadBridgeCacheState = Map<ThreadKey, MontyBridge>;
 /// threads execute Python concurrently.
 ///
 /// Bridges are created lazily via [getOrCreate] and disposed:
-/// - All bridges on room change (new room = new tool definitions)
-/// - All bridges on provider disposal
+/// - All bridges on provider disposal (app shutdown)
 /// - Individual bridges via [removeThread]
 class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
   /// Local bridge references accessible during disposal.
@@ -36,11 +34,7 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
   @override
   ThreadBridgeCacheState build() {
     bridges = {};
-    ref
-      ..listen(currentRoomProvider, (prev, next) {
-        if (prev?.id != next?.id) _disposeAll();
-      })
-      ..onDispose(_disposeBridges);
+    ref.onDispose(_disposeBridges);
     return {};
   }
 
@@ -97,14 +91,6 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
     Loggers.montyBridge.debug('Removing bridge for thread ${key.threadId}');
     bridge.dispose();
     state = Map.of(bridges);
-  }
-
-  /// Disposes all bridges and clears state.
-  ///
-  /// Used on room change where we need to update observable state.
-  void _disposeAll() {
-    _disposeBridges();
-    state = {};
   }
 
   /// Disposes all bridges without modifying Riverpod state.

@@ -10,10 +10,12 @@ import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/deferred_message_queue_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
+import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 
@@ -37,6 +39,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
   late ToolRegistry _toolRegistry;
   bool _isStarting = false;
+  bool _processingDeferred = false;
 
   /// Registry tracking active runs across rooms and threads.
   late final RunRegistry _registry =
@@ -60,12 +63,16 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     _toolRegistry = ref.read(toolRegistryProvider);
     ref.listen(toolRegistryProvider, (_, next) => _toolRegistry = next);
 
-    // Mark thread as unread when a non-cancelled background run completes.
+    // Mark thread as unread when a non-cancelled background run completes,
+    // then process any deferred messages queued during the run.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
       if (event is RunCompleted) {
         final isBackground = _currentHandle?.key != event.key;
         if (isBackground && event.result is! CancelledResult) {
           ref.read(unreadRunsProvider.notifier).markUnread(event.key);
+        }
+        if (event.result is! CancelledResult) {
+          _processDeferredQueue();
         }
       }
     });
@@ -328,6 +335,47 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           stackTrace: st,
         );
       }
+    }
+  }
+
+  /// Processes the next deferred message from the queue.
+  ///
+  /// Called after a non-cancelled [RunCompleted] event. Switches the UI to
+  /// the target thread and starts a new run with the queued message.
+  ///
+  /// Re-entry is guarded by [_processingDeferred]. When the deferred run
+  /// itself completes, the lifecycle listener fires again and picks up
+  /// the next message naturally — no recursion needed.
+  Future<void> _processDeferredQueue() async {
+    if (_processingDeferred) return;
+    _processingDeferred = true;
+    try {
+      final queue = ref.read(deferredMessageQueueProvider.notifier);
+      final message = queue.pop();
+      if (message == null) return;
+
+      // Switch UI to target thread
+      ref
+          .read(threadSelectionProvider.notifier)
+          .set(ThreadSelected(message.targetKey.threadId));
+      ref.read(routerProvider).go(
+            '/rooms/${message.targetKey.roomId}'
+            '?thread=${message.targetKey.threadId}',
+          );
+
+      // Start run in target thread
+      await startRun(
+        key: message.targetKey,
+        userMessage: message.message,
+      );
+    } catch (e, st) {
+      Loggers.activeRun.error(
+        'Failed to process deferred message',
+        error: e,
+        stackTrace: st,
+      );
+    } finally {
+      _processingDeferred = false;
     }
   }
 

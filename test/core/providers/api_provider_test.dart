@@ -376,15 +376,20 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // 4 tools: client + server + execute_python + navigate
-      expect(registry.toolDefinitions, hasLength(4));
+      // 9 tools: client + server + execute_python + 6 navigation/orchestration
+      expect(registry.toolDefinitions, hasLength(9));
       expect(registry.contains('client_tool'), isTrue);
       expect(registry.contains('server_tool'), isTrue);
       expect(registry.contains('execute_python'), isTrue);
       expect(registry.contains('navigate_to_settings'), isTrue);
+      expect(registry.contains('create_thread'), isTrue);
+      expect(registry.contains('switch_thread'), isTrue);
+      expect(registry.contains('list_threads'), isTrue);
+      expect(registry.contains('toggle_sidebar'), isTrue);
+      expect(registry.contains('send_message_to_thread'), isTrue);
     });
 
-    test('registers room tools under tool_name only', () {
+    test('skips agent-owned tools like get_current_datetime', () {
       const room = Room(
         id: 'room-1',
         name: 'Test',
@@ -403,17 +408,17 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
+      // Agent-owned tools are fully skipped — the backend agent handles
+      // them directly, so neither the tool_name nor kind should appear.
       expect(
         registry.contains('soliplex.tools.get_current_datetime'),
-        isTrue,
-        reason: 'Should be registered under tool_name',
+        isFalse,
+        reason: 'Agent-owned tool should not be registered',
       );
-      // kind is NOT registered as a separate client tool — it would
-      // conflict with the AG-UI agent's own tool of the same name.
       expect(
         registry.contains('get_current_datetime'),
         isFalse,
-        reason: 'Should not duplicate under kind',
+        reason: 'Agent-owned kind should not be registered',
       );
     });
 
@@ -436,10 +441,15 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // 2 tools: client_tool + navigate_to_settings (always registered)
-      expect(registry.toolDefinitions, hasLength(2));
+      // 7 tools: client_tool + 6 navigation/orchestration (always registered)
+      expect(registry.toolDefinitions, hasLength(7));
       expect(registry.contains('client_tool'), isTrue);
       expect(registry.contains('navigate_to_settings'), isTrue);
+      expect(registry.contains('create_thread'), isTrue);
+      expect(registry.contains('switch_thread'), isTrue);
+      expect(registry.contains('list_threads'), isTrue);
+      expect(registry.contains('toggle_sidebar'), isTrue);
+      expect(registry.contains('send_message_to_thread'), isTrue);
     });
   });
 

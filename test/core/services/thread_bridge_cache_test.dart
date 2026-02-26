@@ -1,8 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/services/thread_bridge_cache.dart';
 import 'package:soliplex_monty/soliplex_monty.dart';
 
@@ -31,32 +29,14 @@ class _TestBridgeCacheNotifier extends ThreadBridgeCacheNotifier {
   }
 }
 
-/// Mutable room notifier for triggering room changes in tests.
-///
-/// Replaces Riverpod 2's `StateProvider` pattern.
-class _MutableRoomNotifier extends Notifier<Room?> {
-  _MutableRoomNotifier(this._initial);
-
-  final Room? _initial;
-
-  @override
-  Room? build() => _initial;
-
-  // ignore: use_setters_to_change_properties
-  void set(Room? room) => state = room;
-}
-
 void main() {
   const key1 = (roomId: 'room-1', threadId: 'thread-1');
   const key2 = (roomId: 'room-1', threadId: 'thread-2');
-  const room1 = Room(id: 'room-1', name: 'Room 1');
-  const room2 = Room(id: 'room-2', name: 'Room 2');
 
   group('ThreadBridgeCacheNotifier', () {
     test('starts with empty state', () {
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(room1),
           threadBridgeCacheProvider.overrideWith(
             _TestBridgeCacheNotifier.new,
           ),
@@ -73,7 +53,6 @@ void main() {
       final notifier = _TestBridgeCacheNotifier();
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(room1),
           threadBridgeCacheProvider.overrideWith(() => notifier),
         ],
       );
@@ -91,7 +70,6 @@ void main() {
       final notifier = _TestBridgeCacheNotifier();
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(room1),
           threadBridgeCacheProvider.overrideWith(() => notifier),
         ],
       );
@@ -109,7 +87,6 @@ void main() {
       final notifier = _TestBridgeCacheNotifier();
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(room1),
           threadBridgeCacheProvider.overrideWith(() => notifier),
         ],
       );
@@ -129,7 +106,6 @@ void main() {
     test('removeThread is no-op for unknown key', () {
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(room1),
           threadBridgeCacheProvider.overrideWith(
             _TestBridgeCacheNotifier.new,
           ),
@@ -147,7 +123,6 @@ void main() {
       final notifier = _TestBridgeCacheNotifier();
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(room1),
           threadBridgeCacheProvider.overrideWith(() => notifier),
         ],
       );
@@ -163,71 +138,6 @@ void main() {
       for (final bridge in notifier.createdBridges) {
         verify(bridge.dispose).called(1);
       }
-    });
-
-    test('room change disposes all bridges', () {
-      final roomNotifier = _MutableRoomNotifier(room1);
-      final mutableRoomProvider = NotifierProvider<_MutableRoomNotifier, Room?>(
-        () => roomNotifier,
-      );
-
-      final notifier = _TestBridgeCacheNotifier();
-      final container = ProviderContainer(
-        overrides: [
-          currentRoomProvider.overrideWith(
-            (ref) => ref.watch(mutableRoomProvider),
-          ),
-          threadBridgeCacheProvider.overrideWith(() => notifier),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      container.read(threadBridgeCacheProvider.notifier)
-        ..getOrCreate(key1, const [])
-        ..getOrCreate(key2, const []);
-
-      expect(notifier.createdBridges, hasLength(2));
-
-      // Change room — should dispose all bridges.
-      // The listener fires lazily when the cache provider is next read.
-      container.read(mutableRoomProvider.notifier).set(room2);
-      expect(container.read(threadBridgeCacheProvider), isEmpty);
-
-      for (final bridge in notifier.createdBridges) {
-        verify(bridge.dispose).called(1);
-      }
-    });
-
-    test('room change to same room does not dispose bridges', () {
-      final roomNotifier = _MutableRoomNotifier(room1);
-      final mutableRoomProvider = NotifierProvider<_MutableRoomNotifier, Room?>(
-        () => roomNotifier,
-      );
-
-      final notifier = _TestBridgeCacheNotifier();
-      final container = ProviderContainer(
-        overrides: [
-          currentRoomProvider.overrideWith(
-            (ref) => ref.watch(mutableRoomProvider),
-          ),
-          threadBridgeCacheProvider.overrideWith(() => notifier),
-        ],
-      );
-      addTearDown(container.dispose);
-
-      container.read(threadBridgeCacheProvider.notifier).getOrCreate(
-        key1,
-        const [],
-      );
-
-      // Set same room again (same ID).
-      container.read(mutableRoomProvider.notifier).set(
-            const Room(id: 'room-1', name: 'Room 1 Updated'),
-          );
-
-      // Read triggers listener; same room ID → no disposal.
-      expect(container.read(threadBridgeCacheProvider), hasLength(1));
-      verifyNever(() => notifier.createdBridges.first.dispose());
     });
   });
 }

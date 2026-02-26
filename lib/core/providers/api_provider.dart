@@ -7,8 +7,13 @@ import 'package:soliplex_client_native/soliplex_client_native.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
+import 'package:soliplex_frontend/core/providers/deferred_message_queue_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/sidebar_provider.dart';
+import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
+import 'package:soliplex_frontend/core/providers/thread_return_stack_provider.dart';
+import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/core/services/thread_bridge_cache.dart';
 import 'package:soliplex_frontend/core/services/tool_definition_converter.dart';
@@ -61,9 +66,21 @@ final Provider<ToolRegistry> toolRegistryProvider =
       final tool = toolDefinitionToAgUiTool(toolDef);
       if (tool.name.isEmpty) continue;
 
+      // Skip agent-owned tools — the backend agent handles these
+      // directly; registering them client-side causes name conflicts.
+      final kind = toolDef['kind'] as String?;
+      if (kind == 'get_current_datetime') continue;
+
       registry = registry.register(
         ClientTool(definition: tool, executor: _serverSideToolExecutor),
       );
+
+      // Alias the short `kind` name to the canonical tool_name so LLM
+      // tool calls resolve without sending a duplicate definition to
+      // the backend (which would conflict).
+      if (kind != null && kind.isNotEmpty && kind != tool.name) {
+        registry = registry.alias(kind, tool.name);
+      }
     }
   }
 
@@ -106,20 +123,212 @@ final Provider<ToolRegistry> toolRegistryProvider =
     );
   }
 
-  // Navigation tools (available in all rooms).
-  return registry.register(
-    ClientTool(
-      definition: const Tool(
-        name: 'navigate_to_settings',
-        description: 'Open the app settings screen',
-        parameters: {'type': 'object', 'properties': <String, dynamic>{}},
-      ),
-      executor: (toolCall) async {
-        await ref.read(routerProvider).push('/settings');
-        return 'Opened settings.';
-      },
-    ),
-  );
+  // Navigation & orchestration tools (available in all rooms).
+  return registry
+      .register(
+        ClientTool(
+          definition: const Tool(
+            name: 'navigate_to_settings',
+            description: 'Open the app settings screen',
+            parameters: {'type': 'object', 'properties': <String, dynamic>{}},
+          ),
+          executor: (toolCall) async {
+            await ref.read(routerProvider).push('/settings');
+            return 'Opened settings.';
+          },
+        ),
+      )
+      .register(
+        ClientTool(
+          definition: const Tool(
+            name: 'create_thread',
+            description: 'Create a new thread in the current room',
+            parameters: {'type': 'object', 'properties': <String, dynamic>{}},
+          ),
+          executor: (toolCall) async {
+            final roomId = ref.read(currentRoomIdProvider);
+            if (roomId == null) return 'Error: No room selected.';
+            final api = ref.read(apiProvider);
+            final (threadInfo, aguiState) = await api.createThread(roomId);
+            if (aguiState.isNotEmpty) {
+              ref.read(threadHistoryCacheProvider.notifier).updateHistory(
+                (roomId: roomId, threadId: threadInfo.id),
+                ThreadHistory(messages: const [], aguiState: aguiState),
+              );
+            }
+            ref.invalidate(threadsProvider(roomId));
+            return 'Thread created: ${threadInfo.id}';
+          },
+        ),
+      )
+      .register(
+        ClientTool(
+          definition: const Tool(
+            name: 'switch_thread',
+            description:
+                'Switch to a thread by ID, or pass "back" to return to '
+                'the previous thread from the return stack',
+            parameters: {
+              'type': 'object',
+              'properties': {
+                'thread_id': {
+                  'type': 'string',
+                  'description': 'Thread ID to switch to, or "back" to return '
+                      'to the previous thread',
+                },
+              },
+              'required': ['thread_id'],
+            },
+          ),
+          executor: (toolCall) async {
+            final roomId = ref.read(currentRoomIdProvider);
+            if (roomId == null) return 'Error: No room selected.';
+
+            final args = jsonDecode(toolCall.arguments) as Map<String, dynamic>;
+            final threadId = args['thread_id'] as String? ?? '';
+            if (threadId.isEmpty) return 'Error: thread_id is required.';
+
+            final stackNotifier = ref.read(threadReturnStackProvider.notifier);
+
+            if (threadId == 'back') {
+              final entry = stackNotifier.pop();
+              if (entry == null) return 'Error: Return stack is empty.';
+              ref
+                  .read(threadSelectionProvider.notifier)
+                  .set(ThreadSelected(entry.threadId));
+              ref.read(routerProvider).go(
+                    '/rooms/${entry.roomId}?thread=${entry.threadId}',
+                  );
+              final depth = ref.read(threadReturnStackProvider).length;
+              return 'Switched back to thread ${entry.threadId}. '
+                  'Return stack depth: $depth';
+            }
+
+            // Push current thread onto return stack before switching.
+            final currentThreadId = ref.read(currentThreadIdProvider);
+            if (currentThreadId != null) {
+              stackNotifier.push(
+                ThreadReturnEntry(roomId: roomId, threadId: currentThreadId),
+              );
+            }
+
+            ref
+                .read(threadSelectionProvider.notifier)
+                .set(ThreadSelected(threadId));
+            ref.read(routerProvider).go(
+                  '/rooms/$roomId?thread=$threadId',
+                );
+            final depth = ref.read(threadReturnStackProvider).length;
+            return 'Switched to thread $threadId. '
+                'Return stack depth: $depth';
+          },
+        ),
+      )
+      .register(
+        ClientTool(
+          definition: const Tool(
+            name: 'list_threads',
+            description:
+                'List all threads in the current room with markers for '
+                'the current thread and threads on the return stack',
+            parameters: {'type': 'object', 'properties': <String, dynamic>{}},
+          ),
+          executor: (toolCall) async {
+            final roomId = ref.read(currentRoomIdProvider);
+            if (roomId == null) return 'Error: No room selected.';
+
+            final threadsAsync = ref.read(threadsProvider(roomId));
+            final threads = threadsAsync.whenOrNull(
+              data: (threads) => threads,
+            );
+            if (threads == null) return 'Error: Threads not loaded.';
+
+            final currentThreadId = ref.read(currentThreadIdProvider);
+            final stack = ref.read(threadReturnStackProvider);
+            final stackIds = stack.map((e) => e.threadId).toSet();
+
+            final buffer = StringBuffer();
+            for (final thread in threads) {
+              buffer.write('- ${thread.id}');
+              if (thread.name.isNotEmpty) buffer.write(' (${thread.name})');
+              if (thread.id == currentThreadId) buffer.write(' [CURRENT]');
+              if (stackIds.contains(thread.id)) buffer.write(' [IN STACK]');
+              buffer.writeln();
+            }
+            return buffer.isEmpty ? 'No threads found.' : buffer.toString();
+          },
+        ),
+      )
+      .register(
+        ClientTool(
+          definition: const Tool(
+            name: 'toggle_sidebar',
+            description: 'Show or hide the thread history sidebar panel',
+            parameters: {'type': 'object', 'properties': <String, dynamic>{}},
+          ),
+          executor: (toolCall) async {
+            final notifier = ref.read(sidebarCollapsedProvider.notifier);
+            final wasCollapsed = ref.read(sidebarCollapsedProvider);
+            notifier.toggle();
+            return wasCollapsed ? 'Sidebar opened.' : 'Sidebar closed.';
+          },
+        ),
+      )
+      .register(
+        ClientTool(
+          definition: const Tool(
+            name: 'send_message_to_thread',
+            description: 'Send a message to another thread. The message '
+                'will be delivered after the current response completes.',
+            parameters: {
+              'type': 'object',
+              'properties': {
+                'thread_id': {
+                  'type': 'string',
+                  'description': 'Target thread ID to send the message to',
+                },
+                'message': {
+                  'type': 'string',
+                  'description': 'The message to send in the target thread',
+                },
+              },
+              'required': ['thread_id', 'message'],
+            },
+          ),
+          executor: (toolCall) async {
+            final roomId = ref.read(currentRoomIdProvider);
+            if (roomId == null) return 'Error: No room selected.';
+
+            final args = jsonDecode(toolCall.arguments) as Map<String, dynamic>;
+            final threadId = args['thread_id'] as String? ?? '';
+            final message = args['message'] as String? ?? '';
+            if (threadId.isEmpty) return 'Error: thread_id is required.';
+            if (message.isEmpty) return 'Error: message is required.';
+
+            // Push current thread onto return stack before sending
+            final currentThreadId = ref.read(currentThreadIdProvider);
+            if (currentThreadId != null) {
+              ref.read(threadReturnStackProvider.notifier).push(
+                    ThreadReturnEntry(
+                      roomId: roomId,
+                      threadId: currentThreadId,
+                    ),
+                  );
+            }
+
+            // Enqueue the message for delivery after this run completes
+            ref.read(deferredMessageQueueProvider.notifier).enqueue(
+                  DeferredMessage(
+                    targetKey: (roomId: roomId, threadId: threadId),
+                    message: message,
+                  ),
+                );
+
+            return 'Message queued for thread $threadId. '
+                'Will be sent after this response completes.';
+          },
+        ),
+      );
 });
 
 /// HTTP client wrapper that delegates all operations except close().
