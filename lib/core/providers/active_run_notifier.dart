@@ -206,6 +206,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
+        tools: _toolRegistry.toolDefinitions,
         state: mergedState,
       );
 
@@ -568,6 +569,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: handle.key.threadId,
         runId: runInfo.id,
         messages: aguiMessages,
+        tools: _toolRegistry.toolDefinitions,
         state: conversation.aguiState,
       );
 
