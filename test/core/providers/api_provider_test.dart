@@ -376,11 +376,12 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // 3 tools: client_tool + server_tool + execute_python (MontyBridge)
-      expect(registry.toolDefinitions, hasLength(3));
+      // 4 tools: client + server + execute_python + navigate
+      expect(registry.toolDefinitions, hasLength(4));
       expect(registry.contains('client_tool'), isTrue);
       expect(registry.contains('server_tool'), isTrue);
       expect(registry.contains('execute_python'), isTrue);
+      expect(registry.contains('navigate_to_settings'), isTrue);
     });
 
     test('registers room tools under tool_name only', () {
@@ -435,8 +436,10 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      expect(registry.toolDefinitions, hasLength(1));
+      // 2 tools: client_tool + navigate_to_settings (always registered)
+      expect(registry.toolDefinitions, hasLength(2));
       expect(registry.contains('client_tool'), isTrue);
+      expect(registry.contains('navigate_to_settings'), isTrue);
     });
   });
 

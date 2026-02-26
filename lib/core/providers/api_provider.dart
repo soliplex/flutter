@@ -9,6 +9,7 @@ import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/core/services/thread_bridge_cache.dart';
 import 'package:soliplex_frontend/core/services/tool_definition_converter.dart';
 import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
@@ -105,7 +106,20 @@ final Provider<ToolRegistry> toolRegistryProvider =
     );
   }
 
-  return registry;
+  // Navigation tools (available in all rooms).
+  return registry.register(
+    ClientTool(
+      definition: const Tool(
+        name: 'navigate_to_settings',
+        description: 'Open the app settings screen',
+        parameters: {'type': 'object', 'properties': <String, dynamic>{}},
+      ),
+      executor: (toolCall) async {
+        await ref.read(routerProvider).push('/settings');
+        return 'Opened settings.';
+      },
+    ),
+  );
 });
 
 /// HTTP client wrapper that delegates all operations except close().
