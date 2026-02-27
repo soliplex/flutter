@@ -48,7 +48,7 @@ void main() {
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
       expect(success.url, Uri.parse('https://example.com'));
-      expect(success.isInsecure, isFalse);
+      expect(success.url.scheme, 'https');
     });
 
     test('returns success on HTTPS for bare hostname', () async {
@@ -62,7 +62,7 @@ void main() {
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
       expect(success.url, Uri.parse('https://example.com'));
-      expect(success.isInsecure, isFalse);
+      expect(success.url.scheme, 'https');
     });
 
     test('falls back to HTTP on HTTPS network error', () async {
@@ -80,7 +80,7 @@ void main() {
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
       expect(success.url, Uri.parse('http://example.com'));
-      expect(success.isInsecure, isTrue);
+      expect(success.url.scheme, 'http');
     });
 
     test('returns failure when both HTTPS and HTTP fail', () async {
@@ -164,7 +164,7 @@ void main() {
       expect(result, isA<ConnectionSuccess>());
       final success = result as ConnectionSuccess;
       expect(success.url, Uri.parse('http://localhost:8000'));
-      expect(success.isInsecure, isTrue);
+      expect(success.url.scheme, 'http');
       // Should NOT have tried HTTPS
       verifyNever(
         () => transport.request<Map<String, dynamic>>(

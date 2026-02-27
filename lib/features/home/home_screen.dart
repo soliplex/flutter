@@ -58,9 +58,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   String? _validateUrl(String? value) {
-    // http://example.com, https://example.com, example.com:8000, example:8000, example.com
-
-    if (value == null) return null;
+    if (value == null || value.trim().isEmpty) {
+      return 'Server address is required';
+    }
 
     final containsWhiteSpace = RegExp(r'\s').hasMatch(value.trim());
 
@@ -72,7 +72,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     final schemeText = value.substring(0, separatorIndex);
 
-    if (!['http', 'https'].contains(schemeText)) return 'Unsupported scheme';
+    if (!['http', 'https'].contains(schemeText)) {
+      return 'Only http and https are supported';
+    }
 
     return null;
   }
@@ -321,7 +323,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                   keyboardType: TextInputType.url,
                   textInputAction: TextInputAction.go,
-                  // onFieldSubmitted: (_) => _connect(),
+                  onFieldSubmitted: (_) => _connect(),
                   enabled: !_isConnecting,
                 ),
               ),

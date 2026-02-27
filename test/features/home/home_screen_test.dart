@@ -196,7 +196,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('Please enter a server URL'), findsOneWidget);
+        expect(find.text('Server address is required'), findsOneWidget);
       });
 
       testWidgets('accepts valid http URL', (tester) async {
@@ -207,7 +207,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('Please enter a server URL'), findsNothing);
+        expect(find.text('Server address is required'), findsNothing);
       });
 
       testWidgets('accepts valid https URL', (tester) async {
@@ -218,7 +218,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('Please enter a server URL'), findsNothing);
+        expect(find.text('Server address is required'), findsNothing);
       });
 
       testWidgets('accepts bare hostname without scheme', (tester) async {
@@ -229,7 +229,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('Please enter a server URL'), findsNothing);
+        expect(find.text('Server address is required'), findsNothing);
       });
 
       testWidgets('accepts hostname with port without scheme', (tester) async {
@@ -240,7 +240,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('Please enter a server URL'), findsNothing);
+        expect(find.text('Server address is required'), findsNothing);
       });
 
       testWidgets('rejects URL with unsupported scheme', (tester) async {
@@ -252,7 +252,7 @@ void main() {
         await tester.pump();
 
         expect(
-          find.text('Only http:// and https:// URLs are supported'),
+          find.text('Only http and https are supported'),
           findsOneWidget,
         );
       });
@@ -265,7 +265,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('URL cannot contain spaces'), findsOneWidget);
+        expect(find.text("Can't contain whitespaces"), findsOneWidget);
       });
     });
 

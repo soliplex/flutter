@@ -114,7 +114,6 @@ class ConnectionSuccess extends ConnectionProbeResult {
   const ConnectionSuccess({
     required this.url,
     required this.providers,
-    required this.isInsecure,
   });
 
   /// The resolved URL (with scheme) that successfully connected.
@@ -124,7 +123,7 @@ class ConnectionSuccess extends ConnectionProbeResult {
   final List<AuthProviderConfig> providers;
 
   /// Whether the connection uses HTTP (not HTTPS).
-  final bool isInsecure;
+  bool get isInsecure => url.scheme == 'http';
 }
 
 /// Backend could not be reached over any scheme.
@@ -147,54 +146,41 @@ Future<ConnectionProbeResult> probeConnection({
   required String input,
   required HttpTransport transport,
 }) async {
-  final trimmedInput = input.trim();
+  final trimmed = input.trim();
+  final scheme = _parseScheme(trimmed);
 
-  final matchedScheme = RegExp(r'https?:\/\/').stringMatch(trimmedInput);
-  final hasScheme =
-      matchedScheme != null && !['http', 'https'].contains(matchedScheme);
+  final urls = switch (scheme) {
+    'https' => [trimmed],
+    'http' => [trimmed],
+    null => ['https://$trimmed', 'http://$trimmed'],
+    _ => [trimmed],
+  };
 
-  try {
-    return await _attempt(
-      transport,
-      hasScheme ? trimmedInput : 'https://$trimmedInput',
-      isFallback: false,
-    );
-  } on NetworkException {
-    return _attempt(
-      transport,
-      'http://$trimmedInput',
-    );
-  } on Object catch (e) {
-    return ConnectionFailure(e);
-  }
-}
-
-Future<ConnectionProbeResult> _attempt(
-  HttpTransport transport,
-  String url, {
-  bool isFallback = true,
-}) async {
-  try {
+  Object? lastError;
+  for (final url in urls) {
     final uri = Uri.tryParse(url);
-
     if (uri == null) {
       return ConnectionFailure(ArgumentError('Failed to parse URI'));
     }
-
-    final providers = await fetchAuthProviders(
-      transport: transport,
-      baseUrl: uri,
-    );
-
-    return ConnectionSuccess(
-      url: uri,
-      providers: providers,
-      isInsecure: uri.scheme == 'http',
-    );
-  } on Object catch (e) {
-    if (!isFallback && e is NetworkException) rethrow;
-    return ConnectionFailure(e);
+    try {
+      final providers = await fetchAuthProviders(
+        transport: transport,
+        baseUrl: uri,
+      );
+      return ConnectionSuccess(url: uri, providers: providers);
+    } on NetworkException catch (e) {
+      lastError = e;
+    } on Object catch (e) {
+      return ConnectionFailure(e);
+    }
   }
+  return ConnectionFailure(lastError!);
+}
+
+String? _parseScheme(String input) {
+  final separatorIndex = input.indexOf('://');
+  if (separatorIndex == -1) return null;
+  return input.substring(0, separatorIndex);
 }
 
 /// Normalizes a URI for comparison by removing trailing slash.
