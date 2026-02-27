@@ -252,34 +252,57 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
               ),
             ],
           ),
-          GestureDetector(
-            onTap: () => setState(() => _expanded = !_expanded),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                widget.prompt,
-                maxLines: _expanded ? null : _collapsedMaxLines,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontFamily: 'monospace',
-                  fontSize: 14,
-                ),
-              ),
-            ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final promptStyle = theme.textTheme.bodyMedium?.copyWith(
+                fontFamily: 'monospace',
+                fontSize: 14,
+              );
+              const containerPadding = 16.0; // 8 left + 8 right
+              final overflows = !_expanded &&
+                  (TextPainter(
+                    text: TextSpan(
+                      text: widget.prompt,
+                      style: promptStyle,
+                    ),
+                    maxLines: _collapsedMaxLines,
+                    textDirection: TextDirection.ltr,
+                  )..layout(
+                          maxWidth: constraints.maxWidth - containerPadding,
+                        ))
+                      .didExceedMaxLines;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: () => setState(() => _expanded = !_expanded),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: SelectableText(
+                        widget.prompt,
+                        maxLines: _expanded ? null : _collapsedMaxLines,
+                        style: promptStyle,
+                      ),
+                    ),
+                  ),
+                  if (overflows)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => setState(() => _expanded = true),
+                        child: const Text('Show more'),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
-          if (!_expanded &&
-              widget.prompt.split('\n').length > _collapsedMaxLines)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () => setState(() => _expanded = true),
-                child: const Text('Show more'),
-              ),
-            ),
         ],
       ),
     );

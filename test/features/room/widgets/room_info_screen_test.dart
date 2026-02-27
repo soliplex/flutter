@@ -862,6 +862,41 @@ void main() {
         expect(find.text('Show more'), findsNothing);
       });
 
+      testWidgets('shows "Show more" for long single-line prompt that wraps',
+          (tester) async {
+        tester.view.physicalSize = const Size(800, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        // Single line, no newlines, but long enough to wrap past 3 lines
+        final longSingleLine = 'a' * 500;
+        final room = Room(
+          id: 'room-1',
+          name: 'Test Room',
+          agent: DefaultRoomAgent(
+            id: 'agent-1',
+            modelName: 'gpt-4o',
+            retries: 0,
+            systemPrompt: longSingleLine,
+            providerType: 'openai',
+          ),
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const RoomInfoScreen(roomId: 'room-1'),
+            overrides: [
+              roomsProvider.overrideWith((ref) async => [room]),
+              documentsProviderOverride('room-1'),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Show more'), findsOneWidget);
+      });
+
       testWidgets('hides "Show more" when prompt has 3 or fewer lines',
           (tester) async {
         tester.view.physicalSize = const Size(800, 2000);
