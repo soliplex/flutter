@@ -36,12 +36,6 @@ class RoomTool {
   /// AG-UI feature names enabled for this tool.
   final List<String> aguiFeatureNames;
 
-  /// Whether this tool is a RAG tool.
-  bool get isRagTool =>
-      kind.contains('search') ||
-      kind.contains('rag') ||
-      extraParameters.containsKey('rag_lancedb_stem');
-
   @override
   String toString() => 'RoomTool(name: $name, kind: $kind)';
 }

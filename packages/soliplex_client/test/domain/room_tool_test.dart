@@ -42,39 +42,6 @@ void main() {
       expect(tool.aguiFeatureNames, isEmpty);
     });
 
-    test('isRagTool detects RAG tools by kind', () {
-      const ragTool = RoomTool(
-        name: 'search',
-        description: 'Search',
-        kind: 'search',
-      );
-      const ragTool2 = RoomTool(
-        name: 'rag',
-        description: 'RAG',
-        kind: 'rag',
-      );
-      const nonRagTool = RoomTool(
-        name: 'calc',
-        description: 'Calculate',
-        kind: 'bare',
-      );
-
-      expect(ragTool.isRagTool, isTrue);
-      expect(ragTool2.isRagTool, isTrue);
-      expect(nonRagTool.isRagTool, isFalse);
-    });
-
-    test('isRagTool detects RAG tools by extra parameters', () {
-      const tool = RoomTool(
-        name: 'custom',
-        description: 'Custom tool',
-        kind: 'custom',
-        extraParameters: {'rag_lancedb_stem': '/data/rag'},
-      );
-
-      expect(tool.isRagTool, isTrue);
-    });
-
     test('toString includes name and kind', () {
       const tool = RoomTool(
         name: 'rag_search',

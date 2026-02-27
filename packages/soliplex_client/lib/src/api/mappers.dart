@@ -146,7 +146,7 @@ McpClientToolset mcpClientToolsetFromJson(
     kind: json['kind'] as String? ?? '',
     allowedTools: allowedToolsRaw?.whereType<String>().toList(),
     toolsetParams:
-        (json['toolset_params'] as Map?)?.cast<String, dynamic>() ?? const {},
+        (json['toolset_params'] as Map<String, dynamic>?) ?? const {},
   );
 }
 
