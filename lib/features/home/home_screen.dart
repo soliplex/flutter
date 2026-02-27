@@ -66,7 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (containsWhiteSpace) return "Can't contain whitespaces";
 
-    final separatorIndex = value.indexOf(RegExp(r':\/\/'));
+    final separatorIndex = value.indexOf('://');
 
     if (separatorIndex == -1) return null;
 
