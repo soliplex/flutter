@@ -721,38 +721,32 @@ class _DocumentsCardState extends State<_DocumentsCard> {
         .toList();
   }
 
-  String _buildTitle(List<RagDocument> docs) {
-    if (_searchQuery.isEmpty) return 'DOCUMENTS (${docs.length})';
-    final filtered = _filterDocs(docs);
-    return 'DOCUMENTS (${filtered.length} / ${docs.length})';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final title = widget.documentsAsync.when(
-      data: _buildTitle,
-      loading: () => 'DOCUMENTS',
-      error: (_, __) => 'DOCUMENTS',
-    );
-
-    return _SectionCard(
-      title: title,
-      children: widget.documentsAsync.when(
-        data: (docs) {
-          if (docs.isEmpty) {
-            return [
+    final (title, children) = widget.documentsAsync.when(
+      data: (docs) {
+        if (docs.isEmpty) {
+          return (
+            'DOCUMENTS (0)',
+            [
               Text(
                 'No documents in this room.',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
-            ];
-          }
-          final filtered = _filterDocs(docs);
-          return [
+            ],
+          );
+        }
+        final filtered = _filterDocs(docs);
+        final t = _searchQuery.isEmpty
+            ? 'DOCUMENTS (${docs.length})'
+            : 'DOCUMENTS (${filtered.length} / ${docs.length})';
+        return (
+          t,
+          <Widget>[
             if (docs.length > 1)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -774,7 +768,6 @@ class _DocumentsCardState extends State<_DocumentsCard> {
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: _maxHeight),
               child: ListView.builder(
-                shrinkWrap: true,
                 itemCount: filtered.length,
                 itemBuilder: (context, index) {
                   final doc = filtered[index];
@@ -783,15 +776,21 @@ class _DocumentsCardState extends State<_DocumentsCard> {
                 },
               ),
             ),
-          ];
-        },
-        loading: () => [
+          ],
+        );
+      },
+      loading: () => (
+        'DOCUMENTS',
+        <Widget>[
           const Padding(
             padding: EdgeInsets.all(16),
             child: Center(child: CircularProgressIndicator()),
           ),
         ],
-        error: (error, _) => [
+      ),
+      error: (error, _) => (
+        'DOCUMENTS',
+        <Widget>[
           Row(
             children: [
               Icon(
@@ -814,6 +813,11 @@ class _DocumentsCardState extends State<_DocumentsCard> {
           ),
         ],
       ),
+    );
+
+    return _SectionCard(
+      title: title,
+      children: children,
     );
   }
 
