@@ -1,12 +1,20 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:soliplex_frontend/core/auth/auth_flow.dart';
+import 'package:soliplex_frontend/core/auth/auth_flow_desktop.dart';
 import 'package:soliplex_frontend/core/auth/oidc_issuer.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 
 /// Creates the native platform implementation of [AuthFlow].
 ///
+/// On Windows and Linux, returns [DesktopAuthFlow] which uses a loopback
+/// HTTP server for OAuth (RFC 8252). On iOS, macOS, and Android, returns
+/// [NativeAuthFlow] which uses flutter_appauth.
+///
 /// [backendBaseUrl] is ignored on native (only used by web BFF flow).
 /// [redirectScheme] is the OAuth redirect URI scheme (e.g., 'com.mybrand.app').
+/// Required on mobile/macOS; ignored on Windows/Linux.
 /// [appAuth] enables integration testing with a mock FlutterAppAuth.
 /// For unit tests, override the auth flow provider in Riverpod to inject
 /// a mock [AuthFlow] directly.
@@ -15,6 +23,10 @@ AuthFlow createAuthFlow({
   String? redirectScheme,
   FlutterAppAuth? appAuth,
 }) {
+  if (Platform.isWindows || Platform.isLinux) {
+    return DesktopAuthFlow();
+  }
+
   if (redirectScheme == null) {
     throw ArgumentError.notNull('redirectScheme');
   }
