@@ -1024,6 +1024,25 @@ void main() {
         expect(agent.aguiFeatureNames, isEmpty);
       });
 
+      test('parses agent without kind or model_name as OtherRoomAgent', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'id': 'agent-1',
+            'agui_feature_names': ['some.feature'],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<OtherRoomAgent>());
+        final agent = room.agent! as OtherRoomAgent;
+        expect(agent.id, equals('agent-1'));
+        expect(agent.kind, isEmpty);
+        expect(agent.aguiFeatureNames, equals(['some.feature']));
+      });
+
       test('parses factory agent', () {
         final json = <String, dynamic>{
           'id': 'room-1',

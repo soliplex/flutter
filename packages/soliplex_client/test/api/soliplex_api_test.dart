@@ -2965,6 +2965,7 @@ void main() {
             'GET',
             any(),
             cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
             body: any(named: 'body'),
             headers: any(named: 'headers'),
             timeout: any(named: 'timeout'),

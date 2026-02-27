@@ -76,8 +76,12 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
     json['agui_feature_names'] as List<dynamic>?,
   );
 
-  return switch (kind) {
-    'default' || '' => DefaultRoomAgent(
+  // Backend omits kind for default agents; infer from model_name presence
+  final effectiveKind =
+      kind.isEmpty && json.containsKey('model_name') ? 'default' : kind;
+
+  return switch (effectiveKind) {
+    'default' => DefaultRoomAgent(
         id: id,
         modelName: _requireString(json, 'model_name', 'default agent'),
         retries: json['retries'] as int? ?? 0,
