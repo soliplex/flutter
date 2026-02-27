@@ -171,6 +171,10 @@ integration_test/test_bundle.dart
 
 # Developer-specific Xcode configuration (contains DEVELOPMENT_TEAM)
 **/Local.xcconfig
+# Local dependency overrides (developer-specific paths)
+pubspec_overrides.yaml
+packages/*/pubspec_overrides.yaml
+
 # Claude Code local config
 .claude/*
 !.claude/skills/

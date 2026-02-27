@@ -189,24 +189,24 @@ packages:
   dart_monty_ffi:
     dependency: "direct overridden"
     description:
-      path: "/Users/runyaga/dev/dart_monty/packages/dart_monty_ffi"
+      path: "C:\\Users\\runya\\work\\dart_monty\\packages\\dart_monty_ffi"
       relative: false
     source: path
-    version: "0.4.3"
+    version: "0.6.1"
   dart_monty_native:
     dependency: "direct main"
     description:
-      path: "/Users/runyaga/dev/dart_monty/packages/dart_monty_native"
+      path: "C:\\Users\\runya\\work\\dart_monty\\packages\\dart_monty_native"
       relative: false
     source: path
-    version: "0.6.0"
+    version: "0.6.1"
   dart_monty_platform_interface:
     dependency: "direct dev"
     description:
-      path: "/Users/runyaga/dev/dart_monty/packages/dart_monty_platform_interface"
+      path: "C:\\Users\\runya\\work\\dart_monty\\packages\\dart_monty_platform_interface"
       relative: false
     source: path
-    version: "0.4.3"
+    version: "0.6.1"
   dbus:
     dependency: transitive
     description:
