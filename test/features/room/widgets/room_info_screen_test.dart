@@ -931,8 +931,7 @@ void main() {
         expect(find.text('Show more'), findsNothing);
       });
 
-      testWidgets('copy button copies prompt and shows snackbar',
-          (tester) async {
+      testWidgets('copy button shows checkmark after copying', (tester) async {
         tester.view.physicalSize = const Size(800, 2000);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
@@ -951,10 +950,19 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.byTooltip('Copy system prompt'));
-        await tester.pumpAndSettle();
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+        expect(find.byIcon(Icons.check), findsNothing);
 
-        expect(find.text('System prompt copied'), findsOneWidget);
+        await tester.tap(find.byTooltip('Copy system prompt'));
+        await tester.pump();
+
+        expect(find.byIcon(Icons.check), findsOneWidget);
+        expect(find.byIcon(Icons.copy), findsNothing);
+
+        await tester.pump(const Duration(seconds: 2));
+
+        expect(find.byIcon(Icons.copy), findsOneWidget);
+        expect(find.byIcon(Icons.check), findsNothing);
       });
     });
 

@@ -215,6 +215,7 @@ class _SystemPromptViewer extends StatefulWidget {
 
 class _SystemPromptViewerState extends State<_SystemPromptViewer> {
   bool _expanded = false;
+  bool _copied = false;
 
   static const _collapsedMaxLines = 3;
 
@@ -238,18 +239,24 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
               ),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.copy, size: 18),
-                onPressed: () {
-                  Clipboard.setData(
-                    ClipboardData(text: widget.prompt),
-                  );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('System prompt copied'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
+                icon: Icon(
+                  _copied ? Icons.check : Icons.copy,
+                  size: 18,
+                ),
+                onPressed: _copied
+                    ? null
+                    : () {
+                        Clipboard.setData(
+                          ClipboardData(text: widget.prompt),
+                        );
+                        setState(() => _copied = true);
+                        Future<void>.delayed(
+                          const Duration(seconds: 2),
+                          () {
+                            if (mounted) setState(() => _copied = false);
+                          },
+                        );
+                      },
                 tooltip: 'Copy system prompt',
                 iconSize: 18,
                 constraints: const BoxConstraints(
