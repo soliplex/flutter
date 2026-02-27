@@ -170,7 +170,7 @@ Future<ConnectionProbeResult> probeConnection({
       return ConnectionSuccess(url: uri, providers: providers);
     } on NetworkException catch (e) {
       lastError = e;
-    } on Object catch (e) {
+    } on Exception catch (e) {
       return ConnectionFailure(e);
     }
   }
