@@ -77,7 +77,7 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
   );
 
   return switch (kind) {
-    'default' => DefaultRoomAgent(
+    'default' || '' => DefaultRoomAgent(
         id: id,
         modelName: _requireString(json, 'model_name', 'default agent'),
         retries: json['retries'] as int? ?? 0,

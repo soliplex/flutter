@@ -993,6 +993,37 @@ void main() {
         expect(agent.aguiFeatureNames, equals(['feature1']));
       });
 
+      test('parses default agent when kind field is omitted', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'id': 'agent-1',
+            'model_name': 'gemini-2.5-flash',
+            'retries': 3,
+            'system_prompt': 'You are a friendly agent.',
+            'provider_type': 'google',
+            'provider_base_url': null,
+            'provider_key': 'secret:GEMINI_API_KEY',
+            'agui_feature_names': <String>[],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<DefaultRoomAgent>());
+        final agent = room.agent! as DefaultRoomAgent;
+        expect(agent.id, equals('agent-1'));
+        expect(agent.modelName, equals('gemini-2.5-flash'));
+        expect(agent.retries, equals(3));
+        expect(
+          agent.systemPrompt,
+          equals('You are a friendly agent.'),
+        );
+        expect(agent.providerType, equals('google'));
+        expect(agent.aguiFeatureNames, isEmpty);
+      });
+
       test('parses factory agent', () {
         final json = <String, dynamic>{
           'id': 'room-1',
