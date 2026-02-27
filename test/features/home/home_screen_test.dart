@@ -343,7 +343,8 @@ void main() {
 
         expect(
           find.text(
-            'Connection timed out. The server may be slow or unreachable.',
+            'Connection to http://localhost:8000 timed out. '
+            'The server may be slow or unreachable.',
           ),
           findsOneWidget,
         );
@@ -370,8 +371,8 @@ void main() {
 
         expect(
           find.text(
-            'Cannot reach server. Check the URL and your network '
-            'connection.\n\nDetails: connection refused',
+            'Cannot reach http://localhost:8000. Check the URL and your '
+            'network connection.\n\nDetails: connection refused',
           ),
           findsOneWidget,
         );
@@ -401,7 +402,10 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(
-            find.text('Server error. Please try again later. (500)'),
+            find.text(
+              'Server error at http://localhost:8000. '
+              'Please try again later. (500)',
+            ),
             findsOneWidget,
           );
         },
@@ -434,7 +438,8 @@ void main() {
 
         expect(
           find.text(
-            'Server error. Please try again later. (500)\n\n'
+            'Server error at http://localhost:8000. '
+            'Please try again later. (500)\n\n'
             'Details: Database connection failed',
           ),
           findsOneWidget,
@@ -461,7 +466,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Connection failed: Exception: Unknown error'),
+          find.text(
+            'Connection to http://localhost:8000 failed: '
+            'Exception: Unknown error',
+          ),
           findsOneWidget,
         );
       });

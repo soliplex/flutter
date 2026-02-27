@@ -129,10 +129,13 @@ class ConnectionSuccess extends ConnectionProbeResult {
 /// Backend could not be reached over any scheme.
 @immutable
 class ConnectionFailure extends ConnectionProbeResult {
-  const ConnectionFailure(this.error);
+  const ConnectionFailure(this.error, {required this.url});
 
   /// The error that caused the connection to fail.
   final Object error;
+
+  /// The URL that was being probed when the failure occurred.
+  final String url;
 }
 
 /// Probes the backend by trying HTTPS first, falling back to HTTP on network
@@ -157,10 +160,11 @@ Future<ConnectionProbeResult> probeConnection({
   };
 
   NetworkException? lastNetworkError;
+  String? lastNetworkUrl;
   for (final url in urls) {
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      return ConnectionFailure(ArgumentError('Failed to parse URI'));
+      return ConnectionFailure(ArgumentError('Failed to parse URI'), url: url);
     }
     try {
       final providers = await fetchAuthProviders(
@@ -170,11 +174,12 @@ Future<ConnectionProbeResult> probeConnection({
       return ConnectionSuccess(url: uri, providers: providers);
     } on NetworkException catch (e) {
       lastNetworkError = e;
+      lastNetworkUrl = url;
     } on Exception catch (e) {
-      return ConnectionFailure(e);
+      return ConnectionFailure(e, url: url);
     }
   }
-  return ConnectionFailure(lastNetworkError!);
+  return ConnectionFailure(lastNetworkError!, url: lastNetworkUrl!);
 }
 
 String? _parseScheme(String input) {

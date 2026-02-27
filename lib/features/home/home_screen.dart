@@ -125,8 +125,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
 
       switch (probeResult) {
-        case ConnectionFailure(:final error):
-          _handleConnectionError(error);
+        case ConnectionFailure(:final error, :final url):
+          _handleConnectionError(error, url);
           return;
         case ConnectionSuccess(:final url, :final providers, :final isInsecure):
           if (isInsecure) {
@@ -207,21 +207,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
   }
 
-  void _handleConnectionError(Object error) {
+  void _handleConnectionError(Object error, String url) {
     switch (error) {
       case AuthException():
         Loggers.ui.error('HomeScreen: Auth error', error: error);
         final detail = error.statusCode == 401
-            ? 'Authentication required. This server requires login '
+            ? 'Authentication required. $url requires login '
                 'credentials. (${error.statusCode})'
-            : 'Access denied by server. The server may require additional '
+            : 'Access denied by $url. The server may require additional '
                 'configuration or may be blocking this connection. '
                 '(${error.statusCode})';
         _setError(detail, serverDetail: error.serverMessage);
       case NotFoundException():
         Loggers.ui.error('HomeScreen: Not found', error: error);
-        const detail = 'Server reached, but the expected API endpoint was not '
-            'found. The server version may be incompatible. (404)';
+        final detail = 'Server at $url was reached, but the expected API '
+            'endpoint was not found. The server version may be '
+            'incompatible. (404)';
         _setError(detail, serverDetail: error.serverMessage);
       case CancelledException():
         Loggers.ui.debug('HomeScreen: Request cancelled');
@@ -232,21 +233,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case NetworkException():
         Loggers.ui.error('HomeScreen: Network error', error: error);
         final detail = error.isTimeout
-            ? 'Connection timed out. The server may be slow or unreachable.'
-            : 'Cannot reach server. Check the URL and your network connection.';
+            ? 'Connection to $url timed out. '
+                'The server may be slow or unreachable.'
+            : 'Cannot reach $url. Check the URL and your '
+                'network connection.';
         _setError(detail, serverDetail: error.isTimeout ? null : error.message);
       case ApiException():
         Loggers.ui.error('HomeScreen: API error', error: error);
         final detail = error.statusCode >= 500
-            ? 'Server error. Please try again later. (${error.statusCode})'
-            : 'Unexpected response from server. (${error.statusCode})';
+            ? 'Server error at $url. '
+                'Please try again later. (${error.statusCode})'
+            : 'Unexpected response from $url. (${error.statusCode})';
         _setError(detail, serverDetail: error.serverMessage);
       case Exception():
         Loggers.ui.error('HomeScreen: Unexpected exception', error: error);
-        _setError('Connection failed: $error');
+        _setError('Connection to $url failed: $error');
       default:
         Loggers.ui.error('HomeScreen: Unexpected error', error: error);
-        _setError('Connection failed: $error');
+        _setError('Connection to $url failed: $error');
     }
   }
 

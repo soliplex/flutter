@@ -99,6 +99,8 @@ void main() {
       );
 
       expect(result, isA<ConnectionFailure>());
+      final failure = result as ConnectionFailure;
+      expect(failure.url, 'http://example.com');
     });
 
     test('returns failure for explicit https with network error', () async {
@@ -113,6 +115,8 @@ void main() {
       );
 
       expect(result, isA<ConnectionFailure>());
+      final failure = result as ConnectionFailure;
+      expect(failure.url, 'https://example.com');
       // Should NOT have tried HTTP — user explicitly chose HTTPS.
       verifyNever(
         () => transport.request<Map<String, dynamic>>(
@@ -139,6 +143,8 @@ void main() {
       );
 
       expect(result, isA<ConnectionFailure>());
+      final failure = result as ConnectionFailure;
+      expect(failure.url, 'https://example.com');
       // Should NOT have tried HTTP
       verifyNever(
         () => transport.request<Map<String, dynamic>>(
