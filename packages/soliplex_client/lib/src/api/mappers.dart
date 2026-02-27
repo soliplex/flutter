@@ -71,10 +71,7 @@ BackendVersionInfo backendVersionInfoFromJson(Map<String, dynamic> json) {
 /// Discriminates by 'kind' field: 'default', 'factory', or other.
 RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
   final kind = json['kind'] as String? ?? '';
-  final id = json['id'] as String?;
-  if (id == null) {
-    throw const FormatException('Agent JSON missing required "id" field');
-  }
+  final id = _requireString(json, 'id', 'agent');
   final aguiFeatureNames = _parseStringList(
     json['agui_feature_names'] as List<dynamic>?,
   );
