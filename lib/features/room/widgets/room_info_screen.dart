@@ -82,10 +82,31 @@ class _RoomInfoBody extends ConsumerWidget {
           ),
         if (room.agent != null) _AgentCard(agent: room.agent!),
         _FeaturesCard(room: room, roomId: roomId),
-        if (room.tools.isNotEmpty) _ToolsCard(tools: room.tools),
+        if (room.tools.isNotEmpty)
+          _ExpandableListCard<MapEntry<String, RoomTool>>(
+            key: const ValueKey('tools'),
+            title: 'TOOLS',
+            items: room.tools.entries.toList(),
+            nameOf: (e) => e.key,
+            contentOf: (e) => _buildToolContent(e.value),
+          ),
         if (room.mcpClientToolsets.isNotEmpty)
-          _McpToolsetsCard(toolsets: room.mcpClientToolsets),
-        if (clientTools.isNotEmpty) _ClientToolsCard(tools: clientTools),
+          _ExpandableListCard<MapEntry<String, McpClientToolset>>(
+            key: const ValueKey('mcp-toolsets'),
+            title: 'MCP CLIENT TOOLSETS',
+            items: room.mcpClientToolsets.entries.toList(),
+            nameOf: (e) => e.key,
+            contentOf: (e) => _buildToolsetContent(e.value),
+          ),
+        if (clientTools.isNotEmpty)
+          _ExpandableListCard<Tool>(
+            key: const ValueKey('client-tools'),
+            title: 'CLIENT TOOLS',
+            items: clientTools,
+            nameOf: (t) => t.name,
+            contentOf: (t) =>
+                t.description.isNotEmpty ? Text(t.description) : null,
+          ),
         _DocumentsCard(
           documentsAsync: documentsAsync,
           onRetry: () => ref.read(documentsProvider(roomId).notifier).retry(),
@@ -93,6 +114,39 @@ class _RoomInfoBody extends ConsumerWidget {
       ],
     );
   }
+}
+
+Widget _buildToolContent(RoomTool tool) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _InfoRow(label: 'Kind', value: tool.kind),
+      if (tool.description.isNotEmpty)
+        _InfoRow(label: 'Description', value: tool.description),
+      if (tool.allowMcp) const _InfoRow(label: 'Allow MCP', value: 'Yes'),
+      if (tool.toolRequires.isNotEmpty)
+        _InfoRow(label: 'Requires', value: tool.toolRequires),
+      if (tool.aguiFeatureNames.isNotEmpty)
+        _InfoRow(
+          label: 'AG-UI Features',
+          value: tool.aguiFeatureNames.join(', '),
+        ),
+    ],
+  );
+}
+
+Widget _buildToolsetContent(McpClientToolset toolset) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _InfoRow(label: 'Kind', value: toolset.kind),
+      if (toolset.allowedTools != null)
+        _InfoRow(
+          label: 'Allowed Tools',
+          value: toolset.allowedTools!.join(', '),
+        ),
+    ],
+  );
 }
 
 class _SectionCard extends StatelessWidget {
@@ -490,145 +544,45 @@ class _ExpandableTile extends StatelessWidget {
   }
 }
 
-class _ToolsCard extends StatefulWidget {
-  const _ToolsCard({required this.tools});
-  final Map<String, RoomTool> tools;
+class _ExpandableListCard<T> extends StatefulWidget {
+  const _ExpandableListCard({
+    required this.title,
+    required this.items,
+    required this.nameOf,
+    required this.contentOf,
+    super.key,
+  });
+
+  final String title;
+  final List<T> items;
+  final String Function(T) nameOf;
+  final Widget? Function(T) contentOf;
 
   @override
-  State<_ToolsCard> createState() => _ToolsCardState();
+  State<_ExpandableListCard<T>> createState() => _ExpandableListCardState<T>();
 }
 
-class _ToolsCardState extends State<_ToolsCard> {
+class _ExpandableListCardState<T> extends State<_ExpandableListCard<T>> {
   final _expandedNames = <String>{};
 
   @override
   Widget build(BuildContext context) {
     return _SectionCard(
-      title: 'TOOLS (${widget.tools.length})',
+      title: '${widget.title} (${widget.items.length})',
       children: [
-        for (final entry in widget.tools.entries)
-          _buildToolTile(entry.key, entry.value),
+        for (final item in widget.items)
+          _ExpandableTile(
+            name: widget.nameOf(item),
+            expanded: _expandedNames.contains(widget.nameOf(item)),
+            onToggle: () => setState(() {
+              final name = widget.nameOf(item);
+              if (!_expandedNames.remove(name)) {
+                _expandedNames.add(name);
+              }
+            }),
+            content: widget.contentOf(item),
+          ),
       ],
-    );
-  }
-
-  Widget _buildToolTile(String name, RoomTool tool) {
-    return _ExpandableTile(
-      name: name,
-      expanded: _expandedNames.contains(name),
-      onToggle: () => setState(() {
-        if (_expandedNames.contains(name)) {
-          _expandedNames.remove(name);
-        } else {
-          _expandedNames.add(name);
-        }
-      }),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoRow(label: 'Kind', value: tool.kind),
-          if (tool.description.isNotEmpty)
-            _InfoRow(label: 'Description', value: tool.description),
-          if (tool.allowMcp) const _InfoRow(label: 'Allow MCP', value: 'Yes'),
-          if (tool.toolRequires.isNotEmpty)
-            _InfoRow(label: 'Requires', value: tool.toolRequires),
-          if (tool.aguiFeatureNames.isNotEmpty)
-            _InfoRow(
-              label: 'AG-UI Features',
-              value: tool.aguiFeatureNames.join(', '),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _McpToolsetsCard extends StatefulWidget {
-  const _McpToolsetsCard({required this.toolsets});
-  final Map<String, McpClientToolset> toolsets;
-
-  @override
-  State<_McpToolsetsCard> createState() => _McpToolsetsCardState();
-}
-
-class _McpToolsetsCardState extends State<_McpToolsetsCard> {
-  final _expandedNames = <String>{};
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'MCP CLIENT TOOLSETS (${widget.toolsets.length})',
-      children: [
-        for (final entry in widget.toolsets.entries)
-          _buildToolsetTile(entry.key, entry.value),
-      ],
-    );
-  }
-
-  Widget _buildToolsetTile(String name, McpClientToolset toolset) {
-    return _ExpandableTile(
-      name: name,
-      expanded: _expandedNames.contains(name),
-      onToggle: () => setState(() {
-        if (_expandedNames.contains(name)) {
-          _expandedNames.remove(name);
-        } else {
-          _expandedNames.add(name);
-        }
-      }),
-      content: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _InfoRow(label: 'Kind', value: toolset.kind),
-          if (toolset.allowedTools != null)
-            _InfoRow(
-              label: 'Allowed Tools',
-              value: toolset.allowedTools!.join(', '),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ClientToolsCard extends StatefulWidget {
-  const _ClientToolsCard({required this.tools});
-  final List<Tool> tools;
-
-  @override
-  State<_ClientToolsCard> createState() => _ClientToolsCardState();
-}
-
-class _ClientToolsCardState extends State<_ClientToolsCard> {
-  final _expandedNames = <String>{};
-
-  @override
-  Widget build(BuildContext context) {
-    return _SectionCard(
-      title: 'CLIENT TOOLS (${widget.tools.length})',
-      children: [
-        for (final tool in widget.tools) _buildToolTile(tool),
-      ],
-    );
-  }
-
-  Widget _buildToolTile(Tool tool) {
-    return _ExpandableTile(
-      name: tool.name,
-      expanded: _expandedNames.contains(tool.name),
-      onToggle: () => setState(() {
-        if (_expandedNames.contains(tool.name)) {
-          _expandedNames.remove(tool.name);
-        } else {
-          _expandedNames.add(tool.name);
-        }
-      }),
-      content: tool.description.isNotEmpty
-          ? Text(
-              tool.description,
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
-          : null,
     );
   }
 }
