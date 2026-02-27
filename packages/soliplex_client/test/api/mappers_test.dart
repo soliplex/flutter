@@ -103,6 +103,26 @@ void main() {
         expect(room.metadata, equals(const <String, dynamic>{}));
       });
 
+      test('throws FormatException when id is missing', () {
+        final json = <String, dynamic>{'name': 'Test Room'};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
+      test('throws FormatException when id is non-string', () {
+        final json = <String, dynamic>{'id': 123, 'name': 'Test Room'};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
+      test('throws FormatException when name is missing', () {
+        final json = <String, dynamic>{'id': 'room-1'};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
+      test('throws FormatException when name is non-string', () {
+        final json = <String, dynamic>{'id': 'room-1', 'name': 42};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
       test('handles null description', () {
         final json = <String, dynamic>{
           'id': 'room-1',
@@ -1143,6 +1163,21 @@ void main() {
 
         final agent = room.agent! as DefaultRoomAgent;
         expect(agent.systemPrompt, isNull);
+      });
+
+      test('sets agent to null when agent id is non-string type', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'id': 123,
+            'model_name': 'gpt-4o',
+          },
+        };
+
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
       });
 
       test('sets agent to null for default agent missing id', () {

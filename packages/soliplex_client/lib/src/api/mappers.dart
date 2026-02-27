@@ -104,14 +104,15 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
   };
 }
 
-/// Extracts a required string field, throwing [FormatException] if missing.
+/// Extracts a required string field, throwing [FormatException] if missing
+/// or not a string.
 String _requireString(
   Map<String, dynamic> json,
   String field,
   String context,
 ) {
-  final value = json[field] as String?;
-  if (value == null) {
+  final value = json[field];
+  if (value is! String) {
     throw FormatException('$context JSON missing required "$field" field');
   }
   return value;
@@ -256,8 +257,8 @@ Room roomFromJson(Map<String, dynamic> json) {
   }
 
   return Room(
-    id: json['id'] as String,
-    name: json['name'] as String,
+    id: _requireString(json, 'id', 'room'),
+    name: _requireString(json, 'name', 'room'),
     description: (json['description'] as String?) ?? '',
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
     quizzes: quizzes,
@@ -289,7 +290,7 @@ RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
   final updatedRaw = json['updated_at'] as String?;
 
   return RagDocument(
-    id: json['id'] as String,
+    id: _requireString(json, 'id', 'document'),
     title: title,
     uri: uri,
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
