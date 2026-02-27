@@ -156,7 +156,7 @@ Future<ConnectionProbeResult> probeConnection({
     _ => [trimmed],
   };
 
-  Object? lastError;
+  NetworkException? lastNetworkError;
   for (final url in urls) {
     final uri = Uri.tryParse(url);
     if (uri == null) {
@@ -169,12 +169,12 @@ Future<ConnectionProbeResult> probeConnection({
       );
       return ConnectionSuccess(url: uri, providers: providers);
     } on NetworkException catch (e) {
-      lastError = e;
+      lastNetworkError = e;
     } on Exception catch (e) {
       return ConnectionFailure(e);
     }
   }
-  return ConnectionFailure(lastError!);
+  return ConnectionFailure(lastNetworkError!);
 }
 
 String? _parseScheme(String input) {
