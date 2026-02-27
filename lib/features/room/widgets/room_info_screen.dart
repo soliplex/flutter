@@ -408,6 +408,73 @@ class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
   }
 }
 
+class _ExpandableTile extends StatelessWidget {
+  const _ExpandableTile({
+    required this.name,
+    required this.expanded,
+    required this.onToggle,
+    this.content,
+  });
+
+  final String name;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final Widget? content;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasContent = content != null;
+
+    final nameRow = Row(
+      children: [
+        Expanded(
+          child: Text(
+            name,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        if (hasContent)
+          Icon(
+            expanded ? Icons.expand_less : Icons.expand_more,
+            size: 20,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+      ],
+    );
+
+    return GestureDetector(
+      onTap: hasContent ? onToggle : null,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            nameRow,
+            if (expanded && hasContent)
+              Padding(
+                padding: const EdgeInsets.only(top: SoliplexSpacing.s1),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(SoliplexSpacing.s2),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(SoliplexSpacing.s2),
+                  ),
+                  child: content,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ToolsCard extends StatefulWidget {
   const _ToolsCard({required this.tools});
   final Map<String, RoomTool> tools;
@@ -421,89 +488,41 @@ class _ToolsCardState extends State<_ToolsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return _SectionCard(
       title: 'TOOLS (${widget.tools.length})',
       children: [
         for (final entry in widget.tools.entries)
-          _buildToolTile(entry.key, entry.value, theme),
+          _buildToolTile(entry.key, entry.value),
       ],
     );
   }
 
-  Widget _buildToolTile(String name, RoomTool tool, ThemeData theme) {
-    final expanded = _expandedNames.contains(name);
-
-    return GestureDetector(
-      onTap: () => setState(() {
-        if (expanded) {
+  Widget _buildToolTile(String name, RoomTool tool) {
+    return _ExpandableTile(
+      name: name,
+      expanded: _expandedNames.contains(name),
+      onToggle: () => setState(() {
+        if (_expandedNames.contains(name)) {
           _expandedNames.remove(name);
         } else {
           _expandedNames.add(name);
         }
       }),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InfoRow(label: 'Kind', value: tool.kind),
+          if (tool.description.isNotEmpty)
+            _InfoRow(label: 'Description', value: tool.description),
+          if (tool.allowMcp) const _InfoRow(label: 'Allow MCP', value: 'Yes'),
+          if (tool.toolRequires.isNotEmpty)
+            _InfoRow(label: 'Requires', value: tool.toolRequires),
+          if (tool.aguiFeatureNames.isNotEmpty)
+            _InfoRow(
+              label: 'AG-UI Features',
+              value: tool.aguiFeatureNames.join(', '),
             ),
-            if (expanded)
-              Padding(
-                padding: const EdgeInsets.only(top: SoliplexSpacing.s1),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(SoliplexSpacing.s2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(SoliplexSpacing.s2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _InfoRow(label: 'Kind', value: tool.kind),
-                      if (tool.description.isNotEmpty)
-                        _InfoRow(
-                          label: 'Description',
-                          value: tool.description,
-                        ),
-                      if (tool.allowMcp)
-                        const _InfoRow(label: 'Allow MCP', value: 'Yes'),
-                      if (tool.toolRequires.isNotEmpty)
-                        _InfoRow(
-                          label: 'Requires',
-                          value: tool.toolRequires,
-                        ),
-                      if (tool.aguiFeatureNames.isNotEmpty)
-                        _InfoRow(
-                          label: 'AG-UI Features',
-                          value: tool.aguiFeatureNames.join(', '),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -522,81 +541,36 @@ class _McpToolsetsCardState extends State<_McpToolsetsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return _SectionCard(
       title: 'MCP CLIENT TOOLSETS (${widget.toolsets.length})',
       children: [
         for (final entry in widget.toolsets.entries)
-          _buildToolsetTile(entry.key, entry.value, theme),
+          _buildToolsetTile(entry.key, entry.value),
       ],
     );
   }
 
-  Widget _buildToolsetTile(
-    String name,
-    McpClientToolset toolset,
-    ThemeData theme,
-  ) {
-    final expanded = _expandedNames.contains(name);
-
-    return GestureDetector(
-      onTap: () => setState(() {
-        if (expanded) {
+  Widget _buildToolsetTile(String name, McpClientToolset toolset) {
+    return _ExpandableTile(
+      name: name,
+      expanded: _expandedNames.contains(name),
+      onToggle: () => setState(() {
+        if (_expandedNames.contains(name)) {
           _expandedNames.remove(name);
         } else {
           _expandedNames.add(name);
         }
       }),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
+      content: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _InfoRow(label: 'Kind', value: toolset.kind),
+          if (toolset.allowedTools != null)
+            _InfoRow(
+              label: 'Allowed Tools',
+              value: toolset.allowedTools!.join(', '),
             ),
-            if (expanded)
-              Padding(
-                padding: const EdgeInsets.only(top: SoliplexSpacing.s1),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(SoliplexSpacing.s2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(SoliplexSpacing.s2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _InfoRow(label: 'Kind', value: toolset.kind),
-                      if (toolset.allowedTools != null)
-                        _InfoRow(
-                          label: 'Allowed Tools',
-                          value: toolset.allowedTools!.join(', '),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -615,70 +589,31 @@ class _ClientToolsCardState extends State<_ClientToolsCard> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return _SectionCard(
       title: 'CLIENT TOOLS (${widget.tools.length})',
       children: [
-        for (final tool in widget.tools) _buildToolTile(tool, theme),
+        for (final tool in widget.tools) _buildToolTile(tool),
       ],
     );
   }
 
-  Widget _buildToolTile(Tool tool, ThemeData theme) {
-    final expanded = _expandedNames.contains(tool.name);
-
-    return GestureDetector(
-      onTap: () => setState(() {
-        if (expanded) {
+  Widget _buildToolTile(Tool tool) {
+    return _ExpandableTile(
+      name: tool.name,
+      expanded: _expandedNames.contains(tool.name),
+      onToggle: () => setState(() {
+        if (_expandedNames.contains(tool.name)) {
           _expandedNames.remove(tool.name);
         } else {
           _expandedNames.add(tool.name);
         }
       }),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    tool.name,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontFamily: 'monospace',
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-            if (expanded && tool.description.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: SoliplexSpacing.s1),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(SoliplexSpacing.s2),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(SoliplexSpacing.s2),
-                  ),
-                  child: Text(
-                    tool.description,
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
+      content: tool.description.isNotEmpty
+          ? Text(
+              tool.description,
+              style: Theme.of(context).textTheme.bodyMedium,
+            )
+          : null,
     );
   }
 }
