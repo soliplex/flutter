@@ -113,6 +113,56 @@ Widget _createAppWithRouter({
   );
 }
 
+/// Stubs [transport] to respond to any request with [response] or [error].
+void _stubTransport(
+  MockHttpTransport transport, {
+  Map<String, dynamic>? response,
+  Object? error,
+}) {
+  final invocation = when(
+    () => transport.request<Map<String, dynamic>>(
+      any(),
+      any(),
+      body: any(named: 'body'),
+      headers: any(named: 'headers'),
+      timeout: any(named: 'timeout'),
+      cancelToken: any(named: 'cancelToken'),
+      fromJson: any(named: 'fromJson'),
+    ),
+  );
+  if (error != null) {
+    invocation.thenThrow(error);
+  } else {
+    invocation.thenAnswer((_) async => response ?? <String, dynamic>{});
+  }
+}
+
+/// Stubs [transport] to respond to a specific [method] + [url] combination.
+void _stubTransportUrl(
+  MockHttpTransport transport, {
+  required String method,
+  required Uri url,
+  Map<String, dynamic>? response,
+  Object? error,
+}) {
+  final invocation = when(
+    () => transport.request<Map<String, dynamic>>(
+      method,
+      url,
+      body: any(named: 'body'),
+      headers: any(named: 'headers'),
+      timeout: any(named: 'timeout'),
+      cancelToken: any(named: 'cancelToken'),
+      fromJson: any(named: 'fromJson'),
+    ),
+  );
+  if (error != null) {
+    invocation.thenThrow(error);
+  } else {
+    invocation.thenAnswer((_) async => response ?? <String, dynamic>{});
+  }
+}
+
 void main() {
   setUpAll(() {
     registerFallbackValue(Uri.parse('http://localhost'));
@@ -274,18 +324,9 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(
-          const NetworkException(message: 'timeout', isTimeout: true),
+        _stubTransport(
+          mockTransport,
+          error: const NetworkException(message: 'timeout', isTimeout: true),
         );
 
         await tester.pumpWidget(
@@ -310,17 +351,10 @@ void main() {
 
       testWidgets('shows network error for NetworkException', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(const NetworkException(message: 'connection refused'));
+        _stubTransport(
+          mockTransport,
+          error: const NetworkException(message: 'connection refused'),
+        );
 
         await tester.pumpWidget(
           createTestApp(
@@ -347,17 +381,10 @@ void main() {
         'shows server error for ApiException without server message',
         (tester) async {
           final mockTransport = MockHttpTransport();
-          when(
-            () => mockTransport.request<Map<String, dynamic>>(
-              any(),
-              any(),
-              body: any(named: 'body'),
-              headers: any(named: 'headers'),
-              timeout: any(named: 'timeout'),
-              cancelToken: any(named: 'cancelToken'),
-              fromJson: any(named: 'fromJson'),
-            ),
-          ).thenThrow(const ApiException(statusCode: 500, message: 'HTTP 500'));
+          _stubTransport(
+            mockTransport,
+            error: const ApiException(statusCode: 500, message: 'HTTP 500'),
+          );
 
           await tester.pumpWidget(
             createTestApp(
@@ -384,18 +411,9 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(
-          const ApiException(
+        _stubTransport(
+          mockTransport,
+          error: const ApiException(
             statusCode: 500,
             message: 'Database connection failed',
             serverMessage: 'Database connection failed',
@@ -425,17 +443,10 @@ void main() {
 
       testWidgets('shows generic error for unknown exceptions', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(Exception('Unknown error'));
+        _stubTransport(
+          mockTransport,
+          error: Exception('Unknown error'),
+        );
 
         await tester.pumpWidget(
           createTestApp(
@@ -459,17 +470,7 @@ void main() {
     group('connection flow - no auth providers', () {
       testWidgets('enters no-auth mode and navigates to rooms', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        _stubTransport(mockTransport);
 
         late _MockAuthNotifier mockAuth;
 
@@ -496,28 +497,18 @@ void main() {
     });
 
     group('connection flow - with auth providers', () {
+      const googleProviderResponse = <String, dynamic>{
+        'google': {
+          'title': 'Google',
+          'server_url': 'https://accounts.google.com',
+          'client_id': 'client-123',
+          'scope': 'openid email',
+        },
+      };
+
       testWidgets('navigates to login when unauthenticated', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'google': {
-              'title': 'Google',
-              'server_url': 'https://accounts.google.com',
-              'client_id': 'client-123',
-              'scope': 'openid email',
-            },
-          },
-        );
+        _stubTransport(mockTransport, response: googleProviderResponse);
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -541,26 +532,7 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'google': {
-              'title': 'Google',
-              'server_url': 'https://accounts.google.com',
-              'client_id': 'client-123',
-              'scope': 'openid email',
-            },
-          },
-        );
+        _stubTransport(mockTransport, response: googleProviderResponse);
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -588,26 +560,7 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'google': {
-              'title': 'Google',
-              'server_url': 'https://accounts.google.com',
-              'client_id': 'client-123',
-              'scope': 'openid email',
-            },
-          },
-        );
+        _stubTransport(mockTransport, response: googleProviderResponse);
 
         late _MockAuthNotifier mockAuth;
 
@@ -640,28 +593,17 @@ void main() {
       /// Stubs [transport] so HTTPS fails with a network error and HTTP
       /// succeeds, triggering the insecure-connection fallback path.
       void stubHttpFallback(MockHttpTransport transport) {
-        when(
-          () => transport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('https://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(const NetworkException(message: 'connection refused'));
-        when(
-          () => transport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('http://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        _stubTransportUrl(
+          transport,
+          method: 'GET',
+          url: Uri.parse('https://example.com/api/login'),
+          error: const NetworkException(message: 'connection refused'),
+        );
+        _stubTransportUrl(
+          transport,
+          method: 'GET',
+          url: Uri.parse('http://example.com/api/login'),
+        );
       }
 
       testWidgets('shows warning when connecting over HTTP via fallback', (
@@ -768,17 +710,11 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('http://localhost:8000/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        _stubTransportUrl(
+          mockTransport,
+          method: 'GET',
+          url: Uri.parse('http://localhost:8000/api/login'),
+        );
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -802,17 +738,11 @@ void main() {
 
       testWidgets('no warning for HTTPS connection', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            'GET',
-            Uri.parse('https://example.com/api/login'),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        _stubTransportUrl(
+          mockTransport,
+          method: 'GET',
+          url: Uri.parse('https://example.com/api/login'),
+        );
 
         late _MockAuthNotifier mockAuth;
 
