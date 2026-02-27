@@ -21,7 +21,7 @@ repos:
         exclude: ^packages/soliplex_client/lib/src/schema/
       - id: flutter-analyze
         name: flutter analyze
-        entry: flutter analyze --fatal-infos
+        entry: env -u GIT_DIR flutter analyze --fatal-infos
         language: system
         pass_filenames: false
       - id: dart-analyze-packages

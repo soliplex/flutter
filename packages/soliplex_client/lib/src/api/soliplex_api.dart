@@ -853,6 +853,32 @@ class SoliplexApi {
     return backendVersionInfoFromJson(response);
   }
 
+  /// Gets Monty-compatible Python schema validators from the backend.
+  ///
+  /// Returns a map of schema name to Python validator code string.
+  /// Each value is a Monty-safe Python function definition like
+  /// `def validate_tool(raw): ...`.
+  ///
+  /// Throws:
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for server errors
+  /// - [CancelledException] if cancelled via [cancelToken]
+  Future<Map<String, String>> getMontySchemas({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(
+        pathSegments: ['installation', 'schemas', 'monty'],
+      ),
+      cancelToken: cancelToken,
+    );
+
+    final schemas = response['schemas'] as Map<String, dynamic>?;
+    if (schemas == null) return {};
+    return schemas.map((k, v) => MapEntry(k, v as String));
+  }
+
   // ============================================================
   // Lifecycle
   // ============================================================

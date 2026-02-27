@@ -186,6 +186,27 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.8"
+  dart_monty_ffi:
+    dependency: "direct overridden"
+    description:
+      path: "/Users/runyaga/dev/dart_monty/packages/dart_monty_ffi"
+      relative: false
+    source: path
+    version: "0.4.3"
+  dart_monty_native:
+    dependency: "direct main"
+    description:
+      path: "/Users/runyaga/dev/dart_monty/packages/dart_monty_native"
+      relative: false
+    source: path
+    version: "0.6.0"
+  dart_monty_platform_interface:
+    dependency: "direct dev"
+    description:
+      path: "/Users/runyaga/dev/dart_monty/packages/dart_monty_platform_interface"
+      relative: false
+    source: path
+    version: "0.4.3"
   dbus:
     dependency: transitive
     description:
@@ -903,6 +924,13 @@ packages:
     dependency: "direct main"
     description:
       path: "packages/soliplex_logging"
+      relative: true
+    source: path
+    version: "0.1.0"
+  soliplex_monty:
+    dependency: "direct main"
+    description:
+      path: "packages/soliplex_monty"
       relative: true
     source: path
     version: "0.1.0"

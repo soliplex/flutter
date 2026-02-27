@@ -175,6 +175,191 @@ void main() {
       });
     });
 
+    group('roomFromJson — new fields', () {
+      test('parses welcome_message', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'welcome_message': 'Welcome!',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.welcomeMessage, equals('Welcome!'));
+        expect(room.hasWelcomeMessage, isTrue);
+      });
+
+      test('handles null welcome_message', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'welcome_message': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.welcomeMessage, equals(''));
+        expect(room.hasWelcomeMessage, isFalse);
+      });
+
+      test('parses enable_attachments', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'enable_attachments': true,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.enableAttachments, isTrue);
+      });
+
+      test('handles null enable_attachments', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'enable_attachments': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.enableAttachments, isFalse);
+      });
+
+      test('parses tools map (backend format)', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': {
+            'search': {
+              'tool_name': 'search',
+              'tool_description': 'Search documents',
+            },
+            'lookup': {
+              'tool_name': 'lookup',
+              'tool_description': 'Lookup data',
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.toolDefinitions, hasLength(2));
+        expect(room.hasToolDefinitions, isTrue);
+        final names = room.toolDefinitions.map((t) => t['tool_name']).toList();
+        expect(names, containsAll(['search', 'lookup']));
+      });
+
+      test('parses tools list (fallback format)', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': [
+            {'tool_name': 'search', 'tool_description': 'Search documents'},
+            {'tool_name': 'lookup', 'tool_description': 'Lookup data'},
+          ],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.toolDefinitions, hasLength(2));
+        expect(room.toolDefinitions[0]['tool_name'], equals('search'));
+        expect(room.toolDefinitions[1]['tool_name'], equals('lookup'));
+      });
+
+      test('handles empty tools map', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': <String, dynamic>{},
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.toolDefinitions, isEmpty);
+        expect(room.hasToolDefinitions, isFalse);
+      });
+
+      test('handles null tools', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.toolDefinitions, isEmpty);
+        expect(room.hasToolDefinitions, isFalse);
+      });
+
+      test('handles missing tools field', () {
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
+
+        final room = roomFromJson(json);
+
+        expect(room.toolDefinitions, isEmpty);
+      });
+
+      test('filters out non-map tool entries', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': [
+            {'tool_name': 'valid'},
+            'not-a-map',
+            42,
+            null,
+            {'tool_name': 'also-valid'},
+          ],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.toolDefinitions, hasLength(2));
+        expect(room.toolDefinitions[0]['tool_name'], equals('valid'));
+        expect(room.toolDefinitions[1]['tool_name'], equals('also-valid'));
+      });
+
+      test('parses agui_feature_names', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agui_feature_names': ['streaming', 'tools'],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.aguiFeatureNames, equals(['streaming', 'tools']));
+        expect(room.hasAguiFeatures, isTrue);
+      });
+
+      test('handles null agui_feature_names', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agui_feature_names': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.aguiFeatureNames, isEmpty);
+        expect(room.hasAguiFeatures, isFalse);
+      });
+
+      test('filters out non-string feature names', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agui_feature_names': ['streaming', 42, null, 'tools', true],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.aguiFeatureNames, equals(['streaming', 'tools']));
+      });
+    });
+
     group('roomToJson', () {
       test('serializes correctly with all fields', () {
         const room = Room(
@@ -201,6 +386,33 @@ void main() {
         expect(json.containsKey('name'), isTrue);
         expect(json.containsKey('description'), isFalse);
         expect(json.containsKey('metadata'), isFalse);
+        expect(json.containsKey('welcome_message'), isFalse);
+        expect(json.containsKey('enable_attachments'), isFalse);
+        expect(json.containsKey('tools'), isFalse);
+        expect(json.containsKey('agui_feature_names'), isFalse);
+      });
+
+      test('serializes new fields when non-default', () {
+        const room = Room(
+          id: 'room-1',
+          name: 'Test Room',
+          welcomeMessage: 'Welcome!',
+          enableAttachments: true,
+          toolDefinitions: [
+            {'tool_name': 'search', 'tool_description': 'Search'},
+          ],
+          aguiFeatureNames: ['streaming'],
+        );
+
+        final json = roomToJson(room);
+
+        expect(json['welcome_message'], equals('Welcome!'));
+        expect(json['enable_attachments'], isTrue);
+        expect(json['tools'], isA<Map<String, dynamic>>());
+        final toolsMap = json['tools'] as Map<String, dynamic>;
+        final firstTool = toolsMap.values.first as Map<String, dynamic>;
+        expect(firstTool['tool_name'], 'search');
+        expect(json['agui_feature_names'], equals(['streaming']));
       });
     });
 

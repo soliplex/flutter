@@ -15,6 +15,7 @@ import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
+import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 
 /// Manages the lifecycle of an active AG-UI run.
 ///
@@ -54,8 +55,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   @override
   ActiveRunState build() {
-    _agUiClient = ref.watch(agUiClientProvider);
-    _toolRegistry = ref.watch(toolRegistryProvider);
+    _agUiClient = ref.read(agUiClientProvider);
+    ref.listen(agUiClientProvider, (_, next) => _agUiClient = next);
+    _toolRegistry = ref.read(toolRegistryProvider);
+    ref.listen(toolRegistryProvider, (_, next) => _toolRegistry = next);
 
     // Mark thread as unread when a non-cancelled background run completes.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
@@ -206,6 +209,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
+        tools: _toolRegistry.toolDefinitions,
         state: mergedState,
       );
 
@@ -455,6 +459,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     RunHandle handle, {
     required int depth,
   }) async {
+    // Snapshot the tool registry at entry so room switches mid-execution
+    // don't change the tools used for this continuation chain.
+    final toolRegistry = _toolRegistry;
+
     // Circuit breaker: prevent infinite tool loops.
     if (depth >= _maxToolDepth) {
       Loggers.toolExecution.error(
@@ -480,33 +488,38 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       // Execute all tools in parallel, catching per-tool failures.
-      final results = await Future.wait(
-        pendingTools.map((toolCall) async {
-          Loggers.toolExecution.debug(
-            'Executing tool "${toolCall.name}" (${toolCall.id})',
-          );
-          try {
-            final result = await _toolRegistry.execute(toolCall);
+      // Zone propagates handle.key so execute_python can look up the
+      // per-thread bridge via activeThreadKey.
+      final results = await runInToolExecutionZone(
+        handle.key,
+        () => Future.wait(
+          pendingTools.map((toolCall) async {
             Loggers.toolExecution.debug(
-              'Tool "${toolCall.name}" completed '
-              '(${result.length} chars result)',
+              'Executing tool "${toolCall.name}" (${toolCall.id})',
             );
-            return toolCall.copyWith(
-              status: ToolCallStatus.completed,
-              result: result,
-            );
-          } catch (e, st) {
-            Loggers.toolExecution.error(
-              'Tool "${toolCall.name}" failed',
-              error: e,
-              stackTrace: st,
-            );
-            return toolCall.copyWith(
-              status: ToolCallStatus.failed,
-              result: e.toString(),
-            );
-          }
-        }),
+            try {
+              final result = await toolRegistry.execute(toolCall);
+              Loggers.toolExecution.debug(
+                'Tool "${toolCall.name}" completed '
+                '(${result.length} chars result)',
+              );
+              return toolCall.copyWith(
+                status: ToolCallStatus.completed,
+                result: result,
+              );
+            } catch (e, st) {
+              Loggers.toolExecution.error(
+                'Tool "${toolCall.name}" failed',
+                error: e,
+                stackTrace: st,
+              );
+              return toolCall.copyWith(
+                status: ToolCallStatus.failed,
+                result: e.toString(),
+              );
+            }
+          }),
+        ),
       );
 
       // Safety checks: bail if state changed during async execution.
@@ -568,6 +581,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: handle.key.threadId,
         runId: runInfo.id,
         messages: aguiMessages,
+        tools: toolRegistry.toolDefinitions,
         state: conversation.aguiState,
       );
 

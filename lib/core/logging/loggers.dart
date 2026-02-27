@@ -49,4 +49,7 @@ abstract final class Loggers {
 
   /// Client-side tool execution orchestration.
   static final toolExecution = LogManager.instance.getLogger('ToolExecution');
+
+  /// MontyBridge lifecycle and execution events.
+  static final montyBridge = LogManager.instance.getLogger('MontyBridge');
 }

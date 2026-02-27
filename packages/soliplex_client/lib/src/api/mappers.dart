@@ -92,6 +92,52 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
+  // Parse tool definitions.
+  // Backend sends tools as a Map keyed by tool name, e.g.:
+  //   {"get_current_datetime": {"tool_name": "...", ...}, ...}
+  // Empty rooms send tools as {} (empty map).
+  final toolDefinitions = <Map<String, dynamic>>[];
+  final toolsRaw = json['tools'];
+  if (toolsRaw is Map<String, dynamic>) {
+    for (final entry in toolsRaw.entries) {
+      final value = entry.value;
+      if (value is Map<String, dynamic>) {
+        toolDefinitions.add(value);
+      } else {
+        developer.log(
+          'Non-map tool definition ignored for key "${entry.key}": '
+          '$value (${value.runtimeType})',
+          name: 'soliplex_client.room',
+          level: 900, // Warning level
+        );
+      }
+    }
+  } else if (toolsRaw is List<dynamic>) {
+    // Fallback: accept a list of tool maps (e.g. from tests).
+    for (final item in toolsRaw) {
+      if (item is Map<String, dynamic>) {
+        toolDefinitions.add(item);
+      }
+    }
+  }
+
+  // Parse AG-UI feature names, keeping only valid String entries
+  final featuresRaw = json['agui_feature_names'] as List<dynamic>?;
+  final aguiFeatureNames = <String>[];
+  if (featuresRaw != null) {
+    for (final item in featuresRaw) {
+      if (item is String) {
+        aguiFeatureNames.add(item);
+      } else {
+        developer.log(
+          'Non-string feature name ignored: $item (${item.runtimeType})',
+          name: 'soliplex_client.room',
+          level: 900, // Warning level
+        );
+      }
+    }
+  }
+
   return Room(
     id: json['id'] as String,
     name: json['name'] as String,
@@ -99,6 +145,10 @@ Room roomFromJson(Map<String, dynamic> json) {
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
     quizzes: quizzes,
     suggestions: suggestions,
+    welcomeMessage: (json['welcome_message'] as String?) ?? '',
+    enableAttachments: (json['enable_attachments'] as bool?) ?? false,
+    toolDefinitions: toolDefinitions,
+    aguiFeatureNames: aguiFeatureNames,
   );
 }
 
@@ -109,6 +159,15 @@ Map<String, dynamic> roomToJson(Room room) {
     'name': room.name,
     if (room.description.isNotEmpty) 'description': room.description,
     if (room.metadata.isNotEmpty) 'metadata': room.metadata,
+    if (room.welcomeMessage.isNotEmpty) 'welcome_message': room.welcomeMessage,
+    if (room.enableAttachments) 'enable_attachments': room.enableAttachments,
+    if (room.toolDefinitions.isNotEmpty)
+      'tools': {
+        for (final tool in room.toolDefinitions)
+          (tool['tool_name'] as String? ?? tool['name'] as String? ?? ''): tool,
+      },
+    if (room.aguiFeatureNames.isNotEmpty)
+      'agui_feature_names': room.aguiFeatureNames,
   };
 }
 
