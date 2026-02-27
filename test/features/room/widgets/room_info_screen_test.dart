@@ -993,7 +993,7 @@ void main() {
     });
 
     group('MCP token error handling', () {
-      testWidgets('hides token row when getMcpToken fails', (tester) async {
+      testWidgets('shows retry button when getMcpToken fails', (tester) async {
         tester.view.physicalSize = const Size(800, 2000);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
@@ -1022,6 +1022,50 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Copy Token'), findsNothing);
+        expect(find.text('Retry token'), findsOneWidget);
+      });
+
+      testWidgets('tapping retry re-fetches MCP token', (tester) async {
+        tester.view.physicalSize = const Size(800, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        const room = Room(
+          id: 'room-1',
+          name: 'MCP Room',
+          allowMcp: true,
+        );
+
+        final mockApi = MockSoliplexApi();
+        // First call fails, second succeeds
+        var callCount = 0;
+        when(() => mockApi.getMcpToken('room-1')).thenAnswer((_) async {
+          callCount++;
+          if (callCount == 1) throw Exception('token fetch failed');
+          return 'test-token-abc123';
+        });
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const RoomInfoScreen(roomId: 'room-1'),
+            overrides: [
+              roomsProvider.overrideWith((ref) async => [room]),
+              documentsProviderOverride('room-1'),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Retry token'), findsOneWidget);
+
+        await tester.tap(find.text('Retry token'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Copy Token'), findsOneWidget);
+        expect(find.text('Retry token'), findsNothing);
+        expect(callCount, equals(2));
       });
     });
 

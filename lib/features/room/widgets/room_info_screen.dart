@@ -356,7 +356,19 @@ class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
             ),
           );
         }
-        if (snapshot.hasError || !snapshot.hasData) {
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Retry token'),
+              onPressed: () => setState(() {
+                _tokenFuture = ref.read(apiProvider).getMcpToken(widget.roomId);
+              }),
+            ),
+          );
+        }
+        if (!snapshot.hasData) {
           return const SizedBox.shrink();
         }
         final token = snapshot.data!;
