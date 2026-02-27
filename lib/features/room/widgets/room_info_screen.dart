@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -270,8 +272,15 @@ class _SystemPromptViewer extends StatefulWidget {
 class _SystemPromptViewerState extends State<_SystemPromptViewer> {
   bool _expanded = false;
   bool _copied = false;
+  Timer? _copyResetTimer;
 
   static const _collapsedMaxLines = 3;
+
+  @override
+  void dispose() {
+    _copyResetTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -304,7 +313,8 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
                           ClipboardData(text: widget.prompt),
                         );
                         setState(() => _copied = true);
-                        Future<void>.delayed(
+                        _copyResetTimer?.cancel();
+                        _copyResetTimer = Timer(
                           const Duration(seconds: 2),
                           () {
                             if (mounted) setState(() => _copied = false);
@@ -418,6 +428,7 @@ class _McpTokenRow extends ConsumerStatefulWidget {
 class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
   Future<String>? _tokenFuture;
   bool _copied = false;
+  Timer? _copyResetTimer;
 
   @override
   void initState() {
@@ -425,10 +436,17 @@ class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
     _tokenFuture = ref.read(apiProvider).getMcpToken(widget.roomId);
   }
 
+  @override
+  void dispose() {
+    _copyResetTimer?.cancel();
+    super.dispose();
+  }
+
   void _copyToken(String token) {
     Clipboard.setData(ClipboardData(text: token));
     setState(() => _copied = true);
-    Future<void>.delayed(const Duration(seconds: 2), () {
+    _copyResetTimer?.cancel();
+    _copyResetTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _copied = false);
     });
   }
