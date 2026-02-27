@@ -619,8 +619,8 @@ class _DocumentsCard extends StatefulWidget {
 }
 
 class _DocumentsCardState extends State<_DocumentsCard> {
-  static const _maxHeight = 600.0;
-  static const _shrinkWrapThreshold = 15;
+  static const _maxHeight = 550.0;
+  static const _shrinkWrapThreshold = 50;
 
   final _expandedIds = <String>{};
   final _searchController = TextEditingController();
