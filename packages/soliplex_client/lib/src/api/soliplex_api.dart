@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:ag_ui/ag_ui.dart' hide CancelToken;
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/application/agui_event_processor.dart';
@@ -114,10 +116,20 @@ class SoliplexApi {
       cancelToken: cancelToken,
     );
     // Backend returns a map of room_id -> room object
-    // Convert to list of Room objects
-    return response.values
-        .map((e) => roomFromJson(e as Map<String, dynamic>))
-        .toList();
+    // Skip malformed entries so one bad room doesn't break the list
+    final rooms = <Room>[];
+    for (final entry in response.entries) {
+      try {
+        rooms.add(roomFromJson(entry.value as Map<String, dynamic>));
+      } catch (e) {
+        developer.log(
+          'Malformed room ignored (${entry.key}): $e',
+          name: 'soliplex_client.api',
+          level: 900,
+        );
+      }
+    }
+    return rooms;
   }
 
   /// Gets a room by ID.
@@ -211,9 +223,20 @@ class SoliplexApi {
     if (documentSet == null || documentSet.isEmpty) {
       return [];
     }
-    return documentSet.values
-        .map((e) => ragDocumentFromJson(e as Map<String, dynamic>))
-        .toList();
+    // Skip malformed entries so one bad document doesn't break the list
+    final docs = <RagDocument>[];
+    for (final entry in documentSet.entries) {
+      try {
+        docs.add(ragDocumentFromJson(entry.value as Map<String, dynamic>));
+      } catch (e) {
+        developer.log(
+          'Malformed document ignored (${entry.key}): $e',
+          name: 'soliplex_client.api',
+          level: 900,
+        );
+      }
+    }
+    return docs;
   }
 
   // ============================================================

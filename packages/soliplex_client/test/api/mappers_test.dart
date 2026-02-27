@@ -215,6 +215,20 @@ void main() {
         expect(doc.updatedAt, isNull);
       });
 
+      test('defaults to null for malformed timestamps', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': 'Manual.pdf',
+          'created_at': 'not-a-date',
+          'updated_at': 'also-bad',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.createdAt, isNull);
+        expect(doc.updatedAt, isNull);
+      });
+
       test('falls back to uri when title is null', () {
         final json = <String, dynamic>{
           'id': 'doc-uuid-123',
@@ -1131,7 +1145,7 @@ void main() {
         expect(agent.systemPrompt, isNull);
       });
 
-      test('throws FormatException for default agent missing id', () {
+      test('sets agent to null for default agent missing id', () {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
@@ -1141,10 +1155,11 @@ void main() {
           },
         };
 
-        expect(() => roomFromJson(json), throwsA(isA<FormatException>()));
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
       });
 
-      test('throws FormatException for default agent missing model_name', () {
+      test('sets agent to null for default agent missing model_name', () {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
@@ -1154,10 +1169,11 @@ void main() {
           },
         };
 
-        expect(() => roomFromJson(json), throwsA(isA<FormatException>()));
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
       });
 
-      test('throws FormatException for factory agent missing factory_name', () {
+      test('sets agent to null for factory agent missing factory_name', () {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
@@ -1167,7 +1183,8 @@ void main() {
           },
         };
 
-        expect(() => roomFromJson(json), throwsA(isA<FormatException>()));
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
       });
     });
 
@@ -1229,6 +1246,30 @@ void main() {
         final room = roomFromJson(json);
 
         expect(room.tools, isEmpty);
+      });
+
+      test('skips malformed tool entry and parses valid ones', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': {
+            'good_tool': {
+              'kind': 'search',
+              'tool_description': 'Works fine',
+            },
+            'bad_tool': 'not a map',
+            'another_good': {
+              'kind': 'rag',
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.tools, hasLength(2));
+        expect(room.tools.containsKey('good_tool'), isTrue);
+        expect(room.tools.containsKey('another_good'), isTrue);
+        expect(room.tools.containsKey('bad_tool'), isFalse);
       });
     });
 
@@ -1310,6 +1351,25 @@ void main() {
         final room = roomFromJson(json);
 
         expect(room.mcpClientToolsets, isEmpty);
+      });
+
+      test('skips malformed toolset entry and parses valid ones', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'mcp_client_toolsets': {
+            'good': {'kind': 'http'},
+            'bad': 'not a map',
+            'also_good': {'kind': 'stdio'},
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.mcpClientToolsets, hasLength(2));
+        expect(room.mcpClientToolsets.containsKey('good'), isTrue);
+        expect(room.mcpClientToolsets.containsKey('also_good'), isTrue);
+        expect(room.mcpClientToolsets.containsKey('bad'), isFalse);
       });
     });
 

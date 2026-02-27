@@ -202,6 +202,32 @@ void main() {
         expect(() => api.getRooms(), throwsA(isA<AuthException>()));
       });
 
+      test('skips malformed rooms and returns valid ones', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'room-1': {'id': 'room-1', 'name': 'Good Room'},
+            'room-2': 'not a map',
+            'room-3': {'id': 'room-3', 'name': 'Also Good'},
+          },
+        );
+
+        final rooms = await api.getRooms();
+
+        expect(rooms, hasLength(2));
+        expect(rooms.any((r) => r.id == 'room-1'), isTrue);
+        expect(rooms.any((r) => r.id == 'room-3'), isTrue);
+      });
+
       test('supports cancellation', () async {
         final cancelToken = CancelToken();
 
@@ -2889,6 +2915,36 @@ void main() {
     // ============================================================
     // MCP Token
     // ============================================================
+
+    group('getDocuments', () {
+      test('skips malformed documents and returns valid ones', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            fromJson: any(named: 'fromJson'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {
+            'document_set': {
+              'doc-1': {'id': 'doc-1', 'title': 'Good Doc'},
+              'doc-2': 'not a map',
+              'doc-3': {'id': 'doc-3', 'title': 'Also Good'},
+            },
+          },
+        );
+
+        final docs = await api.getDocuments('room-1');
+
+        expect(docs, hasLength(2));
+        expect(docs.any((d) => d.id == 'doc-1'), isTrue);
+        expect(docs.any((d) => d.id == 'doc-3'), isTrue);
+      });
+    });
 
     group('getMcpToken', () {
       test('returns token string from response', () async {

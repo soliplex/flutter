@@ -149,6 +149,21 @@ McpClientToolset mcpClientToolsetFromJson(
   );
 }
 
+/// Parses a timestamp string, returning null on failure.
+DateTime? _tryParseTimestamp(String? raw) {
+  if (raw == null) return null;
+  try {
+    return parseTimestamp(raw);
+  } on FormatException catch (e) {
+    developer.log(
+      'Malformed timestamp ignored: $e',
+      name: 'soliplex_client.document',
+      level: 900,
+    );
+    return null;
+  }
+}
+
 /// Parses a dynamic list into a list of strings,
 /// filtering out non-string items.
 List<String> _parseStringList(List<dynamic>? raw) {
@@ -186,15 +201,34 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
-  // Parse agent
+  // Parse agent — malformed agent data should not prevent the room from loading
   final agentJson = json['agent'] as Map<String, dynamic>?;
-  final agent = agentJson != null ? roomAgentFromJson(agentJson) : null;
+  RoomAgent? agent;
+  if (agentJson != null) {
+    try {
+      agent = roomAgentFromJson(agentJson);
+    } on FormatException catch (e) {
+      developer.log(
+        'Malformed agent ignored: $e\n$agentJson',
+        name: 'soliplex_client.room',
+        level: 900,
+      );
+    }
+  }
 
-  // Parse tools
+  // Parse tools — skip malformed entries
   final toolsJson = json['tools'] as Map<String, dynamic>?;
   final tools = <String, RoomTool>{};
   if (toolsJson != null) {
     for (final entry in toolsJson.entries) {
+      if (entry.value is! Map<String, dynamic>) {
+        developer.log(
+          'Malformed tool ignored: ${entry.key}\n${entry.value}',
+          name: 'soliplex_client.room',
+          level: 900,
+        );
+        continue;
+      }
       tools[entry.key] = roomToolFromJson(
         entry.key,
         entry.value as Map<String, dynamic>,
@@ -202,11 +236,19 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
-  // Parse MCP client toolsets
+  // Parse MCP client toolsets — skip malformed entries
   final mcpJson = json['mcp_client_toolsets'] as Map<String, dynamic>?;
   final mcpClientToolsets = <String, McpClientToolset>{};
   if (mcpJson != null) {
     for (final entry in mcpJson.entries) {
+      if (entry.value is! Map<String, dynamic>) {
+        developer.log(
+          'Malformed MCP toolset ignored: ${entry.key}\n${entry.value}',
+          name: 'soliplex_client.room',
+          level: 900,
+        );
+        continue;
+      }
       mcpClientToolsets[entry.key] = mcpClientToolsetFromJson(
         entry.value as Map<String, dynamic>,
       );
@@ -251,8 +293,8 @@ RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
     title: title,
     uri: uri,
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
-    createdAt: createdRaw != null ? parseTimestamp(createdRaw) : null,
-    updatedAt: updatedRaw != null ? parseTimestamp(updatedRaw) : null,
+    createdAt: _tryParseTimestamp(createdRaw),
+    updatedAt: _tryParseTimestamp(updatedRaw),
   );
 }
 
