@@ -169,16 +169,16 @@ class _AgentCard extends StatelessWidget {
       children: [
         _InfoRow(label: 'Model', value: agent.displayModelName),
         ...switch (agent) {
-          DefaultRoomAgent(:final providerType) => [
+          DefaultRoomAgent(
+            :final providerType,
+            :final retries,
+            :final systemPrompt,
+          ) =>
+            [
               _InfoRow(label: 'Provider', value: providerType),
-              _InfoRow(
-                label: 'Retries',
-                value: '${(agent as DefaultRoomAgent).retries}',
-              ),
-              if ((agent as DefaultRoomAgent).systemPrompt != null)
-                _SystemPromptViewer(
-                  prompt: (agent as DefaultRoomAgent).systemPrompt!,
-                ),
+              _InfoRow(label: 'Retries', value: '$retries'),
+              if (systemPrompt != null)
+                _SystemPromptViewer(prompt: systemPrompt),
             ],
           FactoryRoomAgent(:final extraConfig) when extraConfig.isNotEmpty => [
               _InfoRow(
