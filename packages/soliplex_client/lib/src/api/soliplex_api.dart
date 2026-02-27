@@ -171,7 +171,13 @@ class SoliplexApi {
       cancelToken: cancelToken,
     );
 
-    return response['mcp_token'] as String;
+    final token = response['mcp_token'] as String?;
+    if (token == null) {
+      throw FormatException(
+        'Response missing "mcp_token" field for room $roomId',
+      );
+    }
+    return token;
   }
 
   /// Gets documents available for narrowing RAG in a room.

@@ -22,10 +22,19 @@ class RoomInfoScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final roomsAsync = ref.watch(roomsProvider);
-    final room = roomsAsync.whenOrNull(
-      data: (rooms) => rooms.where((r) => r.id == roomId).firstOrNull,
-    );
     final features = ref.watch(featuresProvider);
+
+    final body = roomsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => const Center(child: Text('Failed to load room')),
+      data: (rooms) {
+        final room = rooms.where((r) => r.id == roomId).firstOrNull;
+        if (room == null) {
+          return const Center(child: Text('Room not found'));
+        }
+        return _RoomInfoBody(room: room, roomId: roomId);
+      },
+    );
 
     return AppShell(
       config: ShellConfig(
@@ -44,9 +53,7 @@ class RoomInfoScreen extends ConsumerWidget {
             ),
         ],
       ),
-      body: room == null
-          ? const Center(child: CircularProgressIndicator())
-          : _RoomInfoBody(room: room, roomId: roomId),
+      body: body,
     );
   }
 }
@@ -267,6 +274,7 @@ class _SystemPromptViewerState extends State<_SystemPromptViewer> {
                     ),
                     maxLines: _collapsedMaxLines,
                     textDirection: TextDirection.ltr,
+                    textScaler: MediaQuery.textScalerOf(context),
                   )..layout(
                           maxWidth: constraints.maxWidth - containerPadding,
                         ))
@@ -633,6 +641,7 @@ class _DocumentsCard extends StatefulWidget {
 
 class _DocumentsCardState extends State<_DocumentsCard> {
   static const _maxHeight = 600.0;
+  static const _shrinkWrapThreshold = 15;
 
   final _expandedIds = <String>{};
   final _searchController = TextEditingController();
@@ -703,6 +712,7 @@ class _DocumentsCardState extends State<_DocumentsCard> {
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: _maxHeight),
               child: ListView.builder(
+                shrinkWrap: filtered.length <= _shrinkWrapThreshold,
                 itemCount: filtered.length,
                 itemBuilder: (context, index) {
                   final doc = filtered[index];

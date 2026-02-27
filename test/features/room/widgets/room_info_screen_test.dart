@@ -1385,6 +1385,89 @@ void main() {
       expect(find.text('streaming'), findsOneWidget);
     });
 
+    testWidgets('shows factory agent configuration', (tester) async {
+      const room = Room(
+        id: 'room-1',
+        name: 'Factory Room',
+        agent: FactoryRoomAgent(
+          id: 'agent-f',
+          factoryName: 'my.custom.agent',
+          extraConfig: {'key': 'value'},
+        ),
+      );
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Factory: my.custom.agent'), findsOneWidget);
+      expect(find.text('{key: value}'), findsOneWidget);
+    });
+
+    testWidgets('shows other agent configuration', (tester) async {
+      const room = Room(
+        id: 'room-1',
+        name: 'Other Room',
+        agent: OtherRoomAgent(id: 'agent-o', kind: 'custom_kind'),
+      );
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('custom_kind'), findsOneWidget);
+    });
+
+    testWidgets('shows error when rooms fail to load', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith(
+              (ref) async => throw Exception('network error'),
+            ),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Failed to load room'), findsOneWidget);
+    });
+
+    testWidgets('shows not-found when room ID does not exist', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'nonexistent'),
+          overrides: [
+            roomsProvider.overrideWith(
+              (ref) async => [
+                const Room(id: 'room-1', name: 'Other Room'),
+              ],
+            ),
+            documentsProviderOverride('nonexistent'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Room not found'), findsOneWidget);
+    });
+
     testWidgets('hides description when room has none', (tester) async {
       const room = Room(id: 'room-1', name: 'No Description Room');
 

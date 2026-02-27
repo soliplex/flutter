@@ -71,7 +71,10 @@ BackendVersionInfo backendVersionInfoFromJson(Map<String, dynamic> json) {
 /// Discriminates by 'kind' field: 'default', 'factory', or other.
 RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
   final kind = json['kind'] as String? ?? '';
-  final id = json['id'] as String;
+  final id = json['id'] as String?;
+  if (id == null) {
+    throw const FormatException('Agent JSON missing required "id" field');
+  }
   final aguiFeatureNames = _parseStringList(
     json['agui_feature_names'] as List<dynamic>?,
   );
@@ -79,7 +82,7 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
   return switch (kind) {
     'default' => DefaultRoomAgent(
         id: id,
-        modelName: json['model_name'] as String,
+        modelName: _requireString(json, 'model_name', 'default agent'),
         retries: json['retries'] as int? ?? 0,
         systemPrompt: json['system_prompt'] as String?,
         providerType: json['provider_type'] as String? ?? '',
@@ -87,7 +90,7 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
       ),
     'factory' => FactoryRoomAgent(
         id: id,
-        factoryName: json['factory_name'] as String,
+        factoryName: _requireString(json, 'factory_name', 'factory agent'),
         extraConfig:
             (json['extra_config'] as Map<String, dynamic>?) ?? const {},
         aguiFeatureNames: aguiFeatureNames,
@@ -98,6 +101,19 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
         aguiFeatureNames: aguiFeatureNames,
       ),
   };
+}
+
+/// Extracts a required string field, throwing [FormatException] if missing.
+String _requireString(
+  Map<String, dynamic> json,
+  String field,
+  String context,
+) {
+  final value = json[field] as String?;
+  if (value == null) {
+    throw FormatException('$context JSON missing required "$field" field');
+  }
+  return value;
 }
 
 /// Creates a [RoomTool] from JSON.
@@ -126,7 +142,7 @@ McpClientToolset mcpClientToolsetFromJson(
   final allowedToolsRaw = json['allowed_tools'] as List<dynamic>?;
   return McpClientToolset(
     kind: json['kind'] as String? ?? '',
-    allowedTools: allowedToolsRaw?.cast<String>(),
+    allowedTools: allowedToolsRaw?.whereType<String>().toList(),
     toolsetParams:
         (json['toolset_params'] as Map?)?.cast<String, dynamic>() ?? const {},
   );
@@ -213,16 +229,6 @@ Room roomFromJson(Map<String, dynamic> json) {
       json['agui_feature_names'] as List<dynamic>?,
     ),
   );
-}
-
-/// Converts a [Room] to JSON.
-Map<String, dynamic> roomToJson(Room room) {
-  return {
-    'id': room.id,
-    'name': room.name,
-    if (room.description.isNotEmpty) 'description': room.description,
-    if (room.metadata.isNotEmpty) 'metadata': room.metadata,
-  };
 }
 
 // ============================================================

@@ -1,7 +1,6 @@
 import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
-import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/room_agent.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -174,52 +173,6 @@ void main() {
 
         expect(room.suggestions, equals(['Valid', 'Also valid']));
       });
-    });
-
-    group('roomToJson', () {
-      test('serializes correctly with all fields', () {
-        const room = Room(
-          id: 'room-1',
-          name: 'Test Room',
-          description: 'A test room',
-          metadata: {'key': 'value'},
-        );
-
-        final json = roomToJson(room);
-
-        expect(json['id'], equals('room-1'));
-        expect(json['name'], equals('Test Room'));
-        expect(json['description'], equals('A test room'));
-        expect(json['metadata'], equals({'key': 'value'}));
-      });
-
-      test('excludes empty fields', () {
-        const room = Room(id: 'room-1', name: 'Test Room');
-
-        final json = roomToJson(room);
-
-        expect(json.containsKey('id'), isTrue);
-        expect(json.containsKey('name'), isTrue);
-        expect(json.containsKey('description'), isFalse);
-        expect(json.containsKey('metadata'), isFalse);
-      });
-    });
-
-    test('roundtrip serialization', () {
-      const original = Room(
-        id: 'room-1',
-        name: 'Test Room',
-        description: 'A test room',
-        metadata: {'key': 'value'},
-      );
-
-      final json = roomToJson(original);
-      final restored = roomFromJson(json);
-
-      expect(restored.id, equals(original.id));
-      expect(restored.name, equals(original.name));
-      expect(restored.description, equals(original.description));
-      expect(restored.metadata, equals(original.metadata));
     });
   });
 
@@ -1127,6 +1080,45 @@ void main() {
         final agent = room.agent! as DefaultRoomAgent;
         expect(agent.systemPrompt, isNull);
       });
+
+      test('throws FormatException for default agent missing id', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'model_name': 'gpt-4o',
+          },
+        };
+
+        expect(() => roomFromJson(json), throwsA(isA<FormatException>()));
+      });
+
+      test('throws FormatException for default agent missing model_name', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'id': 'agent-1',
+          },
+        };
+
+        expect(() => roomFromJson(json), throwsA(isA<FormatException>()));
+      });
+
+      test('throws FormatException for factory agent missing factory_name', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'factory',
+            'id': 'agent-1',
+          },
+        };
+
+        expect(() => roomFromJson(json), throwsA(isA<FormatException>()));
+      });
     });
 
     group('roomFromJson with tools', () {
@@ -1238,6 +1230,25 @@ void main() {
 
         final toolset = room.mcpClientToolsets['my_toolset']!;
         expect(toolset.allowedTools, isNull);
+      });
+
+      test('filters non-string items from allowed_tools', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'mcp_client_toolsets': {
+            'my_toolset': {
+              'kind': 'http',
+              'allowed_tools': ['tool1', 123, null, 'tool2'],
+              'toolset_params': <String, dynamic>{},
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        final toolset = room.mcpClientToolsets['my_toolset']!;
+        expect(toolset.allowedTools, equals(['tool1', 'tool2']));
       });
 
       test('handles missing mcp_client_toolsets field', () {

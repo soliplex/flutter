@@ -2958,6 +2958,26 @@ void main() {
           throwsA(isA<ArgumentError>()),
         );
       });
+
+      test('throws FormatException when response lacks mcp_token', () async {
+        when(
+          () => mockTransport.request<Map<String, dynamic>>(
+            'GET',
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+            body: any(named: 'body'),
+            headers: any(named: 'headers'),
+            timeout: any(named: 'timeout'),
+          ),
+        ).thenAnswer(
+          (_) async => {'room_id': 'room-123'},
+        );
+
+        expect(
+          () => api.getMcpToken('room-123'),
+          throwsA(isA<FormatException>()),
+        );
+      });
     });
   });
 }
