@@ -19,6 +19,16 @@ import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 
+/// Combined room + thread key for navigation sync.
+///
+/// Fires once per navigation instead of once per provider, avoiding
+/// double `_syncCurrentHandle` calls.
+final _currentThreadKeyProvider = Provider<(String?, String?)>((ref) {
+  final roomId = ref.watch(currentRoomIdProvider);
+  final threadId = ref.watch(currentThreadIdProvider);
+  return (roomId, threadId);
+});
+
 /// Manages the lifecycle of an active AG-UI run.
 ///
 /// This notifier:
@@ -78,9 +88,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     });
 
     // Sync exposed state when the user navigates between rooms/threads.
+    // A single combined listener fires once per navigation instead of
+    // twice (once per provider change).
     ref
-      ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
-      ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
+      ..listen(_currentThreadKeyProvider, (_, __) => _syncCurrentHandle())
       ..onDispose(() {
         _lifecycleSub?.cancel();
         _registry.dispose().catchError((Object e, StackTrace st) {
@@ -218,7 +229,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
-        tools: _toolRegistry.toolDefinitions,
         state: mergedState,
         tools: tools,
       );
@@ -630,7 +640,6 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: handle.key.threadId,
         runId: runInfo.id,
         messages: aguiMessages,
-        tools: toolRegistry.toolDefinitions,
         state: conversation.aguiState,
         tools: tools,
       );

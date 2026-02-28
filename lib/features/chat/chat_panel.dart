@@ -246,8 +246,8 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         context.go('/rooms/${room.id}?thread=${effectiveThread.id}');
       }
 
-      // Refresh threads list
-      ref.invalidate(threadsProvider(room.id));
+      // Thread list refresh is handled by the create_thread tool executor
+      // in api_provider.dart — no need to invalidate here.
     } else {
       effectiveThread = thread;
     }
