@@ -362,6 +362,59 @@ void main() {
       });
     });
 
+    group('Room: invalid_args', () {
+      late MockMontyPlatform mock;
+      late DefaultMontyBridge bridge;
+
+      setUp(() {
+        mock = MockMontyPlatform();
+        bridge = DefaultMontyBridge(platform: mock);
+      });
+
+      tearDown(() => bridge.dispose());
+
+      test('missing required arg → resumeWithError, no crash', () async {
+        bridge.register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'search',
+              description: 'Search for information.',
+              params: [
+                HostParam(name: 'query', type: HostParamType.string),
+              ],
+            ),
+            handler: (args) async => 'result',
+          ),
+        );
+
+        // Python calls search() with no arguments
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: 'search',
+              arguments: [],
+              callId: 1,
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(usage: stubUsage)),
+          );
+
+        final events = await bridge.execute('result = search()').toList();
+
+        // ToolCallResult should contain the validation error
+        final result = events.whereType<ToolCallResultEvent>().single;
+        expect(result.content, contains('Error:'));
+        expect(result.content, contains('query'));
+
+        // Bridge called resumeWithError (not crash)
+        expect(mock.resumeErrorMessages, hasLength(1));
+
+        // Execution completes normally
+        expect(events.last, isA<RunFinishedEvent>());
+      });
+    });
+
     group('Room: unknown_function', () {
       late MockMontyPlatform mock;
       late DefaultMontyBridge bridge;

@@ -80,7 +80,7 @@ void main() {
 
       expect(
         () => schema.mapAndValidate(pending),
-        throwsArgumentError,
+        throwsFormatException,
       );
     });
 
@@ -93,7 +93,7 @@ void main() {
 
       expect(
         () => schema.mapAndValidate(pending),
-        throwsArgumentError,
+        throwsFormatException,
       );
     });
   });

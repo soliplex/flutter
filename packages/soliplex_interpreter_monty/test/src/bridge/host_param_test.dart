@@ -15,11 +15,11 @@ void main() {
       });
 
       test('rejects non-String', () {
-        expect(() => param.validate(42), throwsArgumentError);
+        expect(() => param.validate(42), throwsFormatException);
       });
 
       test('rejects null when required', () {
-        expect(() => param.validate(null), throwsArgumentError);
+        expect(() => param.validate(null), throwsFormatException);
       });
     });
 
@@ -34,11 +34,11 @@ void main() {
       });
 
       test('rejects double', () {
-        expect(() => param.validate(3.14), throwsArgumentError);
+        expect(() => param.validate(3.14), throwsFormatException);
       });
 
       test('rejects String', () {
-        expect(() => param.validate('42'), throwsArgumentError);
+        expect(() => param.validate('42'), throwsFormatException);
       });
     });
 
@@ -57,7 +57,7 @@ void main() {
       });
 
       test('rejects String', () {
-        expect(() => param.validate('3.14'), throwsArgumentError);
+        expect(() => param.validate('3.14'), throwsFormatException);
       });
     });
 
@@ -73,7 +73,7 @@ void main() {
       });
 
       test('rejects int', () {
-        expect(() => param.validate(1), throwsArgumentError);
+        expect(() => param.validate(1), throwsFormatException);
       });
     });
 
@@ -88,7 +88,7 @@ void main() {
       });
 
       test('rejects String', () {
-        expect(() => param.validate('not a list'), throwsArgumentError);
+        expect(() => param.validate('not a list'), throwsFormatException);
       });
     });
 
@@ -108,7 +108,7 @@ void main() {
       test('rejects List', () {
         expect(
           () => param.validate(<Object?>[1, 2]),
-          throwsArgumentError,
+          throwsFormatException,
         );
       });
     });

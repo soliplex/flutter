@@ -30,12 +30,16 @@ class HostParam {
   /// Validates and optionally coerces [value].
   ///
   /// Returns the validated (possibly coerced) value.
-  /// Throws [ArgumentError] if validation fails.
+  /// Throws [FormatException] if validation fails.
   Object? validate(Object? value) {
     if (value == null) {
       if (isRequired) {
-        throw ArgumentError.value(value, name, 'Required parameter is null');
+        throw FormatException(
+          'Required parameter "$name" is null',
+          value,
+        );
       }
+
       return defaultValue;
     }
 
@@ -51,20 +55,18 @@ class HostParam {
 
   T _expectType<T>(Object? value) {
     if (value is T) return value;
-    throw ArgumentError.value(
+    throw FormatException(
+      'Parameter "$name": expected $T, got ${value.runtimeType}',
       value,
-      name,
-      'Expected $T, got ${value.runtimeType}',
     );
   }
 
   /// Accept both int and double for number params.
   num _coerceNumber(Object? value) {
     if (value is num) return value;
-    throw ArgumentError.value(
+    throw FormatException(
+      'Parameter "$name": expected num, got ${value.runtimeType}',
       value,
-      name,
-      'Expected num, got ${value.runtimeType}',
     );
   }
 }

@@ -141,9 +141,12 @@ class DefaultMontyBridge implements MontyBridge {
   ) async {
     final name = pending.functionName;
 
-    // Console write — buffer for later TextMessage flush.
-    if (name == _consoleWriteFn && pending.arguments.isNotEmpty) {
-      printBuffer.write(pending.arguments.first.toString());
+    // Console write — always intercept, buffer for TextMessage flush.
+    if (name == _consoleWriteFn) {
+      if (pending.arguments.isNotEmpty) {
+        printBuffer.write(pending.arguments.first.toString());
+      }
+
       return _platform.resume(null);
     }
 
@@ -172,7 +175,22 @@ class DefaultMontyBridge implements MontyBridge {
       );
 
     // Map and validate arguments.
-    final args = fn.schema.mapAndValidate(pending);
+    final Map<String, Object?> args;
+    try {
+      args = fn.schema.mapAndValidate(pending);
+    } on FormatException catch (e) {
+      controller
+        ..add(
+          ToolCallResultEvent(
+            messageId: _nextId,
+            toolCallId: toolCallId,
+            content: 'Error: $e',
+          ),
+        )
+        ..add(StepFinishedEvent(stepName: stepName));
+
+      return _platform.resumeWithError(e.toString());
+    }
     controller
       ..add(
         ToolCallArgsEvent(toolCallId: toolCallId, delta: jsonEncode(args)),
@@ -191,6 +209,7 @@ class DefaultMontyBridge implements MontyBridge {
           ),
         )
         ..add(StepFinishedEvent(stepName: stepName));
+
       return _platform.resume(result);
     } on Exception catch (e) {
       controller
@@ -202,6 +221,7 @@ class DefaultMontyBridge implements MontyBridge {
           ),
         )
         ..add(StepFinishedEvent(stepName: stepName));
+
       return _platform.resumeWithError(e.toString());
     }
   }
