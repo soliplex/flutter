@@ -591,6 +591,103 @@ void main() {
         });
       });
 
+      group('ToolCallResult status transition', () {
+        test('transitions pending tool to completed with result', () {
+          // START → END → RESULT (server-side tool pattern)
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'ask',
+          );
+          var result = processEvent(conversation, streaming, startEvent);
+
+          const endEvent = ToolCallEndEvent(toolCallId: 'tc-1');
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            endEvent,
+          );
+
+          // Tool should be pending after END
+          expect(
+            result.conversation.toolCalls.first.status,
+            equals(ToolCallStatus.pending),
+          );
+
+          const resultEvent = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'The answer is 42',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            resultEvent,
+          );
+
+          expect(result.conversation.toolCalls, hasLength(1));
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.completed));
+          expect(tc.result, equals('The answer is 42'));
+        });
+
+        test('transitions streaming tool to completed (skip END)', () {
+          // START → RESULT (no END event)
+          const startEvent = ToolCallStartEvent(
+            toolCallId: 'tc-1',
+            toolCallName: 'ask',
+          );
+          var result = processEvent(conversation, streaming, startEvent);
+
+          // Tool should be streaming after START
+          expect(
+            result.conversation.toolCalls.first.status,
+            equals(ToolCallStatus.streaming),
+          );
+
+          const resultEvent = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'Server result',
+          );
+          result = processEvent(
+            result.conversation,
+            result.streaming,
+            resultEvent,
+          );
+
+          expect(result.conversation.toolCalls, hasLength(1));
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.completed));
+          expect(tc.result, equals('Server result'));
+        });
+
+        test('does not affect already-completed tools', () {
+          final conversationWithCompletedTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+              status: ToolCallStatus.completed,
+              result: 'original result',
+            ),
+          );
+          const resultEvent = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'new result',
+          );
+
+          final result = processEvent(
+            conversationWithCompletedTool,
+            streaming,
+            resultEvent,
+          );
+
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.completed));
+          expect(tc.result, equals('original result'));
+        });
+      });
+
       group('regression — existing behavior preserved', () {
         test('ToolCallActivity still tracks tool names', () {
           const event = ToolCallStartEvent(
