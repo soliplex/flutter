@@ -1,0 +1,21 @@
+name: soliplex_interpreter_monty
+description: Bridge Monty sandboxed Python interpreter into Soliplex (pure Dart).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  ag_ui:
+    git:
+      url: https://github.com/soliplex/ag-ui.git
+      path: sdks/community/dart
+  dart_monty_platform_interface:
+    path: /Users/runyaga/dev/dart_monty/packages/dart_monty_platform_interface
+  meta: ^1.11.0
+
+dev_dependencies:
+  mocktail: ^1.0.4
+  test: ^1.24.0
+  very_good_analysis: ^10.0.0

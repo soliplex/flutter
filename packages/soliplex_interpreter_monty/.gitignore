@@ -1,0 +1,27 @@
+# Dart/Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+.idea/
+.vscode/
+
+# Coverage
+coverage/
+lcov.info
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.*
+.venv/
+
+# Scratch
+scratchpad/*
+
+# Claude Code local config
+.claude/*
+!.claude/skills/
