@@ -421,7 +421,13 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   void _processEventForRun(RunHandle handle, BaseEvent event) {
     try {
       final handleState = handle.state;
-      if (handleState is! RunningState) return;
+      if (handleState is! RunningState) {
+        Loggers.activeRun.debug(
+          'EVENT_SKIP: ${event.runtimeType} — '
+          'handle state is ${handleState.runtimeType}, not RunningState',
+        );
+        return;
+      }
 
       _logEvent(event);
 
@@ -431,7 +437,24 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         event,
       );
 
+      Loggers.activeRun.debug(
+        'EVENT_RESULT: ${event.runtimeType} → '
+        'status=${result.conversation.status} '
+        'toolCalls=${result.conversation.toolCalls.length} '
+        'pendingTools=${result.conversation.toolCalls.where(
+              (tc) => tc.status == ToolCallStatus.pending,
+            ).length} '
+        'msgs=${result.conversation.messages.length} '
+        'streaming=${result.streaming.runtimeType}',
+      );
+
       final newState = _mapResultForRun(handle, handleState, result);
+
+      Loggers.activeRun.debug(
+        'STATE_TRANSITION: ${handleState.runtimeType} → '
+        '${newState.runtimeType}',
+      );
+
       if (newState is CompletedState) {
         _registry.completeRun(handle, newState);
       } else {
@@ -473,20 +496,48 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Otherwise, completes normally.
   void _handleDoneForRun(RunHandle handle, {int depth = 0}) {
     final handleState = handle.state;
+    Loggers.activeRun.debug(
+      'HANDLE_DONE: state=${handleState.runtimeType} '
+      'depth=$depth '
+      'toolCalls=${handleState.conversation.toolCalls.length} '
+      'allToolStatuses=${handleState.conversation.toolCalls.map(
+            (tc) => '${tc.name}:${tc.status}',
+          ).join(', ')} '
+      'registryEmpty=${_toolRegistry.isEmpty}',
+    );
     if (handleState is! RunningState) return;
 
-    final pendingTools = handleState.conversation.toolCalls
+    // Snapshot the tool registry so we only attempt client-executable tools.
+    // Server-side tools (not in registry) are already handled by the backend.
+    final toolRegistry = _toolRegistry;
+
+    final allPendingTools = handleState.conversation.toolCalls
         .where((tc) => tc.status == ToolCallStatus.pending)
         .toList();
 
-    if (pendingTools.isNotEmpty) {
+    // Only execute tools registered in the client-side ToolRegistry.
+    // Server-side tools appear in the AG-UI stream as informational events
+    // but are already executed by the backend.
+    final clientTools =
+        allPendingTools.where((tc) => toolRegistry.contains(tc.name)).toList();
+    final serverTools =
+        allPendingTools.where((tc) => !toolRegistry.contains(tc.name)).toList();
+
+    if (serverTools.isNotEmpty) {
       Loggers.toolExecution.debug(
-        'Stream done with ${pendingTools.length} pending tools '
-        '(depth=$depth): ${pendingTools.map((t) => t.name).join(', ')}',
+        'Skipping ${serverTools.length} server-side tools: '
+        '${serverTools.map((t) => t.name).join(', ')}',
+      );
+    }
+
+    if (clientTools.isNotEmpty) {
+      Loggers.toolExecution.debug(
+        'Stream done with ${clientTools.length} client-executable tools '
+        '(depth=$depth): ${clientTools.map((t) => t.name).join(', ')}',
       );
       final executingState = ExecutingToolsState(
         conversation: handleState.conversation,
-        pendingTools: pendingTools,
+        pendingTools: clientTools,
       );
       handle.state = executingState;
       _syncUiState(handle, executingState);
@@ -494,6 +545,9 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       return;
     }
 
+    Loggers.activeRun.debug(
+      'HANDLE_DONE: no pending tools, completing run normally',
+    );
     final completed = CompletedState(
       conversation: handleState.conversation.withStatus(
         const domain.Completed(),
@@ -767,7 +821,18 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   /// Syncs the notifier's exposed state if this handle is the one the UI
   /// is watching. Detaches the handle on terminal (completed) states.
   void _syncUiState(RunHandle handle, ActiveRunState newState) {
-    if (!identical(handle, _currentHandle)) return;
+    if (!identical(handle, _currentHandle)) {
+      Loggers.activeRun.debug(
+        'SYNC_UI_SKIP: handle is not current '
+        '(background run or replaced)',
+      );
+      return;
+    }
+    Loggers.activeRun.debug(
+      'SYNC_UI: ${newState.runtimeType} '
+      'toolCalls=${newState.conversation.toolCalls.length} '
+      'msgs=${newState.messages.length}',
+    );
     state = newState;
     if (newState is CompletedState) {
       _currentHandle = null;
@@ -801,6 +866,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         Loggers.activeRun.trace('TOOL_ARGS: $toolCallId');
       case ToolCallEndEvent(:final toolCallId):
         Loggers.activeRun.debug('TOOL_END: $toolCallId');
+      case ToolCallResultEvent(:final toolCallId):
+        Loggers.activeRun.debug('TOOL_RESULT: $toolCallId');
       case StateSnapshotEvent():
         Loggers.activeRun.debug('STATE_SNAPSHOT');
       case StateDeltaEvent():
@@ -820,13 +887,26 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
     final newState = switch (conversation.status) {
       domain.Completed() => () {
-          // If tools are pending, keep as RunningState so _handleDoneForRun
-          // can detect them and start client-side tool execution.
-          final hasPendingTools = conversation.toolCalls
-              .any((tc) => tc.status == ToolCallStatus.pending);
-          if (hasPendingTools) {
+          // Only keep RunningState if there are pending tools the CLIENT
+          // can execute. Server-side tools (not in _toolRegistry) are
+          // already handled by the backend and should not prevent
+          // completion.
+          final pendingToolCalls = conversation.toolCalls
+              .where((tc) => tc.status == ToolCallStatus.pending);
+          final hasClientPendingTools =
+              pendingToolCalls.any((tc) => _toolRegistry.contains(tc.name));
+          Loggers.activeRun.debug(
+            'MAP_COMPLETED: toolCalls=${conversation.toolCalls.length} '
+            'pendingTools=${pendingToolCalls.length} '
+            'hasClientPendingTools=$hasClientPendingTools '
+            'statuses=${conversation.toolCalls.map(
+                  (tc) => '${tc.name}:${tc.status}',
+                ).join(', ')}',
+          );
+          if (hasClientPendingTools) {
             Loggers.toolExecution.debug(
-              'RunFinished with pending tools — keeping RunningState',
+              'RunFinished with client-executable pending tools '
+              '— keeping RunningState',
             );
             return previousState.copyWith(
               conversation: conversation.withStatus(

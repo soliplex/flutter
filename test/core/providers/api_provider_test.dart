@@ -348,7 +348,7 @@ void main() {
   });
 
   group('toolRegistryProvider', () {
-    test('merges client tools with room tools', () {
+    test('only includes client-side tools, not server-side room tools', () {
       final clientTool = ClientTool(
         definition: const Tool(
           name: 'client_tool',
@@ -377,14 +377,15 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // 3 tools: client + server + execute_python
-      expect(registry.toolDefinitions, hasLength(3));
+      // 2 tools: client + execute_python. Server tools are NOT included —
+      // the backend already knows about them.
+      expect(registry.toolDefinitions, hasLength(2));
       expect(registry.contains('client_tool'), isTrue);
-      expect(registry.contains('server_tool'), isTrue);
+      expect(registry.contains('server_tool'), isFalse);
       expect(registry.contains('execute_python'), isTrue);
     });
 
-    test('skips agent-owned tools like get_current_datetime', () {
+    test('does not register any server-side tools', () {
       const room = Room(
         id: 'room-1',
         name: 'Test',
@@ -393,6 +394,11 @@ void main() {
             'kind': 'get_current_datetime',
             'tool_name': 'soliplex.tools.get_current_datetime',
             'tool_description': 'Get current date/time',
+          },
+          {
+            'kind': 'joke_factory',
+            'tool_name': 'soliplex.tools.joke_factory',
+            'tool_description': 'Generate a joke',
           },
         ],
       );
@@ -403,18 +409,18 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // Agent-owned tools are fully skipped — the backend agent handles
-      // them directly, so neither the tool_name nor kind should appear.
+      // Server-side tools should NOT appear in the registry.
       expect(
         registry.contains('soliplex.tools.get_current_datetime'),
         isFalse,
-        reason: 'Agent-owned tool should not be registered',
       );
-      expect(
-        registry.contains('get_current_datetime'),
-        isFalse,
-        reason: 'Agent-owned kind should not be registered',
-      );
+      expect(registry.contains('get_current_datetime'), isFalse);
+      expect(registry.contains('soliplex.tools.joke_factory'), isFalse);
+      expect(registry.contains('joke_factory'), isFalse);
+
+      // Only execute_python (client-side) should be registered.
+      expect(registry.contains('execute_python'), isTrue);
+      expect(registry.toolDefinitions, hasLength(1));
     });
 
     test('returns only client tools when no room is selected', () {

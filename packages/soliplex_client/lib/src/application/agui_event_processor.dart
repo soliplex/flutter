@@ -112,6 +112,11 @@ EventProcessingResult processEvent(
         toolCallId,
       ),
 
+    // Tool call result — server-side tool execution completed.
+    // Marks the tool call as completed with the server-provided result.
+    ToolCallResultEvent(:final toolCallId, :final content) =>
+      _processToolCallResult(conversation, streaming, toolCallId, content),
+
     // State events - apply to conversation.aguiState
     StateSnapshotEvent(:final snapshot) => EventProcessingResult(
         conversation: conversation.copyWith(
@@ -326,6 +331,31 @@ EventProcessingResult _processToolCallEnd(
   final updatedToolCalls = conversation.toolCalls.map((tc) {
     if (tc.id == toolCallId && tc.status == ToolCallStatus.streaming) {
       return tc.copyWith(status: ToolCallStatus.pending);
+    }
+    return tc;
+  }).toList();
+
+  return EventProcessingResult(
+    conversation: conversation.copyWith(toolCalls: updatedToolCalls),
+    streaming: streaming,
+  );
+}
+
+/// Processes a server-side tool result by marking the tool call as completed.
+EventProcessingResult _processToolCallResult(
+  Conversation conversation,
+  StreamingState streaming,
+  String toolCallId,
+  String content,
+) {
+  final updatedToolCalls = conversation.toolCalls.map((tc) {
+    if (tc.id == toolCallId &&
+        (tc.status == ToolCallStatus.pending ||
+            tc.status == ToolCallStatus.streaming)) {
+      return tc.copyWith(
+        status: ToolCallStatus.completed,
+        result: content,
+      );
     }
     return tc;
   }).toList();

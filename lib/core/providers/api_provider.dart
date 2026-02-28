@@ -11,7 +11,6 @@ import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/services/thread_bridge_cache.dart';
-import 'package:soliplex_frontend/core/services/tool_definition_converter.dart';
 import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 import 'package:soliplex_monty/soliplex_monty.dart';
 
@@ -29,17 +28,11 @@ final clientToolRegistryProvider = Provider<ToolRegistry>((ref) {
   return const ToolRegistry();
 });
 
-/// No-op executor for server-side tools.
+/// Client-side tool registry: client tools + execute_python.
 ///
-/// Room tools are sent to the backend so the LLM knows they exist, but
-/// executed server-side. The client never invokes this executor.
-Future<String> _serverSideToolExecutor(ToolCallInfo _) async => '';
-
-/// Merged registry: client-side tools + current room's negotiated tools +
-/// execute_python (when room has tool definitions).
-///
-/// Room tools are definition-only (no client executor). They're sent to
-/// the backend so the LLM knows about them, but executed server-side.
+/// Only tools the client can execute are registered. Server-side tools
+/// (from room.toolDefinitions) are NOT included — the backend already
+/// knows about them.
 ///
 /// The execute_python tool uses [threadBridgeCacheProvider] to get a
 /// per-thread [MontyBridge]. The active thread is read from the Zone
@@ -56,28 +49,11 @@ final Provider<ToolRegistry> toolRegistryProvider =
     Provider<ToolRegistry>((ref) {
   var registry = ref.watch(clientToolRegistryProvider);
   final room = ref.watch(currentRoomProvider);
-  if (room != null) {
-    for (final toolDef in room.toolDefinitions) {
-      final tool = toolDefinitionToAgUiTool(toolDef);
-      if (tool.name.isEmpty) continue;
 
-      // Skip agent-owned tools — the backend agent handles these
-      // directly; registering them client-side causes name conflicts.
-      final kind = toolDef['kind'] as String?;
-      if (kind == 'get_current_datetime') continue;
-
-      registry = registry.register(
-        ClientTool(definition: tool, executor: _serverSideToolExecutor),
-      );
-
-      // Alias the short `kind` name to the canonical tool_name so LLM
-      // tool calls resolve without sending a duplicate definition to
-      // the backend (which would conflict).
-      if (kind != null && kind.isNotEmpty && kind != tool.name) {
-        registry = registry.alias(kind, tool.name);
-      }
-    }
-  }
+  // NOTE: Server-side room tools are NOT registered here. The backend
+  // already knows its own tools; echoing them back in SimpleRunAgentInput
+  // causes PydanticAI output validation conflicts. Only truly client-side
+  // tools (those the client can execute) belong in the registry.
 
   // Add execute_python when room has tool definitions.
   // Each thread gets its own bridge via threadBridgeCacheProvider.

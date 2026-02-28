@@ -63,23 +63,23 @@ DisplayMessagesResult computeDisplayMessages(
   List<ChatMessage> historicalMessages,
   ActiveRunState runState,
 ) {
-  // Only active run states can have streaming or run-owned messages.
-  if (runState is! RunningState && runState is! ExecutingToolsState) {
+  // IdleState has no real conversation — use historical messages only.
+  if (runState is IdleState) {
     return DisplayMessagesResult(
       historicalMessages,
       hasSyntheticMessage: false,
     );
   }
 
-  // Merge run-owned messages (e.g. user message added at startRun,
-  // tool-call messages from continuations) into the display list.
-  // The allMessagesProvider FutureProvider may lag by one microtask after
-  // a state change, so historicalMessages can be stale. Merging here
-  // ensures the UI never flashes empty during tool-call phases.
+  // Merge run-owned messages into the display list for all non-idle states
+  // (Running, ExecutingTools, Completed). The allMessagesProvider
+  // FutureProvider may lag by one microtask after a state change, so
+  // historicalMessages can be stale. Merging here ensures the UI never
+  // flashes empty during or immediately after a run.
   final runMessages = runState.conversation.messages;
   final base = _deduplicatedMerge(historicalMessages, runMessages);
 
-  // ExecutingToolsState has no streaming — return merged base directly.
+  // Only RunningState has streaming — all others return merged base.
   if (runState is! RunningState) {
     return DisplayMessagesResult(base, hasSyntheticMessage: false);
   }
