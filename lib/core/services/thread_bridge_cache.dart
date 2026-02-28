@@ -56,27 +56,28 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
     final platform = createMontyPlatform();
     final bridge = DefaultMontyBridge(platform: platform);
 
-    for (final mapping in mappings) {
-      bridge.register(
-        HostFunction(
-          schema: mapping.schema,
-          handler: (args) async {
-            final registry = ref.read(toolRegistryProvider);
-            final toolCall = ToolCallInfo(
-              id: 'monty_${mapping.pythonName}_'
-                  '${DateTime.now().millisecondsSinceEpoch}',
-              name: mapping.registryName,
-              arguments: jsonEncode(args),
-            );
-            Loggers.montyBridge.debug(
-              'Dispatching ${mapping.pythonName} '
-              '→ ${mapping.registryName}',
-            );
-            return registry.execute(toolCall);
-          },
-        ),
-      );
-    }
+    HostFunctionRegistry()
+      ..addCategory('tools', [
+        for (final mapping in mappings)
+          HostFunction(
+            schema: mapping.schema,
+            handler: (args) async {
+              final registry = ref.read(toolRegistryProvider);
+              final toolCall = ToolCallInfo(
+                id: 'monty_${mapping.pythonName}_'
+                    '${DateTime.now().millisecondsSinceEpoch}',
+                name: mapping.registryName,
+                arguments: jsonEncode(args),
+              );
+              Loggers.montyBridge.debug(
+                'Dispatching ${mapping.pythonName} '
+                '→ ${mapping.registryName}',
+              );
+              return registry.execute(toolCall);
+            },
+          ),
+      ])
+      ..registerAllOnto(bridge);
 
     bridges[key] = bridge;
     state = Map.of(bridges);

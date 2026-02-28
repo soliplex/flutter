@@ -33,8 +33,9 @@ packages/soliplex_monty/lib/src/functions/chart_functions.dart → "chart" → c
 
 ```python
 list_functions()
-# → {"df": [{"name": "df_create", "description": "...", "params": [...]}],
-#    "chart": [...], "tools": [...], "nav": [...]}
+# → {"tools": {"df": [{"name": "df_create", "description": "...", "params": [...]}],
+#              "chart": [...], "tools": [...], "nav": [...],
+#              "introspection": [...]}}
 ```
 
 `help('df_create')` returns detailed param info for one function.
@@ -57,7 +58,7 @@ list_functions()
 ## Design
 
 - Pure Dart registry, no Flutter/Riverpod
-- Reuses existing `HostFunctionSchema.toAgUiTool()` for introspection data
+- Custom serializers for introspection JSON (lighter than `toAgUiTool()`)
 - `addCategory(String name, List<HostFunction> functions)`
 - `registerAllOnto(MontyBridge bridge)` — registers all functions + introspection builtins
 - `allFunctions` getter, `schemasByCategory` for introspection
