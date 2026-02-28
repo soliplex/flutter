@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client/soliplex_client.dart' as domain
-    show Cancelled, Completed, Conversation, Failed, Idle, Running;
+    show Cancelled, Completed, Failed, Running;
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/active_run_state.dart';
 import 'package:soliplex_frontend/core/models/run_handle.dart';
@@ -16,6 +16,9 @@ import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/core/router/app_router.dart';
+import 'package:soliplex_frontend/core/services/agui_event_logger.dart';
+import 'package:soliplex_frontend/core/services/run_completion_handler.dart';
+import 'package:soliplex_frontend/core/services/run_preparator.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
 import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 
@@ -50,6 +53,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late ToolRegistry _toolRegistry;
   bool _isStarting = false;
   bool _processingDeferred = false;
+
+  final RunCompletionHandler _completionHandler = RunCompletionHandler();
 
   /// Registry tracking active runs across rooms and threads.
   late final RunRegistry _registry =
@@ -160,88 +165,38 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         runId = runInfo.id;
       }
 
-      // Create user message.
-      // Note: Message ID uses milliseconds. Collision is mitigated by
-      // _isStarting guard preventing concurrent startRun calls.
-      final userMessageObj = TextMessage.create(
-        id: 'user_${DateTime.now().millisecondsSinceEpoch}',
-        user: ChatUser.user,
-        text: userMessage,
-      );
-
-      // Read historical thread data from cache.
-      // Cache is populated by allMessagesProvider when thread is selected.
-      // If cache is empty (e.g., direct URL navigation + immediate send),
-      // we proceed without history - backend still processes correctly.
-      //
-      // Deferred: Safety fetch from backend when cache is empty. Not needed
-      // because normal UI flow ensures cache is populated before user can
-      // send. Adding async fetch here would block UI for a rare edge case.
-      // See issue #30 for details.
+      // Prepare run: user message, history merge, AG-UI input.
       final cachedHistory = ref.read(threadHistoryCacheProvider)[key];
-      final cachedMessages = cachedHistory?.messages ?? [];
-      final cachedAguiState = cachedHistory?.aguiState ?? const {};
-
-      // Combine historical messages with new user message
-      final allMessages = [...cachedMessages, userMessageObj];
-
-      // Create conversation with full history, AG-UI state, and Running status
-      final conversation = domain.Conversation(
-        threadId: threadId,
-        messages: allMessages,
-        status: domain.Running(runId: runId),
-        aguiState: cachedAguiState,
-      );
-
-      final runningState = RunningState(conversation: conversation);
-      pendingState = runningState;
-
-      // Step 2: Build the streaming endpoint URL with backend run_id
-      final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
-
-      // Convert all messages to AG-UI format for backend
-      final aguiMessages = convertToAgui(allMessages);
-
-      // Merge accumulated AG-UI state with any client-provided initial state.
-      // Deep merge at the state-key level so client-provided keys (e.g.
-      // document_filter) merge INTO the server's haiku.rag.chat dict
-      // rather than replacing it.
-      final mergedState = <String, dynamic>{...cachedAguiState};
-      if (initialState != null) {
-        for (final entry in initialState.entries) {
-          final existing = mergedState[entry.key];
-          if (existing is Map<String, dynamic> &&
-              entry.value is Map<String, dynamic>) {
-            mergedState[entry.key] = <String, dynamic>{
-              ...existing,
-              ...entry.value as Map<String, dynamic>,
-            };
-          } else {
-            mergedState[entry.key] = entry.value;
-          }
-        }
-      }
-
-      // Create the input for the run
       final tools =
           _toolRegistry.isEmpty ? null : _toolRegistry.toolDefinitions;
+
+      final prepared = prepareRun(
+        RunPreparationInput(
+          threadId: threadId,
+          runId: runId,
+          userMessage: userMessage,
+          cachedHistory: cachedHistory,
+          initialState: initialState,
+          tools: tools,
+        ),
+      );
+
+      final runningState = prepared.runningState;
+      pendingState = runningState;
+
       Loggers.activeRun.debug(
         'RUN_INPUT: room=$roomId '
         'toolCount=${tools?.length ?? 0} '
         'toolNames=${tools?.map((t) => t.name).join(', ') ?? 'none'}',
       );
-      final input = SimpleRunAgentInput(
-        threadId: threadId,
-        runId: runId,
-        messages: aguiMessages,
-        state: mergedState,
-        tools: tools,
-      );
+
+      // Step 2: Build the streaming endpoint URL with backend run_id
+      final endpoint = 'rooms/$roomId/agui/$threadId/$runId';
 
       // Start streaming
       final eventStream = _agUiClient.runAgent(
         endpoint,
-        input,
+        prepared.agentInput,
         cancelToken: cancelToken,
       );
 
@@ -251,8 +206,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         runId: runId,
         cancelToken: cancelToken,
         eventStream: eventStream,
-        userMessageId: userMessageObj.id,
-        previousAguiState: cachedAguiState,
+        userMessageId: prepared.userMessageId,
+        previousAguiState: prepared.previousAguiState,
         initialState: runningState,
       );
 
@@ -434,7 +389,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         return;
       }
 
-      _logEvent(event);
+      logAguiEvent(event);
 
       final result = processEvent(
         handleState.conversation,
@@ -844,144 +799,50 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     }
   }
 
-  /// Logs AG-UI events at appropriate levels.
-  void _logEvent(BaseEvent event) {
-    switch (event) {
-      case RunStartedEvent():
-        Loggers.activeRun.debug('RUN_STARTED');
-      case RunFinishedEvent():
-        Loggers.activeRun.debug('RUN_FINISHED');
-      case RunErrorEvent(:final message):
-        Loggers.activeRun.error('RUN_ERROR: $message');
-      case ThinkingTextMessageStartEvent():
-        Loggers.activeRun.trace('THINKING_START');
-      case ThinkingTextMessageContentEvent():
-        Loggers.activeRun.trace('THINKING_CONTENT');
-      case ThinkingTextMessageEndEvent():
-        Loggers.activeRun.trace('THINKING_END');
-      case TextMessageStartEvent(:final messageId):
-        Loggers.activeRun.debug('TEXT_START: $messageId');
-      case TextMessageContentEvent(:final messageId):
-        Loggers.activeRun.trace('TEXT_CONTENT: $messageId');
-      case TextMessageEndEvent(:final messageId):
-        Loggers.activeRun.debug('TEXT_END: $messageId');
-      case ToolCallStartEvent(:final toolCallId, :final toolCallName):
-        Loggers.activeRun.debug('TOOL_START: $toolCallName ($toolCallId)');
-      case ToolCallArgsEvent(:final toolCallId):
-        Loggers.activeRun.trace('TOOL_ARGS: $toolCallId');
-      case ToolCallEndEvent(:final toolCallId):
-        Loggers.activeRun.debug('TOOL_END: $toolCallId');
-      case ToolCallResultEvent(:final toolCallId):
-        Loggers.activeRun.debug('TOOL_RESULT: $toolCallId');
-      case StateSnapshotEvent():
-        Loggers.activeRun.debug('STATE_SNAPSHOT');
-      case StateDeltaEvent():
-        Loggers.activeRun.debug('STATE_DELTA');
-      default:
-        Loggers.activeRun.trace('EVENT: ${event.runtimeType}');
-    }
-  }
-
-  /// Maps an EventProcessingResult to the appropriate ActiveRunState.
+  /// Maps an [EventProcessingResult] to the appropriate [ActiveRunState].
+  ///
+  /// Delegates domain logic to [RunCompletionHandler.mapEventResult], then
+  /// applies the notifier-level policy: only client-registered tools
+  /// (per [_toolRegistry]) count as "pending". Server-side tools are
+  /// already executed by the backend.
   ActiveRunState _mapResultForRun(
     RunHandle handle,
     RunningState previousState,
     EventProcessingResult result,
   ) {
-    final conversation = _correlateMessagesForRun(handle, result);
+    final mapped = _completionHandler.mapEventResult(
+      handle: handle,
+      previousState: previousState,
+      result: result,
+    );
 
-    final newState = switch (conversation.status) {
-      domain.Completed() => () {
-          // Only keep RunningState if there are pending tools the CLIENT
-          // can execute. Server-side tools (not in _toolRegistry) are
-          // already handled by the backend and should not prevent
-          // completion.
-          final pendingToolCalls = conversation.toolCalls
-              .where((tc) => tc.status == ToolCallStatus.pending);
-          final hasClientPendingTools =
-              pendingToolCalls.any((tc) => _toolRegistry.contains(tc.name));
-          Loggers.activeRun.debug(
-            'MAP_COMPLETED: toolCalls=${conversation.toolCalls.length} '
-            'pendingTools=${pendingToolCalls.length} '
-            'hasClientPendingTools=$hasClientPendingTools '
-            'statuses=${conversation.toolCalls.map(
-                  (tc) => '${tc.name}:${tc.status}',
-                ).join(', ')}',
-          );
-          if (hasClientPendingTools) {
-            Loggers.toolExecution.debug(
-              'RunFinished with client-executable pending tools '
-              '— keeping RunningState',
-            );
-            return previousState.copyWith(
-              conversation: conversation.withStatus(
-                domain.Running(runId: previousState.runId),
-              ),
-              streaming: result.streaming,
-            );
-          }
-          return CompletedState(
-            conversation: conversation,
-            streaming: result.streaming,
-            result: const Success(),
-          );
-        }(),
-      domain.Failed(:final error) => () {
-          Loggers.activeRun.error('Run completed with failure: $error');
-          return CompletedState(
-            conversation: conversation,
-            streaming: result.streaming,
-            result: FailedResult(errorMessage: error),
-          );
-        }(),
-      domain.Cancelled(:final reason) => CompletedState(
-          conversation: conversation,
+    // The service converts Completed → RunningState when it finds pending
+    // tools (domain truth). The notifier applies the policy filter: only
+    // client-registered tools count. If none are client-executable, complete.
+    if (mapped is RunningState && result.conversation.status is Completed) {
+      final pendingToolCalls = mapped.conversation.toolCalls
+          .where((tc) => tc.status == ToolCallStatus.pending);
+      final hasClientPendingTools =
+          pendingToolCalls.any((tc) => _toolRegistry.contains(tc.name));
+      Loggers.activeRun.debug(
+        'MAP_COMPLETED: '
+        'pendingTools=${pendingToolCalls.length} '
+        'hasClientPendingTools=$hasClientPendingTools '
+        'statuses=${mapped.conversation.toolCalls.map(
+              (tc) => '${tc.name}:${tc.status}',
+            ).join(', ')}',
+      );
+      if (!hasClientPendingTools) {
+        return CompletedState(
+          conversation:
+              mapped.conversation.withStatus(const domain.Completed()),
           streaming: result.streaming,
-          result: CancelledResult(reason: reason),
-        ),
-      domain.Running() => previousState.copyWith(
-          conversation: conversation,
-          streaming: result.streaming,
-        ),
-      domain.Idle() => throw StateError(
-          'Unexpected Idle status during event processing',
-        ),
-    };
-
-    return newState;
-  }
-
-  /// Correlates AG-UI state changes with the user message on run completion.
-  ///
-  /// Uses [CitationExtractor] to find new citations by comparing the
-  /// previous AG-UI state (captured at run start) with the current state.
-  /// Creates a [MessageState] and adds it to the conversation.
-  domain.Conversation _correlateMessagesForRun(
-    RunHandle handle,
-    EventProcessingResult result,
-  ) {
-    final conversation = result.conversation;
-
-    // Only correlate on completion (Completed, Failed, Cancelled)
-    if (conversation.status is domain.Running) {
-      return conversation;
+          result: const Success(),
+        );
+      }
     }
 
-    // Extract new citations using the schema firewall
-    final extractor = CitationExtractor();
-    final sourceReferences = extractor.extractNew(
-      handle.previousAguiState,
-      conversation.aguiState,
-    );
-
-    // Create MessageState and add to conversation
-    final messageState = MessageState(
-      userMessageId: handle.userMessageId,
-      sourceReferences: sourceReferences,
-      runId: handle.runId,
-    );
-
-    return conversation.withMessageState(handle.userMessageId, messageState);
+    return mapped;
   }
 
   /// Builds the cache-update callback injected into [RunRegistry].
@@ -989,15 +850,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     return (ThreadKey key, CompletedState completedState) {
       if (key.threadId.isEmpty) return;
 
-      // Merge existing messageStates from cache with new ones from this run
       final cachedHistory = ref.read(threadHistoryCacheProvider)[key];
-      final existingMessageStates = cachedHistory?.messageStates ?? const {};
-      final newMessageStates = completedState.conversation.messageStates;
-
-      final history = ThreadHistory(
-        messages: completedState.messages,
-        aguiState: completedState.conversation.aguiState,
-        messageStates: {...existingMessageStates, ...newMessageStates},
+      final history = _completionHandler.buildUpdatedHistory(
+        completedState: completedState,
+        existingHistory: cachedHistory,
       );
       ref.read(threadHistoryCacheProvider.notifier).updateHistory(key, history);
     };

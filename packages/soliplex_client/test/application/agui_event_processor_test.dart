@@ -518,6 +518,171 @@ void main() {
         });
       });
 
+      group('ToolCallResultEvent (server-side completion)', () {
+        test('marks pending tool as completed with result', () {
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'rag_search',
+            ),
+          );
+          const event = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'search results here',
+          );
+
+          final result = processEvent(
+            conversationWithTool,
+            streaming,
+            event,
+          );
+
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.completed));
+          expect(tc.result, equals('search results here'));
+        });
+
+        test('marks streaming tool as completed with result', () {
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'rag_search',
+              status: ToolCallStatus.streaming,
+            ),
+          );
+          const event = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'early result',
+          );
+
+          final result = processEvent(
+            conversationWithTool,
+            streaming,
+            event,
+          );
+
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.completed));
+          expect(tc.result, equals('early result'));
+        });
+
+        test('completed tool ignores duplicate result', () {
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'rag_search',
+              status: ToolCallStatus.completed,
+              result: 'original result',
+            ),
+          );
+          const event = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'duplicate result',
+          );
+
+          final result = processEvent(
+            conversationWithTool,
+            streaming,
+            event,
+          );
+
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.completed));
+          expect(tc.result, equals('original result'));
+        });
+
+        test('failed tool ignores result', () {
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'rag_search',
+              status: ToolCallStatus.failed,
+              result: 'error message',
+            ),
+          );
+          const event = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-1',
+            content: 'late result',
+          );
+
+          final result = processEvent(
+            conversationWithTool,
+            streaming,
+            event,
+          );
+
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.failed));
+          expect(tc.result, equals('error message'));
+        });
+
+        test('unknown toolCallId is ignored', () {
+          final conversationWithTool = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-1',
+              name: 'rag_search',
+            ),
+          );
+          const event = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-unknown',
+            content: 'stray result',
+          );
+
+          final result = processEvent(
+            conversationWithTool,
+            streaming,
+            event,
+          );
+
+          // tc-1 unchanged
+          final tc = result.conversation.toolCalls.first;
+          expect(tc.status, equals(ToolCallStatus.pending));
+          expect(tc.result, isEmpty);
+        });
+
+        test('mixed server/client tools — result only affects targeted tool',
+            () {
+          // Two tools: server-side rag_search (pending) and client-side
+          // execute_python (pending). ToolCallResultEvent arrives for
+          // rag_search only — execute_python stays pending.
+          var conv = conversation.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-server',
+              name: 'rag_search',
+            ),
+          );
+          conv = conv.withToolCall(
+            const ToolCallInfo(
+              id: 'tc-client',
+              name: 'execute_python',
+            ),
+          );
+
+          const event = ToolCallResultEvent(
+            messageId: 'msg-1',
+            toolCallId: 'tc-server',
+            content: 'server result',
+          );
+
+          final result = processEvent(conv, streaming, event);
+
+          final serverTool = result.conversation.toolCalls
+              .firstWhere((tc) => tc.id == 'tc-server');
+          expect(serverTool.status, equals(ToolCallStatus.completed));
+          expect(serverTool.result, equals('server result'));
+
+          final clientTool = result.conversation.toolCalls
+              .firstWhere((tc) => tc.id == 'tc-client');
+          expect(clientTool.status, equals(ToolCallStatus.pending));
+          expect(clientTool.result, isEmpty);
+        });
+      });
+
       group('multiple tools accumulate independently', () {
         test('two sequential tool calls have correct args and status', () {
           // Start tool A
