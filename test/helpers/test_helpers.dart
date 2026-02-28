@@ -392,12 +392,20 @@ class TestData {
     String name = 'Test Room',
     String description = '',
     List<String> suggestions = const [],
+    String welcomeMessage = '',
+    bool enableAttachments = false,
+    List<Map<String, dynamic>> toolDefinitions = const [],
+    List<String> aguiFeatureNames = const [],
   }) {
     return Room(
       id: id,
       name: name,
       description: description,
       suggestions: suggestions,
+      welcomeMessage: welcomeMessage,
+      enableAttachments: enableAttachments,
+      toolDefinitions: toolDefinitions,
+      aguiFeatureNames: aguiFeatureNames,
     );
   }
 

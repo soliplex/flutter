@@ -220,6 +220,7 @@ Room roomFromJson(Map<String, dynamic> json) {
   // Parse tools — skip malformed entries
   final toolsJson = json['tools'] as Map<String, dynamic>?;
   final tools = <String, RoomTool>{};
+  final toolDefinitions = <Map<String, dynamic>>[];
   if (toolsJson != null) {
     for (final entry in toolsJson.entries) {
       if (entry.value is! Map<String, dynamic>) {
@@ -234,6 +235,7 @@ Room roomFromJson(Map<String, dynamic> json) {
         entry.key,
         entry.value as Map<String, dynamic>,
       );
+      toolDefinitions.add(entry.value as Map<String, dynamic>);
     }
   }
 
@@ -269,10 +271,30 @@ Room roomFromJson(Map<String, dynamic> json) {
     agent: agent,
     tools: tools,
     mcpClientToolsets: mcpClientToolsets,
+    toolDefinitions: toolDefinitions,
     aguiFeatureNames: _parseStringList(
       json['agui_feature_names'] as List<dynamic>?,
     ),
   );
+}
+
+/// Converts a [Room] to JSON.
+Map<String, dynamic> roomToJson(Room room) {
+  return {
+    'id': room.id,
+    'name': room.name,
+    if (room.description.isNotEmpty) 'description': room.description,
+    if (room.metadata.isNotEmpty) 'metadata': room.metadata,
+    if (room.welcomeMessage.isNotEmpty) 'welcome_message': room.welcomeMessage,
+    if (room.enableAttachments) 'enable_attachments': room.enableAttachments,
+    if (room.toolDefinitions.isNotEmpty)
+      'tools': {
+        for (final tool in room.toolDefinitions)
+          (tool['tool_name'] as String? ?? tool['name'] as String? ?? ''): tool,
+      },
+    if (room.aguiFeatureNames.isNotEmpty)
+      'agui_feature_names': room.aguiFeatureNames,
+  };
 }
 
 // ============================================================

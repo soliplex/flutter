@@ -21,6 +21,7 @@ class Room {
     this.agent,
     this.tools = const {},
     this.mcpClientToolsets = const {},
+    this.toolDefinitions = const [],
     this.aguiFeatureNames = const [],
   });
 
@@ -61,6 +62,12 @@ class Room {
   /// MCP client toolsets configured in this room.
   final Map<String, McpClientToolset> mcpClientToolsets;
 
+  /// Raw tool definitions from the backend (validated dicts).
+  ///
+  /// Stored as raw maps to keep the Room model backend-shape-agnostic.
+  /// Convert to ag_ui Tool objects at the provider layer.
+  final List<Map<String, dynamic>> toolDefinitions;
+
   /// AG-UI feature names enabled for this room.
   final List<String> aguiFeatureNames;
 
@@ -76,6 +83,15 @@ class Room {
   /// Whether the room has any suggestions.
   bool get hasSuggestions => suggestions.isNotEmpty;
 
+  /// Whether the room has a welcome message.
+  bool get hasWelcomeMessage => welcomeMessage.isNotEmpty;
+
+  /// Whether the room has any tool definitions.
+  bool get hasToolDefinitions => toolDefinitions.isNotEmpty;
+
+  /// Whether the room has any AG-UI feature names.
+  bool get hasAguiFeatures => aguiFeatureNames.isNotEmpty;
+
   /// Creates a copy of this room with the given fields replaced.
   Room copyWith({
     String? id,
@@ -90,6 +106,7 @@ class Room {
     RoomAgent? agent,
     Map<String, RoomTool>? tools,
     Map<String, McpClientToolset>? mcpClientToolsets,
+    List<Map<String, dynamic>>? toolDefinitions,
     List<String>? aguiFeatureNames,
   }) {
     return Room(
@@ -105,6 +122,7 @@ class Room {
       agent: agent ?? this.agent,
       tools: tools ?? this.tools,
       mcpClientToolsets: mcpClientToolsets ?? this.mcpClientToolsets,
+      toolDefinitions: toolDefinitions ?? this.toolDefinitions,
       aguiFeatureNames: aguiFeatureNames ?? this.aguiFeatureNames,
     );
   }

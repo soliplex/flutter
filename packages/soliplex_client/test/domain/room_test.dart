@@ -12,17 +12,21 @@ void main() {
       expect(room.metadata, equals(const <String, dynamic>{}));
       expect(room.quizzes, equals(const <String, String>{}));
       expect(room.suggestions, equals(const <String>[]));
+      expect(room.welcomeMessage, equals(''));
+      expect(room.enableAttachments, isFalse);
+      expect(room.toolDefinitions, equals(const <Map<String, dynamic>>[]));
+      expect(room.aguiFeatureNames, equals(const <String>[]));
       expect(room.quizIds, isEmpty);
       expect(room.hasDescription, isFalse);
       expect(room.hasQuizzes, isFalse);
       expect(room.hasSuggestions, isFalse);
-      expect(room.welcomeMessage, equals(''));
-      expect(room.enableAttachments, isFalse);
+      expect(room.hasWelcomeMessage, isFalse);
+      expect(room.hasToolDefinitions, isFalse);
+      expect(room.hasAguiFeatures, isFalse);
       expect(room.allowMcp, isFalse);
       expect(room.agent, isNull);
       expect(room.tools, isEmpty);
       expect(room.mcpClientToolsets, isEmpty);
-      expect(room.aguiFeatureNames, isEmpty);
     });
 
     test('creates with all fields', () {
@@ -52,7 +56,10 @@ void main() {
         agent: agent,
         tools: {'search': tool},
         mcpClientToolsets: {'toolset-1': toolset},
-        aguiFeatureNames: ['feature1'],
+        toolDefinitions: [
+          {'tool_name': 'search', 'tool_description': 'Search docs'},
+        ],
+        aguiFeatureNames: ['streaming', 'tools'],
       );
 
       expect(room.id, equals('room-1'));
@@ -63,24 +70,22 @@ void main() {
         room.quizzes,
         equals({'quiz-1': 'Quiz One', 'quiz-2': 'Quiz Two'}),
       );
-      expect(
-        room.suggestions,
-        equals(['How can I help?', 'Tell me more']),
-      );
-      expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));
-      expect(room.hasDescription, isTrue);
-      expect(room.hasQuizzes, isTrue);
-      expect(room.hasSuggestions, isTrue);
+      expect(room.suggestions, equals(['How can I help?', 'Tell me more']));
       expect(room.welcomeMessage, equals('Welcome!'));
       expect(room.enableAttachments, isTrue);
       expect(room.allowMcp, isTrue);
       expect(room.agent, equals(agent));
       expect(room.tools, equals({'search': tool}));
-      expect(
-        room.mcpClientToolsets,
-        equals({'toolset-1': toolset}),
-      );
-      expect(room.aguiFeatureNames, equals(['feature1']));
+      expect(room.mcpClientToolsets, equals({'toolset-1': toolset}));
+      expect(room.toolDefinitions, hasLength(1));
+      expect(room.aguiFeatureNames, equals(['streaming', 'tools']));
+      expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));
+      expect(room.hasDescription, isTrue);
+      expect(room.hasQuizzes, isTrue);
+      expect(room.hasSuggestions, isTrue);
+      expect(room.hasWelcomeMessage, isTrue);
+      expect(room.hasToolDefinitions, isTrue);
+      expect(room.hasAguiFeatures, isTrue);
     });
 
     group('copyWith', () {
@@ -102,6 +107,12 @@ void main() {
           metadata: {'new': 'data'},
           quizzes: {'quiz-1': 'Quiz One'},
           suggestions: ['Suggestion 1', 'Suggestion 2'],
+          welcomeMessage: 'Hello!',
+          enableAttachments: true,
+          toolDefinitions: [
+            {'tool_name': 'lookup'},
+          ],
+          aguiFeatureNames: ['streaming'],
         );
 
         expect(modified.id, equals('room-2'));
@@ -111,6 +122,10 @@ void main() {
         expect(modified.quizzes, equals({'quiz-1': 'Quiz One'}));
         expect(modified.quizIds, equals(['quiz-1']));
         expect(modified.suggestions, equals(['Suggestion 1', 'Suggestion 2']));
+        expect(modified.welcomeMessage, equals('Hello!'));
+        expect(modified.enableAttachments, isTrue);
+        expect(modified.toolDefinitions, hasLength(1));
+        expect(modified.aguiFeatureNames, equals(['streaming']));
       });
 
       test('creates identical copy when no parameters passed', () {
@@ -121,6 +136,12 @@ void main() {
           metadata: {'key': 'value'},
           quizzes: {'quiz-1': 'Quiz One'},
           suggestions: ['Suggestion'],
+          welcomeMessage: 'Hi',
+          enableAttachments: true,
+          toolDefinitions: [
+            {'tool_name': 'test'},
+          ],
+          aguiFeatureNames: ['streaming'],
         );
         final copy = room.copyWith();
 
@@ -131,6 +152,10 @@ void main() {
         expect(copy.quizzes, equals(room.quizzes));
         expect(copy.quizIds, equals(room.quizIds));
         expect(copy.suggestions, equals(room.suggestions));
+        expect(copy.welcomeMessage, equals(room.welcomeMessage));
+        expect(copy.enableAttachments, equals(room.enableAttachments));
+        expect(copy.toolDefinitions, equals(room.toolDefinitions));
+        expect(copy.aguiFeatureNames, equals(room.aguiFeatureNames));
       });
     });
 

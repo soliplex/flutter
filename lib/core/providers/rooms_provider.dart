@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/schema_provider.dart';
+import 'package:soliplex_frontend/core/services/negotiated_room_mapper.dart';
 
 /// Provider for list of rooms.
 ///
@@ -23,7 +25,17 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 /// - [ApiException]: Other server errors
 final roomsProvider = FutureProvider<List<Room>>((ref) async {
   final api = ref.watch(apiProvider);
-  return api.getRooms();
+  final executor = ref.watch(schemaExecutorProvider);
+
+  // Wait for schema init (non-fatal — continue without schemas on failure).
+  await ref.watch(schemaInitProvider.future).catchError((_) {});
+
+  final rooms = await api.getRooms();
+
+  if (executor.hasSchemas) {
+    return NegotiatedRoomMapper(executor).mapRooms(rooms);
+  }
+  return rooms;
 });
 
 /// Notifier for currently selected room ID.

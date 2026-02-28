@@ -11,7 +11,8 @@ import 'package:soliplex_client/soliplex_client.dart'
         ErrorMessage,
         FeedbackType,
         SourceReference,
-        TextMessage;
+        TextMessage,
+        ToolCallMessage;
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
@@ -63,6 +64,10 @@ class ChatMessageWidget extends StatelessWidget {
     final text = switch (message) {
       TextMessage(:final text) => text,
       ErrorMessage(:final errorText) => errorText,
+      ToolCallMessage(:final toolCalls) => toolCalls
+          .where((tc) => tc.hasResult)
+          .map((tc) => '**${tc.name}**\n```\n${tc.result}\n```')
+          .join('\n\n'),
       _ => '',
     };
     final thinkingText = switch (message) {

@@ -10,11 +10,14 @@ import 'package:soliplex_frontend/core/models/run_handle.dart';
 import 'package:soliplex_frontend/core/models/run_lifecycle_event.dart';
 import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/deferred_message_queue_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/thread_history_cache.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
+import 'package:soliplex_frontend/core/router/app_router.dart';
 import 'package:soliplex_frontend/core/services/run_registry.dart';
+import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 
 /// Manages the lifecycle of an active AG-UI run.
 ///
@@ -36,6 +39,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
   late AgUiClient _agUiClient;
   late ToolRegistry _toolRegistry;
   bool _isStarting = false;
+  bool _processingDeferred = false;
 
   /// Registry tracking active runs across rooms and threads.
   late final RunRegistry _registry =
@@ -54,15 +58,21 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   @override
   ActiveRunState build() {
-    _agUiClient = ref.watch(agUiClientProvider);
-    _toolRegistry = ref.watch(toolRegistryProvider);
+    _agUiClient = ref.read(agUiClientProvider);
+    ref.listen(agUiClientProvider, (_, next) => _agUiClient = next);
+    _toolRegistry = ref.read(toolRegistryProvider);
+    ref.listen(toolRegistryProvider, (_, next) => _toolRegistry = next);
 
-    // Mark thread as unread when a non-cancelled background run completes.
+    // Mark thread as unread when a non-cancelled background run completes,
+    // then process any deferred messages queued during the run.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
       if (event is RunCompleted) {
         final isBackground = _currentHandle?.key != event.key;
         if (isBackground && event.result is! CancelledResult) {
           ref.read(unreadRunsProvider.notifier).markUnread(event.key);
+        }
+        if (event.result is! CancelledResult) {
+          _processDeferredQueue();
         }
       }
     });
@@ -208,6 +218,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
+        tools: _toolRegistry.toolDefinitions,
         state: mergedState,
         tools: tools,
       );
@@ -327,6 +338,47 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
           stackTrace: st,
         );
       }
+    }
+  }
+
+  /// Processes the next deferred message from the queue.
+  ///
+  /// Called after a non-cancelled [RunCompleted] event. Switches the UI to
+  /// the target thread and starts a new run with the queued message.
+  ///
+  /// Re-entry is guarded by [_processingDeferred]. When the deferred run
+  /// itself completes, the lifecycle listener fires again and picks up
+  /// the next message naturally — no recursion needed.
+  Future<void> _processDeferredQueue() async {
+    if (_processingDeferred) return;
+    _processingDeferred = true;
+    try {
+      final queue = ref.read(deferredMessageQueueProvider.notifier);
+      final message = queue.pop();
+      if (message == null) return;
+
+      // Switch UI to target thread
+      ref
+          .read(threadSelectionProvider.notifier)
+          .set(ThreadSelected(message.targetKey.threadId));
+      ref.read(routerProvider).go(
+            '/rooms/${message.targetKey.roomId}'
+            '?thread=${message.targetKey.threadId}',
+          );
+
+      // Start run in target thread
+      await startRun(
+        key: message.targetKey,
+        userMessage: message.message,
+      );
+    } catch (e, st) {
+      Loggers.activeRun.error(
+        'Failed to process deferred message',
+        error: e,
+        stackTrace: st,
+      );
+    } finally {
+      _processingDeferred = false;
     }
   }
 
@@ -454,6 +506,10 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     RunHandle handle, {
     required int depth,
   }) async {
+    // Snapshot the tool registry at entry so room switches mid-execution
+    // don't change the tools used for this continuation chain.
+    final toolRegistry = _toolRegistry;
+
     // Circuit breaker: prevent infinite tool loops.
     if (depth >= _maxToolDepth) {
       Loggers.toolExecution.error(
@@ -479,33 +535,38 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       );
 
       // Execute all tools in parallel, catching per-tool failures.
-      final results = await Future.wait(
-        pendingTools.map((toolCall) async {
-          Loggers.toolExecution.debug(
-            'Executing tool "${toolCall.name}" (${toolCall.id})',
-          );
-          try {
-            final result = await _toolRegistry.execute(toolCall);
+      // Zone propagates handle.key so execute_python can look up the
+      // per-thread bridge via activeThreadKey.
+      final results = await runInToolExecutionZone(
+        handle.key,
+        () => Future.wait(
+          pendingTools.map((toolCall) async {
             Loggers.toolExecution.debug(
-              'Tool "${toolCall.name}" completed '
-              '(${result.length} chars result)',
+              'Executing tool "${toolCall.name}" (${toolCall.id})',
             );
-            return toolCall.copyWith(
-              status: ToolCallStatus.completed,
-              result: result,
-            );
-          } catch (e, st) {
-            Loggers.toolExecution.error(
-              'Tool "${toolCall.name}" failed',
-              error: e,
-              stackTrace: st,
-            );
-            return toolCall.copyWith(
-              status: ToolCallStatus.failed,
-              result: e.toString(),
-            );
-          }
-        }),
+            try {
+              final result = await toolRegistry.execute(toolCall);
+              Loggers.toolExecution.debug(
+                'Tool "${toolCall.name}" completed '
+                '(${result.length} chars result)',
+              );
+              return toolCall.copyWith(
+                status: ToolCallStatus.completed,
+                result: result,
+              );
+            } catch (e, st) {
+              Loggers.toolExecution.error(
+                'Tool "${toolCall.name}" failed',
+                error: e,
+                stackTrace: st,
+              );
+              return toolCall.copyWith(
+                status: ToolCallStatus.failed,
+                result: e.toString(),
+              );
+            }
+          }),
+        ),
       );
 
       // Safety checks: bail if state changed during async execution.
@@ -569,6 +630,7 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         threadId: handle.key.threadId,
         runId: runInfo.id,
         messages: aguiMessages,
+        tools: toolRegistry.toolDefinitions,
         state: conversation.aguiState,
         tools: tools,
       );

@@ -36,24 +36,42 @@ class ClientTool {
 @immutable
 class ToolRegistry {
   /// Creates an empty registry.
-  const ToolRegistry() : _tools = const {};
+  const ToolRegistry()
+      : _tools = const {},
+        _aliases = const {};
 
-  const ToolRegistry._(this._tools);
+  const ToolRegistry._(this._tools, this._aliases);
 
   final Map<String, ClientTool> _tools;
+
+  /// Maps alternative names to canonical tool names.
+  ///
+  /// Used when the backend sends tool calls using a short name (e.g.
+  /// `get_current_datetime`) but the tool is registered under its full
+  /// name (e.g. `soliplex.tools.get_current_datetime`). Aliases are
+  /// not included in [toolDefinitions] to avoid conflicts.
+  final Map<String, String> _aliases;
 
   /// Registers a [ClientTool] and returns a new registry containing it.
   ///
   /// The tool is keyed by the tool definition's name.
   ToolRegistry register(ClientTool tool) {
-    return ToolRegistry._({..._tools, tool.definition.name: tool});
+    return ToolRegistry._({..._tools, tool.definition.name: tool}, _aliases);
+  }
+
+  /// Maps [aliasName] to the canonical [canonicalName] for lookup.
+  ///
+  /// The alias is only used by [lookup] / [execute] / [contains]; it does
+  /// not appear in [toolDefinitions].
+  ToolRegistry alias(String aliasName, String canonicalName) {
+    return ToolRegistry._(_tools, {..._aliases, aliasName: canonicalName});
   }
 
   /// Returns the [ClientTool] registered under [name].
   ///
   /// Throws [StateError] if no tool with that name is registered.
   ClientTool lookup(String name) {
-    final tool = _tools[name];
+    final tool = _tools[name] ?? _tools[_aliases[name]];
     if (tool == null) {
       throw StateError('No tool registered with name "$name"');
     }
@@ -71,7 +89,8 @@ class ToolRegistry {
   }
 
   /// Whether a tool with [name] is registered.
-  bool contains(String name) => _tools.containsKey(name);
+  bool contains(String name) =>
+      _tools.containsKey(name) || _tools.containsKey(_aliases[name]);
 
   /// The number of registered tools.
   int get length => _tools.length;

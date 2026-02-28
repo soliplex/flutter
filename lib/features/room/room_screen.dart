@@ -7,6 +7,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
+import 'package:soliplex_frontend/core/providers/sidebar_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
 import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
@@ -38,7 +39,6 @@ class RoomScreen extends ConsumerStatefulWidget {
 
 class _RoomScreenState extends ConsumerState<RoomScreen> {
   String? _initializedForRoomId;
-  bool _sidebarCollapsed = false;
 
   @override
   void initState() {
@@ -211,10 +211,11 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   }
 
   Widget _buildSidebarToggle() {
+    final collapsed = ref.watch(sidebarCollapsedProvider);
     return IconButton(
-      icon: Icon(_sidebarCollapsed ? Icons.menu : Icons.menu_open),
-      tooltip: _sidebarCollapsed ? 'Show threads' : 'Hide threads',
-      onPressed: () => setState(() => _sidebarCollapsed = !_sidebarCollapsed),
+      icon: Icon(collapsed ? Icons.menu : Icons.menu_open),
+      tooltip: collapsed ? 'Show threads' : 'Hide threads',
+      onPressed: () => ref.read(sidebarCollapsedProvider.notifier).toggle(),
     );
   }
 
@@ -311,9 +312,10 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
+    final collapsed = ref.watch(sidebarCollapsedProvider);
     return Row(
       children: [
-        if (!_sidebarCollapsed)
+        if (!collapsed)
           SizedBox(
             width: _sidebarWidth,
             child: DecoratedBox(

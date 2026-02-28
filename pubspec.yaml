@@ -12,6 +12,14 @@ environment:
 dependencies:
   connectivity_plus: ^7.0.0
   cupertino_icons: ^1.0.8
+  dart_monty:
+    path: ../dart_monty
+  dart_monty_native:
+    path: ../dart_monty/packages/dart_monty_native
+  dart_monty_platform_interface:
+    path: ../dart_monty/packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../dart_monty/packages/dart_monty_wasm
   device_info_plus: ^12.3.0
   flutter:
     sdk: flutter
@@ -35,6 +43,8 @@ dependencies:
     path: packages/soliplex_client_native
   soliplex_logging:
     path: packages/soliplex_logging
+  soliplex_monty:
+    path: packages/soliplex_monty
   url_launcher: ^6.3.2
   uuid: ^4.5.1
   wakelock_plus: ^1.4.0
@@ -55,6 +65,20 @@ dev_dependencies:
   # Riverpod for testing (explicit version from transitive)
   riverpod: 3.2.1
   very_good_analysis: ^10.1.0
+dependency_overrides:
+  dart_monty:
+    path: ../dart_monty
+  dart_monty_ffi:
+    path: ../dart_monty/packages/dart_monty_ffi
+  dart_monty_native:
+    path: ../dart_monty/packages/dart_monty_native
+  dart_monty_platform_interface:
+    path: ../dart_monty/packages/dart_monty_platform_interface
+  dart_monty_wasm:
+    path: ../dart_monty/packages/dart_monty_wasm
+  dart_monty_web:
+    path: ../dart_monty/packages/dart_monty_web
+
 flutter:
   uses-material-design: true
   assets:
