@@ -9,6 +9,8 @@ import 'package:soliplex_frontend/core/models/features.dart';
 import 'package:soliplex_frontend/core/models/route_config.dart';
 import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
+// TEMPORARY: Debug agent screen — remove after F1 validation.
+import 'package:soliplex_frontend/features/debug/debug_agent_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/inspector/network_inspector_screen.dart';
 import 'package:soliplex_frontend/features/log_viewer/log_viewer_screen.dart';
@@ -325,6 +327,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             return '/rooms/$roomId?thread=$threadId';
           },
         ),
+      // --- TEMPORARY: Debug agent run screen — remove after F1 validation ---
+      GoRoute(
+        path: '/debug/agent',
+        name: 'debug-agent',
+        pageBuilder: (context, state) => _staticPage(
+          title: const Text('DEBUG: Agent Run'),
+          body: const DebugAgentScreen(),
+        ),
+      ),
+      // --- END TEMPORARY ---
       if (features.enableSettings)
         GoRoute(
           path: '/settings',

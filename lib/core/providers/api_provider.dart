@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:soliplex_client/soliplex_client.dart';
@@ -20,8 +23,40 @@ import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 /// ),
 /// ```
 final toolRegistryProvider = Provider<ToolRegistry>((ref) {
-  return const ToolRegistry();
+  // --- TEMPORARY: Debug tool — remove after F1 validation ---
+  return const ToolRegistry().register(
+    const ClientTool(
+      definition: Tool(
+        name: 'random_number',
+        description:
+            'Generate a random integer between min and max (inclusive).',
+        parameters: {
+          'type': 'object',
+          'properties': {
+            'min': {'type': 'integer', 'description': 'Minimum value'},
+            'max': {'type': 'integer', 'description': 'Maximum value'},
+          },
+        },
+      ),
+      executor: _executeRandomNumber,
+    ),
+  );
+  // --- END TEMPORARY ---
 });
+
+// --- TEMPORARY: Debug tool executor — remove after F1 validation ---
+Future<String> _executeRandomNumber(ToolCallInfo call) async {
+  var lo = 1;
+  var hi = 100;
+  if (call.arguments.isNotEmpty) {
+    final args = jsonDecode(call.arguments) as Map<String, dynamic>;
+    lo = (args['min'] as num?)?.toInt() ?? 1;
+    hi = (args['max'] as num?)?.toInt() ?? 100;
+  }
+  final result = Random().nextInt(hi - lo + 1) + lo;
+  return '{"result": $result}';
+}
+// --- END TEMPORARY ---
 
 /// HTTP client wrapper that delegates all operations except close().
 ///

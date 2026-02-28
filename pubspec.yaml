@@ -29,6 +29,8 @@ dependencies:
   package_info_plus: ^9.0.0
   path_provider: ^2.1.5
   shared_preferences: ^2.5.4
+  soliplex_agent:
+    path: packages/soliplex_agent
   soliplex_client:
     path: packages/soliplex_client
   soliplex_client_native:

@@ -92,6 +92,16 @@ class SettingsScreen extends ConsumerWidget {
         const _LogViewerTile(),
         const _TelemetryTile(),
         const Divider(),
+        // --- TEMPORARY: Debug agent screen — remove after F1 validation ---
+        ListTile(
+          leading: const Icon(Icons.bug_report),
+          title: const Text('Debug Agent Run'),
+          subtitle: const Text('TEMPORARY — F1 validation'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => context.go('/debug/agent'),
+        ),
+        // --- END TEMPORARY ---
+        const Divider(),
         _AuthSection(authState: authState),
       ],
     );

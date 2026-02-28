@@ -885,6 +885,13 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  soliplex_agent:
+    dependency: "direct main"
+    description:
+      path: "packages/soliplex_agent"
+      relative: true
+    source: path
+    version: "0.1.0"
   soliplex_client:
     dependency: "direct main"
     description:
