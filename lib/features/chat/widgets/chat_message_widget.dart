@@ -11,7 +11,10 @@ import 'package:soliplex_client/soliplex_client.dart'
         ErrorMessage,
         FeedbackType,
         SourceReference,
-        TextMessage;
+        TextMessage,
+        ToolCallInfo,
+        ToolCallMessage,
+        ToolCallStatus;
 
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/design/design.dart';
@@ -57,6 +60,10 @@ class ChatMessageWidget extends StatelessWidget {
 
     if (message.user == ChatUser.system) {
       return _buildSystemMessage(context, theme);
+    }
+
+    if (message is ToolCallMessage) {
+      return _buildToolCallMessage(context);
     }
 
     final isUser = message.user == ChatUser.user;
@@ -206,6 +213,27 @@ class ChatMessageWidget extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildToolCallMessage(BuildContext context) {
+    final toolMessage = message as ToolCallMessage;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: SoliplexSpacing.s2,
+        children: [
+          for (final toolCall in toolMessage.toolCalls)
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: min(600, MediaQuery.of(context).size.width * 0.8),
+              ),
+              child: _ToolCallSection(toolCall: toolCall),
+            ),
+        ],
       ),
     );
   }
@@ -473,6 +501,109 @@ class _ActionButton extends StatelessWidget {
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Collapsible section displaying a tool call and its result.
+///
+/// Collapsed by default showing tool name and status icon. Tap to expand
+/// and reveal the tool result text in monospace.
+class _ToolCallSection extends StatefulWidget {
+  const _ToolCallSection({required this.toolCall});
+
+  final ToolCallInfo toolCall;
+
+  @override
+  State<_ToolCallSection> createState() => _ToolCallSectionState();
+}
+
+class _ToolCallSectionState extends State<_ToolCallSection> {
+  bool _isExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final soliplexTheme = SoliplexTheme.of(context);
+    final toolCall = widget.toolCall;
+
+    final (statusIcon, statusColor) = switch (toolCall.status) {
+      ToolCallStatus.completed => (
+          Icons.check_circle_outline,
+          theme.colorScheme.primary,
+        ),
+      ToolCallStatus.failed => (
+          Icons.error_outline,
+          theme.colorScheme.error,
+        ),
+      ToolCallStatus.executing => (
+          Icons.hourglass_top,
+          theme.colorScheme.onSurfaceVariant,
+        ),
+      _ => (
+          Icons.build_outlined,
+          theme.colorScheme.onSurfaceVariant,
+        ),
+    };
+
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: toolCall.hasResult
+                ? () => setState(() => _isExpanded = !_isExpanded)
+                : null,
+            borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  Icon(statusIcon, size: 18, color: statusColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      toolCall.name,
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (toolCall.hasResult)
+                    Icon(
+                      _isExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (_isExpanded && toolCall.hasResult)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: SingleChildScrollView(
+                  child: SelectionArea(
+                    child: Text(
+                      toolCall.result,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        fontFamily: 'monospace',
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

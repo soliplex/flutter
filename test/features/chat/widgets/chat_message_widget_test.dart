@@ -951,6 +951,193 @@ void main() {
       });
     });
 
+    group('ToolCallMessage', () {
+      ToolCallMessage createToolCallMessage({
+        List<ToolCallInfo>? toolCalls,
+      }) {
+        return ToolCallMessage.create(
+          id: 'tool-msg-1',
+          toolCalls: toolCalls ??
+              [
+                const ToolCallInfo(
+                  id: 'tc-1',
+                  name: 'execute_python',
+                  status: ToolCallStatus.completed,
+                  result: 'print("hello")\n>>> hello',
+                ),
+              ],
+        );
+      }
+
+      testWidgets('renders tool name', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: createToolCallMessage()),
+            ),
+          ),
+        );
+
+        expect(find.text('execute_python'), findsOneWidget);
+      });
+
+      testWidgets('starts collapsed — result not visible', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: createToolCallMessage()),
+            ),
+          ),
+        );
+
+        expect(find.text('execute_python'), findsOneWidget);
+        expect(find.textContaining('hello'), findsNothing);
+      });
+
+      testWidgets('expands on tap to show result', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: createToolCallMessage()),
+            ),
+          ),
+        );
+
+        expect(find.textContaining('hello'), findsNothing);
+
+        await tester.tap(find.text('execute_python'));
+        await tester.pump();
+
+        expect(find.textContaining('hello'), findsOneWidget);
+      });
+
+      testWidgets('collapses on second tap', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: createToolCallMessage()),
+            ),
+          ),
+        );
+
+        // Expand
+        await tester.tap(find.text('execute_python'));
+        await tester.pump();
+        expect(find.textContaining('hello'), findsOneWidget);
+
+        // Collapse
+        await tester.tap(find.text('execute_python'));
+        await tester.pump();
+        expect(find.textContaining('hello'), findsNothing);
+      });
+
+      testWidgets('shows check icon for completed status', (tester) async {
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatMessageWidget(message: createToolCallMessage()),
+            ),
+          ),
+        );
+
+        expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+      });
+
+      testWidgets('shows error icon for failed status', (tester) async {
+        final message = createToolCallMessage(
+          toolCalls: [
+            const ToolCallInfo(
+              id: 'tc-fail',
+              name: 'broken_tool',
+              status: ToolCallStatus.failed,
+              result: 'Error: something went wrong',
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        expect(find.byIcon(Icons.error_outline), findsOneWidget);
+        expect(find.text('broken_tool'), findsOneWidget);
+      });
+
+      testWidgets('shows hourglass icon for executing status', (tester) async {
+        final message = createToolCallMessage(
+          toolCalls: [
+            const ToolCallInfo(
+              id: 'tc-exec',
+              name: 'running_tool',
+              status: ToolCallStatus.executing,
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        expect(find.byIcon(Icons.hourglass_top), findsOneWidget);
+      });
+
+      testWidgets('shows expand chevron only when result exists',
+          (tester) async {
+        final message = createToolCallMessage(
+          toolCalls: [
+            const ToolCallInfo(
+              id: 'tc-no-result',
+              name: 'pending_tool',
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        // No expand chevron when no result
+        expect(find.byIcon(Icons.expand_more), findsNothing);
+        expect(find.byIcon(Icons.expand_less), findsNothing);
+      });
+
+      testWidgets('renders multiple tool calls', (tester) async {
+        final message = createToolCallMessage(
+          toolCalls: const [
+            ToolCallInfo(
+              id: 'tc-a',
+              name: 'tool_alpha',
+              status: ToolCallStatus.completed,
+              result: 'result alpha',
+            ),
+            ToolCallInfo(
+              id: 'tc-b',
+              name: 'tool_beta',
+              status: ToolCallStatus.failed,
+              result: 'error beta',
+            ),
+          ],
+        );
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(body: ChatMessageWidget(message: message)),
+          ),
+        );
+
+        expect(find.text('tool_alpha'), findsOneWidget);
+        expect(find.text('tool_beta'), findsOneWidget);
+        expect(find.byIcon(Icons.check_circle_outline), findsOneWidget);
+        expect(find.byIcon(Icons.error_outline), findsOneWidget);
+      });
+    });
+
     group('ThinkingSection', () {
       Widget buildThinkingSection({
         String thinkingText = 'Some reasoning',
