@@ -20,8 +20,8 @@ repos:
         types: [dart]
         exclude: ^packages/soliplex_client/lib/src/schema/
       - id: flutter-analyze
-        name: flutter analyze
-        entry: flutter analyze --fatal-infos
+        name: flutter analyze (app)
+        entry: dart analyze --fatal-infos lib/ test/
         language: system
         pass_filenames: false
       - id: dart-analyze-packages

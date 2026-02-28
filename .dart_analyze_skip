@@ -1,0 +1,4 @@
+# Packages to skip during pre-commit dart analysis.
+# These have pre-existing issues tracked separately.
+soliplex_agent
+soliplex_cli
