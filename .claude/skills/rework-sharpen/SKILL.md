@@ -11,27 +11,18 @@ architect agent, the architecture-lint hook, or the CLAUDE.md rules — and
 encountered a problem. Your job is to determine whether the feedback
 reveals a gap in the tools or a gap in understanding, and act accordingly.
 
-## Step 0: Ground Yourself in Principles
+## Step 0: Ground Yourself
 
-Before evaluating anything, do these two things:
-
-1. **Fetch and read the Clean Architecture blog post** at
-   <https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html>
-   — internalize the dependency rule, the four layers, and the distinction
-   between entities (rich business rules) and use cases (orchestration).
-
-2. **Read the project's target architecture** at
-   `PLANS/0006-clean-architecture/TARGET.md` — this shows how the
-   principles apply to this codebase.
-
-The principles are the source of truth. Every evaluation below is
-grounded in them.
+The Architecture section of `CLAUDE.md` is the single source of truth for
+this project's architectural principles. It is already loaded in your
+context — re-read it now before evaluating the feedback.
 
 ## Step 1: Understand the Feedback
 
 The user invoked `/rework-sharpen $ARGUMENTS`.
 
 Parse the feedback to identify:
+
 - **Which tool** is involved (rework skill, architect agent, hook, CLAUDE.md)
 - **What happened** (false positive, missing check, bad advice, ambiguity)
 - **What the developer expected** to happen instead
@@ -39,19 +30,21 @@ Parse the feedback to identify:
 If the feedback is unclear, ask clarifying questions. You need a concrete
 scenario — not a vague complaint — before you can evaluate.
 
-## Step 2: Read All Tool Surfaces
+## Step 2: Read the Relevant Tool Surfaces
 
-Read every file in the architectural toolkit so you understand the
-current state before proposing changes:
+Read only the files relevant to the feedback. Route by tool:
 
-- `.claude/skills/rework/SKILL.md` — the rework skill
-- `.claude/skills/rework/diagnosis-checklist.md` — the diagnostic checks
-- `.claude/agents/architect.md` — the architect agent
-- `.claude/hooks/architecture-lint.sh` — the architecture lint hook
-- `.claude/settings.json` — the hook configuration
-- `CLAUDE.md` — the project rules (Clean Architecture section)
-- `PLANS/0006-clean-architecture/TARGET.md` — the target architecture
-- `PLANS/0006-clean-architecture/ADR.md` — the architectural decision
+| Feedback about | Read |
+|----------------|------|
+| `/rework` skill | `.claude/skills/rework/SKILL.md`, `.claude/skills/rework/diagnosis-checklist.md` |
+| Architect agent | `.claude/agents/architect.md` |
+| Architecture lint hook | `.claude/hooks/architecture-lint.sh`, `.claude/settings.json` |
+| CLAUDE.md rules | `CLAUDE.md` (already in context) |
+| TARGET.md examples | `PLANS/0006-clean-architecture/TARGET.md` |
+
+If the feedback spans multiple tools, read the relevant subset. Always
+read `CLAUDE.md` (already in context) as the source of truth for
+principles.
 
 ## Step 3: Evaluate Against Principles
 
@@ -62,6 +55,7 @@ This is the critical step. Ask yourself:
 ### If YES — the tools have a genuine gap
 
 The feedback reveals something the tools should handle but don't. Examples:
+
 - The hook doesn't catch a real anti-pattern (missing check)
 - The rework skill misses a category of domain logic leaking into providers
 - The architect agent doesn't explore an important part of the codebase
@@ -74,6 +68,7 @@ Proceed to Step 4A.
 
 The developer expects the tools to allow something that violates the
 dependency rule. Examples:
+
 - "The hook shouldn't flag sealed classes in providers — it's convenient
   to keep them co-located" (violates: entities own business rules)
 - "The architect agent shouldn't require use cases for simple CRUD"
@@ -107,6 +102,7 @@ is relevant. But always check all surfaces — a gap in one tool often
 implies a gap in others because they encode the same principles.
 
 For each proposed change:
+
 - **What**: describe the edit
 - **Why**: cite the Clean Architecture principle that justifies it
 - **Risk**: could this change cause false positives or weaken another check?
@@ -120,9 +116,9 @@ Do not patch the tools. Instead:
 1. **Acknowledge** the developer's frustration — the friction they
    experienced is real even if the tools are correct.
 
-2. **Explain** which Clean Architecture principle applies, citing the
-   blog post directly. Use the codebase's own examples from TARGET.md
-   to make it concrete.
+2. **Explain** which Clean Architecture principle applies, citing
+   CLAUDE.md directly. Consult TARGET.md for concrete codebase examples
+   if needed.
 
 3. **Show** what the correct approach looks like for their specific
    scenario. Don't just say "that's wrong" — show the right way.

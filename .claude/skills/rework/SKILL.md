@@ -10,25 +10,16 @@ Analyze a feature and propose a precisely scoped refactoring that follows the
 Clean Architecture dependency rule. The proposal must fit in one PR and in
 one reviewer's head.
 
-## Step 0: Ground Yourself in Principles
+## Step 0: Ground Yourself
 
-Before analyzing any code, do these two things:
+The Architecture section of `CLAUDE.md` is the single source of truth for
+this project's architectural principles. It is already loaded in your
+context — re-read it now before analyzing any code.
 
-1. **Fetch and read the Clean Architecture blog post** at
-   <https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html>
-   — internalize the dependency rule, the four layers, and the distinction
-   between entities (rich business rules) and use cases (orchestration).
-
-2. **Read the project's target architecture** at
-   `PLANS/0006-clean-architecture/TARGET.md` — this shows how the Clean
-   Architecture principles apply specifically to this codebase, with
-   concrete before/after examples.
-
-3. **Read the analysis** at `PLANS/0006-clean-architecture/ANALYSIS.md`
-   — this documents the known anti-patterns and their root cause.
-
-Do NOT skip this step. The principles are the source of truth. TARGET.md
-is illustrative but may be outdated.
+If you encounter an ambiguous case during analysis, consult
+`PLANS/0006-clean-architecture/TARGET.md` for concrete before/after
+examples. TARGET.md is illustrative and may be outdated — when it
+conflicts with CLAUDE.md, follow CLAUDE.md.
 
 ## Step 1: Resolve Scope
 
@@ -43,6 +34,7 @@ Resolve `$ARGUMENTS` to a set of files:
 - If it's a keyword (e.g., `active_run`): search for matching files
 
 Then expand the scope to include:
+
 - **Provider files**: the provider file(s) at the center of the feature
 - **Domain types**: sealed classes, state machines defined in those files
 - **Consuming widgets**: files in `lib/features/` that `ref.watch()` or
@@ -117,19 +109,9 @@ For each diagnosed anti-pattern, propose a specific change:
 - Use cases live in `lib/core/usecases/`
 - Use cases are plain Dart classes with injected dependencies
 
-**There is no size threshold for extraction.** If a Notifier makes an
-API call, that I/O belongs in a use case — even if it's "just one call."
-The reasoning "it's thin enough to stay in the Notifier" is the same
-reasoning that produced 625-line provider files. Each piece was locally
-small; cumulatively they violated the dependency rule. Apply the rule
-consistently: I/O orchestration lives in use cases, not adapters.
-
 ### Provider Thinning (dependency rule: adapters are glue)
 
 - Show what the provider file looks like after extraction
-- Provider files should contain only provider declarations and thin
-  Notifiers — the Humble Object pattern: push all testable logic out,
-  leave only trivial delegation
 - Provider public API should not change (widgets keep same `ref.watch()`)
 
 ### Domain Type Relocation
@@ -184,6 +166,7 @@ Table from Step 2.
 ### Changes (ordered)
 
 For each change:
+
 1. **What**: description of the change
 2. **From**: source file and line range
 3. **To**: target file (new or existing)
@@ -197,6 +180,7 @@ Include both production and test files.
 ### Test Plan
 
 For each area of the rework:
+
 - **Domain tests** (new): list test cases for new domain methods
 - **Provider tests** (simplified): what remains after logic extraction
 - **Use case tests** (new): what orchestration sequences to verify
@@ -222,6 +206,7 @@ genuinely spans multiple layers and each layer is necessary).
 ### Risk
 
 What could break, and how to verify:
+
 - Does this change any provider's public API?
 - Are there widgets that will need updating?
 - What test commands verify the change is safe?
@@ -234,7 +219,5 @@ What could break, and how to verify:
   Widgets should keep the same `ref.watch(...)` calls.
 - **Reviewable in one sitting**: If the change is too large, split it
   into sequential steps and present step 1 only.
-- **Principle over convention**: When TARGET.md and the Clean
-  Architecture principles disagree, follow the principles.
 - **Tests are first-class**: Every line of domain logic that moves
   must have a corresponding test that moves with it or is written new.

@@ -18,7 +18,7 @@ npx markdownlint-cli "<file>"            # Lint markdown after editing .md files
 
 ```text
 lib/
-  core/           # auth/, logging/, models/, providers/ (17), router/
+  core/           # auth/, domain/, logging/, models/, providers/, router/, usecases/
   design/         # Color, theme, tokens (design system)
   features/       # auth, chat, history, home, inspector, log_viewer,
                   # login, quiz, room, rooms, settings
@@ -32,48 +32,58 @@ docs/                     # Documentation (see docs/index.md)
 
 ## Architecture
 
-Three layers: UI (features/) -> Core (providers, auth, logging) -> soliplex_client (pure Dart).
-State management: Riverpod (manual providers, no codegen).
-Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
+Source code dependencies point inward only (the dependency rule). Four
+layers, from innermost to outermost:
 
-### Clean Architecture (Dependency Rule)
-
-Source code dependencies point inward only. See `PLANS/0006-clean-architecture/`
-for the full target architecture and rationale.
-
-**Domain** (`soliplex_client` + `lib/core/domain/`): Rich objects that own
-their behavior — state machines, composition rules, validation, invariants.
-Pure Dart. No Flutter, no Riverpod, no I/O. `lib/core/models/` contains
-legacy types (config, run state) that predate `domain/`. Domain types in
-`models/` migrate to `domain/` during reworks; new domain types go directly
-in `lib/core/domain/`.
+**Domain** (`soliplex_client` + `lib/core/domain/`): The richest layer.
+Domain objects own the business rules of the system — state machines
+(states and the transitions between them), composition rules, validation,
+and invariants. They are pure Dart: no Flutter, no Riverpod, no I/O.
+When domain logic needs I/O, the domain object defines the decision; the
+use case executes the side effect. `lib/core/models/` contains legacy
+types that predate `domain/`; they migrate to `domain/` during reworks.
 
 **Use Cases** (`lib/core/usecases/`): Plain Dart classes that orchestrate
 domain objects and I/O. Named by user intent: `SubmitQuizAnswer`,
 `ResumeThreadWithMessage`, `SelectAndPersistThread`. Use cases do NOT
-contain business rules — they call domain methods and handle side effects.
+contain business rules — they call domain methods and handle side effects
+(API calls, persistence). Every user action involving I/O gets a use case,
+regardless of how simple it appears — no size threshold.
 
-**Providers** (`lib/core/providers/`): Thin glue for dependency injection
-and reactive rebuilds. Nothing more. Rules:
+**Providers** (`lib/core/providers/`): Riverpod providers are interface
+adapters — thin glue for dependency injection and reactive rebuilds.
+Nothing more. Providers do NOT manage state — domain objects do. Riverpod
+is the wiring framework, not the state management framework. Rules:
 
 - Provider files contain only provider declarations and thin Notifiers that
-  delegate to domain objects and use cases. If a provider file defines sealed
-  classes, encodes business rules, or manages state transitions, extract that
-  logic to `lib/core/domain/` or `lib/core/usecases/`.
-- Do NOT put sealed classes in provider files — they belong in `lib/core/domain/`.
-- Do NOT put state machines in Notifiers — add methods to domain objects.
-  Notifiers are Humble Objects: push all testable logic out, leave only
-  trivial delegation.
-- If a Notifier makes API calls or performs any I/O, extract a use case in
-  `lib/core/usecases/`. The dependency rule has no size threshold — "it's
-  just one API call" is not a reason to skip extraction.
-- Do NOT create convenience providers wrapping `.select()` — use `.select()` at call sites.
-- When adding a feature that needs state, create or extend a domain class first,
-  then expose it via a provider.
+  delegate to domain objects and use cases (the Humble Object pattern).
+- Do NOT put sealed classes, state machines, or business logic in provider
+  files — extract to `lib/core/domain/` or `lib/core/usecases/`.
+- If a Notifier performs any I/O, extract a use case. No size threshold.
+- Do NOT create convenience providers wrapping `.select()`.
+- When adding a feature, create or extend a domain class first, then
+  expose via a provider.
+
+**UI** (`lib/features/`): Widgets are humble. They render objects built
+by inner layers, consume streams, and dispatch user intent to providers.
+UI files contain only UI logic: layout, animation, text rendering,
+visibility, navigation. Business decisions belong in domain objects, not
+in widget `build()` methods or callbacks.
+
+Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
+Riverpod uses manual providers (no codegen).
+
+When touching existing code, actively improve cohesion and reduce coupling.
+Prefer enriching an existing domain object over creating a new small class.
+The goal is fewer, richer objects — not many thin ones. See
+`PLANS/0006-clean-architecture/` for rationale and examples. For the
+original principles:
+<https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html>
 
 ## Development Rules
 
-- KISS, YAGNI, SOLID - simple solutions over clever ones
+- KISS, YAGNI, SOLID — simple solutions over clever ones
+- Actively improve cohesion and reduce coupling when touching existing code
 - Edit existing files; do not create new ones without need
 - Match surrounding code style exactly
 - Always refer to and abide by `docs/rules/flutter_rules.md`
@@ -93,8 +103,15 @@ After any code modification, run in order:
 ## Testing
 
 - Mirror lib/ structure in test/
-- Unit tests for models and providers; widget tests for UI components
-- Helpers in test/helpers/test_helpers.dart: `MockSoliplexApi`, `TestData`, `pumpWithProviders()`
+- **Domain tests**: Plain Dart unit tests for domain objects — state
+  transitions, business rules, validation. No mocks needed for pure logic.
+- **Use case tests**: Unit tests with mocked I/O ports (API, persistence).
+  Verify orchestration: correct calls in the right order.
+- **Provider tests**: Verify wiring only — that providers construct the
+  right objects and that `ref.watch()` triggers rebuilds.
+- **Widget tests**: For UI components using `pumpWithProviders()`
+- Helpers in test/helpers/test_helpers.dart: `MockSoliplexApi`, `TestData`,
+  `pumpWithProviders()`
 - Use `mocktail` for mocking (not mockito)
 
 ## Documentation
