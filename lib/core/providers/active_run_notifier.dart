@@ -202,11 +202,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       }
 
       // Create the input for the run
+      final tools =
+          _toolRegistry.isEmpty ? null : _toolRegistry.toolDefinitions;
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
         messages: aguiMessages,
         state: mergedState,
+        tools: tools,
       );
 
       // Start streaming
@@ -392,16 +395,12 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
     );
 
     final handleState = handle.state;
-    if (handleState is RunningState) {
+    if (handleState is RunningState || handleState is ExecutingToolsState) {
       final errorMsg = error.toString();
-      final completed = CompletedState(
-        conversation: handleState.conversation.withStatus(
-          domain.Failed(error: errorMsg),
-        ),
-        result: FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
+      _abortToCompleted(
+        handle,
+        FailedResult(errorMessage: errorMsg, stackTrace: stackTrace),
       );
-      _registry.completeRun(handle, completed);
-      _syncUiState(handle, completed);
     }
   }
 
@@ -564,11 +563,14 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       final endpoint =
           'rooms/${handle.key.roomId}/agui/${handle.key.threadId}/${runInfo.id}';
 
+      final tools =
+          _toolRegistry.isEmpty ? null : _toolRegistry.toolDefinitions;
       final input = SimpleRunAgentInput(
         threadId: handle.key.threadId,
         runId: runInfo.id,
         messages: aguiMessages,
         state: conversation.aguiState,
+        tools: tools,
       );
 
       // Start streaming the continuation.

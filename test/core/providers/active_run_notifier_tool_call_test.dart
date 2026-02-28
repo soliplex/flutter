@@ -554,6 +554,99 @@ void main() {
       });
     });
 
+    group('tools param', () {
+      test('startRun passes tool definitions in SimpleRunAgentInput', () async {
+        final toolRegistry = buildRegistry({
+          'search': (_) async => 'result',
+        });
+
+        SimpleRunAgentInput? capturedInput;
+        fakeAgUiClient.onRunAgent = (endpoint, input) {
+          capturedInput ??= input;
+          return buildMockEventStream(textResponseEvents());
+        };
+
+        stubCreateRun();
+
+        final container = createContainer(toolRegistry: toolRegistry);
+        addTearDown(container.dispose);
+
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'Search',
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(capturedInput, isNotNull);
+        expect(capturedInput!.tools, isNotNull);
+        expect(capturedInput!.tools, hasLength(1));
+        expect(capturedInput!.tools!.first.name, 'search');
+      });
+
+      test('continuation run passes tool definitions in SimpleRunAgentInput',
+          () async {
+        final toolRegistry = buildRegistry({
+          'search': (_) async => 'result',
+        });
+
+        final capturedInputs = <SimpleRunAgentInput>[];
+        var runCallCount = 0;
+        fakeAgUiClient.onRunAgent = (endpoint, input) {
+          capturedInputs.add(input);
+          runCallCount++;
+          if (runCallCount == 1) {
+            return buildMockEventStream(toolCallEvents());
+          }
+          return buildMockEventStream(textResponseEvents());
+        };
+
+        stubCreateRun();
+
+        final container = createContainer(toolRegistry: toolRegistry);
+        addTearDown(container.dispose);
+
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'Search for dart',
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+
+        expect(capturedInputs, hasLength(2));
+
+        // Both initial and continuation should have tools.
+        for (final input in capturedInputs) {
+          expect(input.tools, isNotNull);
+          expect(input.tools, hasLength(1));
+          expect(input.tools!.first.name, 'search');
+        }
+      });
+
+      test('empty registry does not pass tools', () async {
+        SimpleRunAgentInput? capturedInput;
+        fakeAgUiClient.onRunAgent = (endpoint, input) {
+          capturedInput ??= input;
+          return buildMockEventStream(textResponseEvents());
+        };
+
+        stubCreateRun();
+
+        final container = createContainer();
+        addTearDown(container.dispose);
+
+        await container.read(activeRunNotifierProvider.notifier).startRun(
+          key: (roomId: 'room-1', threadId: 'thread-1'),
+          userMessage: 'No tools',
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        expect(capturedInput, isNotNull);
+        expect(capturedInput!.tools, isNull);
+      });
+    });
+
     group('state transitions', () {
       test('ExecutingToolsState.isRunning is true', () {
         const conversation = Conversation(

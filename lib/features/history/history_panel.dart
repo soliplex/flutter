@@ -79,9 +79,9 @@ class HistoryPanel extends ConsumerWidget {
 
         // Get active run state to show indicators
         final activeRunState = ref.watch(activeRunNotifierProvider);
-        // Extract threadId from running state (only RunningState has threadId)
         final activeThreadId = switch (activeRunState) {
           RunningState(:final threadId) => threadId,
+          ExecutingToolsState(:final threadId) => threadId,
           _ => null,
         };
         final currentThreadId = ref.watch(currentThreadIdProvider);
