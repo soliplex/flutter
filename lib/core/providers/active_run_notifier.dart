@@ -434,6 +434,18 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       return;
     }
 
+    final serverPendingTools = handleState.conversation.toolCalls
+        .where((tc) => tc.status == ToolCallStatus.pending)
+        .where((tc) => !_toolRegistry.contains(tc.name))
+        .toList();
+    if (serverPendingTools.isNotEmpty) {
+      Loggers.toolExecution.warning(
+        'Completing run with ${serverPendingTools.length} unresolved '
+        'server-side tool calls: '
+        '${serverPendingTools.map((t) => '${t.name}(${t.id})').join(', ')}',
+      );
+    }
+
     final completed = CompletedState(
       conversation: handleState.conversation.withStatus(
         const domain.Completed(),
@@ -729,6 +741,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         Loggers.activeRun.trace('TOOL_ARGS: $toolCallId');
       case ToolCallEndEvent(:final toolCallId):
         Loggers.activeRun.debug('TOOL_END: $toolCallId');
+      case ToolCallResultEvent(:final toolCallId):
+        Loggers.activeRun.debug('TOOL_RESULT: $toolCallId');
       case StateSnapshotEvent():
         Loggers.activeRun.debug('STATE_SNAPSHOT');
       case StateDeltaEvent():
