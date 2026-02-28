@@ -2,6 +2,7 @@ import 'package:soliplex_client/src/api/mappers.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
+import 'package:soliplex_client/src/domain/room_agent.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
 import 'package:test/test.dart';
@@ -101,6 +102,26 @@ void main() {
         expect(room.name, equals('Test Room'));
         expect(room.description, equals(''));
         expect(room.metadata, equals(const <String, dynamic>{}));
+      });
+
+      test('throws FormatException when id is missing', () {
+        final json = <String, dynamic>{'name': 'Test Room'};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
+      test('throws FormatException when id is non-string', () {
+        final json = <String, dynamic>{'id': 123, 'name': 'Test Room'};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
+      test('throws FormatException when name is missing', () {
+        final json = <String, dynamic>{'id': 'room-1'};
+        expect(() => roomFromJson(json), throwsFormatException);
+      });
+
+      test('throws FormatException when name is non-string', () {
+        final json = <String, dynamic>{'id': 'room-1', 'name': 42};
+        expect(() => roomFromJson(json), throwsFormatException);
       });
 
       test('handles null description', () {
@@ -440,12 +461,51 @@ void main() {
         final json = <String, dynamic>{
           'id': 'doc-uuid-123',
           'title': 'User Manual.pdf',
+          'uri': 'file:///docs/manual.pdf',
+          'metadata': {'source': 'upload', 'content-type': 'application/pdf'},
+          'created_at': '2025-01-15T10:30:00.000',
+          'updated_at': '2025-02-20T14:00:00.000',
         };
 
         final doc = ragDocumentFromJson(json);
 
         expect(doc.id, equals('doc-uuid-123'));
         expect(doc.title, equals('User Manual.pdf'));
+        expect(doc.uri, equals('file:///docs/manual.pdf'));
+        expect(
+          doc.metadata,
+          equals({'source': 'upload', 'content-type': 'application/pdf'}),
+        );
+        expect(doc.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
+        expect(doc.updatedAt, equals(DateTime.utc(2025, 2, 20, 14)));
+      });
+
+      test('defaults optional fields gracefully', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': 'Manual.pdf',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.uri, equals(''));
+        expect(doc.metadata, equals(const <String, dynamic>{}));
+        expect(doc.createdAt, isNull);
+        expect(doc.updatedAt, isNull);
+      });
+
+      test('defaults to null for malformed timestamps', () {
+        final json = <String, dynamic>{
+          'id': 'doc-uuid-123',
+          'title': 'Manual.pdf',
+          'created_at': 'not-a-date',
+          'updated_at': 'also-bad',
+        };
+
+        final doc = ragDocumentFromJson(json);
+
+        expect(doc.createdAt, isNull);
+        expect(doc.updatedAt, isNull);
       });
 
       test('falls back to uri when title is null', () {
@@ -476,20 +536,46 @@ void main() {
     });
 
     group('ragDocumentToJson', () {
-      test('serializes correctly', () {
-        const doc = RagDocument(id: 'doc-uuid-123', title: 'User Manual.pdf');
+      test('serializes correctly with all fields', () {
+        final doc = RagDocument(
+          id: 'doc-uuid-123',
+          title: 'User Manual.pdf',
+          uri: 'file:///docs/manual.pdf',
+          metadata: const {'source': 'upload'},
+          createdAt: DateTime.utc(2025, 1, 15, 10, 30),
+          updatedAt: DateTime.utc(2025, 2, 20, 14),
+        );
 
         final json = ragDocumentToJson(doc);
 
         expect(json['id'], equals('doc-uuid-123'));
         expect(json['title'], equals('User Manual.pdf'));
+        expect(json['uri'], equals('file:///docs/manual.pdf'));
+        expect(json['metadata'], equals({'source': 'upload'}));
+        expect(json['created_at'], equals('2025-01-15T10:30:00.000'));
+        expect(json['updated_at'], equals('2025-02-20T14:00:00.000'));
+      });
+
+      test('excludes empty/null optional fields', () {
+        const doc = RagDocument(id: 'doc-uuid-123', title: 'Manual.pdf');
+
+        final json = ragDocumentToJson(doc);
+
+        expect(json.containsKey('uri'), isFalse);
+        expect(json.containsKey('metadata'), isFalse);
+        expect(json.containsKey('created_at'), isFalse);
+        expect(json.containsKey('updated_at'), isFalse);
       });
     });
 
     test('roundtrip serialization', () {
-      const original = RagDocument(
+      final original = RagDocument(
         id: 'doc-uuid-123',
         title: 'User Manual.pdf',
+        uri: 'file:///docs/manual.pdf',
+        metadata: const {'source': 'upload'},
+        createdAt: DateTime.utc(2025, 1, 15, 10, 30),
+        updatedAt: DateTime.utc(2025, 2, 20, 14),
       );
 
       final json = ragDocumentToJson(original);
@@ -497,6 +583,10 @@ void main() {
 
       expect(restored.id, equals(original.id));
       expect(restored.title, equals(original.title));
+      expect(restored.uri, equals(original.uri));
+      expect(restored.metadata, equals(original.metadata));
+      expect(restored.createdAt, equals(original.createdAt));
+      expect(restored.updatedAt, equals(original.updatedAt));
     });
   });
 
@@ -1160,6 +1250,487 @@ void main() {
           () => quizAnswerResultFromJson(json),
           throwsA(isA<FormatException>()),
         );
+      });
+    });
+
+    group('roomFromJson with agent', () {
+      test('parses default agent', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'id': 'agent-1',
+            'model_name': 'gpt-4o',
+            'retries': 3,
+            'system_prompt': 'You are helpful.',
+            'provider_type': 'openai',
+            'provider_base_url': 'https://api.openai.com',
+            'provider_key': 'sk-secret',
+            'agui_feature_names': ['feature1'],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<DefaultRoomAgent>());
+        final agent = room.agent! as DefaultRoomAgent;
+        expect(agent.id, equals('agent-1'));
+        expect(agent.modelName, equals('gpt-4o'));
+        expect(agent.retries, equals(3));
+        expect(
+          agent.systemPrompt,
+          equals('You are helpful.'),
+        );
+        expect(agent.providerType, equals('openai'));
+        expect(agent.aguiFeatureNames, equals(['feature1']));
+      });
+
+      test('parses default agent when kind field is omitted', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'id': 'agent-1',
+            'model_name': 'gemini-2.5-flash',
+            'retries': 3,
+            'system_prompt': 'You are a friendly agent.',
+            'provider_type': 'google',
+            'provider_base_url': null,
+            'provider_key': 'secret:GEMINI_API_KEY',
+            'agui_feature_names': <String>[],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<DefaultRoomAgent>());
+        final agent = room.agent! as DefaultRoomAgent;
+        expect(agent.id, equals('agent-1'));
+        expect(agent.modelName, equals('gemini-2.5-flash'));
+        expect(agent.retries, equals(3));
+        expect(
+          agent.systemPrompt,
+          equals('You are a friendly agent.'),
+        );
+        expect(agent.providerType, equals('google'));
+        expect(agent.aguiFeatureNames, isEmpty);
+      });
+
+      test('parses agent without kind or model_name as OtherRoomAgent', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'id': 'agent-1',
+            'agui_feature_names': ['some.feature'],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<OtherRoomAgent>());
+        final agent = room.agent! as OtherRoomAgent;
+        expect(agent.id, equals('agent-1'));
+        expect(agent.kind, isEmpty);
+        expect(agent.aguiFeatureNames, equals(['some.feature']));
+      });
+
+      test('parses factory agent', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'factory',
+            'id': 'agent-2',
+            'factory_name': 'my.custom.agent',
+            'with_agent_config': true,
+            'extra_config': {'key': 'value'},
+            'agui_feature_names': ['f1'],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<FactoryRoomAgent>());
+        final agent = room.agent! as FactoryRoomAgent;
+        expect(agent.id, equals('agent-2'));
+        expect(agent.factoryName, equals('my.custom.agent'));
+        expect(agent.extraConfig, equals({'key': 'value'}));
+        expect(agent.aguiFeatureNames, equals(['f1']));
+      });
+
+      test('parses unknown agent kind as OtherRoomAgent', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'custom_kind',
+            'id': 'agent-3',
+            'agui_feature_names': <String>[],
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isA<OtherRoomAgent>());
+        final agent = room.agent! as OtherRoomAgent;
+        expect(agent.id, equals('agent-3'));
+        expect(agent.kind, equals('custom_kind'));
+      });
+
+      test('handles missing agent field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isNull);
+      });
+
+      test('handles null agent field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.agent, isNull);
+      });
+
+      test('handles default agent with null system_prompt', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'id': 'agent-1',
+            'model_name': 'gpt-4o',
+            'retries': 3,
+            'system_prompt': null,
+            'provider_type': 'openai',
+            'provider_base_url': null,
+            'provider_key': 'sk-secret',
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        final agent = room.agent! as DefaultRoomAgent;
+        expect(agent.systemPrompt, isNull);
+      });
+
+      test('sets agent to null when agent id is non-string type', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'id': 123,
+            'model_name': 'gpt-4o',
+          },
+        };
+
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
+      });
+
+      test('sets agent to null for default agent missing id', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'model_name': 'gpt-4o',
+          },
+        };
+
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
+      });
+
+      test('sets agent to null for default agent missing model_name', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'default',
+            'id': 'agent-1',
+          },
+        };
+
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
+      });
+
+      test('sets agent to null for factory agent missing factory_name', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agent': {
+            'kind': 'factory',
+            'id': 'agent-1',
+          },
+        };
+
+        final room = roomFromJson(json);
+        expect(room.agent, isNull);
+      });
+    });
+
+    group('roomFromJson with tools', () {
+      test('parses tools map', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': {
+            'rag_search': {
+              'kind': 'search',
+              'tool_name': 'rag_search',
+              'tool_description': 'Search documents',
+              'tool_requires': 'tool_config',
+              'allow_mcp': true,
+              'agui_feature_names': ['f1'],
+              'extra_parameters': {
+                'rag_lancedb_stem': '/data',
+              },
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.tools, hasLength(1));
+        expect(room.tools.containsKey('rag_search'), isTrue);
+        final tool = room.tools['rag_search']!;
+        expect(tool.name, equals('rag_search'));
+        expect(tool.description, equals('Search documents'));
+        expect(tool.kind, equals('search'));
+        expect(tool.toolRequires, equals('tool_config'));
+        expect(tool.allowMcp, isTrue);
+        expect(tool.aguiFeatureNames, equals(['f1']));
+        expect(
+          tool.extraParameters,
+          equals({'rag_lancedb_stem': '/data'}),
+        );
+      });
+
+      test('handles missing tools field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.tools, isEmpty);
+      });
+
+      test('handles null tools field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': null,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.tools, isEmpty);
+      });
+
+      test('skips malformed tool entry and parses valid ones', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'tools': {
+            'good_tool': {
+              'kind': 'search',
+              'tool_description': 'Works fine',
+            },
+            'bad_tool': 'not a map',
+            'another_good': {
+              'kind': 'rag',
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.tools, hasLength(2));
+        expect(room.tools.containsKey('good_tool'), isTrue);
+        expect(room.tools.containsKey('another_good'), isTrue);
+        expect(room.tools.containsKey('bad_tool'), isFalse);
+      });
+    });
+
+    group('roomFromJson with mcp_client_toolsets', () {
+      test('parses mcp client toolsets', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'mcp_client_toolsets': {
+            'my_toolset': {
+              'kind': 'http',
+              'allowed_tools': ['tool1', 'tool2'],
+              'toolset_params': {
+                'url': 'http://localhost:3000',
+              },
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.mcpClientToolsets, hasLength(1));
+        final toolset = room.mcpClientToolsets['my_toolset']!;
+        expect(toolset.kind, equals('http'));
+        expect(
+          toolset.allowedTools,
+          equals(['tool1', 'tool2']),
+        );
+        expect(
+          toolset.toolsetParams,
+          equals({'url': 'http://localhost:3000'}),
+        );
+      });
+
+      test('handles null allowed_tools', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'mcp_client_toolsets': {
+            'my_toolset': {
+              'kind': 'stdio',
+              'allowed_tools': null,
+              'toolset_params': <String, dynamic>{},
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        final toolset = room.mcpClientToolsets['my_toolset']!;
+        expect(toolset.allowedTools, isNull);
+      });
+
+      test('filters non-string items from allowed_tools', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'mcp_client_toolsets': {
+            'my_toolset': {
+              'kind': 'http',
+              'allowed_tools': ['tool1', 123, null, 'tool2'],
+              'toolset_params': <String, dynamic>{},
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        final toolset = room.mcpClientToolsets['my_toolset']!;
+        expect(toolset.allowedTools, equals(['tool1', 'tool2']));
+      });
+
+      test('handles missing mcp_client_toolsets field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.mcpClientToolsets, isEmpty);
+      });
+
+      test('skips malformed toolset entry and parses valid ones', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'mcp_client_toolsets': {
+            'good': {'kind': 'http'},
+            'bad': 'not a map',
+            'also_good': {'kind': 'stdio'},
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.mcpClientToolsets, hasLength(2));
+        expect(room.mcpClientToolsets.containsKey('good'), isTrue);
+        expect(room.mcpClientToolsets.containsKey('also_good'), isTrue);
+        expect(room.mcpClientToolsets.containsKey('bad'), isFalse);
+      });
+    });
+
+    group('roomFromJson with scalar fields', () {
+      test('parses welcome_message', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'welcome_message': 'Welcome!',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.welcomeMessage, equals('Welcome!'));
+      });
+
+      test('parses enable_attachments', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'enable_attachments': true,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.enableAttachments, isTrue);
+      });
+
+      test('parses allow_mcp', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'allow_mcp': true,
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.allowMcp, isTrue);
+      });
+
+      test('parses agui_feature_names', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'agui_feature_names': ['feature1', 'feature2'],
+        };
+
+        final room = roomFromJson(json);
+
+        expect(
+          room.aguiFeatureNames,
+          equals(['feature1', 'feature2']),
+        );
+      });
+
+      test('handles missing scalar fields with defaults', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.welcomeMessage, equals(''));
+        expect(room.enableAttachments, isFalse);
+        expect(room.allowMcp, isFalse);
+        expect(room.aguiFeatureNames, isEmpty);
       });
     });
 

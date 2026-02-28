@@ -14,6 +14,31 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('RoomsScreen', () {
+    testWidgets('shows fresh data, not stale cache', (tester) async {
+      var fetchCount = 0;
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomsScreen(),
+          onContainerCreated: (container) {
+            container.read(roomsProvider);
+          },
+          overrides: [
+            roomsProvider.overrideWith((ref) async {
+              fetchCount++;
+              return fetchCount == 1
+                  ? [TestData.createRoom(id: 'stale', name: 'Stale')]
+                  : [TestData.createRoom(id: 'fresh', name: 'Fresh')];
+            }),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Fresh'), findsOneWidget);
+      expect(find.text('Stale'), findsNothing);
+    });
+
     testWidgets('displays loading indicator while fetching', (tester) async {
       // Use a completer to control when the async operation completes
       final completer = Completer<List<Room>>();

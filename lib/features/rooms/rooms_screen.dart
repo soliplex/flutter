@@ -27,26 +27,29 @@ final isGridViewProvider = NotifierProvider<IsGridViewNotifier, bool>(
   IsGridViewNotifier.new,
 );
 
-class RoomSearchQueryNotifier extends Notifier<String> {
+/// Screen displaying list of available rooms.
+///
+/// Returns body content only; AppShell wrapper is provided by the router.
+class RoomsScreen extends ConsumerStatefulWidget {
+  const RoomsScreen({super.key});
+
   @override
-  String build() => '';
-
-  String get query => state;
-  set query(String value) => state = value;
-
-  void clear() => state = '';
+  ConsumerState<RoomsScreen> createState() => _RoomsScreenState();
 }
 
-final roomSearchQueryProvider =
-    NotifierProvider<RoomSearchQueryNotifier, String>(
-  RoomSearchQueryNotifier.new,
-);
+class _RoomsScreenState extends ConsumerState<RoomsScreen> {
+  String _searchQuery = '';
 
-final filteredRoomsProvider = Provider<AsyncValue<List<Room>>>((ref) {
-  final roomsAsync = ref.watch(roomsProvider);
-  final query = ref.watch(roomSearchQueryProvider).toLowerCase().trim();
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.invalidate(roomsProvider);
+    });
+  }
 
-  return roomsAsync.whenData((rooms) {
+  List<Room> _filterRooms(List<Room> rooms) {
+    final query = _searchQuery.toLowerCase().trim();
     if (query.isEmpty) return rooms;
 
     return rooms.where((room) {
@@ -54,18 +57,11 @@ final filteredRoomsProvider = Provider<AsyncValue<List<Room>>>((ref) {
           (room.hasDescription &&
               room.description.toLowerCase().contains(query));
     }).toList();
-  });
-});
-
-/// Screen displaying list of available rooms.
-///
-/// Returns body content only; AppShell wrapper is provided by the router.
-class RoomsScreen extends ConsumerWidget {
-  const RoomsScreen({super.key});
+  }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final roomsAsync = ref.watch(filteredRoomsProvider);
+  Widget build(BuildContext context) {
+    final roomsAsync = ref.watch(roomsProvider);
     final isGridView = ref.watch(isGridViewProvider);
     final unreadRuns = ref.watch(unreadRunsProvider);
 
@@ -86,19 +82,20 @@ class RoomsScreen extends ConsumerWidget {
               spacing: SoliplexSpacing.s4,
               children: [
                 RoomSearchToolbar(
-                  query: ref.watch(roomSearchQueryProvider),
+                  query: _searchQuery,
                   isGridView: isGridView,
                   showViewToggle: !isMobile,
                   onQueryChanged: (value) =>
-                      ref.read(roomSearchQueryProvider.notifier).query = value,
+                      setState(() => _searchQuery = value),
                   onToggleView: () =>
                       ref.read(isGridViewProvider.notifier).toggle(),
                 ),
                 Expanded(
                   child: roomsAsync.when(
                     data: (rooms) {
-                      Loggers.room.debug('Rooms loaded: ${rooms.length}');
-                      if (rooms.isEmpty) {
+                      final filtered = _filterRooms(rooms);
+                      Loggers.room.debug('Rooms loaded: ${filtered.length}');
+                      if (filtered.isEmpty) {
                         return const EmptyState(
                           message: 'No rooms available',
                           icon: Icons.meeting_room_outlined,
@@ -107,9 +104,14 @@ class RoomsScreen extends ConsumerWidget {
 
                       void navigateToRoom(Room room) {
                         Loggers.room.info(
-                          'Room selected: ${room.id} (${room.name})',
+                          'Room selected:'
+                          ' ${room.id} (${room.name})',
                         );
-                        ref.read(currentRoomIdProvider.notifier).set(room.id);
+                        ref
+                            .read(
+                              currentRoomIdProvider.notifier,
+                            )
+                            .set(room.id);
                         context.push('/rooms/${room.id}');
                       }
 
@@ -122,13 +124,14 @@ class RoomsScreen extends ConsumerWidget {
                             crossAxisSpacing: SoliplexSpacing.s2,
                             mainAxisSpacing: SoliplexSpacing.s2,
                           ),
-                          itemCount: rooms.length,
+                          itemCount: filtered.length,
                           itemBuilder: (context, index) {
-                            final room = rooms[index];
+                            final room = filtered[index];
                             return RoomGridCard(
                               room: room,
-                              unreadCount:
-                                  unreadRuns.unreadCountForRoom(room.id),
+                              unreadCount: unreadRuns.unreadCountForRoom(
+                                room.id,
+                              ),
                               onTap: () => navigateToRoom(room),
                             );
                           },
@@ -136,25 +139,27 @@ class RoomsScreen extends ConsumerWidget {
                       }
 
                       return ListView.builder(
-                        itemCount: rooms.length,
+                        itemCount: filtered.length,
                         itemBuilder: (context, index) {
-                          final room = rooms[index];
+                          final room = filtered[index];
                           return Padding(
                             padding: const EdgeInsets.symmetric(
                               vertical: SoliplexSpacing.s1,
                             ),
                             child: RoomListTile(
                               room: room,
-                              unreadCount:
-                                  unreadRuns.unreadCountForRoom(room.id),
+                              unreadCount: unreadRuns.unreadCountForRoom(
+                                room.id,
+                              ),
                               onTap: () => navigateToRoom(room),
                             ),
                           );
                         },
                       );
                     },
-                    loading: () =>
-                        const LoadingIndicator(message: 'Loading rooms...'),
+                    loading: () => const LoadingIndicator(
+                      message: 'Loading rooms...',
+                    ),
                     error: (error, stack) => ErrorDisplay(
                       error: error,
                       stackTrace: stack,

@@ -59,13 +59,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String? _validateUrl(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return 'Please enter a server URL';
+      return 'Server address is required';
     }
-    final trimmed = value.trim();
-    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
-      return 'URL must start with http:// or https://';
+
+    final containsWhiteSpace = RegExp(r'\s').hasMatch(value.trim());
+
+    if (containsWhiteSpace) return "Can't contain whitespaces";
+
+    final separatorIndex = value.indexOf('://');
+
+    if (separatorIndex == -1) return null;
+
+    final schemeText = value.substring(0, separatorIndex);
+
+    if (!['http', 'https'].contains(schemeText)) {
+      return 'Only http and https are supported';
     }
+
     return null;
+  }
+
+  Future<bool> _showInsecurityWarning() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Insecure Connection'),
+        content: const Text(
+          'This connection is not encrypted. Your data, including '
+          'credentials, may be visible to others on the network.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('I understand, connect anyway'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
   }
 
   Future<void> _connect() async {
@@ -77,115 +112,145 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     try {
-      final url = _urlController.text.trim();
-      final currentUrl = ref.read(configProvider).baseUrl;
-      final isBackendChange = normalizeUrl(url) != normalizeUrl(currentUrl);
-
-      Loggers.ui.debug('HomeScreen: Connecting to $url');
-
-      // Determine and execute pre-connect cleanup action.
-      final preConnectAction = determinePreConnectAction(
-        isBackendChange: isBackendChange,
-        currentAuthState: ref.read(authProvider),
-      );
-      switch (preConnectAction) {
-        case PreConnectAction.signOut:
-          await ref.read(authProvider.notifier).signOut();
-          if (!mounted) return;
-        case PreConnectAction.exitNoAuthMode:
-          ref.read(authProvider.notifier).exitNoAuthMode();
-        case PreConnectAction.none:
-          break;
-      }
-
-      // Fetch auth providers to validate the URL is reachable
+      final input = _urlController.text.trim();
       final transport = ref.read(httpTransportProvider);
-      final providers = await fetchAuthProviders(
-        transport: transport,
-        baseUrl: Uri.parse(url),
-      );
 
-      // Only persist URL after successful connection
-      try {
-        await ref.read(configProvider.notifier).setBaseUrl(url);
-        Loggers.ui.debug(
-          'HomeScreen: URL saved, config.baseUrl is now: '
-          '${ref.read(configProvider).baseUrl}',
-        );
-      } on Exception catch (e) {
-        Loggers.ui.warning('HomeScreen: Failed to persist URL: $e');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Connected, but couldn't save URL for next time."),
-            ),
-          );
-        }
-        // Continue to navigation - don't block user over persistence failure
-      }
+      Loggers.ui.debug('HomeScreen: Connecting to $input');
+
+      final probeResult = await probeConnection(
+        input: input,
+        transport: transport,
+      );
 
       if (!mounted) return;
 
-      // Determine and execute post-connect navigation.
-      final result = determinePostConnectResult(
-        hasProviders: providers.isNotEmpty,
-        currentAuthState: ref.read(authProvider),
-      );
-      final landingRoute =
-          ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
-      switch (result) {
-        case EnterNoAuthModeResult():
-          await ref.read(authProvider.notifier).enterNoAuthMode();
-          if (!mounted) return;
-          context.go(landingRoute);
-        case AlreadyAuthenticatedResult():
-          context.go(landingRoute);
-        case RequireLoginResult(:final shouldExitNoAuthMode):
-          if (shouldExitNoAuthMode) {
-            ref.read(authProvider.notifier).exitNoAuthMode();
+      switch (probeResult) {
+        case ConnectionFailure(:final error, :final url):
+          _handleConnectionError(error, url);
+          return;
+        case ConnectionSuccess(:final url, :final providers, :final isInsecure):
+          if (isInsecure) {
+            final accepted = await _showInsecurityWarning();
+            if (!mounted || !accepted) return;
           }
-          ref.invalidate(oidcIssuersProvider);
-          context.go('/login');
+          await _onConnectionSuccess(url, providers);
       }
-    } on AuthException catch (e) {
-      Loggers.ui.error('HomeScreen: Auth error', error: e);
-      final detail = e.statusCode == 401
-          ? 'Authentication required. This server requires login credentials. '
-              '(${e.statusCode})'
-          : 'Access denied by server. The server may require additional '
-              'configuration or may be blocking this connection. '
-              '(${e.statusCode})';
-      _setError(detail, serverDetail: e.serverMessage);
-    } on NotFoundException catch (e) {
-      Loggers.ui.error('HomeScreen: Not found', error: e);
-      const detail = 'Server reached, but the expected API endpoint was not '
-          'found. The server version may be incompatible. (404)';
-      _setError(detail, serverDetail: e.serverMessage);
-    } on CancelledException catch (e) {
-      Loggers.ui.debug('HomeScreen: Request cancelled');
-      final detail = e.reason != null
-          ? 'Request cancelled: ${e.reason}'
-          : 'Request cancelled.';
-      _setError(detail);
-    } on NetworkException catch (e) {
-      Loggers.ui.error('HomeScreen: Network error', error: e);
-      final detail = e.isTimeout
-          ? 'Connection timed out. The server may be slow or unreachable.'
-          : 'Cannot reach server. Check the URL and your network connection.';
-      _setError(detail, serverDetail: e.isTimeout ? null : e.message);
-    } on ApiException catch (e) {
-      Loggers.ui.error('HomeScreen: API error', error: e);
-      final detail = e.statusCode >= 500
-          ? 'Server error. Please try again later. (${e.statusCode})'
-          : 'Unexpected response from server. (${e.statusCode})';
-      _setError(detail, serverDetail: e.serverMessage);
-    } on Exception catch (e) {
-      Loggers.ui.error('HomeScreen: Unexpected exception', error: e);
-      _setError('Connection failed: $e');
     } finally {
       if (mounted) {
         setState(() => _isConnecting = false);
       }
+    }
+  }
+
+  Future<void> _onConnectionSuccess(
+    Uri url,
+    List<AuthProviderConfig> providers,
+  ) async {
+    final currentUrl = Uri.parse(ref.read(configProvider).baseUrl);
+    final isBackendChange = normalizeUri(url) != normalizeUri(currentUrl);
+
+    // Determine and execute pre-connect cleanup action.
+    final preConnectAction = determinePreConnectAction(
+      isBackendChange: isBackendChange,
+      currentAuthState: ref.read(authProvider),
+    );
+    switch (preConnectAction) {
+      case PreConnectAction.signOut:
+        await ref.read(authProvider.notifier).signOut();
+        if (!mounted) return;
+      case PreConnectAction.exitNoAuthMode:
+        ref.read(authProvider.notifier).exitNoAuthMode();
+      case PreConnectAction.none:
+        break;
+    }
+
+    // Persist the resolved URL (with scheme).
+    try {
+      await ref.read(configProvider.notifier).setBaseUrl(url.toString());
+      Loggers.ui.debug(
+        'HomeScreen: URL saved, config.baseUrl is now: '
+        '${ref.read(configProvider).baseUrl}',
+      );
+    } on Exception catch (e) {
+      Loggers.ui.warning('HomeScreen: Failed to persist URL: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Connected, but couldn't save URL for next time."),
+          ),
+        );
+      }
+    }
+
+    if (!mounted) return;
+
+    // Determine and execute post-connect navigation.
+    final result = determinePostConnectResult(
+      hasProviders: providers.isNotEmpty,
+      currentAuthState: ref.read(authProvider),
+    );
+    final landingRoute =
+        ref.read(shellConfigProvider).routes.authenticatedLandingRoute;
+    switch (result) {
+      case EnterNoAuthModeResult():
+        await ref.read(authProvider.notifier).enterNoAuthMode();
+        if (!mounted) return;
+        context.go(landingRoute);
+      case AlreadyAuthenticatedResult():
+        context.go(landingRoute);
+      case RequireLoginResult(:final shouldExitNoAuthMode):
+        if (shouldExitNoAuthMode) {
+          ref.read(authProvider.notifier).exitNoAuthMode();
+        }
+        ref.invalidate(oidcIssuersProvider);
+        context.go('/login');
+    }
+  }
+
+  void _handleConnectionError(Object error, String url) {
+    switch (error) {
+      case AuthException():
+        Loggers.ui.error('HomeScreen: Auth error', error: error);
+        final detail = error.statusCode == 401
+            ? 'Authentication required. $url requires login '
+                'credentials. (${error.statusCode})'
+            : 'Access denied by $url. The server may require additional '
+                'configuration or may be blocking this connection. '
+                '(${error.statusCode})';
+        _setError(detail, serverDetail: error.serverMessage);
+      case NotFoundException():
+        Loggers.ui.error('HomeScreen: Not found', error: error);
+        final detail = 'Server at $url was reached, but the expected API '
+            'endpoint was not found. The server version may be '
+            'incompatible. (404)';
+        _setError(detail, serverDetail: error.serverMessage);
+      case CancelledException():
+        Loggers.ui.debug('HomeScreen: Request cancelled');
+        final detail = error.reason != null
+            ? 'Request cancelled: ${error.reason}'
+            : 'Request cancelled.';
+        _setError(detail);
+      case NetworkException():
+        Loggers.ui.error('HomeScreen: Network error', error: error);
+        final detail = error.isTimeout
+            ? 'Connection to $url timed out. '
+                'The server may be slow or unreachable.'
+            : 'Cannot reach $url. Check the URL and your '
+                'network connection.';
+        _setError(detail, serverDetail: error.isTimeout ? null : error.message);
+      case ApiException():
+        Loggers.ui.error('HomeScreen: API error', error: error);
+        final detail = error.statusCode >= 500
+            ? 'Server error at $url. '
+                'Please try again later. (${error.statusCode})'
+            : 'Unexpected response from $url. (${error.statusCode})';
+        _setError(detail, serverDetail: error.serverMessage);
+      case Exception():
+        Loggers.ui.error('HomeScreen: Unexpected exception', error: error);
+        _setError('Connection to $url failed: $error');
+      default:
+        Loggers.ui.error('HomeScreen: Unexpected error', error: error);
+        _setError('Connection to $url failed: $error');
     }
   }
 
@@ -242,10 +307,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 key: _formKey,
                 child: TextFormField(
                   controller: _urlController,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   validator: _validateUrl,
                   decoration: InputDecoration(
                     labelText: 'Backend URL',
-                    hintText: 'http://localhost:8000',
+                    hintText: 'myserver.com:8000',
                     prefixIcon: const Icon(Icons.link),
                     border: const OutlineInputBorder(),
                     suffixIcon: _isConnecting

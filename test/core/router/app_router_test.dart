@@ -708,6 +708,20 @@ void main() {
       expect(isRouteVisible('/rooms/abc-123', features, routes), isTrue);
     });
 
+    test('isRouteVisible handles /rooms/:roomId/info paths', () {
+      const features = Features();
+      const routes = RouteConfig();
+      expect(isRouteVisible('/rooms/abc-123/info', features, routes), isTrue);
+      expect(
+        isRouteVisible(
+          '/rooms/abc/info',
+          features,
+          const RouteConfig(showRoomsRoute: false),
+        ),
+        isFalse,
+      );
+    });
+
     test(
       'isRouteVisible returns true for /settings when enableSettings is true',
       () {
@@ -841,6 +855,7 @@ void main() {
       // Valid patterns still work
       expect(isRouteVisible('/rooms', features, routes), isTrue);
       expect(isRouteVisible('/rooms/abc', features, routes), isTrue);
+      expect(isRouteVisible('/rooms/abc/info', features, routes), isTrue);
       expect(isRouteVisible('/rooms/abc/quiz/123', features, routes), isTrue);
     });
 

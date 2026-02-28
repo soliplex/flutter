@@ -1,9 +1,12 @@
 import 'dart:developer' as developer;
 
 import 'package:soliplex_client/src/domain/backend_version_info.dart';
+import 'package:soliplex_client/src/domain/mcp_client_toolset.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
+import 'package:soliplex_client/src/domain/room_agent.dart';
+import 'package:soliplex_client/src/domain/room_tool.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
 
@@ -63,6 +66,112 @@ BackendVersionInfo backendVersionInfoFromJson(Map<String, dynamic> json) {
 // Room mappers
 // ============================================================
 
+/// Creates a [RoomAgent] from JSON.
+///
+/// Discriminates by 'kind' field: 'default', 'factory', or other.
+RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
+  final kind = json['kind'] as String? ?? '';
+  final id = _requireString(json, 'id', 'agent');
+  final aguiFeatureNames = _parseStringList(
+    json['agui_feature_names'] as List<dynamic>?,
+  );
+
+  // Backend omits kind for default agents; infer from model_name presence
+  final effectiveKind =
+      kind.isEmpty && json.containsKey('model_name') ? 'default' : kind;
+
+  return switch (effectiveKind) {
+    'default' => DefaultRoomAgent(
+        id: id,
+        modelName: _requireString(json, 'model_name', 'default agent'),
+        retries: json['retries'] as int? ?? 0,
+        systemPrompt: json['system_prompt'] as String?,
+        providerType: json['provider_type'] as String? ?? '',
+        aguiFeatureNames: aguiFeatureNames,
+      ),
+    'factory' => FactoryRoomAgent(
+        id: id,
+        factoryName: _requireString(json, 'factory_name', 'factory agent'),
+        extraConfig:
+            (json['extra_config'] as Map<String, dynamic>?) ?? const {},
+        aguiFeatureNames: aguiFeatureNames,
+      ),
+    _ => OtherRoomAgent(
+        id: id,
+        kind: kind,
+        aguiFeatureNames: aguiFeatureNames,
+      ),
+  };
+}
+
+/// Extracts a required string field, throwing [FormatException] if missing
+/// or not a string.
+String _requireString(
+  Map<String, dynamic> json,
+  String field,
+  String context,
+) {
+  final value = json[field];
+  if (value is! String) {
+    throw FormatException('$context JSON missing required "$field" field');
+  }
+  return value;
+}
+
+/// Creates a [RoomTool] from JSON.
+RoomTool roomToolFromJson(
+  String name,
+  Map<String, dynamic> json,
+) {
+  return RoomTool(
+    name: (json['tool_name'] as String?) ?? name,
+    description: (json['tool_description'] as String?) ?? '',
+    kind: (json['kind'] as String?) ?? '',
+    toolRequires: (json['tool_requires'] as String?) ?? '',
+    allowMcp: json['allow_mcp'] as bool? ?? false,
+    extraParameters:
+        (json['extra_parameters'] as Map<String, dynamic>?) ?? const {},
+    aguiFeatureNames: _parseStringList(
+      json['agui_feature_names'] as List<dynamic>?,
+    ),
+  );
+}
+
+/// Creates a [McpClientToolset] from JSON.
+McpClientToolset mcpClientToolsetFromJson(
+  Map<String, dynamic> json,
+) {
+  final allowedToolsRaw = json['allowed_tools'] as List<dynamic>?;
+  return McpClientToolset(
+    kind: json['kind'] as String? ?? '',
+    allowedTools: allowedToolsRaw?.whereType<String>().toList(),
+    toolsetParams:
+        (json['toolset_params'] as Map<String, dynamic>?) ?? const {},
+  );
+}
+
+/// Parses a timestamp string, returning null on failure.
+DateTime? _tryParseTimestamp(String? raw) {
+  if (raw == null) return null;
+  try {
+    return parseTimestamp(raw);
+  } on FormatException catch (e) {
+    developer.log(
+      'Malformed timestamp ignored: $e',
+      name: 'soliplex_client.document',
+      level: 900,
+    );
+    return null;
+  }
+}
+
+/// Parses a dynamic list into a list of strings,
+/// filtering out non-string items.
+List<String> _parseStringList(List<dynamic>? raw) {
+  if (raw == null) return const [];
+  return raw.whereType<String>().toList();
+}
+
 /// Creates a [Room] from JSON.
 Room roomFromJson(Map<String, dynamic> json) {
   // Extract quizzes map: {quizId: {title: "...", ...}}
@@ -84,7 +193,8 @@ Room roomFromJson(Map<String, dynamic> json) {
         suggestions.add(item);
       } else {
         developer.log(
-          'Non-string suggestion ignored: $item (${item.runtimeType})',
+          'Non-string suggestion ignored: '
+          '$item (${item.runtimeType})',
           name: 'soliplex_client.room',
           level: 900, // Warning level
         );
@@ -92,63 +202,79 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
-  // Parse tool definitions.
-  // Backend sends tools as a Map keyed by tool name, e.g.:
-  //   {"get_current_datetime": {"tool_name": "...", ...}, ...}
-  // Empty rooms send tools as {} (empty map).
+  // Parse agent — malformed agent data should not prevent the room from loading
+  final agentJson = json['agent'] as Map<String, dynamic>?;
+  RoomAgent? agent;
+  if (agentJson != null) {
+    try {
+      agent = roomAgentFromJson(agentJson);
+    } on FormatException catch (e) {
+      developer.log(
+        'Malformed agent ignored: $e\n$agentJson',
+        name: 'soliplex_client.room',
+        level: 900,
+      );
+    }
+  }
+
+  // Parse tools — skip malformed entries
+  final toolsJson = json['tools'] as Map<String, dynamic>?;
+  final tools = <String, RoomTool>{};
   final toolDefinitions = <Map<String, dynamic>>[];
-  final toolsRaw = json['tools'];
-  if (toolsRaw is Map<String, dynamic>) {
-    for (final entry in toolsRaw.entries) {
-      final value = entry.value;
-      if (value is Map<String, dynamic>) {
-        toolDefinitions.add(value);
-      } else {
+  if (toolsJson != null) {
+    for (final entry in toolsJson.entries) {
+      if (entry.value is! Map<String, dynamic>) {
         developer.log(
-          'Non-map tool definition ignored for key "${entry.key}": '
-          '$value (${value.runtimeType})',
+          'Malformed tool ignored: ${entry.key}\n${entry.value}',
           name: 'soliplex_client.room',
-          level: 900, // Warning level
+          level: 900,
         );
+        continue;
       }
-    }
-  } else if (toolsRaw is List<dynamic>) {
-    // Fallback: accept a list of tool maps (e.g. from tests).
-    for (final item in toolsRaw) {
-      if (item is Map<String, dynamic>) {
-        toolDefinitions.add(item);
-      }
+      tools[entry.key] = roomToolFromJson(
+        entry.key,
+        entry.value as Map<String, dynamic>,
+      );
+      toolDefinitions.add(entry.value as Map<String, dynamic>);
     }
   }
 
-  // Parse AG-UI feature names, keeping only valid String entries
-  final featuresRaw = json['agui_feature_names'] as List<dynamic>?;
-  final aguiFeatureNames = <String>[];
-  if (featuresRaw != null) {
-    for (final item in featuresRaw) {
-      if (item is String) {
-        aguiFeatureNames.add(item);
-      } else {
+  // Parse MCP client toolsets — skip malformed entries
+  final mcpJson = json['mcp_client_toolsets'] as Map<String, dynamic>?;
+  final mcpClientToolsets = <String, McpClientToolset>{};
+  if (mcpJson != null) {
+    for (final entry in mcpJson.entries) {
+      if (entry.value is! Map<String, dynamic>) {
         developer.log(
-          'Non-string feature name ignored: $item (${item.runtimeType})',
+          'Malformed MCP toolset ignored: ${entry.key}\n${entry.value}',
           name: 'soliplex_client.room',
-          level: 900, // Warning level
+          level: 900,
         );
+        continue;
       }
+      mcpClientToolsets[entry.key] = mcpClientToolsetFromJson(
+        entry.value as Map<String, dynamic>,
+      );
     }
   }
 
   return Room(
-    id: json['id'] as String,
-    name: json['name'] as String,
+    id: _requireString(json, 'id', 'room'),
+    name: _requireString(json, 'name', 'room'),
     description: (json['description'] as String?) ?? '',
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
     quizzes: quizzes,
     suggestions: suggestions,
     welcomeMessage: (json['welcome_message'] as String?) ?? '',
-    enableAttachments: (json['enable_attachments'] as bool?) ?? false,
+    enableAttachments: json['enable_attachments'] as bool? ?? false,
+    allowMcp: json['allow_mcp'] as bool? ?? false,
+    agent: agent,
+    tools: tools,
+    mcpClientToolsets: mcpClientToolsets,
     toolDefinitions: toolDefinitions,
-    aguiFeatureNames: aguiFeatureNames,
+    aguiFeatureNames: _parseStringList(
+      json['agui_feature_names'] as List<dynamic>?,
+    ),
   );
 }
 
@@ -177,15 +303,34 @@ Map<String, dynamic> roomToJson(Room room) {
 
 /// Creates a [RagDocument] from JSON.
 RagDocument ragDocumentFromJson(Map<String, dynamic> json) {
+  final uri = (json['uri'] as String?) ?? '';
   // title can be null - fall back to uri, then 'Untitled'
   final title =
-      (json['title'] as String?) ?? (json['uri'] as String?) ?? 'Untitled';
-  return RagDocument(id: json['id'] as String, title: title);
+      (json['title'] as String?) ?? (uri.isNotEmpty ? uri : 'Untitled');
+
+  final createdRaw = json['created_at'] as String?;
+  final updatedRaw = json['updated_at'] as String?;
+
+  return RagDocument(
+    id: _requireString(json, 'id', 'document'),
+    title: title,
+    uri: uri,
+    metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    createdAt: _tryParseTimestamp(createdRaw),
+    updatedAt: _tryParseTimestamp(updatedRaw),
+  );
 }
 
 /// Converts a [RagDocument] to JSON.
 Map<String, dynamic> ragDocumentToJson(RagDocument doc) {
-  return {'id': doc.id, 'title': doc.title};
+  return {
+    'id': doc.id,
+    'title': doc.title,
+    if (doc.uri.isNotEmpty) 'uri': doc.uri,
+    if (doc.metadata.isNotEmpty) 'metadata': doc.metadata,
+    if (doc.createdAt != null) 'created_at': formatTimestamp(doc.createdAt!),
+    if (doc.updatedAt != null) 'updated_at': formatTimestamp(doc.updatedAt!),
+  };
 }
 
 // ============================================================

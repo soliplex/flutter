@@ -23,9 +23,26 @@ void main() {
       expect(room.hasWelcomeMessage, isFalse);
       expect(room.hasToolDefinitions, isFalse);
       expect(room.hasAguiFeatures, isFalse);
+      expect(room.allowMcp, isFalse);
+      expect(room.agent, isNull);
+      expect(room.tools, isEmpty);
+      expect(room.mcpClientToolsets, isEmpty);
     });
 
     test('creates with all fields', () {
+      const agent = DefaultRoomAgent(
+        id: 'agent-1',
+        modelName: 'gpt-4o',
+        retries: 3,
+        providerType: 'openai',
+      );
+      const tool = RoomTool(
+        name: 'search',
+        description: 'Search docs',
+        kind: 'search',
+      );
+      const toolset = McpClientToolset(kind: 'http');
+
       const room = Room(
         id: 'room-1',
         name: 'Test Room',
@@ -35,6 +52,10 @@ void main() {
         suggestions: ['How can I help?', 'Tell me more'],
         welcomeMessage: 'Welcome!',
         enableAttachments: true,
+        allowMcp: true,
+        agent: agent,
+        tools: {'search': tool},
+        mcpClientToolsets: {'toolset-1': toolset},
         toolDefinitions: [
           {'tool_name': 'search', 'tool_description': 'Search docs'},
         ],
@@ -52,6 +73,10 @@ void main() {
       expect(room.suggestions, equals(['How can I help?', 'Tell me more']));
       expect(room.welcomeMessage, equals('Welcome!'));
       expect(room.enableAttachments, isTrue);
+      expect(room.allowMcp, isTrue);
+      expect(room.agent, equals(agent));
+      expect(room.tools, equals({'search': tool}));
+      expect(room.mcpClientToolsets, equals({'toolset-1': toolset}));
       expect(room.toolDefinitions, hasLength(1));
       expect(room.aguiFeatureNames, equals(['streaming', 'tools']));
       expect(room.quizIds, containsAll(['quiz-1', 'quiz-2']));

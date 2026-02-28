@@ -1,5 +1,9 @@
 import 'package:meta/meta.dart';
 
+import 'package:soliplex_client/src/domain/mcp_client_toolset.dart';
+import 'package:soliplex_client/src/domain/room_agent.dart';
+import 'package:soliplex_client/src/domain/room_tool.dart';
+
 /// Represents a room from the backend.
 @immutable
 class Room {
@@ -13,6 +17,10 @@ class Room {
     this.suggestions = const [],
     this.welcomeMessage = '',
     this.enableAttachments = false,
+    this.allowMcp = false,
+    this.agent,
+    this.tools = const {},
+    this.mcpClientToolsets = const {},
     this.toolDefinitions = const [],
     this.aguiFeatureNames = const [],
   });
@@ -29,7 +37,8 @@ class Room {
   /// Metadata for the room (empty map if not provided).
   final Map<String, dynamic> metadata;
 
-  /// Quizzes available in this room, keyed by quiz ID with title as value.
+  /// Quizzes available in this room, keyed by quiz ID with title
+  /// as value.
   final Map<String, String> quizzes;
 
   /// Suggested prompts to show when starting a new thread.
@@ -41,13 +50,25 @@ class Room {
   /// Whether file attachments are enabled for this room.
   final bool enableAttachments;
 
+  /// Whether MCP server access is allowed for this room.
+  final bool allowMcp;
+
+  /// Agent configuration for this room.
+  final RoomAgent? agent;
+
+  /// Tools configured in this room, keyed by tool name.
+  final Map<String, RoomTool> tools;
+
+  /// MCP client toolsets configured in this room.
+  final Map<String, McpClientToolset> mcpClientToolsets;
+
   /// Raw tool definitions from the backend (validated dicts).
   ///
   /// Stored as raw maps to keep the Room model backend-shape-agnostic.
   /// Convert to ag_ui Tool objects at the provider layer.
   final List<Map<String, dynamic>> toolDefinitions;
 
-  /// AG-UI feature names advertised by this room.
+  /// AG-UI feature names enabled for this room.
   final List<String> aguiFeatureNames;
 
   /// Quiz IDs available in this room.
@@ -81,6 +102,10 @@ class Room {
     List<String>? suggestions,
     String? welcomeMessage,
     bool? enableAttachments,
+    bool? allowMcp,
+    RoomAgent? agent,
+    Map<String, RoomTool>? tools,
+    Map<String, McpClientToolset>? mcpClientToolsets,
     List<Map<String, dynamic>>? toolDefinitions,
     List<String>? aguiFeatureNames,
   }) {
@@ -93,6 +118,10 @@ class Room {
       suggestions: suggestions ?? this.suggestions,
       welcomeMessage: welcomeMessage ?? this.welcomeMessage,
       enableAttachments: enableAttachments ?? this.enableAttachments,
+      allowMcp: allowMcp ?? this.allowMcp,
+      agent: agent ?? this.agent,
+      tools: tools ?? this.tools,
+      mcpClientToolsets: mcpClientToolsets ?? this.mcpClientToolsets,
       toolDefinitions: toolDefinitions ?? this.toolDefinitions,
       aguiFeatureNames: aguiFeatureNames ?? this.aguiFeatureNames,
     );

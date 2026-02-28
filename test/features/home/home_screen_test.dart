@@ -103,11 +103,64 @@ Widget _createAppWithRouter({
         shellConfigProvider.overrideWithValue(
           const SoliplexConfig(logo: LogoConfig.soliplex),
         ),
+        configProviderOverride(
+          const AppConfig(baseUrl: 'https://localhost:8000'),
+        ),
         ...overrides.cast(),
       ],
     ),
     child: MaterialApp.router(theme: testThemeData, routerConfig: router),
   );
+}
+
+/// Stubs [transport] to respond to any request with [response] or [error].
+void _stubTransport(
+  MockHttpTransport transport, {
+  Map<String, dynamic>? response,
+  Object? error,
+}) {
+  final invocation = when(
+    () => transport.request<Map<String, dynamic>>(
+      any(),
+      any(),
+      body: any(named: 'body'),
+      headers: any(named: 'headers'),
+      timeout: any(named: 'timeout'),
+      cancelToken: any(named: 'cancelToken'),
+      fromJson: any(named: 'fromJson'),
+    ),
+  );
+  if (error != null) {
+    invocation.thenThrow(error);
+  } else {
+    invocation.thenAnswer((_) async => response ?? <String, dynamic>{});
+  }
+}
+
+/// Stubs [transport] to respond to a specific [method] + [url] combination.
+void _stubTransportUrl(
+  MockHttpTransport transport, {
+  required String method,
+  required Uri url,
+  Map<String, dynamic>? response,
+  Object? error,
+}) {
+  final invocation = when(
+    () => transport.request<Map<String, dynamic>>(
+      method,
+      url,
+      body: any(named: 'body'),
+      headers: any(named: 'headers'),
+      timeout: any(named: 'timeout'),
+      cancelToken: any(named: 'cancelToken'),
+      fromJson: any(named: 'fromJson'),
+    ),
+  );
+  if (error != null) {
+    invocation.thenThrow(error);
+  } else {
+    invocation.thenAnswer((_) async => response ?? <String, dynamic>{});
+  }
 }
 
 void main() {
@@ -185,20 +238,6 @@ void main() {
     });
 
     group('validation', () {
-      testWidgets('validates URL format', (tester) async {
-        await tester.pumpWidget(createTestApp(home: const HomeScreen()));
-
-        final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'invalid-url');
-        await tester.tap(find.text('Connect'));
-        await tester.pump();
-
-        expect(
-          find.text('URL must start with http:// or https://'),
-          findsOneWidget,
-        );
-      });
-
       testWidgets('validates empty URL', (tester) async {
         await tester.pumpWidget(createTestApp(home: const HomeScreen()));
 
@@ -207,7 +246,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        expect(find.text('Please enter a server URL'), findsOneWidget);
+        expect(find.text('Server address is required'), findsOneWidget);
       });
 
       testWidgets('accepts valid http URL', (tester) async {
@@ -218,12 +257,7 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        // No validation error should appear
-        expect(find.text('Please enter a server URL'), findsNothing);
-        expect(
-          find.text('URL must start with http:// or https://'),
-          findsNothing,
-        );
+        expect(find.text('Server address is required'), findsNothing);
       });
 
       testWidgets('accepts valid https URL', (tester) async {
@@ -234,12 +268,54 @@ void main() {
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
-        // No validation error should appear
-        expect(find.text('Please enter a server URL'), findsNothing);
+        expect(find.text('Server address is required'), findsNothing);
+      });
+
+      testWidgets('accepts bare hostname without scheme', (tester) async {
+        await tester.pumpWidget(createTestApp(home: const HomeScreen()));
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'myserver.example.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+
+        expect(find.text('Server address is required'), findsNothing);
+      });
+
+      testWidgets('accepts hostname with port without scheme', (tester) async {
+        await tester.pumpWidget(createTestApp(home: const HomeScreen()));
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'myserver.example.com:8443');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+
+        expect(find.text('Server address is required'), findsNothing);
+      });
+
+      testWidgets('rejects URL with unsupported scheme', (tester) async {
+        await tester.pumpWidget(createTestApp(home: const HomeScreen()));
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'ftp://myserver.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+
         expect(
-          find.text('URL must start with http:// or https://'),
-          findsNothing,
+          find.text('Only http and https are supported'),
+          findsOneWidget,
         );
+      });
+
+      testWidgets('rejects URL with spaces', (tester) async {
+        await tester.pumpWidget(createTestApp(home: const HomeScreen()));
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'my server.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+
+        expect(find.text("Can't contain whitespaces"), findsOneWidget);
       });
     });
 
@@ -248,18 +324,9 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(
-          const NetworkException(message: 'timeout', isTimeout: true),
+        _stubTransport(
+          mockTransport,
+          error: const NetworkException(message: 'timeout', isTimeout: true),
         );
 
         await tester.pumpWidget(
@@ -276,7 +343,8 @@ void main() {
 
         expect(
           find.text(
-            'Connection timed out. The server may be slow or unreachable.',
+            'Connection to http://localhost:8000 timed out. '
+            'The server may be slow or unreachable.',
           ),
           findsOneWidget,
         );
@@ -284,17 +352,10 @@ void main() {
 
       testWidgets('shows network error for NetworkException', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(const NetworkException(message: 'connection refused'));
+        _stubTransport(
+          mockTransport,
+          error: const NetworkException(message: 'connection refused'),
+        );
 
         await tester.pumpWidget(
           createTestApp(
@@ -310,8 +371,8 @@ void main() {
 
         expect(
           find.text(
-            'Cannot reach server. Check the URL and your network '
-            'connection.\n\nDetails: connection refused',
+            'Cannot reach http://localhost:8000. Check the URL and your '
+            'network connection.\n\nDetails: connection refused',
           ),
           findsOneWidget,
         );
@@ -321,17 +382,10 @@ void main() {
         'shows server error for ApiException without server message',
         (tester) async {
           final mockTransport = MockHttpTransport();
-          when(
-            () => mockTransport.request<Map<String, dynamic>>(
-              any(),
-              any(),
-              body: any(named: 'body'),
-              headers: any(named: 'headers'),
-              timeout: any(named: 'timeout'),
-              cancelToken: any(named: 'cancelToken'),
-              fromJson: any(named: 'fromJson'),
-            ),
-          ).thenThrow(const ApiException(statusCode: 500, message: 'HTTP 500'));
+          _stubTransport(
+            mockTransport,
+            error: const ApiException(statusCode: 500, message: 'HTTP 500'),
+          );
 
           await tester.pumpWidget(
             createTestApp(
@@ -348,7 +402,10 @@ void main() {
           await tester.pumpAndSettle();
 
           expect(
-            find.text('Server error. Please try again later. (500)'),
+            find.text(
+              'Server error at http://localhost:8000. '
+              'Please try again later. (500)',
+            ),
             findsOneWidget,
           );
         },
@@ -358,18 +415,9 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(
-          const ApiException(
+        _stubTransport(
+          mockTransport,
+          error: const ApiException(
             statusCode: 500,
             message: 'Database connection failed',
             serverMessage: 'Database connection failed',
@@ -390,7 +438,8 @@ void main() {
 
         expect(
           find.text(
-            'Server error. Please try again later. (500)\n\n'
+            'Server error at http://localhost:8000. '
+            'Please try again later. (500)\n\n'
             'Details: Database connection failed',
           ),
           findsOneWidget,
@@ -399,17 +448,10 @@ void main() {
 
       testWidgets('shows generic error for unknown exceptions', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenThrow(Exception('Unknown error'));
+        _stubTransport(
+          mockTransport,
+          error: Exception('Unknown error'),
+        );
 
         await tester.pumpWidget(
           createTestApp(
@@ -424,7 +466,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(
-          find.text('Connection failed: Exception: Unknown error'),
+          find.text(
+            'Connection to http://localhost:8000 failed: '
+            'Exception: Unknown error',
+          ),
           findsOneWidget,
         );
       });
@@ -433,17 +478,7 @@ void main() {
     group('connection flow - no auth providers', () {
       testWidgets('enters no-auth mode and navigates to rooms', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer((_) async => <String, dynamic>{});
+        _stubTransport(mockTransport);
 
         late _MockAuthNotifier mockAuth;
 
@@ -460,7 +495,7 @@ void main() {
         );
 
         final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.enterText(urlField, 'https://localhost:8000');
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
@@ -470,28 +505,18 @@ void main() {
     });
 
     group('connection flow - with auth providers', () {
+      const googleProviderResponse = <String, dynamic>{
+        'google': {
+          'title': 'Google',
+          'server_url': 'https://accounts.google.com',
+          'client_id': 'client-123',
+          'scope': 'openid email',
+        },
+      };
+
       testWidgets('navigates to login when unauthenticated', (tester) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'google': {
-              'title': 'Google',
-              'server_url': 'https://accounts.google.com',
-              'client_id': 'client-123',
-              'scope': 'openid email',
-            },
-          },
-        );
+        _stubTransport(mockTransport, response: googleProviderResponse);
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -504,7 +529,7 @@ void main() {
         );
 
         final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.enterText(urlField, 'https://localhost:8000');
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
@@ -515,26 +540,7 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'google': {
-              'title': 'Google',
-              'server_url': 'https://accounts.google.com',
-              'client_id': 'client-123',
-              'scope': 'openid email',
-            },
-          },
-        );
+        _stubTransport(mockTransport, response: googleProviderResponse);
 
         await tester.pumpWidget(
           _createAppWithRouter(
@@ -551,7 +557,7 @@ void main() {
         );
 
         final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.enterText(urlField, 'https://localhost:8000');
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
@@ -562,26 +568,7 @@ void main() {
         tester,
       ) async {
         final mockTransport = MockHttpTransport();
-        when(
-          () => mockTransport.request<Map<String, dynamic>>(
-            any(),
-            any(),
-            body: any(named: 'body'),
-            headers: any(named: 'headers'),
-            timeout: any(named: 'timeout'),
-            cancelToken: any(named: 'cancelToken'),
-            fromJson: any(named: 'fromJson'),
-          ),
-        ).thenAnswer(
-          (_) async => <String, dynamic>{
-            'google': {
-              'title': 'Google',
-              'server_url': 'https://accounts.google.com',
-              'client_id': 'client-123',
-              'scope': 'openid email',
-            },
-          },
-        );
+        _stubTransport(mockTransport, response: googleProviderResponse);
 
         late _MockAuthNotifier mockAuth;
 
@@ -600,13 +587,194 @@ void main() {
         );
 
         final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.enterText(urlField, 'https://localhost:8000');
         await tester.tap(find.text('Connect'));
         await tester.pumpAndSettle();
 
         // Should exit no-auth mode before navigating to login
         expect(mockAuth.exitNoAuthModeCalled, isTrue);
         expect(find.text('Login Screen'), findsOneWidget);
+      });
+    });
+
+    group('insecure connection warning', () {
+      /// Stubs [transport] so HTTPS fails with a network error and HTTP
+      /// succeeds, triggering the insecure-connection fallback path.
+      void stubHttpFallback(MockHttpTransport transport) {
+        _stubTransportUrl(
+          transport,
+          method: 'GET',
+          url: Uri.parse('https://example.com/api/login'),
+          error: const NetworkException(message: 'connection refused'),
+        );
+        _stubTransportUrl(
+          transport,
+          method: 'GET',
+          url: Uri.parse('http://example.com/api/login'),
+        );
+      }
+
+      testWidgets('shows warning when connecting over HTTP via fallback', (
+        tester,
+      ) async {
+        final mockTransport = MockHttpTransport();
+        stubHttpFallback(mockTransport);
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+              authProvider.overrideWith(_MockAuthNotifier.new),
+            ],
+          ),
+        );
+
+        // Use pump() not pumpAndSettle() — the spinner animates behind
+        // the modal dialog, so pumpAndSettle never finishes.
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'example.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        // Should show insecurity warning dialog
+        expect(find.text('Insecure Connection'), findsOneWidget);
+        expect(
+          find.textContaining('not encrypted'),
+          findsOneWidget,
+        );
+      });
+
+      testWidgets('proceeds when user accepts insecure connection', (
+        tester,
+      ) async {
+        final mockTransport = MockHttpTransport();
+        stubHttpFallback(mockTransport);
+
+        late _MockAuthNotifier mockAuth;
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+              authProvider.overrideWith(() {
+                return mockAuth = _MockAuthNotifier();
+              }),
+            ],
+          ),
+        );
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'example.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        // Accept the warning — dismissing the dialog clears _isConnecting
+        // via finally, so pumpAndSettle works after this point.
+        await tester.tap(find.text('I understand, connect anyway'));
+        await tester.pumpAndSettle();
+
+        // Should proceed to rooms (no auth providers = no-auth mode)
+        expect(mockAuth.enterNoAuthModeCalled, isTrue);
+        expect(find.text('Rooms Screen'), findsOneWidget);
+      });
+
+      testWidgets('cancels when user declines insecure connection', (
+        tester,
+      ) async {
+        final mockTransport = MockHttpTransport();
+        stubHttpFallback(mockTransport);
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+              authProvider.overrideWith(_MockAuthNotifier.new),
+            ],
+          ),
+        );
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'example.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        // Decline the warning — dismissing the dialog clears _isConnecting
+        // via finally, so pumpAndSettle works after this point.
+        await tester.tap(find.text('Cancel'));
+        await tester.pumpAndSettle();
+
+        // Should stay on home screen
+        expect(find.text('Rooms Screen'), findsNothing);
+        expect(find.text('Connect'), findsOneWidget);
+      });
+
+      testWidgets('shows warning when user explicitly types http://', (
+        tester,
+      ) async {
+        final mockTransport = MockHttpTransport();
+        _stubTransportUrl(
+          mockTransport,
+          method: 'GET',
+          url: Uri.parse('http://localhost:8000/api/login'),
+        );
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+              authProvider.overrideWith(_MockAuthNotifier.new),
+            ],
+          ),
+        );
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.tap(find.text('Connect'));
+        await tester.pump();
+        await tester.pump();
+
+        // Should show insecurity warning
+        expect(find.text('Insecure Connection'), findsOneWidget);
+      });
+
+      testWidgets('no warning for HTTPS connection', (tester) async {
+        final mockTransport = MockHttpTransport();
+        _stubTransportUrl(
+          mockTransport,
+          method: 'GET',
+          url: Uri.parse('https://example.com/api/login'),
+        );
+
+        late _MockAuthNotifier mockAuth;
+
+        await tester.pumpWidget(
+          _createAppWithRouter(
+            home: const HomeScreen(),
+            overrides: [
+              httpTransportProvider.overrideWithValue(mockTransport),
+              authProvider.overrideWith(() {
+                return mockAuth = _MockAuthNotifier();
+              }),
+            ],
+          ),
+        );
+
+        final urlField = find.byType(TextFormField);
+        await tester.enterText(urlField, 'example.com');
+        await tester.tap(find.text('Connect'));
+        await tester.pumpAndSettle();
+
+        // No warning, should go directly to rooms
+        expect(find.text('Insecure Connection'), findsNothing);
+        expect(mockAuth.enterNoAuthModeCalled, isTrue);
+        expect(find.text('Rooms Screen'), findsOneWidget);
       });
     });
 
@@ -637,7 +805,7 @@ void main() {
         );
 
         final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.enterText(urlField, 'https://localhost:8000');
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
@@ -675,7 +843,7 @@ void main() {
         );
 
         final urlField = find.byType(TextFormField);
-        await tester.enterText(urlField, 'http://localhost:8000');
+        await tester.enterText(urlField, 'https://localhost:8000');
         await tester.tap(find.text('Connect'));
         await tester.pump();
 
