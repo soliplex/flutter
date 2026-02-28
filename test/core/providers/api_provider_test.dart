@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_frontend/core/constants/monty_bridge.dart';
 import 'package:soliplex_frontend/core/models/app_config.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
@@ -342,6 +343,22 @@ void main() {
 
       expect(registry.toolDefinitions, hasLength(1));
       expect(registry.toolDefinitions.first.name, equals('test_tool'));
+    });
+  });
+
+  group('agUiClientProvider', () {
+    test('includes X-Monty-Version header in default headers', () {
+      final container = createContainerWithMockedAuth();
+      addTearDown(container.dispose);
+
+      final client = container.read(agUiClientProvider);
+
+      // AgUiClient._buildHeaders() merges config.defaultHeaders into every
+      // request. Verify the monty version header is present and correct.
+      expect(
+        client.config.defaultHeaders,
+        containsPair(montyVersionHeader, '$montyBridgeVersion'),
+      );
     });
   });
 
