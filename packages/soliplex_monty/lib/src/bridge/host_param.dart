@@ -46,6 +46,7 @@ class HostParam {
       HostParamType.boolean => _expectType<bool>(value),
       HostParamType.list => _expectType<List<Object?>>(value),
       HostParamType.map => _expectType<Map<String, Object?>>(value),
+      HostParamType.any => value,
     };
   }
 

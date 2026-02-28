@@ -56,6 +56,8 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
     final platform = createMontyPlatform();
     final bridge = DefaultMontyBridge(platform: platform);
 
+    final dfRegistry = DfRegistry();
+
     HostFunctionRegistry()
       ..addCategory('tools', [
         for (final mapping in mappings)
@@ -77,6 +79,7 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
             },
           ),
       ])
+      ..addCategory('df', buildDfFunctions(dfRegistry))
       ..registerAllOnto(bridge);
 
     bridges[key] = bridge;

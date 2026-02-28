@@ -141,6 +141,34 @@ void main() {
         expect(param.validate(null), isNull);
       });
     });
+
+    group('any', () {
+      const param = HostParam(
+        name: 'value',
+        type: HostParamType.any,
+        isRequired: false,
+      );
+
+      test('accepts String', () {
+        expect(param.validate('hello'), 'hello');
+      });
+
+      test('accepts int', () {
+        expect(param.validate(42), 42);
+      });
+
+      test('accepts double', () {
+        expect(param.validate(3.14), 3.14);
+      });
+
+      test('accepts bool', () {
+        expect(param.validate(true), true);
+      });
+
+      test('returns null when null and optional', () {
+        expect(param.validate(null), isNull);
+      });
+    });
   });
 
   group('HostParamType.jsonSchemaType', () {
@@ -151,6 +179,7 @@ void main() {
       expect(HostParamType.boolean.jsonSchemaType, 'boolean');
       expect(HostParamType.list.jsonSchemaType, 'array');
       expect(HostParamType.map.jsonSchemaType, 'object');
+      expect(HostParamType.any.jsonSchemaType, 'string');
     });
   });
 }

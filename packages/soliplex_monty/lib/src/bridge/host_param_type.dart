@@ -16,7 +16,12 @@ enum HostParamType {
   list,
 
   /// Map/dict parameter. Monty Python `dict`.
-  map;
+  map,
+
+  /// Any type — passes through validation without type checking.
+  ///
+  /// Used for parameters like filter values that accept str, int, float, etc.
+  any;
 
   /// JSON Schema type name for ag-ui Tool export.
   String get jsonSchemaType => switch (this) {
@@ -26,5 +31,6 @@ enum HostParamType {
         boolean => 'boolean',
         list => 'array',
         map => 'object',
+        any => 'string',
       };
 }
