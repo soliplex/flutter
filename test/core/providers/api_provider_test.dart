@@ -376,17 +376,11 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // 9 tools: client + server + execute_python + 6 navigation/orchestration
-      expect(registry.toolDefinitions, hasLength(9));
+      // 3 tools: client + server + execute_python
+      expect(registry.toolDefinitions, hasLength(3));
       expect(registry.contains('client_tool'), isTrue);
       expect(registry.contains('server_tool'), isTrue);
       expect(registry.contains('execute_python'), isTrue);
-      expect(registry.contains('navigate_to_settings'), isTrue);
-      expect(registry.contains('create_thread'), isTrue);
-      expect(registry.contains('switch_thread'), isTrue);
-      expect(registry.contains('list_threads'), isTrue);
-      expect(registry.contains('toggle_sidebar'), isTrue);
-      expect(registry.contains('send_message_to_thread'), isTrue);
     });
 
     test('skips agent-owned tools like get_current_datetime', () {
@@ -441,15 +435,9 @@ void main() {
 
       final registry = container.read(toolRegistryProvider);
 
-      // 7 tools: client_tool + 6 navigation/orchestration (always registered)
-      expect(registry.toolDefinitions, hasLength(7));
+      // 1 tool: client_tool only (no room selected → no server tools)
+      expect(registry.toolDefinitions, hasLength(1));
       expect(registry.contains('client_tool'), isTrue);
-      expect(registry.contains('navigate_to_settings'), isTrue);
-      expect(registry.contains('create_thread'), isTrue);
-      expect(registry.contains('switch_thread'), isTrue);
-      expect(registry.contains('list_threads'), isTrue);
-      expect(registry.contains('toggle_sidebar'), isTrue);
-      expect(registry.contains('send_message_to_thread'), isTrue);
     });
   });
 

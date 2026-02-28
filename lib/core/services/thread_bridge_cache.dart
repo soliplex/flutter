@@ -1,12 +1,12 @@
 import 'dart:convert';
 
-import 'package:dart_monty_native/dart_monty_native.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:meta/meta.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/models/thread_key.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/services/monty_platform_factory.dart';
 import 'package:soliplex_monty/soliplex_monty.dart';
 
 /// Per-thread [MontyBridge] state — maps each (room, thread) to its bridge.
@@ -15,9 +15,9 @@ typedef ThreadBridgeCacheState = Map<ThreadKey, MontyBridge>;
 /// Manages a per-thread [MontyBridge] cache.
 ///
 /// Each (room, thread) pair gets its own [DefaultMontyBridge] backed by a
-/// dedicated [MontyNative] instance (separate Dart Isolate + Python
-/// interpreter). This eliminates platform singleton contention when multiple
-/// threads execute Python concurrently.
+/// dedicated `MontyPlatform` instance. On native, each platform gets its own
+/// Dart Isolate + Python interpreter. On web, all platforms share the JS
+/// bridge singleton (serialized via mutex).
 ///
 /// Bridges are created lazily via [getOrCreate] and disposed:
 /// - All bridges on provider disposal (app shutdown)
@@ -40,9 +40,9 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
 
   /// Returns the bridge for [key], creating one if it doesn't exist.
   ///
-  /// On first call for a given key, creates a new [MontyNative] with its
-  /// own [NativeIsolateBindingsImpl] (separate Dart Isolate) and registers
-  /// all [mappings] as host functions that dispatch through the tool registry.
+  /// On first call for a given key, creates a new `MontyPlatform` via
+  /// [createMontyPlatform] and registers all [mappings] as host functions
+  /// that dispatch through the tool registry.
   MontyBridge getOrCreate(ThreadKey key, List<ToolNameMapping> mappings) {
     final existing = bridges[key];
     if (existing != null) return existing;
@@ -53,7 +53,7 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
       'with ${mappings.length} host functions',
     );
 
-    final platform = MontyNative(bindings: NativeIsolateBindingsImpl());
+    final platform = createMontyPlatform();
     final bridge = DefaultMontyBridge(platform: platform);
 
     for (final mapping in mappings) {

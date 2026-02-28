@@ -208,20 +208,19 @@ packages:
     source: path
     version: "0.6.1"
   dart_monty_platform_interface:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       path: "../dart_monty/packages/dart_monty_platform_interface"
       relative: true
     source: path
     version: "0.6.1"
   dart_monty_wasm:
-    dependency: transitive
+    dependency: "direct main"
     description:
-      name: dart_monty_wasm
-      sha256: bf723a1f1e133c70e4c7449a97bd54a8c0b2be86c00971730bee11f618d62785
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.0"
+      path: "../dart_monty/packages/dart_monty_wasm"
+      relative: true
+    source: path
+    version: "0.6.1"
   dart_monty_web:
     dependency: "direct overridden"
     description:
