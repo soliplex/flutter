@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client_native/soliplex_client_native.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
+import 'package:soliplex_frontend/core/constants/monty_bridge.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
@@ -241,6 +242,9 @@ final agUiClientProvider = Provider<AgUiClient>((ref) {
       baseUrl: '${config.baseUrl}/api/v1',
       requestTimeout: const Duration(seconds: 600),
       connectionTimeout: const Duration(seconds: 600),
+      defaultHeaders: const {
+        montyVersionHeader: '$montyBridgeVersion',
+      },
     ),
     httpClient: protectedClient,
   );
