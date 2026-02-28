@@ -15,7 +15,7 @@ dependencies:
   dart_monty:
     path: ../dart_monty
   dart_monty_native:
-    path: /Users/runyaga/dev/dart_monty/packages/dart_monty_native
+    path: ../dart_monty/packages/dart_monty_native
   dart_monty_platform_interface:
     path: ../dart_monty/packages/dart_monty_platform_interface
   dart_monty_wasm:
