@@ -225,6 +225,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
       // Create the input for the run
       final tools =
           _toolRegistry.isEmpty ? null : _toolRegistry.toolDefinitions;
+      Loggers.activeRun.debug(
+        'RUN_INPUT: room=$roomId '
+        'toolCount=${tools?.length ?? 0} '
+        'toolNames=${tools?.map((t) => t.name).join(', ') ?? 'none'}',
+      );
       final input = SimpleRunAgentInput(
         threadId: threadId,
         runId: runId,
