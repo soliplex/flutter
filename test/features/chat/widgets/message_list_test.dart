@@ -1044,6 +1044,89 @@ void main() {
         expect(result.isThinkingStreaming, isTrue);
       });
     });
+
+    group('when ExecutingToolsState', () {
+      test('returns conversation messages merged with history', () {
+        // Arrange: history has old msg, conversation has user msg
+        final history = [
+          TestData.createMessage(id: 'old-1', text: 'Old message'),
+        ];
+        final userMsg =
+            TestData.createMessage(id: 'user-1', text: 'User message');
+        final runState = ExecutingToolsState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            messages: [userMsg],
+          ),
+          pendingTools: const [
+            ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+            ),
+          ],
+        );
+
+        // Act
+        final result = sut.computeDisplayMessages(history, runState);
+
+        // Assert
+        expect(result.messages.length, equals(2));
+        expect(result.messages[0].id, equals('old-1'));
+        expect(result.messages[1].id, equals('user-1'));
+        expect(result.hasSyntheticMessage, isFalse);
+      });
+
+      test('deduplicates messages by ID', () {
+        final msg = TestData.createMessage(id: 'msg-1', text: 'Hello');
+        final runState = ExecutingToolsState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            messages: [msg],
+          ),
+          pendingTools: const [
+            ToolCallInfo(
+              id: 'tc-1',
+              name: 'search',
+            ),
+          ],
+        );
+
+        final result = sut.computeDisplayMessages([msg], runState);
+
+        expect(result.messages.length, equals(1));
+      });
+    });
+
+    group('run-owned message merge', () {
+      test('includes run conversation messages when history is stale', () {
+        // Arrange: empty history (FutureProvider lag),
+        // conversation has user msg
+        final userMsg =
+            TestData.createMessage(id: 'user-1', text: 'My question');
+        const runState = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: Running(runId: 'run-1'),
+          ),
+        );
+
+        // With empty conversation messages, result is just history
+        final result = sut.computeDisplayMessages([], runState);
+        expect(result.messages, isEmpty);
+
+        // With user msg in conversation, it appears even if history is empty
+        final runStateWithMsg = RunningState(
+          conversation: Conversation(
+            threadId: 'thread-1',
+            status: const Running(runId: 'run-1'),
+            messages: [userMsg],
+          ),
+        );
+        final result2 = sut.computeDisplayMessages([], runStateWithMsg);
+        expect(result2.messages.length, equals(1));
+        expect(result2.messages.first.id, equals('user-1'));
+      });
+    });
   });
 
   group('computeSpacerHeight', () {

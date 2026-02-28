@@ -63,12 +63,25 @@ DisplayMessagesResult computeDisplayMessages(
   List<ChatMessage> historicalMessages,
   ActiveRunState runState,
 ) {
-  // Only RunningState can have active streaming
-  if (runState is! RunningState) {
+  // Only active run states can have streaming or run-owned messages.
+  if (runState is! RunningState && runState is! ExecutingToolsState) {
     return DisplayMessagesResult(
       historicalMessages,
       hasSyntheticMessage: false,
     );
+  }
+
+  // Merge run-owned messages (e.g. user message added at startRun,
+  // tool-call messages from continuations) into the display list.
+  // The allMessagesProvider FutureProvider may lag by one microtask after
+  // a state change, so historicalMessages can be stale. Merging here
+  // ensures the UI never flashes empty during tool-call phases.
+  final runMessages = runState.conversation.messages;
+  final base = _deduplicatedMerge(historicalMessages, runMessages);
+
+  // ExecutingToolsState has no streaming — return merged base directly.
+  if (runState is! RunningState) {
+    return DisplayMessagesResult(base, hasSyntheticMessage: false);
   }
 
   final streaming = runState.streaming;
@@ -83,7 +96,7 @@ DisplayMessagesResult computeDisplayMessages(
     );
 
     return DisplayMessagesResult(
-      [...historicalMessages, syntheticMessage],
+      [...base, syntheticMessage],
       hasSyntheticMessage: true,
       isThinkingStreaming: streaming.isThinkingStreaming,
     );
@@ -99,17 +112,32 @@ DisplayMessagesResult computeDisplayMessages(
     );
 
     return DisplayMessagesResult(
-      [...historicalMessages, syntheticMessage],
+      [...base, syntheticMessage],
       hasSyntheticMessage: true,
       isThinkingStreaming: streaming.isThinkingStreaming,
     );
   }
 
-  // Not streaming and no thinking - return history unchanged
-  return DisplayMessagesResult(
-    historicalMessages,
-    hasSyntheticMessage: false,
-  );
+  // AwaitingText with no thinking (e.g. tool-call events in progress)
+  return DisplayMessagesResult(base, hasSyntheticMessage: false);
+}
+
+/// Merges two message lists, deduplicating by ID. [primary] order is
+/// preserved; [secondary] messages not already present are appended.
+List<ChatMessage> _deduplicatedMerge(
+  List<ChatMessage> primary,
+  List<ChatMessage> secondary,
+) {
+  if (secondary.isEmpty) return primary;
+  final seenIds = <String>{};
+  final result = <ChatMessage>[];
+  for (final msg in primary) {
+    if (seenIds.add(msg.id)) result.add(msg);
+  }
+  for (final msg in secondary) {
+    if (seenIds.add(msg.id)) result.add(msg);
+  }
+  return result;
 }
 
 /// Computes trailing spacer height for the message list.
