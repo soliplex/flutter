@@ -174,7 +174,7 @@ class HostFunctionWiring {
           ),
           handler: (args) async {
             final raw = args['handles']! as List<Object?>;
-            final handles = raw.cast<int>();
+            final handles = List<int>.from(raw);
             return _agentApi!.waitAll(handles);
           },
         ),

@@ -147,6 +147,73 @@ void main() {
       await controller.close();
     });
 
+    test('getResult evicts handle after completion', () async {
+      stubHappyPath('output');
+
+      final handle = await agentApi.spawnAgent(_roomId, 'test');
+      await agentApi.getResult(handle);
+
+      // Handle is evicted — second call throws.
+      expect(
+        () => agentApi.getResult(handle),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('waitAll evicts handles after completion', () async {
+      stubHappyPath('output');
+
+      final h1 = await agentApi.spawnAgent(_roomId, 'A');
+      final h2 = await agentApi.spawnAgent(_roomId, 'B');
+      await agentApi.waitAll([h1, h2]);
+
+      // Both handles are evicted.
+      expect(
+        () => agentApi.getResult(h1),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(
+        () => agentApi.getResult(h2),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('cancelAgent evicts handle', () async {
+      final controller = StreamController<BaseEvent>.broadcast();
+      when(
+        () => api.createThread(any()),
+      ).thenAnswer((_) async => (_threadInfo(), <String, dynamic>{}));
+      when(() => api.createRun(any(), any())).thenAnswer(
+        (_) async => RunInfo(
+          id: _runId,
+          threadId: _threadId,
+          createdAt: DateTime(2026),
+        ),
+      );
+      when(() => api.deleteThread(any(), any())).thenAnswer((_) async {});
+      when(
+        () => agUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) => controller.stream);
+
+      final handle = await agentApi.spawnAgent(_roomId, 'test');
+      controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
+      await Future<void>.delayed(Duration.zero);
+
+      await agentApi.cancelAgent(handle);
+
+      // Handle is evicted.
+      expect(
+        () => agentApi.getResult(handle),
+        throwsA(isA<ArgumentError>()),
+      );
+
+      await controller.close();
+    });
+
     test('unknown handle throws ArgumentError', () async {
       expect(
         () => agentApi.getResult(999),
