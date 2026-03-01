@@ -315,14 +315,17 @@ void main() {
   });
 
   group('toolRegistryProvider', () {
-    test('returns empty ToolRegistry by default', () {
+    test('returns ToolRegistry with debug random_number tool by default', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
 
       final registry = container.read(toolRegistryProvider);
 
-      expect(registry.isEmpty, isTrue);
-      expect(registry.toolDefinitions, isEmpty);
+      expect(registry.toolDefinitions, hasLength(1));
+      expect(
+        registry.toolDefinitions.first.name,
+        equals('random_number'),
+      );
     });
 
     test('can be overridden with tools', () {

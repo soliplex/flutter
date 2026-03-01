@@ -24,6 +24,11 @@ repos:
         entry: dart analyze --fatal-infos lib/ test/
         language: system
         pass_filenames: false
+      - id: dcm-analyze
+        name: dcm analyze
+        entry: bash -c 'unset GIT_DIR GIT_WORK_TREE && dcm analyze lib/'
+        language: system
+        pass_filenames: false
       - id: dart-analyze-packages
         name: dart analyze packages
         entry: python3 tool/analyze_packages.py

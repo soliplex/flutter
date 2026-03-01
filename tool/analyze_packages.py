@@ -26,6 +26,10 @@ def _load_skip_list(repo_root: str) -> set[str]:
 
 
 def main() -> int:
+    # Remove GIT_DIR/GIT_WORK_TREE set by git hooks — they make flutter/dart
+    # resolve version info from the wrong repo.
+    env = {k: v for k, v in os.environ.items() if k not in ("GIT_DIR", "GIT_WORK_TREE")}
+
     repo_root = os.path.normpath(
         os.path.join(os.path.dirname(__file__), os.pardir),
     )
@@ -44,6 +48,7 @@ def main() -> int:
         print(f"Analyzing {name}...")
         result = subprocess.run(
             ["dart", "analyze", "--fatal-infos", pkg_path],
+            env=env,
         )
         if result.returncode != 0:
             failed.append(name)

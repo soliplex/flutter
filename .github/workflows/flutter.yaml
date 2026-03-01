@@ -46,6 +46,14 @@ jobs:
       - name: Analyze code
         run: flutter analyze --fatal-infos
 
+      - name: Install DCM
+        uses: CQLabs/setup-dcm@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: DCM analyze
+        run: dcm analyze lib/
+
       - name: Check documentation
         run: |
           dart doc --dry-run

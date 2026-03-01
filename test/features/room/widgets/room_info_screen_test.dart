@@ -1322,7 +1322,7 @@ void main() {
             overrides: [
               roomsProvider.overrideWith((ref) async => [room]),
               documentsProviderOverride('room-1'),
-              // Default empty registry — no override needed
+              toolRegistryProvider.overrideWithValue(const ToolRegistry()),
             ],
           ),
         );

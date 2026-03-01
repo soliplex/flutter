@@ -183,6 +183,8 @@ void main() {
         ),
       );
 
+      await tester.ensureVisible(find.text('Disconnect'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
 
@@ -225,6 +227,8 @@ void main() {
           ),
         );
 
+        await tester.ensureVisible(find.text('Sign Out'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
 
@@ -246,6 +250,8 @@ void main() {
           ),
         );
 
+        await tester.ensureVisible(find.text('Sign Out'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
 
@@ -273,6 +279,8 @@ void main() {
         );
 
         // Tap Sign Out
+        await tester.ensureVisible(find.text('Sign Out'));
+        await tester.pumpAndSettle();
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
 
