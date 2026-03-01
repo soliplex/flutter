@@ -7,10 +7,6 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  ag_ui:
-    git:
-      url: https://github.com/soliplex/ag-ui.git
-      path: sdks/community/dart
   dart_monty_platform_interface:
     path: /Users/runyaga/dev/dart_monty/packages/dart_monty_platform_interface
   meta: ^1.11.0

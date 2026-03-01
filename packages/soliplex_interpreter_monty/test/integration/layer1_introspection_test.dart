@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:ag_ui/ag_ui.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
@@ -55,7 +54,7 @@ void main() {
         expect(result, isNotNull);
 
         // Parse the JSON response
-        final json = jsonDecode(result!.content) as Map<String, Object?>;
+        final json = jsonDecode(result!.result) as Map<String, Object?>;
         final tools = json['tools']! as Map<String, Object?>;
 
         // Should have finance + introspection categories
@@ -73,7 +72,7 @@ void main() {
             introFns.map((f) => (f! as Map)['name'] as String).toList();
         expect(introNames, containsAll(['list_functions', 'help']));
 
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
 
       test('help returns schema detail for a registered function', () async {
@@ -95,7 +94,7 @@ void main() {
         final result = findToolCallResult(events, 'help');
         expect(result, isNotNull);
 
-        final json = jsonDecode(result!.content) as Map<String, Object?>;
+        final json = jsonDecode(result!.result) as Map<String, Object?>;
         expect(json['name'], 'get_price');
         expect(json['description'], 'Get stock price by symbol.');
 
@@ -133,11 +132,11 @@ void main() {
             .toList();
 
         // Two tool call sequences
-        final results = events.whereType<ToolCallResultEvent>().toList();
+        final results = events.whereType<BridgeToolCallResult>().toList();
         expect(results, hasLength(2));
 
-        expect(events.first, isA<RunStartedEvent>());
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
   });

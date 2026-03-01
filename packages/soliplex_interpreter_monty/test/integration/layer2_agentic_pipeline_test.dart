@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:ag_ui/ag_ui.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
@@ -89,33 +88,32 @@ void main() {
             .toList();
 
         // Two tool call results
-        final results = events.whereType<ToolCallResultEvent>().toList();
+        final results = events.whereType<BridgeToolCallResult>().toList();
         expect(results, hasLength(2));
 
         // search result
         final searchResult = findToolCallResult(events, 'search');
         expect(searchResult, isNotNull);
-        expect(searchResult!.content, contains('Quantum computing'));
+        expect(searchResult!.result, contains('Quantum computing'));
 
         // summarize result
         final summarizeResult = findToolCallResult(events, 'summarize');
         expect(summarizeResult, isNotNull);
-        expect(summarizeResult!.content, contains('99.9%'));
+        expect(summarizeResult!.result, contains('99.9%'));
 
         // Verify summarize args include integer max_words
-        final argsEvents = events.whereType<ToolCallArgsEvent>().toList();
+        final argsEvents = events.whereType<BridgeToolCallArgs>().toList();
         final summarizeArgs =
             jsonDecode(argsEvents[1].delta) as Map<String, Object?>;
         expect(summarizeArgs['max_words'], 50);
 
         // Print output at end
-        final textContent =
-            events.whereType<TextMessageContentEvent>().toList();
+        final textContent = events.whereType<BridgeTextContent>().toList();
         expect(textContent, hasLength(1));
         expect(textContent.first.delta, contains('99.9%'));
 
-        expect(events.first, isA<RunStartedEvent>());
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -202,7 +200,7 @@ void main() {
             .toList();
 
         // Two tool call results
-        final results = events.whereType<ToolCallResultEvent>().toList();
+        final results = events.whereType<BridgeToolCallResult>().toList();
         expect(results, hasLength(2));
 
         // fetch_sales returns a list (serialized as string)
@@ -212,17 +210,17 @@ void main() {
         // chart_bar returns a map (serialized as string)
         final chartResult = findToolCallResult(events, 'chart_bar');
         expect(chartResult, isNotNull);
-        expect(chartResult!.content, contains('chart_001'));
+        expect(chartResult!.result, contains('chart_001'));
 
         // Verify chart_bar received list arg
-        final argsEvents = events.whereType<ToolCallArgsEvent>().toList();
+        final argsEvents = events.whereType<BridgeToolCallArgs>().toList();
         final chartArgs =
             jsonDecode(argsEvents[1].delta) as Map<String, Object?>;
         expect(chartArgs['title'], 'NE Sales by Month');
         expect(chartArgs['data'], isList);
 
-        expect(events.first, isA<RunStartedEvent>());
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -318,7 +316,7 @@ void main() {
             .toList();
 
         // Two tool call results
-        final results = events.whereType<ToolCallResultEvent>().toList();
+        final results = events.whereType<BridgeToolCallResult>().toList();
         expect(results, hasLength(2));
 
         // get_data returns a map
@@ -328,11 +326,10 @@ void main() {
         // store_result returns boolean (as string "true")
         final storeResult = findToolCallResult(events, 'store_result');
         expect(storeResult, isNotNull);
-        expect(storeResult!.content, 'true');
+        expect(storeResult!.result, 'true');
 
         // Prints are buffered and flushed at end as a single TextMessage
-        final textContent =
-            events.whereType<TextMessageContentEvent>().toList();
+        final textContent = events.whereType<BridgeTextContent>().toList();
         expect(textContent, hasLength(1));
 
         // All three print calls are concatenated in the buffer
@@ -342,11 +339,11 @@ void main() {
         expect(printOutput, contains('Stored: true'));
 
         // Only one TextMessageStart/End pair (single flush)
-        expect(events.whereType<TextMessageStartEvent>(), hasLength(1));
-        expect(events.whereType<TextMessageEndEvent>(), hasLength(1));
+        expect(events.whereType<BridgeTextStart>(), hasLength(1));
+        expect(events.whereType<BridgeTextEnd>(), hasLength(1));
 
-        expect(events.first, isA<RunStartedEvent>());
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
   });

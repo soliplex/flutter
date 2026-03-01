@@ -1,4 +1,3 @@
-import 'package:ag_ui/ag_ui.dart' show Tool;
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:meta/meta.dart';
 import 'package:soliplex_interpreter_monty/src/bridge/host_param.dart';
@@ -19,7 +18,7 @@ class HostFunctionSchema {
   /// Function name as registered with the Monty runtime.
   final String name;
 
-  /// Human-readable description for ag-ui tool export.
+  /// Human-readable description for tool export.
   final String description;
 
   /// Ordered parameter definitions.
@@ -58,35 +57,5 @@ class HostFunctionSchema {
     }
 
     return validated;
-  }
-
-  /// Exports this schema as an ag-ui [Tool] for LLM system prompts.
-  Tool toAgUiTool() {
-    final properties = <String, Object?>{};
-    final required = <String>[];
-
-    for (final param in params) {
-      final prop = <String, Object?>{
-        'type': param.type.jsonSchemaType,
-      };
-      if (param.description != null) {
-        prop['description'] = param.description;
-      }
-      properties[param.name] = prop;
-
-      if (param.isRequired) {
-        required.add(param.name);
-      }
-    }
-
-    return Tool(
-      name: name,
-      description: description,
-      parameters: <String, Object?>{
-        'type': 'object',
-        'properties': properties,
-        if (required.isNotEmpty) 'required': required,
-      },
-    );
   }
 }

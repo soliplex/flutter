@@ -1,13 +1,8 @@
 import 'dart:convert';
 
-import 'package:ag_ui/ag_ui.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/default_monty_bridge.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_function.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_function_schema.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_param.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_param_type.dart';
+import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:test/test.dart';
 
 const _usage = MontyResourceUsage(
@@ -38,8 +33,8 @@ void main() {
       final events = await bridge.execute('42').toList();
 
       expect(events, hasLength(2));
-      expect(events[0], isA<RunStartedEvent>());
-      expect(events[1], isA<RunFinishedEvent>());
+      expect(events[0], isA<BridgeRunStarted>());
+      expect(events[1], isA<BridgeRunFinished>());
     });
 
     test('dispatches tool call with correct event sequence', () async {
@@ -73,23 +68,23 @@ void main() {
       // RunStarted, StepStarted, ToolCallStart, ToolCallArgs,
       // ToolCallEnd, ToolCallResult, StepFinished, RunFinished
       expect(events, hasLength(8));
-      expect(events[0], isA<RunStartedEvent>());
-      expect(events[1], isA<StepStartedEvent>());
-      expect(events[2], isA<ToolCallStartEvent>());
-      expect(events[3], isA<ToolCallArgsEvent>());
-      expect(events[4], isA<ToolCallEndEvent>());
-      expect(events[5], isA<ToolCallResultEvent>());
-      expect(events[6], isA<StepFinishedEvent>());
-      expect(events[7], isA<RunFinishedEvent>());
+      expect(events[0], isA<BridgeRunStarted>());
+      expect(events[1], isA<BridgeStepStarted>());
+      expect(events[2], isA<BridgeToolCallStart>());
+      expect(events[3], isA<BridgeToolCallArgs>());
+      expect(events[4], isA<BridgeToolCallEnd>());
+      expect(events[5], isA<BridgeToolCallResult>());
+      expect(events[6], isA<BridgeStepFinished>());
+      expect(events[7], isA<BridgeRunFinished>());
 
       // Verify args JSON
-      final argsEvent = events[3] as ToolCallArgsEvent;
+      final argsEvent = events[3] as BridgeToolCallArgs;
       final argsMap = jsonDecode(argsEvent.delta) as Map<String, Object?>;
       expect(argsMap['query'], 'test query');
 
       // Verify result content
-      final resultEvent = events[5] as ToolCallResultEvent;
-      expect(resultEvent.content, 'result for test query');
+      final resultEvent = events[5] as BridgeToolCallResult;
+      expect(resultEvent.result, 'result for test query');
 
       // Verify Monty resumed with handler return value
       expect(mock.lastResumeReturnValue, 'result for test query');
@@ -132,10 +127,10 @@ void main() {
       final events = await bridge.execute('add(1,2) + add(3,4)').toList();
 
       // RunStarted + 2 * (Step+ToolCall events) + RunFinished
-      final toolCallResults = events.whereType<ToolCallResultEvent>().toList();
+      final toolCallResults = events.whereType<BridgeToolCallResult>().toList();
       expect(toolCallResults, hasLength(2));
-      expect(toolCallResults[0].content, '3');
-      expect(toolCallResults[1].content, '7');
+      expect(toolCallResults[0].result, '3');
+      expect(toolCallResults[1].result, '7');
     });
   });
 
@@ -161,9 +156,9 @@ void main() {
       final events =
           await bridge.execute('print("hello"); print("world")').toList();
 
-      final textStart = events.whereType<TextMessageStartEvent>().toList();
-      final textContent = events.whereType<TextMessageContentEvent>().toList();
-      final textEnd = events.whereType<TextMessageEndEvent>().toList();
+      final textStart = events.whereType<BridgeTextStart>().toList();
+      final textContent = events.whereType<BridgeTextContent>().toList();
+      final textEnd = events.whereType<BridgeTextEnd>().toList();
 
       expect(textStart, hasLength(1));
       expect(textContent, hasLength(1));
@@ -178,14 +173,14 @@ void main() {
 
       final events = await bridge.execute('42').toList();
 
-      expect(events.whereType<TextMessageStartEvent>(), isEmpty);
-      expect(events.whereType<TextMessageContentEvent>(), isEmpty);
-      expect(events.whereType<TextMessageEndEvent>(), isEmpty);
+      expect(events.whereType<BridgeTextStart>(), isEmpty);
+      expect(events.whereType<BridgeTextContent>(), isEmpty);
+      expect(events.whereType<BridgeTextEnd>(), isEmpty);
     });
   });
 
   group('error handling', () {
-    test('emits RunErrorEvent for Python exceptions', () async {
+    test('emits BridgeRunError for Python exceptions', () async {
       mock.enqueueProgress(
         const MontyComplete(
           result: MontyResult(
@@ -197,9 +192,9 @@ void main() {
 
       final events = await bridge.execute('x').toList();
 
-      expect(events.last, isA<RunErrorEvent>());
+      expect(events.last, isA<BridgeRunError>());
       expect(
-        (events.last as RunErrorEvent).message,
+        (events.last as BridgeRunError).message,
         'NameError: x is not defined',
       );
     });
@@ -259,9 +254,9 @@ void main() {
 
       final events = await bridge.execute('fail()').toList();
 
-      final results = events.whereType<ToolCallResultEvent>().toList();
+      final results = events.whereType<BridgeToolCallResult>().toList();
       expect(results, hasLength(1));
-      expect(results.first.content, contains('handler error'));
+      expect(results.first.result, contains('handler error'));
 
       // Should have resumed with error in Python
       expect(mock.resumeErrorMessages, isNotEmpty);
@@ -332,25 +327,6 @@ void main() {
       expect(bridge.schemas.map((s) => s.name), containsAll(['a', 'b']));
     });
 
-    test('toAgUiTools exports all registered functions', () {
-      bridge.register(
-        HostFunction(
-          schema: const HostFunctionSchema(
-            name: 'search',
-            description: 'Search',
-            params: [
-              HostParam(name: 'q', type: HostParamType.string),
-            ],
-          ),
-          handler: (args) async => null,
-        ),
-      );
-
-      final tools = bridge.toAgUiTools();
-      expect(tools, hasLength(1));
-      expect(tools.first.name, 'search');
-    });
-
     test('unregister removes function', () {
       bridge
         ..register(
@@ -403,8 +379,8 @@ void main() {
 
       final events = await bridge.execute('async_call()').toList();
 
-      expect(events.first, isA<RunStartedEvent>());
-      expect(events.last, isA<RunFinishedEvent>());
+      expect(events.first, isA<BridgeRunStarted>());
+      expect(events.last, isA<BridgeRunFinished>());
     });
   });
 }

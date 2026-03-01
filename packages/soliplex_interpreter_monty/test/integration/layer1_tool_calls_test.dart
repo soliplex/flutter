@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:ag_ui/ag_ui.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
@@ -59,11 +58,10 @@ void main() {
         // Tool call sequence
         final toolResult = findToolCallResult(events, 'get_current_time');
         expect(toolResult, isNotNull);
-        expect(toolResult!.content, '2026-02-28T10:30:00Z');
+        expect(toolResult!.result, '2026-02-28T10:30:00Z');
 
         // Print output flushed at end
-        final textContent =
-            events.whereType<TextMessageContentEvent>().toList();
+        final textContent = events.whereType<BridgeTextContent>().toList();
         expect(textContent, hasLength(1));
         expect(textContent.first.delta, contains('The time is'));
 
@@ -72,8 +70,8 @@ void main() {
         expect(mock.resumeReturnValues, contains('2026-02-28T10:30:00Z'));
 
         // Terminal events
-        expect(events.first, isA<RunStartedEvent>());
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -150,20 +148,20 @@ void main() {
             .toList();
 
         // Two tool call result events
-        final results = events.whereType<ToolCallResultEvent>().toList();
+        final results = events.whereType<BridgeToolCallResult>().toList();
         expect(results, hasLength(2));
-        expect(results.first.content, '72');
-        expect(results[1].content, 'Sunny for 3 days');
+        expect(results.first.result, '72');
+        expect(results[1].result, 'Sunny for 3 days');
 
         // Verify args for get_forecast (string + integer)
-        final argsEvents = events.whereType<ToolCallArgsEvent>().toList();
+        final argsEvents = events.whereType<BridgeToolCallArgs>().toList();
         expect(argsEvents, hasLength(2));
         final forecastArgs =
             jsonDecode(argsEvents[1].delta) as Map<String, Object?>;
         expect(forecastArgs['city'], 'NYC');
         expect(forecastArgs['days'], 3);
 
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -224,12 +222,12 @@ void main() {
 
         final toolResult = findToolCallResult(events, 'get_exchange_rate');
         expect(toolResult, isNotNull);
-        expect(toolResult!.content, '0.92');
+        expect(toolResult!.result, '0.92');
 
         // Verify resume was called with the number value
         expect(mock.resumeReturnValues, contains(0.92));
 
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -300,13 +298,13 @@ void main() {
             .execute('s = add(3, 4)\nresult = multiply(s, 10)')
             .toList();
 
-        final results = events.whereType<ToolCallResultEvent>().toList();
+        final results = events.whereType<BridgeToolCallResult>().toList();
         expect(results, hasLength(2));
-        expect(results.first.content, '7'); // add(3, 4)
-        expect(results[1].content, '70'); // multiply(7, 10)
+        expect(results.first.result, '7'); // add(3, 4)
+        expect(results[1].result, '70'); // multiply(7, 10)
 
-        expect(events.first, isA<RunStartedEvent>());
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.first, isA<BridgeRunStarted>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -347,8 +345,8 @@ void main() {
         final events = await bridge.execute('result = risky_call()').toList();
 
         // ToolCallResult should contain the error
-        final result = events.whereType<ToolCallResultEvent>().single;
-        expect(result.content, contains('service unavailable'));
+        final result = events.whereType<BridgeToolCallResult>().single;
+        expect(result.result, contains('service unavailable'));
 
         // Bridge should have called resumeWithError
         expect(mock.resumeErrorMessages, hasLength(1));
@@ -358,7 +356,7 @@ void main() {
         );
 
         // Execution still completes (Python sees the error)
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -403,15 +401,15 @@ void main() {
         final events = await bridge.execute('result = search()').toList();
 
         // ToolCallResult should contain the validation error
-        final result = events.whereType<ToolCallResultEvent>().single;
-        expect(result.content, contains('Error:'));
-        expect(result.content, contains('query'));
+        final result = events.whereType<BridgeToolCallResult>().single;
+        expect(result.result, contains('Error:'));
+        expect(result.result, contains('query'));
 
         // Bridge called resumeWithError (not crash)
         expect(mock.resumeErrorMessages, hasLength(1));
 
         // Execution completes normally
-        expect(events.last, isA<RunFinishedEvent>());
+        expect(events.last, isA<BridgeRunFinished>());
       });
     });
 
@@ -467,10 +465,10 @@ void main() {
         );
 
         // No tool call events emitted for unknown function
-        expect(events.whereType<ToolCallStartEvent>(), isEmpty);
+        expect(events.whereType<BridgeToolCallStart>(), isEmpty);
 
-        // Ends with RunErrorEvent (Python raised the error)
-        expect(events.last, isA<RunErrorEvent>());
+        // Ends with BridgeRunError (Python raised the error)
+        expect(events.last, isA<BridgeRunError>());
       });
     });
   });

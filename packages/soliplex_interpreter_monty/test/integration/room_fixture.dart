@@ -1,4 +1,3 @@
-import 'package:ag_ui/ag_ui.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 import 'package:dart_monty_platform_interface/dart_monty_testing.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
@@ -50,7 +49,7 @@ MockMontyPlatform buildMockPlatform(List<MontyProgress> progressQueue) {
 }
 
 /// Asserts that [events] match the expected [types] in order.
-void assertEventSequence(List<BaseEvent> events, List<Type> types) {
+void assertEventSequence(List<BridgeEvent> events, List<Type> types) {
   expect(
     events.map((e) => e.runtimeType).toList(),
     equals(types),
@@ -60,21 +59,21 @@ void assertEventSequence(List<BaseEvent> events, List<Type> types) {
   );
 }
 
-/// Finds the first [ToolCallResultEvent] whose preceding [ToolCallStartEvent]
+/// Finds the first [BridgeToolCallResult] whose preceding [BridgeToolCallStart]
 /// has the given [toolName].
-ToolCallResultEvent? findToolCallResult(
-  List<BaseEvent> events,
+BridgeToolCallResult? findToolCallResult(
+  List<BridgeEvent> events,
   String toolName,
 ) {
   for (var i = 0; i < events.length; i++) {
     final e = events[i];
-    if (e is ToolCallStartEvent && e.toolCallName == toolName) {
-      // Walk forward to find the matching ToolCallResultEvent.
+    if (e is BridgeToolCallStart && e.name == toolName) {
+      // Walk forward to find the matching BridgeToolCallResult.
       for (var j = i + 1; j < events.length; j++) {
-        if (events[j] is ToolCallResultEvent) {
-          return events[j] as ToolCallResultEvent;
+        if (events[j] is BridgeToolCallResult) {
+          return events[j] as BridgeToolCallResult;
         }
-        if (events[j] is ToolCallStartEvent) break; // next tool call
+        if (events[j] is BridgeToolCallStart) break; // next tool call
       }
     }
   }
@@ -84,7 +83,7 @@ ToolCallResultEvent? findToolCallResult(
 
 /// Runs a [RoomFixture] end-to-end: builds mock, registers functions,
 /// executes code, and returns collected events.
-Future<List<BaseEvent>> runRoom(RoomFixture room) async {
+Future<List<BridgeEvent>> runRoom(RoomFixture room) async {
   final mock = buildMockPlatform(room.progressQueue);
   final bridge = DefaultMontyBridge(platform: mock);
 

@@ -1,5 +1,5 @@
-import 'package:ag_ui/ag_ui.dart';
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
+import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:test/test.dart';
 
 import 'room_fixture.dart';
@@ -19,7 +19,7 @@ void main() {
             ),
           ],
           pythonCode: 'result = sum(range(1, 101))',
-          expectedEventTypes: [RunStartedEvent, RunFinishedEvent],
+          expectedEventTypes: [BridgeRunStarted, BridgeRunFinished],
         );
 
         final events = await runRoom(room);
@@ -38,13 +38,13 @@ void main() {
             ),
           ],
           pythonCode: 'result = sum(range(1, 101))',
-          expectedEventTypes: [RunStartedEvent, RunFinishedEvent],
+          expectedEventTypes: [BridgeRunStarted, BridgeRunFinished],
         );
 
         final events = await runRoom(room);
 
-        expect(events.whereType<TextMessageStartEvent>(), isEmpty);
-        expect(events.whereType<TextMessageContentEvent>(), isEmpty);
+        expect(events.whereType<BridgeTextStart>(), isEmpty);
+        expect(events.whereType<BridgeTextContent>(), isEmpty);
       });
     });
 
@@ -65,11 +65,11 @@ void main() {
           ],
           pythonCode: r'print(f"Total: ${42 * 1.08:.2f}")',
           expectedEventTypes: [
-            RunStartedEvent,
-            TextMessageStartEvent,
-            TextMessageContentEvent,
-            TextMessageEndEvent,
-            RunFinishedEvent,
+            BridgeRunStarted,
+            BridgeTextStart,
+            BridgeTextContent,
+            BridgeTextEnd,
+            BridgeRunFinished,
           ],
         );
 
@@ -77,13 +77,13 @@ void main() {
 
         assertEventSequence(events, room.expectedEventTypes);
 
-        final content = events.whereType<TextMessageContentEvent>().single;
+        final content = events.whereType<BridgeTextContent>().single;
         expect(content.delta, contains(r'Total: $45.36'));
       });
     });
 
     group('Room: error_room', () {
-      test('propagates Python exception as RunErrorEvent', () async {
+      test('propagates Python exception as BridgeRunError', () async {
         const room = RoomFixture(
           name: 'error_room',
           layer: 0,
@@ -97,14 +97,14 @@ void main() {
             ),
           ],
           pythonCode: 'raise ValueError("invalid input")',
-          expectedEventTypes: [RunStartedEvent, RunErrorEvent],
+          expectedEventTypes: [BridgeRunStarted, BridgeRunError],
         );
 
         final events = await runRoom(room);
 
         assertEventSequence(events, room.expectedEventTypes);
 
-        final error = events.whereType<RunErrorEvent>().single;
+        final error = events.whereType<BridgeRunError>().single;
         expect(error.message, 'ValueError: invalid input');
       });
     });
