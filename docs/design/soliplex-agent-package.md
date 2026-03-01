@@ -303,12 +303,9 @@ class RunOrchestrator {
     required SoliplexApi api,
     required AgUiClient agUiClient,
     required ToolRegistry toolRegistry,
-    required PlatformConstraints platform,
+    required PlatformConstraints platformConstraints,
     required Logger logger,
   });
-
-  /// The run registry tracking all active/completed runs.
-  RunRegistry get registry;
 
   /// The current run state (idle, running, executing tools, completed).
   RunState get currentState;
@@ -326,7 +323,6 @@ class RunOrchestrator {
     required ThreadKey key,
     required String userMessage,
     String? existingRunId,
-    Map<String, dynamic>? initialState,
     ThreadHistory? cachedHistory,
   });
 
@@ -389,7 +385,7 @@ class ActiveRunNotifier extends Notifier<RunState> {
       api: ref.watch(apiProvider),
       agUiClient: ref.watch(agUiClientProvider),
       toolRegistry: ref.watch(toolRegistryProvider),
-      platform: ref.watch(platformConstraintsProvider),
+      platformConstraints: ref.watch(platformConstraintsProvider),
       logger: Loggers.activeRun,
     );
 
@@ -474,7 +470,7 @@ class AgentRuntime {
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
-    HostApi? hostApi,  // GUI + native platform boundary, optional
+    String serverId = 'default',
   });
 
   /// Spawn a new agent session. Returns a handle for coordination.
@@ -535,18 +531,14 @@ class AgentSession {
   /// Whether this session's thread is auto-deleted on completion.
   bool get ephemeral;
 
-  /// Live event stream for this session.
-  ///
-  /// New subscribers receive events from the point of subscription.
-  /// For full history, use SoliplexApi.getThreadHistory() to fetch
-  /// the persisted state, then attach to this stream for the tail.
-  Stream<BaseEvent> get eventStream;
+  /// Completes when the session reaches a terminal state.
+  Future<AgentResult> get result;
 
-  /// Wait for the session to complete and return the result.
-  Future<AgentResult> result({Duration? timeout});
+  /// Waits for the session result with an optional timeout.
+  Future<AgentResult> awaitResult({Duration? timeout});
 
-  /// Cancel this session.
-  Future<void> cancel();
+  /// Cancel this session. No-op if already terminal.
+  void cancel();
 }
 ```
 
@@ -554,23 +546,24 @@ class AgentSession {
 
 ```dart
 /// Result of a completed agent session.
-sealed class AgentResult {}
+sealed class AgentResult {
+  const AgentResult({required this.threadKey});
+  final ThreadKey threadKey;
+}
 
 class AgentSuccess extends AgentResult {
   final String output;
-  final ThreadKey threadKey;
   final String runId;
 }
 
 class AgentFailure extends AgentResult {
+  final FailureReason reason;
   final String error;
   final String? partialOutput;
-  final ThreadKey threadKey;
 }
 
 class AgentTimedOut extends AgentResult {
   final Duration elapsed;
-  final ThreadKey threadKey;
 }
 ```
 
@@ -606,6 +599,9 @@ enum FailureReason {
 
   /// Internal error in the orchestrator itself.
   internalError,
+
+  /// Run was cancelled by the caller.
+  cancelled,
 }
 ```
 
@@ -721,7 +717,7 @@ This wiring is the Flutter app's responsibility, not `soliplex_agent`'s.
 The sealed `AgentResult` forces exhaustive handling:
 
 ```dart
-final result = await session.result();
+final result = await session.result;
 switch (result) {
   case AgentSuccess(:final output):
     // Use output
@@ -733,6 +729,8 @@ switch (result) {
         // Show "connection lost" with retry action
       case FailureReason.rateLimited:
         // Show "please wait" with retry-after countdown
+      case FailureReason.cancelled:
+        // User cancelled — acknowledge
       case FailureReason.serverError:
       case FailureReason.toolExecutionFailed:
       case FailureReason.internalError:
@@ -817,40 +815,35 @@ packages/soliplex_agent/
 │   └── src/
 │       ├── host/
 │       │   ├── host_api.dart                    # GUI + native platform boundary
-│       │   └── platform_constraints.dart        # Platform constraint flags
+│       │   ├── platform_constraints.dart        # Platform constraint flags
+│       │   ├── fake_host_api.dart               # In-memory HostApi for testing
+│       │   ├── native_platform_constraints.dart # Native (Isolate) constraints
+│       │   └── web_platform_constraints.dart    # Web (WASM) constraints
 │       ├── models/
-│       │   └── thread_key.dart                 # ThreadKey typedef
+│       │   ├── thread_key.dart                 # ThreadKey typedef
+│       │   ├── agent_result.dart               # Sealed result types
+│       │   └── failure_reason.dart             # FailureReason enum
 │       ├── run/
 │       │   ├── run_state.dart                  # Sealed state hierarchy
-│       │   ├── run_handle.dart                 # Run resource bundle
-│       │   ├── run_lifecycle_event.dart         # Lifecycle events
-│       │   ├── run_registry.dart               # Run tracking
-│       │   └── run_orchestrator.dart           # Core orchestration (Phase 2)
+│       │   ├── run_orchestrator.dart           # Core orchestration (Phase 2)
+│       │   └── error_classifier.dart           # Maps errors to FailureReason
 │       ├── runtime/
 │       │   ├── agent_runtime.dart             # Multi-session coordinator (Phase 4+)
 │       │   ├── agent_session.dart             # Session handle
-│       │   ├── agent_result.dart              # Sealed result types
-│       │   └── tool_registry_resolver.dart    # Room-scoped registry factory
-│       ├── cache/
-│       │   └── thread_history_cache.dart       # LRU cache (Phase 3)
-│       └── services/
-│           ├── run_preparator.dart             # Run preparation
-│           ├── agui_event_logger.dart          # Event logging
-│           └── run_completion_handler.dart     # Completion handling
+│       │   └── agent_session_state.dart       # AgentSessionState enum
+│       └── tools/
+│           └── tool_registry_resolver.dart    # Room-scoped registry factory
 └── test/
     ├── host/
     │   └── host_api_test.dart
     ├── run/
     │   ├── run_state_test.dart
-    │   ├── run_registry_test.dart
     │   └── run_orchestrator_test.dart
     ├── runtime/
     │   ├── agent_runtime_test.dart
     │   └── agent_session_test.dart
-    └── services/
-        ├── run_preparator_test.dart
-        ├── run_completion_handler_test.dart
-        └── agui_event_logger_test.dart
+    └── tools/
+        └── tool_registry_resolver_test.dart
 ```
 
 ## pubspec.yaml
@@ -858,11 +851,11 @@ packages/soliplex_agent/
 ```yaml
 name: soliplex_agent
 description: Pure Dart orchestration layer for Soliplex agent sessions.
-version: 0.1.0-dev
+version: 0.1.0
 publish_to: none
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ^3.6.0
 
 dependencies:
   soliplex_client:
@@ -1011,12 +1004,12 @@ test('RunOrchestrator starts a run', () async {
     api: api,
     agUiClient: agUiClient,
     toolRegistry: toolRegistry,
-    platform: FakePlatformConstraints(),
+    platformConstraints: FakePlatformConstraints(),
     logger: Logger('test'),
   );
 
   await orchestrator.startRun(
-    key: (roomId: 'r1', threadId: 't1'),
+    key: (serverId: 'default', roomId: 'r1', threadId: 't1'),
     userMessage: 'Hello',
   );
 

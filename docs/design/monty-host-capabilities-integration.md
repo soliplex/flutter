@@ -190,10 +190,10 @@ for the full interface. Key flags consumed by the Monty layer:
 
 ### Where Platform Detection Happens
 
-The Flutter app provides the implementation at startup:
+The implementations live in `packages/soliplex_agent/lib/src/host/`:
 
 ```dart
-// In the Flutter app (not in soliplex_agent or soliplex_interpreter_monty)
+// In packages/soliplex_agent/lib/src/host/native_platform_constraints.dart
 
 class NativePlatformConstraints implements PlatformConstraints {
   @override
@@ -201,7 +201,7 @@ class NativePlatformConstraints implements PlatformConstraints {
   @override
   bool get supportsAsyncMode => false; // Until MontyResolveFutures lands
   @override
-  int get maxConcurrentBridges => 256; // Practical limit
+  int get maxConcurrentBridges => 4; // Default for mobile
   @override
   bool get supportsReentrantInterpreter => true;
 }

@@ -128,7 +128,7 @@ flowchart TD
 
 | Platform | `supportsReentrantInterpreter` | `maxConcurrentBridges` | Effect |
 |----------|-------------------------------|------------------------|--------|
-| Native | `true` | `128` | Many concurrent sessions |
+| Native | `true` | `4` (default) | Many concurrent sessions |
 | Web (WASM) | `false` | `1` | Single session; WASM guard blocks 2nd spawn |
 
 The WASM guard prevents deadlocks where a sub-agent tool call would
