@@ -4,8 +4,8 @@ import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 /// Stateless adapter mapping [BridgeEvent]s to ag-ui [BaseEvent]s.
 ///
 /// The mapping is 1:1 and exhaustive — every [BridgeEvent] subtype produces
-/// exactly one [BaseEvent]. Fields that exist on the ag-ui side but not
-/// on the bridge side (e.g. `threadId`, `runId`) are injected by the caller.
+/// exactly one [BaseEvent]. Run-level IDs (`threadId`, `runId`) on the bridge
+/// events are overridden with the adapter's conversational-context IDs.
 class AgUiBridgeAdapter {
   /// Creates an adapter that injects the given [threadId] and [runId]
   /// into run-level events.
