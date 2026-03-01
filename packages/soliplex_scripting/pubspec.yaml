@@ -1,0 +1,20 @@
+name: soliplex_scripting
+description: Wiring package bridging Monty interpreter events to ag-ui protocol.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  ag_ui:
+    git:
+      url: https://github.com/soliplex/ag-ui.git
+      path: sdks/community/dart
+  meta: ^1.11.0
+  soliplex_interpreter_monty:
+    path: ../soliplex_interpreter_monty
+
+dev_dependencies:
+  test: ^1.24.0
+  very_good_analysis: ^10.0.0
