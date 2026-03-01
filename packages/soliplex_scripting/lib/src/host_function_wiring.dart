@@ -42,8 +42,11 @@ class HostFunctionWiring {
             ],
           ),
           handler: (args) async {
-            final columns = _castColumns(args['columns']! as Map);
-            return _hostApi.registerDataFrame(columns);
+            final raw = args['columns'];
+            if (raw is! Map) {
+              throw ArgumentError.value(raw, 'columns', 'Expected a map.');
+            }
+            return _hostApi.registerDataFrame(_castColumns(raw));
           },
         ),
         HostFunction(
@@ -59,7 +62,14 @@ class HostFunctionWiring {
             ],
           ),
           handler: (args) async {
-            final handle = args['handle']! as int;
+            final handle = args['handle'];
+            if (handle is! int) {
+              throw ArgumentError.value(
+                handle,
+                'handle',
+                'Expected an integer.',
+              );
+            }
             return _hostApi.getDataFrame(handle);
           },
         ),
@@ -79,8 +89,11 @@ class HostFunctionWiring {
             ],
           ),
           handler: (args) async {
-            final config = Map<String, Object?>.from(args['config']! as Map);
-            return _hostApi.registerChart(config);
+            final raw = args['config'];
+            if (raw is! Map) {
+              throw ArgumentError.value(raw, 'config', 'Expected a map.');
+            }
+            return _hostApi.registerChart(Map<String, Object?>.from(raw));
           },
         ),
       ];
@@ -104,19 +117,42 @@ class HostFunctionWiring {
             ],
           ),
           handler: (args) async {
-            final name = args['name']! as String;
-            final invokeArgs = Map<String, Object?>.from(args['args']! as Map);
-            return _hostApi.invoke(name, invokeArgs);
+            final name = args['name'];
+            if (name is! String) {
+              throw ArgumentError.value(name, 'name', 'Expected a string.');
+            }
+            final rawArgs = args['args'];
+            if (rawArgs is! Map) {
+              throw ArgumentError.value(rawArgs, 'args', 'Expected a map.');
+            }
+            return _hostApi.invoke(name, Map<String, Object?>.from(rawArgs));
           },
         ),
       ];
 
   /// Casts a raw map (from Python dict) to the typed column map that
   /// [HostApi.registerDataFrame] expects.
+  ///
+  /// Throws [ArgumentError] if keys are not strings or values are not lists.
   static Map<String, List<Object?>> _castColumns(Map<dynamic, dynamic> raw) {
-    return {
-      for (final entry in raw.entries)
-        entry.key as String: List<Object?>.from(entry.value as List),
-    };
+    final result = <String, List<Object?>>{};
+    for (final entry in raw.entries) {
+      if (entry.key is! String) {
+        throw ArgumentError.value(
+          entry.key,
+          'columns key',
+          'Expected a string.',
+        );
+      }
+      if (entry.value is! List) {
+        throw ArgumentError.value(
+          entry.value,
+          'columns["${entry.key}"]',
+          'Expected a list.',
+        );
+      }
+      result[entry.key as String] = List<Object?>.from(entry.value as List);
+    }
+    return result;
   }
 }
