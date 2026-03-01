@@ -1,6 +1,7 @@
 // Integration tests use print for diagnostic output.
 // ignore_for_file: avoid_print
 @Tags(['integration'])
+@Timeout(Duration(minutes: 5))
 library;
 
 import 'dart:async';
