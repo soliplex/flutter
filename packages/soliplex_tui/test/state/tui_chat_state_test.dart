@@ -35,7 +35,6 @@ void main() {
       expect(state.conversation.threadId, 't1');
       expect(state.streaming, isA<AwaitingText>());
       expect(state.reasoningText, isNull);
-      expect(state.showReasoning, isTrue);
     });
 
     test('TuiStreamingState holds reasoning text', () {

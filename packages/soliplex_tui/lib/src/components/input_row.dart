@@ -6,12 +6,17 @@ class InputRow extends StatelessComponent {
     required this.controller,
     required this.onSubmitted,
     required this.enabled,
+    this.onKeyEvent,
     super.key,
   });
 
   final TextEditingController controller;
   final void Function(String text) onSubmitted;
   final bool enabled;
+
+  /// Intercepts key events before the [TextField] processes them.
+  /// Return `true` to consume the event.
+  final bool Function(KeyboardEvent event)? onKeyEvent;
 
   @override
   Component build(BuildContext context) {
@@ -28,6 +33,7 @@ class InputRow extends StatelessComponent {
             controller: controller,
             enabled: enabled,
             focused: enabled,
+            onKeyEvent: onKeyEvent,
             placeholder: enabled ? 'Type a message...' : 'Waiting...',
             placeholderStyle:
                 TextStyle(color: theme.onSurface.withOpacity(0.5)),

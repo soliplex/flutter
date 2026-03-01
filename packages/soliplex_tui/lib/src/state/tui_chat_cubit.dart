@@ -28,7 +28,6 @@ class TuiChatCubit extends Cubit<TuiChatState> {
   final ToolRegistry _toolRegistry;
   final ThreadKey _threadKey;
 
-  bool _showReasoning = true;
   List<ChatMessage> _lastMessages = const [];
   StreamSubscription<RunState>? _subscription;
 
@@ -48,15 +47,6 @@ class TuiChatCubit extends Cubit<TuiChatState> {
     _orchestrator.cancelRun();
   }
 
-  /// Toggle reasoning pane visibility.
-  void toggleReasoning() {
-    _showReasoning = !_showReasoning;
-    final current = state;
-    if (current is TuiStreamingState) {
-      emit(current.copyWith(showReasoning: _showReasoning));
-    }
-  }
-
   void _onRunState(RunState runState) {
     switch (runState) {
       case IdleState():
@@ -74,7 +64,6 @@ class TuiChatCubit extends Cubit<TuiChatState> {
             conversation: conversation,
             streaming: streaming,
             reasoningText: reasoningText.isNotEmpty ? reasoningText : null,
-            showReasoning: _showReasoning,
           ),
         );
 

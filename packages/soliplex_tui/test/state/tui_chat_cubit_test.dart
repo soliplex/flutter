@@ -87,8 +87,7 @@ void main() {
       },
       expect: () => [
         isA<TuiStreamingState>()
-            .having((s) => s.messages, 'messages', hasLength(1))
-            .having((s) => s.showReasoning, 'showReasoning', isTrue),
+            .having((s) => s.messages, 'messages', hasLength(1)),
       ],
     );
 
@@ -212,33 +211,6 @@ void main() {
       verify: (_) {
         verify(() => mockOrchestrator.cancelRun()).called(1);
       },
-    );
-
-    blocTest<TuiChatCubit, TuiChatState>(
-      'toggleReasoning flips showReasoning during streaming',
-      build: buildCubit,
-      act: (cubit) async {
-        final conversation = TestData.createConversation(
-          messages: [TestData.createUserMessage()],
-        );
-        stateController.add(
-          RunningState(
-            threadKey: threadKey,
-            runId: 'run_1',
-            conversation: conversation,
-            streaming: const AwaitingText(),
-          ),
-        );
-        // Yield to let the stream listener emit before toggling.
-        await Future<void>.delayed(Duration.zero);
-        cubit.toggleReasoning();
-      },
-      expect: () => [
-        isA<TuiStreamingState>()
-            .having((s) => s.showReasoning, 'showReasoning', isTrue),
-        isA<TuiStreamingState>()
-            .having((s) => s.showReasoning, 'showReasoning', isFalse),
-      ],
     );
 
     blocTest<TuiChatCubit, TuiChatState>(

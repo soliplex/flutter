@@ -22,29 +22,11 @@ final class TuiStreamingState extends TuiChatState {
     required this.conversation,
     required this.streaming,
     this.reasoningText,
-    this.showReasoning = true,
   });
 
   final Conversation conversation;
   final StreamingState streaming;
   final String? reasoningText;
-  final bool showReasoning;
-
-  TuiStreamingState copyWith({
-    List<ChatMessage>? messages,
-    Conversation? conversation,
-    StreamingState? streaming,
-    String? reasoningText,
-    bool? showReasoning,
-  }) {
-    return TuiStreamingState(
-      messages: messages ?? this.messages,
-      conversation: conversation ?? this.conversation,
-      streaming: streaming ?? this.streaming,
-      reasoningText: reasoningText ?? this.reasoningText,
-      showReasoning: showReasoning ?? this.showReasoning,
-    );
-  }
 }
 
 /// Client-side tool execution in progress.
