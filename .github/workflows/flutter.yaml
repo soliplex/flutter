@@ -44,7 +44,7 @@ jobs:
             -print0 | xargs -0 dart format --set-exit-if-changed
 
       - name: Analyze code
-        run: flutter analyze --fatal-infos
+        run: dart analyze --fatal-infos lib/ test/
 
       - name: Install DCM
         uses: CQLabs/setup-dcm@v2

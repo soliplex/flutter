@@ -2,3 +2,4 @@
 # These have pre-existing issues tracked separately.
 soliplex_agent
 soliplex_cli
+soliplex_interpreter_monty
