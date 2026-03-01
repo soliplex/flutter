@@ -4,6 +4,7 @@ import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
+import 'package:soliplex_agent/src/runtime/server_connection.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
 import 'package:soliplex_client/run.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -43,6 +44,22 @@ class AgentRuntime {
         _toolRegistryResolver = toolRegistryResolver,
         _platform = platform,
         _logger = logger;
+
+  /// Creates a runtime from a [ServerConnection], extracting the API
+  /// clients and server identity.
+  AgentRuntime.fromConnection({
+    required ServerConnection connection,
+    required ToolRegistryResolver toolRegistryResolver,
+    required PlatformConstraints platform,
+    required Logger logger,
+  }) : this(
+          api: connection.api,
+          agUiClient: connection.agUiClient,
+          toolRegistryResolver: toolRegistryResolver,
+          platform: platform,
+          logger: logger,
+          serverId: connection.serverId,
+        );
 
   final SoliplexApi _api;
   final AgUiClient _agUiClient;

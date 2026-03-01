@@ -517,4 +517,51 @@ void main() {
       await session.result;
     });
   });
+
+  group('fromConnection', () {
+    test('produces runtime with correct serverId', () {
+      final connection = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+
+      runtime = AgentRuntime.fromConnection(
+        connection: connection,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+      );
+
+      expect(runtime.serverId, equals('prod'));
+    });
+
+    test('spawn creates session with matching ThreadKey.serverId', () async {
+      final connection = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+
+      runtime = AgentRuntime.fromConnection(
+        connection: connection,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+      );
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final session = await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'Hello',
+      );
+
+      expect(session.threadKey.serverId, equals('prod'));
+      await session.result;
+    });
+  });
 }
