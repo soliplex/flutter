@@ -3,6 +3,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/agent_run_provider.dart';
@@ -21,12 +22,14 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
   String? _selectedRoomId;
   String? _selectedThreadId;
   final _messageController = TextEditingController();
+  final _threadNameController = TextEditingController();
   bool _isCreatingThread = false;
   final List<String> _eventLog = [];
 
   @override
   void dispose() {
     _messageController.dispose();
+    _threadNameController.dispose();
     super.dispose();
   }
 
@@ -56,9 +59,23 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(8),
             color: Colors.amber.shade100,
-            child: const Text(
-              '\u26A0 TEMPORARY SCAFFOLDING \u2014 remove after F1 validation',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    '\u26A0 TEMPORARY SCAFFOLDING '
+                    '\u2014 remove after F1 validation',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => context.go('/settings'),
+                  icon: const Icon(Icons.arrow_back, size: 16),
+                  label: const Text('Settings'),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -80,9 +97,11 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     );
   }
 
-  // -- Room dropdown --------------------------------------------------------
+  // -- Room dropdown ------------------------------------------------------
 
-  Widget _buildRoomDropdown(AsyncValue<List<Room>> roomsAsync) {
+  Widget _buildRoomDropdown(
+    AsyncValue<List<Room>> roomsAsync,
+  ) {
     return roomsAsync.when(
       loading: () => const LinearProgressIndicator(),
       error: (e, _) => Text('Error loading rooms: $e'),
@@ -94,7 +113,10 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
         ),
         items: rooms
             .map(
-              (r) => DropdownMenuItem(value: r.id, child: Text(r.name)),
+              (r) => DropdownMenuItem(
+                value: r.id,
+                child: Text(r.name),
+              ),
             )
             .toList(),
         onChanged: (value) {
@@ -108,48 +130,90 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     );
   }
 
-  // -- Thread dropdown + New Thread -----------------------------------------
+  // -- Thread dropdown + New Thread ---------------------------------------
 
   Widget _buildThreadRow() {
     final roomId = _selectedRoomId;
-    if (roomId == null) return const Text('Select a room first.');
+    if (roomId == null) {
+      return const Text('Select a room first.');
+    }
 
     final threadsAsync = ref.watch(threadsProvider(roomId));
-    return Row(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: threadsAsync.when(
-            loading: () => const LinearProgressIndicator(),
-            error: (e, _) => Text('Error loading threads: $e'),
-            data: (threads) => DropdownButtonFormField<String>(
-              initialValue: _selectedThreadId,
-              decoration: const InputDecoration(
-                labelText: 'Thread',
-                border: OutlineInputBorder(),
+        Row(
+          children: [
+            Expanded(
+              child: threadsAsync.when(
+                loading: () => const LinearProgressIndicator(),
+                error: (e, _) => Text('Error loading threads: $e'),
+                data: (threads) => DropdownButtonFormField<String>(
+                  initialValue: _selectedThreadId,
+                  decoration: const InputDecoration(
+                    labelText: 'Thread',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: threads
+                      .map(
+                        (t) => DropdownMenuItem(
+                          value: t.id,
+                          child: Text(
+                            t.hasName
+                                ? '${t.name} (${t.id.substring(0, 8)}...)'
+                                : t.id,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) => setState(
+                    () => _selectedThreadId = value,
+                  ),
+                ),
               ),
-              items: threads
-                  .map(
-                    (t) => DropdownMenuItem(
-                      value: t.id,
-                      child: Text(t.hasName ? t.name : t.id),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) => setState(() => _selectedThreadId = value),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _threadNameController,
+                decoration: const InputDecoration(
+                  labelText: 'Thread Name (optional)',
+                  hintText: 'e.g. "My test thread"',
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            ElevatedButton.icon(
+              onPressed: _isCreatingThread ? null : _createThread,
+              icon: _isCreatingThread
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Icon(Icons.add),
+              label: const Text('New Thread'),
+            ),
+          ],
+        ),
+        if (_selectedThreadId != null) ...[
+          const SizedBox(height: 4),
+          SelectableText(
+            'Thread ID: $_selectedThreadId',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        ElevatedButton.icon(
-          onPressed: _isCreatingThread ? null : _createThread,
-          icon: _isCreatingThread
-              ? const SizedBox.square(
-                  dimension: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.add),
-          label: const Text('New Thread'),
-        ),
+        ],
       ],
     );
   }
@@ -161,21 +225,32 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     setState(() => _isCreatingThread = true);
     try {
       final api = ref.read(apiProvider);
-      final (threadInfo, _) = await api.createThread(roomId);
+      final name = _threadNameController.text.trim();
+      final (threadInfo, _) = await api.createThread(
+        roomId,
+        name: name.isNotEmpty ? name : null,
+      );
       ref.invalidate(threadsProvider(roomId));
-      if (mounted) setState(() => _selectedThreadId = threadInfo.id);
+      if (mounted) {
+        setState(() => _selectedThreadId = threadInfo.id);
+        _threadNameController.clear();
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create thread: $e')),
+          SnackBar(
+            content: Text('Failed to create thread: $e'),
+          ),
         );
       }
     } finally {
-      if (mounted) setState(() => _isCreatingThread = false);
+      if (mounted) {
+        setState(() => _isCreatingThread = false);
+      }
     }
   }
 
-  // -- State indicator ------------------------------------------------------
+  // -- State indicator ----------------------------------------------------
 
   Widget _buildStateIndicator(RunState runState) {
     final (label, color) = switch (runState) {
@@ -232,7 +307,7 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     );
   }
 
-  // -- Message input --------------------------------------------------------
+  // -- Message input ------------------------------------------------------
 
   Widget _buildMessageInput(RunState runState) {
     final isRunning = runState is RunningState || runState is ToolYieldingState;
@@ -264,7 +339,9 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     final roomId = _selectedRoomId;
     final threadId = _selectedThreadId;
     final message = _messageController.text.trim();
-    if (roomId == null || threadId == null || message.isEmpty) return;
+    if (roomId == null || threadId == null || message.isEmpty) {
+      return;
+    }
 
     _messageController.clear();
     ref.read(agentRunProvider.notifier).startRun(
@@ -274,7 +351,7 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
         );
   }
 
-  // -- Cancel / Reset -------------------------------------------------------
+  // -- Cancel / Reset -----------------------------------------------------
 
   Widget _buildActionButtons(RunState runState) {
     final isRunning = runState is RunningState || runState is ToolYieldingState;
@@ -298,7 +375,7 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     );
   }
 
-  // -- Conversation log -----------------------------------------------------
+  // -- Conversation log ---------------------------------------------------
 
   Widget _buildConversationLog(RunState runState) {
     final conversation = switch (runState) {
@@ -310,7 +387,9 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
       _ => null,
     };
 
-    if (conversation == null) return const Text('No conversation yet.');
+    if (conversation == null) {
+      return const Text('No conversation yet.');
+    }
 
     final messages = conversation.messages;
     return Column(
@@ -341,14 +420,22 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
       ToolCallMessage(:final toolCalls) => (
           Icons.build,
           'tool',
-          toolCalls.map((t) => '${t.name} \u2192 ${t.status.name}').join(', '),
+          toolCalls
+              .map(
+                (t) => '${t.name} \u2192 ${t.status.name}',
+              )
+              .join(', '),
         ),
       GenUiMessage(:final widgetName) => (
           Icons.widgets,
           'genui',
           widgetName,
         ),
-      LoadingMessage() => (Icons.hourglass_empty, 'loading', '...'),
+      LoadingMessage() => (
+          Icons.hourglass_empty,
+          'loading',
+          '...',
+        ),
     };
 
     return ListTile(
@@ -358,7 +445,7 @@ class _DebugAgentScreenState extends ConsumerState<DebugAgentScreen> {
     );
   }
 
-  // -- Event log ------------------------------------------------------------
+  // -- Event log ----------------------------------------------------------
 
   Widget _buildEventLog() {
     return Column(

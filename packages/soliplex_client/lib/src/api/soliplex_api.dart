@@ -327,6 +327,7 @@ class SoliplexApi {
   /// - [CancelledException] if cancelled via [cancelToken]
   Future<(ThreadInfo, Map<String, dynamic>)> createThread(
     String roomId, {
+    String? name,
     CancelToken? cancelToken,
   }) async {
     _requireNonEmpty(roomId, 'roomId');
@@ -334,8 +335,11 @@ class SoliplexApi {
     final response = await _transport.request<Map<String, dynamic>>(
       'POST',
       _urlBuilder.build(pathSegments: ['rooms', roomId, 'agui']),
-      body: const {
-        'metadata': {'name': 'New Thread', 'description': ''},
+      body: {
+        'metadata': {
+          'name': name ?? 'New Thread',
+          'description': '',
+        },
       },
       cancelToken: cancelToken,
     );
@@ -354,10 +358,14 @@ class SoliplexApi {
       }
     }
 
+    final metadata = response['metadata'] as Map<String, dynamic>?;
+    final threadName = metadata?['name'] as String? ?? name ?? '';
+
     final threadInfo = ThreadInfo(
       id: response['thread_id'] as String,
       roomId: roomId,
       initialRunId: initialRunId ?? '',
+      name: threadName,
       createdAt: DateTime.now(),
     );
 
