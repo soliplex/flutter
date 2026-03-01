@@ -1,4 +1,4 @@
-import 'package:soliplex_agent/soliplex_agent.dart' show HostApi;
+import 'package:soliplex_agent/soliplex_agent.dart' show AgentApi, HostApi;
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 
 /// Wires [HostApi] methods to [HostFunction]s and registers them onto a
@@ -14,18 +14,24 @@ import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 /// | chart    | `chart_create`| `registerChart`      |
 /// | platform | `host_invoke` | `invoke`             |
 class HostFunctionWiring {
-  HostFunctionWiring({required HostApi hostApi}) : _hostApi = hostApi;
+  HostFunctionWiring({required HostApi hostApi, AgentApi? agentApi})
+      : _hostApi = hostApi,
+        _agentApi = agentApi;
 
   final HostApi _hostApi;
+  final AgentApi? _agentApi;
 
   /// Registers all host function categories (plus introspection builtins)
   /// onto [bridge].
   void registerOnto(MontyBridge bridge) {
-    (HostFunctionRegistry()
-          ..addCategory('data', _dataFunctions())
-          ..addCategory('chart', _chartFunctions())
-          ..addCategory('platform', _platformFunctions()))
-        .registerAllOnto(bridge);
+    final registry = HostFunctionRegistry()
+      ..addCategory('data', _dataFunctions())
+      ..addCategory('chart', _chartFunctions())
+      ..addCategory('platform', _platformFunctions());
+    if (_agentApi != null) {
+      registry.addCategory('agent', _agentFunctions());
+    }
+    registry.registerAllOnto(bridge);
   }
 
   List<HostFunction> _dataFunctions() => [
@@ -126,6 +132,94 @@ class HostFunctionWiring {
               throw ArgumentError.value(rawArgs, 'args', 'Expected a map.');
             }
             return _hostApi.invoke(name, Map<String, Object?>.from(rawArgs));
+          },
+        ),
+      ];
+
+  List<HostFunction> _agentFunctions() => [
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'spawn_agent',
+            description: 'Spawn an L2 sub-agent in a room.',
+            params: [
+              HostParam(
+                name: 'room',
+                type: HostParamType.string,
+                description: 'Room ID to spawn the agent in.',
+              ),
+              HostParam(
+                name: 'prompt',
+                type: HostParamType.string,
+                description: 'Prompt for the agent.',
+              ),
+            ],
+          ),
+          handler: (args) async {
+            final room = args['room']! as String;
+            final prompt = args['prompt']! as String;
+            return _agentApi!.spawnAgent(room, prompt);
+          },
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'wait_all',
+            description: 'Wait for all agents to complete.',
+            params: [
+              HostParam(
+                name: 'handles',
+                type: HostParamType.list,
+                description: 'List of agent handles.',
+              ),
+            ],
+          ),
+          handler: (args) async {
+            final raw = args['handles']! as List<Object?>;
+            final handles = raw.cast<int>();
+            return _agentApi!.waitAll(handles);
+          },
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'get_result',
+            description: 'Get the result of a completed agent.',
+            params: [
+              HostParam(
+                name: 'handle',
+                type: HostParamType.integer,
+                description: 'Agent handle.',
+              ),
+            ],
+          ),
+          handler: (args) async {
+            final handle = args['handle']! as int;
+            return _agentApi!.getResult(handle);
+          },
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'ask_llm',
+            description: 'Spawn an agent and return its result in one call.',
+            params: [
+              HostParam(
+                name: 'prompt',
+                type: HostParamType.string,
+                description: 'Prompt for the agent.',
+              ),
+              HostParam(
+                name: 'room',
+                type: HostParamType.string,
+                isRequired: false,
+                defaultValue: 'general',
+                description: 'Room ID (defaults to "general").',
+              ),
+            ],
+          ),
+          handler: (args) async {
+            final prompt = args['prompt']! as String;
+            final room = args['room']! as String;
+            final api = _agentApi!;
+            final handle = await api.spawnAgent(room, prompt);
+            return api.getResult(handle);
           },
         ),
       ];
