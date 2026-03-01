@@ -18,7 +18,7 @@ enum HostParamType {
   /// Map/dict parameter. Monty Python `dict`.
   map;
 
-  /// JSON Schema type name for ag-ui Tool export.
+  /// JSON Schema type name for tool protocol export.
   String get jsonSchemaType => switch (this) {
         string => 'string',
         integer => 'integer',

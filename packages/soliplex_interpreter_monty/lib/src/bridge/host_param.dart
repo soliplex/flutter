@@ -21,7 +21,7 @@ class HostParam {
   /// Whether the caller must supply a value.
   final bool isRequired;
 
-  /// Human-readable description for ag-ui tool export.
+  /// Human-readable description for JSON Schema export.
   final String? description;
 
   /// Default value when the argument is absent and not required.

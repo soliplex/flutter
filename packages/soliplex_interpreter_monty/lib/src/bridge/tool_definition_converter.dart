@@ -9,7 +9,7 @@ import 'package:soliplex_interpreter_monty/src/bridge/host_param_type.dart';
 ///
 /// - [pythonName]: The `kind` field — what Python calls
 ///   (e.g. `get_current_datetime`)
-/// - [registryName]: The `tool_name` field — what ag-ui uses
+/// - [registryName]: The `tool_name` field — the tool protocol lookup key
 ///   (e.g. `soliplex.tools.get_current_datetime`)
 /// - [schema]: The [HostFunctionSchema] registered with the bridge
 @immutable
