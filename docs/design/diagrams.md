@@ -19,7 +19,7 @@ graph TD
         Constraints["PlatformConstraints<br/>WASM safety flags"]
     end
 
-    subgraph Monty["soliplex_monty"]
+    subgraph Monty["soliplex_interpreter_monty"]
         Bridge["MontyBridge"]
         HostFns["HostFunctions"]
         DataFrame["DataFrame Engine"]

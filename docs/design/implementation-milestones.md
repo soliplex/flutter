@@ -577,7 +577,7 @@ Document what was discovered, not just what was designed.
 | Question | Answer |
 |----------|--------|
 | M0 package validation? | No. Bake smoke test into first 5 min of M1 |
-| `soliplex_monty` extraction timing? | AFTER `soliplex_agent` (depends on `HostApi`) |
+| `soliplex_interpreter_monty` extraction timing? | AFTER `soliplex_agent` (depends on `HostApi`) |
 | `soliplex_platform` package? | Premature. Keep Flutter glue in main app |
 | `soliplex_client_native` changes? | None needed |
 | More design docs? | No. Resolve the 7 gaps table before M4-M5 |
@@ -592,14 +592,14 @@ All branches fork from `fb81ffc` on `main`.
 |--------|--------------|-------------|
 | `main` | — | Production baseline |
 | `feat/tool-execution-s3` | 1 commit | Tool definition wiring. **Current branch** — design docs live here (uncommitted) |
-| `feat/monty-bridge-charting` | 20 commits | `soliplex_monty` package (56 files, 7.4k lines). DataFrame engine, bridge, schema executor, tests |
+| `feat/monty-bridge-charting` | 20 commits | `soliplex_interpreter_monty` package (56 files, 7.4k lines). DataFrame engine, bridge, schema executor, tests |
 | `feat/monty-bridge-s4` | 1 commit | X-Monty-Version header |
 | `integration/tool-monty-demo` | 20+ commits | Merges charting + s4 + fixes. The "everything together" branch |
 | `refactor/m1-extract-services` | M1 services | `RunPreparator`, `AguiEventLogger`, `RunCompletionHandler` (worktree) |
 
 ### What Already Exists on `feat/monty-bridge-charting`
 
-`packages/soliplex_monty/` is a working package with:
+`packages/soliplex_interpreter_monty/` is a working package with:
 
 - **Bridge layer:** `DefaultMontyBridge`, `HostFunction`,
   `HostFunctionRegistry`, `HostFunctionSchema`, `HostParam`,
@@ -612,7 +612,7 @@ All branches fork from `fb81ffc` on `main`.
 - **Comprehensive tests:** 16 test files covering bridge, schema,
   DataFrame, registry, widgets
 
-Current `soliplex_monty` dependencies:
+Current `soliplex_interpreter_monty` dependencies:
 - `ag_ui` (git)
 - `dart_monty_platform_interface` (local path)
 - `flutter` SDK
@@ -621,9 +621,9 @@ Current `soliplex_monty` dependencies:
 
 ### How to Incorporate Charting Branch Work
 
-The charting branch's `soliplex_monty` was built before the
+The charting branch's `soliplex_interpreter_monty` was built before the
 `soliplex_agent` design. The design docs describe a future state where
-`soliplex_monty` depends on `soliplex_agent` for `HostApi` and
+`soliplex_interpreter_monty` depends on `soliplex_agent` for `HostApi` and
 `PlatformConstraints`. But TODAY the bridge works without those
 abstractions — it uses closure-captured Riverpod `ref` instead.
 
@@ -635,21 +635,21 @@ abstractions — it uses closure-captured Riverpod `ref` instead.
 
 2. **Before M8, review the charting branch** with Gemini to produce a
    gap analysis:
-   - What does `soliplex_monty` already have that matches the design?
+   - What does `soliplex_interpreter_monty` already have that matches the design?
    - What differs from the design (e.g., `DfRegistry` is local vs
      behind `HostApi`, handler closures capture `ref` vs injected
      `ToolRegistry`)?
-   - What's the minimal diff to align existing `soliplex_monty` with
+   - What's the minimal diff to align existing `soliplex_interpreter_monty` with
      `soliplex_agent`'s interfaces?
 
-3. **The M8 test harness can use existing `soliplex_monty` code.**
-   The `example/` app could import `soliplex_monty` for the DataFrame
+3. **The M8 test harness can use existing `soliplex_interpreter_monty` code.**
+   The `example/` app could import `soliplex_interpreter_monty` for the DataFrame
    engine and bridge, wired through `soliplex_agent`'s `HostApi`. This
    becomes the first real integration test of both packages together.
 
 4. **The Monty bridge rewire (design doc Phase 5) is a SEPARATE PR**
    after both packages exist:
-   - Add `soliplex_agent` dependency to `soliplex_monty`'s pubspec
+   - Add `soliplex_agent` dependency to `soliplex_interpreter_monty`'s pubspec
    - Refactor `DefaultMontyBridge` to accept `ToolRegistry` + `HostApi`
      instead of closure-captured `ref`
    - Change `buildDfFunctions(DfRegistry)` to `buildDfFunctions(HostApi)`
@@ -682,11 +682,11 @@ Before starting M8 or the bridge rewire, run a structured review:
 
 ```text
 Gemini read_files on feat/monty-bridge-charting:
-  packages/soliplex_monty/lib/soliplex_monty.dart
-  packages/soliplex_monty/lib/src/bridge/default_monty_bridge.dart
-  packages/soliplex_monty/lib/src/data/df_registry.dart
-  packages/soliplex_monty/lib/src/functions/df_functions.dart
-  packages/soliplex_monty/pubspec.yaml
+  packages/soliplex_interpreter_monty/lib/soliplex_interpreter_monty.dart
+  packages/soliplex_interpreter_monty/lib/src/bridge/default_monty_bridge.dart
+  packages/soliplex_interpreter_monty/lib/src/data/df_registry.dart
+  packages/soliplex_interpreter_monty/lib/src/functions/df_functions.dart
+  packages/soliplex_interpreter_monty/pubspec.yaml
 
 Prompt: Compare against soliplex-agent-package.md and
 monty-host-capabilities-integration.md. Produce a table of:

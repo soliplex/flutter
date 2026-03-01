@@ -7,7 +7,7 @@
    and dependency injection patterns. **Read this first.**
 
 2. **[monty-host-capabilities-integration.md](monty-host-capabilities-integration.md)**
-   — Wiring guide. How `soliplex_monty` integrates with `soliplex_agent`
+   — Wiring guide. How `soliplex_interpreter_monty` integrates with `soliplex_agent`
    via `HostApi` + direct `ToolRegistry` injection. Call flows, bridge
    rewiring, platform discrimination.
 
@@ -19,7 +19,7 @@
 
 ```text
 Flutter App
-  ├── soliplex_monty        (Python bridge, host functions)
+  ├── soliplex_interpreter_monty        (Python bridge, host functions)
   │     └── soliplex_agent  (orchestration, runtime, interfaces)
   │           └── soliplex_client  (API, AG-UI, domain models)
   │                 └── soliplex_logging

@@ -49,7 +49,7 @@ navigation targets but channels through which agents pass typed state,
 coordinate work, and recover from errors.
 
 The runtime sits on top of `soliplex_agent` (orchestration) and
-`soliplex_client` (protocol), and is scripted through `soliplex_monty`
+`soliplex_client` (protocol), and is scripted through `soliplex_interpreter_monty`
 (Python bridge).
 
 ### Why Python (Monty), Not Dart Scripting
@@ -439,7 +439,7 @@ A validation layer at agent boundaries — call it "agent contracts" — would:
 
 ### Recommendation: Not a Separate Package (Yet)
 
-The validation patterns already exist in `soliplex_monty`
+The validation patterns already exist in `soliplex_interpreter_monty`
 (`HostFunctionSchema`, `SchemaExecutor`). For agent output validation,
 the simplest approach is:
 
@@ -667,7 +667,7 @@ than framework-level supervision.
 ## Where This Lives in the Package Graph
 
 ```text
-soliplex_monty
+soliplex_interpreter_monty
   │  host functions: spawn_agent, wait_all, etc.
   │  depends on
   ▼
@@ -685,7 +685,7 @@ Backend (independent per-session)
 
 The `AgentRuntime` class lives in `soliplex_agent` because it's pure Dart
 orchestration. The Python host functions (`spawn_agent`, `wait_all`, etc.)
-live in `soliplex_monty` because they're Monty-specific.
+live in `soliplex_interpreter_monty` because they're Monty-specific.
 
 ## UX Boundary: What AgentRuntime Owns vs What Flutter Owns
 

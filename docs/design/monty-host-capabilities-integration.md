@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document specifies how `soliplex_monty` integrates with `soliplex_agent`
+This document specifies how `soliplex_interpreter_monty` integrates with `soliplex_agent`
 via the `HostApi` interface and direct `ToolRegistry` injection. It covers
 the call flow, dependency wiring, and platform constraint discrimination.
 
@@ -37,7 +37,7 @@ ToolRegistry.execute(toolCall) ──► backend or local tool
 ```
 
 The problem: `HostFunction` handlers are closures that capture Riverpod `ref`.
-This couples `soliplex_monty` to Flutter at the wiring layer
+This couples `soliplex_interpreter_monty` to Flutter at the wiring layer
 (`ThreadBridgeCacheNotifier.getOrCreate`).
 
 ### Monty Language Limitations
@@ -140,15 +140,15 @@ HostApi (interface defined in soliplex_agent, implemented by Flutter)
 ## Dependency Graph
 
 ```text
-soliplex_monty ──depends──► soliplex_agent  (for HostApi, PlatformConstraints)
+soliplex_interpreter_monty ──depends──► soliplex_agent  (for HostApi, PlatformConstraints)
 soliplex_agent ──depends──► soliplex_client (for domain models, ToolRegistry)
-Flutter app    ──depends──► soliplex_monty, soliplex_agent
+Flutter app    ──depends──► soliplex_interpreter_monty, soliplex_agent
 
-soliplex_monty does NOT depend on Flutter (already true on charting branch,
-except for widgets/ which stay in soliplex_monty or move to the app).
+soliplex_interpreter_monty does NOT depend on Flutter (already true on charting branch,
+except for widgets/ which stay in soliplex_interpreter_monty or move to the app).
 ```
 
-**Important:** `soliplex_monty` gains a dependency on `soliplex_agent`
+**Important:** `soliplex_interpreter_monty` gains a dependency on `soliplex_agent`
 *only* for `HostApi` and `PlatformConstraints`. It does not import
 `RunOrchestrator`, `ThreadHistoryCache`, or any other agent internals.
 
@@ -193,7 +193,7 @@ for the full interface. Key flags consumed by the Monty layer:
 The Flutter app provides the implementation at startup:
 
 ```dart
-// In the Flutter app (not in soliplex_agent or soliplex_monty)
+// In the Flutter app (not in soliplex_agent or soliplex_interpreter_monty)
 
 class NativePlatformConstraints implements PlatformConstraints {
   @override
@@ -444,7 +444,7 @@ class ThreadBridgeCacheNotifier extends Notifier<ThreadBridgeCacheState> {
 
 ## HostFunctionRegistry Integration
 
-The `HostFunctionRegistry` (currently in `soliplex_monty`) doesn't change
+The `HostFunctionRegistry` (currently in `soliplex_interpreter_monty`) doesn't change
 structurally. What changes is **how handlers are built**:
 
 ### Current: Handlers capture closures
@@ -495,13 +495,13 @@ instead of directly mutating a `DfRegistry`.
 |-----------|-----------------|--------|--------|
 | `HostApi` | N/A | `soliplex_agent` | New interface |
 | `PlatformConstraints` | N/A | `soliplex_agent` | New interface |
-| `MontyBridge` | `soliplex_monty` | `soliplex_monty` | No change |
-| `DefaultMontyBridge` | `soliplex_monty` | `soliplex_monty` | Add `toolRegistry` + `hostApi` params |
-| `HostFunction` | `soliplex_monty` | `soliplex_monty` | No change |
-| `HostFunctionSchema` | `soliplex_monty` | `soliplex_monty` | No change |
-| `HostFunctionRegistry` | `soliplex_monty` | `soliplex_monty` | No change (or move to agent) |
-| `DfRegistry` | `soliplex_monty` | `soliplex_monty` | Used only by Flutter impl |
-| `buildDfFunctions` | `soliplex_monty` | `soliplex_monty` | Signature: `(DfRegistry)` → `(HostApi)` |
+| `MontyBridge` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | No change |
+| `DefaultMontyBridge` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | Add `toolRegistry` + `hostApi` params |
+| `HostFunction` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | No change |
+| `HostFunctionSchema` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | No change |
+| `HostFunctionRegistry` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | No change (or move to agent) |
+| `DfRegistry` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | Used only by Flutter impl |
+| `buildDfFunctions` | `soliplex_interpreter_monty` | `soliplex_interpreter_monty` | Signature: `(DfRegistry)` → `(HostApi)` |
 | `ThreadBridgeCacheNotifier` | Flutter app | Flutter app | Injects `ToolRegistry` + `HostApi` |
 | `_FlutterHostApi` | N/A | Flutter app | New private class implementing `HostApi` |
 | Platform factories | Flutter app | Flutter app | No change |
@@ -510,16 +510,16 @@ instead of directly mutating a `DfRegistry`.
 ## Open Questions for Implementer
 
 1. **Should `DfRegistry` move into `soliplex_agent`?**
-   Currently it's a detail of `soliplex_monty`. Since `HostApi`
+   Currently it's a detail of `soliplex_interpreter_monty`. Since `HostApi`
    defines `registerDataFrame`/`getDataFrame`, the Flutter impl can use
-   `DfRegistry` internally. `soliplex_monty`'s `buildDfFunctions` just needs
-   the `HostApi` interface. Recommend: keep `DfRegistry` in `soliplex_monty`,
+   `DfRegistry` internally. `soliplex_interpreter_monty`'s `buildDfFunctions` just needs
+   the `HostApi` interface. Recommend: keep `DfRegistry` in `soliplex_interpreter_monty`,
    used only by the Flutter implementation class.
 
 2. **Should `HostFunctionRegistry` move to `soliplex_agent`?**
    It's a utility for grouping and registering functions onto a bridge.
    It has no Riverpod dependency. Could live in either package. Recommend:
-   keep in `soliplex_monty` — it's specific to the Monty bridge pattern.
+   keep in `soliplex_interpreter_monty` — it's specific to the Monty bridge pattern.
 
 3. **Chart rendering pipeline.**
    `registerChart` returns a handle. How does the UI know to render it?
@@ -536,16 +536,16 @@ instead of directly mutating a `DfRegistry`.
    via Dart's event loop and resume. The current `TODO(M13)` comment marks
    this location. The interface is ready; the implementation is deferred.
 
-5. **Widget files in `soliplex_monty`.**
+5. **Widget files in `soliplex_interpreter_monty`.**
    `console_output_view.dart` and `python_run_button.dart` import Flutter.
    They should either (a) move to the Flutter app's `shared/widgets/`, or
-   (b) stay in `soliplex_monty` with `soliplex_monty` keeping its Flutter
+   (b) stay in `soliplex_interpreter_monty` with `soliplex_interpreter_monty` keeping its Flutter
    dependency for the widget layer only. Recommend: (b) for now — the
    widgets are tightly coupled to Monty console events.
 
 ## Testing Strategy
 
-### Unit Tests in `soliplex_monty`
+### Unit Tests in `soliplex_interpreter_monty`
 
 `DefaultMontyBridge` tests use mock `ToolRegistry` + `HostApi`:
 
