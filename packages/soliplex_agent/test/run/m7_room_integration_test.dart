@@ -4,14 +4,13 @@
 @Timeout(Duration(minutes: 5))
 library;
 
-import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
+
+import '../integration/helpers/helpers.dart';
 
 /// ------------------------------------------------------------------
 /// M7 Integration tests: 19 tests across L0 → L2+++++ layers
@@ -30,44 +29,14 @@ import 'package:test/test.dart';
 ///   dart test test/run/m7_room_integration_test.dart -t integration
 /// ------------------------------------------------------------------
 
-String _env(String name, [String? fallback]) {
-  final value = Platform.environment[name];
-  if (value != null && value.isNotEmpty) return value;
-  if (fallback != null) return fallback;
-  throw TestFailure(
-    'Missing env var $name — set it to run integration tests',
-  );
-}
-
 void main() {
-  late String baseUrl;
-
-  // Long-lived — shared across all tests.
-  late DartHttpClient restClient;
-  late DartHttpClient sseClient;
-  late SoliplexApi api;
-  late AgUiClient agUiClient;
+  final harness = IntegrationHarness();
 
   setUpAll(() async {
-    baseUrl = _env('SOLIPLEX_BASE_URL', 'http://localhost:8000');
-
-    restClient = DartHttpClient();
-    sseClient = DartHttpClient();
-
-    api = SoliplexApi(
-      transport: HttpTransport(client: restClient),
-      urlBuilder: UrlBuilder('$baseUrl/api/v1'),
-    );
-
-    agUiClient = AgUiClient(
-      config: AgUiClientConfig(baseUrl: '$baseUrl/api/v1'),
-      httpClient: HttpClientAdapter(client: sseClient),
-    );
+    await harness.setUp();
   });
 
-  tearDownAll(() {
-    api.close();
-  });
+  tearDownAll(harness.tearDown);
 
   // =========================================================================
   // 1. L1: Multi-tool chaining
@@ -78,9 +47,9 @@ void main() {
     late ToolRegistry tools;
 
     setUpAll(() async {
-      final (info, _) = await api.createThread('multi-tool');
-      print('Created multi-tool thread: ${info.id}');
-      key = (serverId: 'default', roomId: 'multi-tool', threadId: info.id);
+      final (k, _) = await harness.createThread('multi-tool');
+      print('Created multi-tool thread: ${k.threadId}');
+      key = k;
 
       tools = const ToolRegistry().register(
         ClientTool(
@@ -98,12 +67,9 @@ void main() {
     });
 
     setUp(() {
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm7-01-multi-tool',
         toolRegistry: tools,
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-01-multi-tool'),
       );
     });
 
@@ -119,7 +85,7 @@ void main() {
 
       var yieldCount = 0;
       for (var round = 0; round < 5; round++) {
-        await _waitForYieldOrTerminal(orchestrator, timeout: 60);
+        await waitForYieldOrTerminal(orchestrator, timeout: 60);
         if (orchestrator.currentState is! ToolYieldingState) break;
 
         yieldCount++;
@@ -142,7 +108,7 @@ void main() {
       }
 
       if (orchestrator.currentState is! CompletedState) {
-        await _waitForTerminalState(orchestrator, timeout: 60);
+        await waitForTerminalState(orchestrator, timeout: 60);
       }
 
       expect(
@@ -152,7 +118,7 @@ void main() {
       );
       expect(orchestrator.currentState, isA<CompletedState>());
       print(
-        'Response: ${_lastAssistantText(
+        'Response: ${lastAssistantText(
           (orchestrator.currentState as CompletedState).conversation,
         )}',
       );
@@ -165,19 +131,13 @@ void main() {
   group('2: non-existent room error', () {
     test('createThread throws NotFoundException', () async {
       expect(
-        () => api.createThread('room-that-does-not-exist-999'),
+        () => harness.api.createThread('room-that-does-not-exist-999'),
         throwsA(isA<NotFoundException>()),
       );
     });
 
     test('AgentRuntime.spawn throws for bad room', () async {
-      final runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-02-error'),
-      );
+      final runtime = harness.createRuntime(loggerName: 'm7-02-error');
 
       try {
         Object? caught;
@@ -208,9 +168,9 @@ void main() {
     late ToolRegistry tools;
 
     setUpAll(() async {
-      final (info, _) = await api.createThread('dispatch');
-      print('Created dispatch thread: ${info.id}');
-      key = (serverId: 'default', roomId: 'dispatch', threadId: info.id);
+      final (k, _) = await harness.createThread('dispatch');
+      print('Created dispatch thread: ${k.threadId}');
+      key = k;
 
       tools = const ToolRegistry()
           .register(
@@ -255,12 +215,9 @@ void main() {
     });
 
     setUp(() {
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm7-03-dispatch',
         toolRegistry: tools,
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-03-dispatch'),
       );
     });
 
@@ -276,7 +233,7 @@ void main() {
 
       final calledTools = <String>{};
       for (var round = 0; round < 5; round++) {
-        await _waitForYieldOrTerminal(orchestrator, timeout: 60);
+        await waitForYieldOrTerminal(orchestrator, timeout: 60);
         if (orchestrator.currentState is! ToolYieldingState) break;
 
         final yielding = orchestrator.currentState as ToolYieldingState;
@@ -299,7 +256,7 @@ void main() {
       }
 
       if (orchestrator.currentState is! CompletedState) {
-        await _waitForTerminalState(orchestrator, timeout: 60);
+        await waitForTerminalState(orchestrator, timeout: 60);
       }
 
       print('All tools called: $calledTools');
@@ -317,18 +274,14 @@ void main() {
     late ThreadKey key;
 
     setUpAll(() async {
-      final (info, _) = await api.createThread('accumulator');
-      print('Created accumulator thread: ${info.id}');
-      key = (serverId: 'default', roomId: 'accumulator', threadId: info.id);
+      final (k, _) = await harness.createThread('accumulator');
+      print('Created accumulator thread: ${k.threadId}');
+      key = k;
     });
 
     setUp(() {
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistry: const ToolRegistry(),
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-04-accumulator'),
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm7-04-accumulator',
       );
     });
 
@@ -342,7 +295,7 @@ void main() {
         key: key,
         userMessage: 'Fact 1: The sky is blue.',
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
       var history = ThreadHistory(
         messages:
@@ -356,7 +309,7 @@ void main() {
         userMessage: 'Fact 2: Grass is green.',
         cachedHistory: history,
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
       history = ThreadHistory(
         messages:
@@ -370,10 +323,10 @@ void main() {
         userMessage: 'What are the two facts I told you?',
         cachedHistory: history,
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
 
-      final response = _lastAssistantText(
+      final response = lastAssistantText(
         (orchestrator.currentState as CompletedState).conversation,
       ).toLowerCase();
       print('Recall response: $response');
@@ -389,13 +342,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-05-pipeline'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-05-pipeline');
     });
 
     tearDown(() async {
@@ -448,18 +395,14 @@ void main() {
     late ThreadKey key;
 
     setUpAll(() async {
-      final (info, _) = await api.createThread('echo');
-      print('Created depth-stress thread: ${info.id}');
-      key = (serverId: 'default', roomId: 'echo', threadId: info.id);
+      final (k, _) = await harness.createThread('echo');
+      print('Created depth-stress thread: ${k.threadId}');
+      key = k;
     });
 
     setUp(() {
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistry: const ToolRegistry(),
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-06-depth'),
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm7-06-depth',
       );
     });
 
@@ -478,7 +421,7 @@ void main() {
           userMessage: 'Remember the word: $word',
           cachedHistory: history,
         );
-        await _waitForTerminalState(orchestrator, timeout: 60);
+        await waitForTerminalState(orchestrator, timeout: 60);
         expect(orchestrator.currentState, isA<CompletedState>());
         history = ThreadHistory(
           messages: (orchestrator.currentState as CompletedState)
@@ -494,10 +437,10 @@ void main() {
         userMessage: 'List all four words I asked you to remember, in order.',
         cachedHistory: history,
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
 
-      final response = _lastAssistantText(
+      final response = lastAssistantText(
         (orchestrator.currentState as CompletedState).conversation,
       ).toUpperCase();
       print('Recall: $response');
@@ -516,9 +459,9 @@ void main() {
     late ToolRegistry tools;
 
     setUpAll(() async {
-      final (info, _) = await api.createThread('strict-tool');
-      print('Created strict-tool thread: ${info.id}');
-      key = (serverId: 'default', roomId: 'strict-tool', threadId: info.id);
+      final (k, _) = await harness.createThread('strict-tool');
+      print('Created strict-tool thread: ${k.threadId}');
+      key = k;
 
       tools = const ToolRegistry().register(
         ClientTool(
@@ -538,12 +481,9 @@ void main() {
     });
 
     setUp(() {
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm7-07-strict',
         toolRegistry: tools,
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-07-strict'),
       );
     });
 
@@ -558,7 +498,7 @@ void main() {
       );
 
       for (var round = 0; round < 5; round++) {
-        await _waitForYieldOrTerminal(orchestrator, timeout: 60);
+        await waitForYieldOrTerminal(orchestrator, timeout: 60);
         if (orchestrator.currentState is! ToolYieldingState) break;
 
         final yielding = orchestrator.currentState as ToolYieldingState;
@@ -583,7 +523,7 @@ void main() {
       }
 
       if (orchestrator.currentState is! CompletedState) {
-        await _waitForTerminalState(orchestrator, timeout: 60);
+        await waitForTerminalState(orchestrator, timeout: 60);
       }
 
       expect(
@@ -592,7 +532,7 @@ void main() {
         reason: 'Agent should recover from tool failure',
       );
       print(
-        'Response: ${_lastAssistantText(
+        'Response: ${lastAssistantText(
           (orchestrator.currentState as CompletedState).conversation,
         )}',
       );
@@ -606,13 +546,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-08-fanout'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-08-fanout');
     });
 
     tearDown(() async {
@@ -667,13 +601,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-09-race'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-09-race');
     });
 
     tearDown(() async {
@@ -720,9 +648,9 @@ void main() {
     var callCount = 0;
 
     setUpAll(() async {
-      final (info, _) = await api.createThread('searcher');
-      print('Created searcher thread: ${info.id}');
-      key = (serverId: 'default', roomId: 'searcher', threadId: info.id);
+      final (k, _) = await harness.createThread('searcher');
+      print('Created searcher thread: ${k.threadId}');
+      key = k;
 
       tools = const ToolRegistry().register(
         ClientTool(
@@ -744,12 +672,9 @@ void main() {
 
     setUp(() {
       callCount = 0;
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm7-10-refine',
         toolRegistry: tools,
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-10-refine'),
       );
     });
 
@@ -764,7 +689,7 @@ void main() {
       );
 
       for (var round = 0; round < 5; round++) {
-        await _waitForYieldOrTerminal(orchestrator, timeout: 60);
+        await waitForYieldOrTerminal(orchestrator, timeout: 60);
         if (orchestrator.currentState is! ToolYieldingState) break;
 
         callCount++;
@@ -789,12 +714,12 @@ void main() {
       }
 
       if (orchestrator.currentState is! CompletedState) {
-        await _waitForTerminalState(orchestrator, timeout: 60);
+        await waitForTerminalState(orchestrator, timeout: 60);
       }
 
       expect(callCount, greaterThanOrEqualTo(2));
       expect(orchestrator.currentState, isA<CompletedState>());
-      final response = _lastAssistantText(
+      final response = lastAssistantText(
         (orchestrator.currentState as CompletedState).conversation,
       );
       print('Final: $response');
@@ -809,13 +734,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-11-routing'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-11-routing');
     });
 
     tearDown(() async {
@@ -863,15 +782,11 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        // Bump concurrency limit for 5 sessions.
+      runtime = harness.createRuntime(
+        loggerName: 'm7-12-introspect',
         platform: const NativePlatformConstraints(
           maxConcurrentBridges: 10,
         ),
-        logger: _createTestLogger('m7-12-introspect'),
       );
     });
 
@@ -919,13 +834,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-13-resilience'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-13-resilience');
     });
 
     tearDown(() async {
@@ -987,13 +896,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-14-plan'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-14-plan');
     });
 
     tearDown(() async {
@@ -1071,13 +974,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-15-consensus'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-15-consensus');
     });
 
     tearDown(() async {
@@ -1132,13 +1029,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-16-speculative'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-16-speculative');
     });
 
     tearDown(() async {
@@ -1201,13 +1092,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-17-cascade'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-17-cascade');
     });
 
     tearDown(() async {
@@ -1274,13 +1159,7 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m7-18-debate'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm7-18-debate');
     });
 
     tearDown(() async {
@@ -1354,15 +1233,11 @@ void main() {
     late AgentRuntime runtime;
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        // 5 mappers + 1 reducer = need headroom.
+      runtime = harness.createRuntime(
+        loggerName: 'm7-19-mapreduce',
         platform: const NativePlatformConstraints(
           maxConcurrentBridges: 10,
         ),
-        logger: _createTestLogger('m7-19-mapreduce'),
       );
     });
 
@@ -1419,87 +1294,4 @@ void main() {
       expect(answer.toLowerCase(), contains('norway'));
     });
   });
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Waits for [ToolYieldingState] or terminal state.
-Future<void> _waitForYieldOrTerminal(
-  RunOrchestrator orchestrator, {
-  required int timeout,
-}) async {
-  final completer = Completer<void>();
-  final sub = orchestrator.stateChanges.listen((state) {
-    if (state is ToolYieldingState ||
-        state is CompletedState ||
-        state is FailedState ||
-        state is CancelledState) {
-      if (!completer.isCompleted) completer.complete();
-    }
-  });
-
-  try {
-    await completer.future.timeout(
-      Duration(seconds: timeout),
-      onTimeout: () {
-        throw TimeoutException(
-          'Did not yield or terminate within ${timeout}s. '
-          'State: ${orchestrator.currentState.runtimeType}',
-        );
-      },
-    );
-  } finally {
-    await sub.cancel();
-  }
-}
-
-/// Waits for terminal state (Completed, Failed, Cancelled).
-Future<void> _waitForTerminalState(
-  RunOrchestrator orchestrator, {
-  required int timeout,
-}) async {
-  final completer = Completer<void>();
-  final sub = orchestrator.stateChanges.listen((state) {
-    if (state is CompletedState ||
-        state is FailedState ||
-        state is CancelledState) {
-      if (!completer.isCompleted) completer.complete();
-    }
-  });
-
-  try {
-    await completer.future.timeout(
-      Duration(seconds: timeout),
-      onTimeout: () {
-        throw TimeoutException(
-          'Did not reach terminal state within ${timeout}s. '
-          'State: ${orchestrator.currentState.runtimeType}',
-        );
-      },
-    );
-  } finally {
-    await sub.cancel();
-  }
-}
-
-/// Extracts the last assistant text (truncated for debug output).
-String _lastAssistantText(Conversation conversation) {
-  for (final msg in conversation.messages.reversed) {
-    if (msg is TextMessage && msg.user == ChatUser.assistant) {
-      return msg.text.length > 200
-          ? '${msg.text.substring(0, 200)}...'
-          : msg.text;
-    }
-  }
-  return '(no assistant message found)';
-}
-
-/// Creates a debug logger for integration test output.
-Logger _createTestLogger(String name) {
-  final manager = LogManager.instance
-    ..minimumLevel = LogLevel.debug
-    ..addSink(StdoutSink());
-  return manager.getLogger(name);
 }

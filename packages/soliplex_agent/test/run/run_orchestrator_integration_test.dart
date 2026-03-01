@@ -3,13 +3,11 @@
 @Tags(['integration'])
 library;
 
-import 'dart:async';
-import 'dart:io';
-
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart';
-import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
+
+import '../integration/helpers/helpers.dart';
 
 /// ------------------------------------------------------------------
 /// Integration test: RunOrchestrator + AgentRuntime ↔ real Soliplex backend
@@ -27,25 +25,10 @@ import 'package:test/test.dart';
 ///   dart test test/run/run_orchestrator_integration_test.dart -t integration
 /// ------------------------------------------------------------------
 
-/// Read env vars with optional default.
-String _env(String name, [String? fallback]) {
-  final value = Platform.environment[name];
-  if (value != null && value.isNotEmpty) return value;
-  if (fallback != null) return fallback;
-  throw TestFailure(
-    'Missing env var $name — set it to run integration tests',
-  );
-}
-
 void main() {
-  late String baseUrl;
-  late String roomId;
+  final harness = IntegrationHarness();
 
-  // Long-lived — shared across all tests (like the Flutter app does).
-  late DartHttpClient restClient;
-  late DartHttpClient sseClient;
-  late SoliplexApi api;
-  late AgUiClient agUiClient;
+  late String roomId;
 
   // One thread for the whole suite.
   late ThreadKey sharedKey;
@@ -55,41 +38,19 @@ void main() {
   late RunOrchestrator orchestrator;
 
   setUpAll(() async {
-    baseUrl = _env('SOLIPLEX_BASE_URL', 'http://localhost:8000');
-    roomId = _env('SOLIPLEX_ROOM_ID', 'plain');
-
-    // Wire once — same lifecycle as the Flutter app.
-    restClient = DartHttpClient();
-    sseClient = DartHttpClient();
-
-    api = SoliplexApi(
-      transport: HttpTransport(client: restClient),
-      urlBuilder: UrlBuilder('$baseUrl/api/v1'),
-    );
-
-    agUiClient = AgUiClient(
-      config: AgUiClientConfig(baseUrl: '$baseUrl/api/v1'),
-      httpClient: HttpClientAdapter(client: sseClient),
-    );
+    await harness.setUp();
+    roomId = env('SOLIPLEX_ROOM_ID', 'plain');
 
     // Create one thread for the entire suite.
-    final (threadInfo, _) = await api.createThread(roomId);
-    print('Created shared thread: ${threadInfo.id}');
-    sharedKey = (
-      serverId: 'default',
-      roomId: roomId,
-      threadId: threadInfo.id,
-    );
-    initialRunId = threadInfo.hasInitialRun ? threadInfo.initialRunId : null;
+    final (key, runId) = await harness.createThread(roomId);
+    print('Created shared thread: ${key.threadId}');
+    sharedKey = key;
+    initialRunId = runId;
   });
 
   setUp(() {
-    orchestrator = RunOrchestrator(
-      api: api,
-      agUiClient: agUiClient,
-      toolRegistry: const ToolRegistry(),
-      platformConstraints: const NativePlatformConstraints(),
-      logger: _createTestLogger('integration-test'),
+    orchestrator = harness.createOrchestrator(
+      loggerName: 'integration-test',
     );
   });
 
@@ -97,9 +58,7 @@ void main() {
     orchestrator.dispose();
   });
 
-  tearDownAll(() {
-    api.close();
-  });
+  tearDownAll(harness.tearDown);
 
   group('M4 integration: real backend', () {
     test('Idle → Running → Completed', () async {
@@ -115,7 +74,7 @@ void main() {
       // Consume the initial run ID so subsequent tests create their own.
       initialRunId = null;
 
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
 
       print('States observed: ${states.map((s) => s.runtimeType).toList()}');
       expect(states.first, isA<RunningState>(), reason: 'Should start running');
@@ -147,7 +106,7 @@ void main() {
       print(
         'Run completed. Messages: ${completed.conversation.messages.length}',
       );
-      print('Final message: ${_lastAssistantText(completed.conversation)}');
+      print('Final message: ${lastAssistantText(completed.conversation)}');
     });
 
     test('subsequent run in same thread', () async {
@@ -156,11 +115,11 @@ void main() {
         key: sharedKey,
         userMessage: 'Now say "goodbye".',
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
 
       expect(orchestrator.currentState, isA<CompletedState>());
       final completed = orchestrator.currentState as CompletedState;
-      print('Run 2 completed: ${_lastAssistantText(completed.conversation)}');
+      print('Run 2 completed: ${lastAssistantText(completed.conversation)}');
     });
 
     test('reset returns to IdleState and can run again', () async {
@@ -169,11 +128,11 @@ void main() {
         key: sharedKey,
         userMessage: 'Say "ok".',
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
 
       final run3 = orchestrator.currentState as CompletedState;
-      print('Run 3 completed: ${_lastAssistantText(run3.conversation)}');
+      print('Run 3 completed: ${lastAssistantText(run3.conversation)}');
 
       orchestrator.reset();
       expect(orchestrator.currentState, isA<IdleState>());
@@ -183,11 +142,11 @@ void main() {
         key: sharedKey,
         userMessage: 'Say "ok" again.',
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
 
       final run4 = orchestrator.currentState as CompletedState;
-      print('Run 4 completed: ${_lastAssistantText(run4.conversation)}');
+      print('Run 4 completed: ${lastAssistantText(run4.conversation)}');
 
       expect(run4.runId, isNot(equals(run3.runId)));
     });
@@ -199,13 +158,9 @@ void main() {
 
     setUpAll(() async {
       // Separate thread for M5 tests — clean conversation history.
-      final (threadInfo, _) = await api.createThread(roomId);
-      print('Created M5 thread: ${threadInfo.id}');
-      m5Key = (
-        serverId: 'default',
-        roomId: roomId,
-        threadId: threadInfo.id,
-      );
+      final (key, _) = await harness.createThread(roomId);
+      print('Created M5 thread: ${key.threadId}');
+      m5Key = key;
 
       // Client-side tool: secret_number returns "42".
       toolRegistry = const ToolRegistry().register(
@@ -224,12 +179,9 @@ void main() {
     });
 
     setUp(() {
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm5-integration',
         toolRegistry: toolRegistry,
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m5-integration'),
       );
     });
 
@@ -244,7 +196,7 @@ void main() {
       );
 
       // Wait for either ToolYielding or terminal state.
-      await _waitForYieldOrTerminal(orchestrator, timeout: 60);
+      await waitForYieldOrTerminal(orchestrator, timeout: 60);
       print(
         'States so far: ${states.map((s) => s.runtimeType).toList()}',
       );
@@ -276,15 +228,15 @@ void main() {
 
       print('Submitting tool outputs...');
       await orchestrator.submitToolOutputs(executed);
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
 
       expect(orchestrator.currentState, isA<CompletedState>());
       final completed = orchestrator.currentState as CompletedState;
       print('M5 completed. Response: '
-          '${_lastAssistantText(completed.conversation)}');
+          '${lastAssistantText(completed.conversation)}');
 
       // The model should mention "42" in its response.
-      final responseText = _lastAssistantText(completed.conversation);
+      final responseText = lastAssistantText(completed.conversation);
       expect(
         responseText.toLowerCase(),
         contains('42'),
@@ -295,19 +247,15 @@ void main() {
     test('server-side tools do not cause yielding', () async {
       // Use empty registry — no client tools. Server-side
       // get_current_datetime should not cause ToolYieldingState.
-      orchestrator = RunOrchestrator(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistry: const ToolRegistry(),
-        platformConstraints: const NativePlatformConstraints(),
-        logger: _createTestLogger('m5-server-tools'),
+      orchestrator = harness.createOrchestrator(
+        loggerName: 'm5-server-tools',
       );
 
       await orchestrator.startRun(
         key: m5Key,
         userMessage: 'What time is it right now?',
       );
-      await _waitForTerminalState(orchestrator, timeout: 60);
+      await waitForTerminalState(orchestrator, timeout: 60);
 
       expect(
         orchestrator.currentState,
@@ -316,7 +264,7 @@ void main() {
       );
       final completed = orchestrator.currentState as CompletedState;
       print('Server-side tool test completed: '
-          '${_lastAssistantText(completed.conversation)}');
+          '${lastAssistantText(completed.conversation)}');
     });
   });
 
@@ -341,12 +289,9 @@ void main() {
     });
 
     setUp(() {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
+      runtime = harness.createRuntime(
+        loggerName: 'm6-integration',
         toolRegistryResolver: (_) async => toolRegistry,
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m6-integration'),
       );
     });
 
@@ -382,13 +327,7 @@ void main() {
     });
 
     test('spawn without tools → AgentSuccess (no yield)', () async {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m6-no-tools'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm6-no-tools');
 
       final session = await runtime.spawn(
         roomId: roomId,
@@ -444,13 +383,7 @@ void main() {
     });
 
     test('waitAll collects results from multiple sessions', () async {
-      runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
-        toolRegistryResolver: (_) async => const ToolRegistry(),
-        platform: const NativePlatformConstraints(),
-        logger: _createTestLogger('m6-waitall'),
-      );
+      runtime = harness.createRuntime(loggerName: 'm6-waitall');
 
       final s1 = await runtime.spawn(
         roomId: roomId,
@@ -471,89 +404,4 @@ void main() {
       expect(results.every((r) => r is AgentSuccess), isTrue);
     });
   });
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/// Waits until the orchestrator reaches [ToolYieldingState] or a terminal
-/// state, whichever comes first.
-Future<void> _waitForYieldOrTerminal(
-  RunOrchestrator orchestrator, {
-  required int timeout,
-}) async {
-  final completer = Completer<void>();
-  final sub = orchestrator.stateChanges.listen((state) {
-    if (state is ToolYieldingState ||
-        state is CompletedState ||
-        state is FailedState ||
-        state is CancelledState) {
-      if (!completer.isCompleted) completer.complete();
-    }
-  });
-
-  try {
-    await completer.future.timeout(
-      Duration(seconds: timeout),
-      onTimeout: () {
-        throw TimeoutException(
-          'Orchestrator did not yield or terminate within ${timeout}s. '
-          'Current state: ${orchestrator.currentState.runtimeType}',
-        );
-      },
-    );
-  } finally {
-    await sub.cancel();
-  }
-}
-
-/// Waits until the orchestrator reaches a terminal state (Completed, Failed,
-/// or Cancelled), or throws on timeout.
-Future<void> _waitForTerminalState(
-  RunOrchestrator orchestrator, {
-  required int timeout,
-}) async {
-  final completer = Completer<void>();
-  final sub = orchestrator.stateChanges.listen((state) {
-    if (state is CompletedState ||
-        state is FailedState ||
-        state is CancelledState) {
-      if (!completer.isCompleted) completer.complete();
-    }
-  });
-
-  try {
-    await completer.future.timeout(
-      Duration(seconds: timeout),
-      onTimeout: () {
-        throw TimeoutException(
-          'Orchestrator did not reach terminal state within ${timeout}s. '
-          'Current state: ${orchestrator.currentState.runtimeType}',
-        );
-      },
-    );
-  } finally {
-    await sub.cancel();
-  }
-}
-
-/// Extracts the last assistant message text for debug output.
-String _lastAssistantText(Conversation conversation) {
-  for (final msg in conversation.messages.reversed) {
-    if (msg is TextMessage && msg.user == ChatUser.assistant) {
-      return msg.text.length > 100
-          ? '${msg.text.substring(0, 100)}...'
-          : msg.text;
-    }
-  }
-  return '(no assistant message found)';
-}
-
-/// Creates a real [Logger] backed by [StdoutSink] for integration output.
-Logger _createTestLogger(String name) {
-  final manager = LogManager.instance
-    ..minimumLevel = LogLevel.debug
-    ..addSink(StdoutSink());
-  return manager.getLogger(name);
 }
