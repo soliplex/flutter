@@ -58,7 +58,7 @@ soliplex_agent ──────────────┐
                              ▼
                   soliplex_scripting
                   (depends: ag_ui, soliplex_agent,
-                   soliplex_interpreter_monty, meta)
+                   soliplex_client, soliplex_interpreter_monty, meta)
                              ▲
 soliplex_interpreter_monty ──┘
   (depends: dart_monty_platform_interface, meta)
@@ -88,11 +88,15 @@ sealed class BridgeEvent {
 }
 
 class BridgeRunStarted extends BridgeEvent {
-  const BridgeRunStarted();
+  const BridgeRunStarted({required this.threadId, required this.runId});
+  final String threadId;
+  final String runId;
 }
 
 class BridgeRunFinished extends BridgeEvent {
-  const BridgeRunFinished();
+  const BridgeRunFinished({required this.threadId, required this.runId});
+  final String threadId;
+  final String runId;
 }
 
 class BridgeRunError extends BridgeEvent {
@@ -164,12 +168,18 @@ A stateless adapter in `soliplex_scripting` maps `BridgeEvent`s to ag-ui
 import 'package:ag_ui/ag_ui.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 
-Stream<BaseEvent> adaptToAgUi(
-  Stream<BridgeEvent> source, {
-  required String threadId,
-  required String runId,
-}) {
-  return source.map((event) => switch (event) {
+class AgUiBridgeAdapter {
+  const AgUiBridgeAdapter({
+    required this.threadId,
+    required this.runId,
+  });
+
+  final String threadId;
+  final String runId;
+
+  Stream<BaseEvent> adapt(Stream<BridgeEvent> source) => source.map(mapEvent);
+
+  BaseEvent mapEvent(BridgeEvent event) => switch (event) {
     BridgeRunStarted()     => RunStartedEvent(threadId: threadId, runId: runId),
     BridgeRunFinished()    => RunFinishedEvent(threadId: threadId, runId: runId),
     BridgeRunError(:final message) => RunErrorEvent(message: message),
@@ -193,7 +203,7 @@ Stream<BaseEvent> adaptToAgUi(
       TextMessageContentEvent(messageId: messageId, delta: delta),
     BridgeTextEnd(:final messageId) =>
       TextMessageEndEvent(messageId: messageId),
-  });
+  };
 }
 ```
 
@@ -295,7 +305,7 @@ abstract interface class PlatformConstraints {
 }
 ```
 
-`BridgeCache` reads `maxConcurrentBridges` to size the pool.
+`BridgeCache` takes a `limit` parameter (typically from `maxConcurrentBridges`) to size the pool.
 `supportsReentrantInterpreter` guards against WASM deadlocks when a sub-agent's
 tool call would require Python execution while Python is already suspended.
 
@@ -419,7 +429,7 @@ class ScriptingToolRegistryResolver {
     final registry = await inner(roomId);
     return registry.register(
       ClientTool(
-        definition: pythonExecutorToolDefinition,
+        definition: PythonExecutorTool.definition,
         executor: executor.execute,
       ),
     );
@@ -434,16 +444,23 @@ The `ToolExecutor` that handles `execute_python` tool calls:
 ```dart
 class MontyToolExecutor {
   MontyToolExecutor({
+    required this.threadKey,
     required BridgeCache bridgeCache,
     required HostFunctionWiring hostWiring,
   });
 
+  final ThreadKey threadKey;
+
   Future<String> execute(ToolCallInfo toolCall) async {
     final code = _extractCode(toolCall);
-    final bridge = await bridgeCache.acquire(toolCall.threadKey);
+    final bridge = bridgeCache.acquire(threadKey);
     hostWiring.registerOnto(bridge);
-    final events = bridge.execute(code);
-    return _collectTextResult(events);
+    try {
+      final events = bridge.execute(code);
+      return await _collectTextResult(events);
+    } finally {
+      bridgeCache.release(threadKey);
+    }
   }
 }
 ```
@@ -459,11 +476,11 @@ Manages a pool of `MontyBridge` instances keyed by thread:
 ```dart
 class BridgeCache {
   BridgeCache({
-    required PlatformConstraints platform,
+    required int limit,
     MontyBridge Function()? bridgeFactory,
   });
 
-  Future<MontyBridge> acquire(ThreadKey key);
+  MontyBridge acquire(ThreadKey key);
   void release(ThreadKey key);
   void evict(ThreadKey key);
   void disposeAll();
@@ -473,8 +490,8 @@ class BridgeCache {
 - **Keying:** `Map<ThreadKey, MontyBridge>` — one bridge per conversation
   thread for session continuity.
 - **Lazy creation:** Bridges are created on first `acquire()` for a key.
-- **LRU eviction:** When `platform.maxConcurrentBridges` is reached, the
-  least recently used bridge is disposed and evicted.
+- **LRU eviction:** When the `limit` is reached, the least recently used
+  idle bridge is disposed and evicted.
 - **Execution tracking:** Tracks which bridges are currently executing to
   prevent concurrent execution on the same bridge.
 
@@ -507,10 +524,11 @@ Maps `HostApi` methods to `HostFunction` handlers:
 
 ### AgUiBridgeAdapter
 
-Described in section 4b. Stateless `Stream<BridgeEvent>` → `Stream<BaseEvent>`
-mapper. Used when the caller needs ag-ui events (e.g., for streaming to the
-frontend). Not used by `MontyToolExecutor` directly, since it only needs the
-text result.
+Described in section 4b. A class holding `threadId` and `runId` with an
+`adapt()` method that maps `Stream<BridgeEvent>` to `Stream<BaseEvent>` and
+a `mapEvent()` method for single-event mapping. Used when the caller needs
+ag-ui events (e.g., for streaming to the frontend). Not used by
+`MontyToolExecutor` directly, since it only needs the text result.
 
 ### PythonExecutorTool Definition
 
@@ -519,22 +537,26 @@ text result.
 
 import 'package:ag_ui/ag_ui.dart' show Tool;
 
-const pythonExecutorToolDefinition = Tool(
-  name: 'execute_python',
-  description: 'Execute Python code in a sandboxed interpreter. '
-      'The code can call registered tool functions directly. '
-      'Returns the text output or error message.',
-  parameters: {
-    'type': 'object',
-    'properties': {
-      'code': {
-        'type': 'string',
-        'description': 'Python source code to execute',
+abstract final class PythonExecutorTool {
+  static const toolName = 'execute_python';
+
+  static const definition = Tool(
+    name: toolName,
+    description: 'Execute Python code in a sandboxed interpreter. '
+        'The code can call registered tool functions directly. '
+        'Returns the text output or error message.',
+    parameters: {
+      'type': 'object',
+      'properties': {
+        'code': {
+          'type': 'string',
+          'description': 'Python source code to execute',
+        },
       },
+      'required': ['code'],
     },
-    'required': ['code'],
-  },
-);
+  );
+}
 ```
 
 ## HostApi Per Surface
@@ -618,8 +640,8 @@ MontyToolExecutor.execute(toolCall)
   │     └── BridgeRunFinished
   │
   ├── _collectTextResult(events) → String
-  │     └── Accumulates BridgeTextContent deltas + BridgeToolCallResult results
-  │     └── Returns concatenated text or error message
+  │     └── Accumulates BridgeTextContent deltas only
+  │     └── Returns concatenated text or throws StateError on BridgeRunError
   │
   └── BridgeCache.release(threadKey)
 
@@ -717,6 +739,8 @@ dependencies:
   meta: ^1.11.0
   soliplex_agent:
     path: ../soliplex_agent
+  soliplex_client:
+    path: ../soliplex_client
   soliplex_interpreter_monty:
     path: ../soliplex_interpreter_monty
 
@@ -757,13 +781,13 @@ The wiring layer would provide a `DartToolExecutor` analogous to
 
 ## Open Questions
 
-| # | Question | Recommendation |
-|---|----------|----------------|
-| 1 | Streaming vs text-only tool result? | Text-only. `ToolExecutor` returns `Future<String>`. Streaming bridge events are available via `AgUiBridgeAdapter` for UIs that want real-time display, but the agent loop only needs the final text. |
-| 2 | BridgeCache location? | `soliplex_scripting`. It's a wiring concern — the interpreter doesn't know about threads or caching, and the agent doesn't know about bridges. |
-| 3 | Persistent Python sessions across runs? | Deferred. Currently each `execute_python` call is stateless. Session persistence (keeping variables between calls) requires bridge lifecycle changes and is not needed for v1. |
-| 4 | Inter-agent bridge sharing? | Deferred. Each agent session gets its own bridge via `BridgeCache` keyed by `ThreadKey`. Sharing bridges between agents would require a coordination protocol. |
-| 5 | `BridgeEvent` package location? | In `soliplex_interpreter_monty`. If a second interpreter is added, extract to a shared `soliplex_bridge_api` package. Premature to extract now. |
+| # | Question | Resolution |
+|---|----------|------------|
+| 1 | Streaming vs text-only tool result? | **Resolved: text-only.** `MontyToolExecutor.execute()` returns `Future<String>`. `_collectTextResult` accumulates `BridgeTextContent` deltas. `AgUiBridgeAdapter` is available separately for UIs that want the full event stream. |
+| 2 | BridgeCache location? | **Resolved: `soliplex_scripting`.** Implemented in `bridge_cache.dart`. Takes `required int limit` (from `PlatformConstraints.maxConcurrentBridges`) and an optional `bridgeFactory`. |
+| 3 | Persistent Python sessions across runs? | **Resolved: yes, per thread.** `BridgeCache` reuses bridges keyed by `ThreadKey`. The same bridge (and its Python session state) is returned on subsequent `acquire()` calls for the same thread. LRU eviction disposes idle bridges when the limit is reached. |
+| 4 | Inter-agent bridge sharing? | **Resolved: no sharing.** Each `MontyToolExecutor` is constructed with a fixed `threadKey`. Separate agent sessions get separate bridges via distinct `ThreadKey` values. |
+| 5 | `BridgeEvent` package location? | **Resolved: `soliplex_interpreter_monty`.** The 12-subtype sealed hierarchy lives in `bridge_event.dart` within the interpreter package. No extraction needed yet. |
 
 ## Acceptance Criteria
 

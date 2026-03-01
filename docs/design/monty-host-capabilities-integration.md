@@ -1,3 +1,5 @@
+> **SUPERSEDED** by [PLANS/0008-soliplex-scripting/SPEC.md](../../PLANS/0008-soliplex-scripting/SPEC.md) — retained for historical context.
+
 # Monty HostApi Integration Guide
 
 ## Purpose
