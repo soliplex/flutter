@@ -44,10 +44,7 @@ class FakeHostApi implements HostApi {
   }
 
   @override
-  Future<Object?> invoke(
-    String name,
-    Map<String, Object?> args,
-  ) async {
+  Future<Object?> invoke(String name, Map<String, Object?> args) async {
     final handler = invokeHandler;
     if (handler == null) {
       throw UnimplementedError('FakeHostApi.invoke: no handler for "$name"');
