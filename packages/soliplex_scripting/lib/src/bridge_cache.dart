@@ -1,7 +1,5 @@
+import 'package:soliplex_agent/soliplex_agent.dart' show ThreadKey;
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
-
-/// Uniquely identifies a conversation thread across servers.
-typedef ThreadKey = ({String serverId, String roomId, String threadId});
 
 /// Manages a pool of [MontyBridge] instances keyed by [ThreadKey].
 ///

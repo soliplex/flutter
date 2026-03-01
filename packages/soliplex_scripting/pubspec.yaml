@@ -12,9 +12,14 @@ dependencies:
       url: https://github.com/soliplex/ag-ui.git
       path: sdks/community/dart
   meta: ^1.11.0
+  soliplex_agent:
+    path: ../soliplex_agent
+  soliplex_client:
+    path: ../soliplex_client
   soliplex_interpreter_monty:
     path: ../soliplex_interpreter_monty
 
 dev_dependencies:
+  mocktail: ^1.0.4
   test: ^1.24.0
   very_good_analysis: ^10.0.0
