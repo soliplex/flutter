@@ -45,6 +45,13 @@ class BridgeCache {
   /// is evicted. Throws [StateError] if all bridges are executing
   /// (WASM guard).
   MontyBridge acquire(ThreadKey key) {
+    if (_executing.contains(key)) {
+      throw StateError(
+        'Bridge for $key is already executing. '
+        'Concurrent execution on the same bridge is not allowed.',
+      );
+    }
+
     final existing = _bridges.remove(key);
     if (existing != null) {
       // Move to end (most-recently-used).

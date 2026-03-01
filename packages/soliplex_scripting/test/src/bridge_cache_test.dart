@@ -73,6 +73,21 @@ void main() {
         expect(cache.contains(_key1), isTrue);
       });
 
+      test('throws on re-acquire while executing', () {
+        cache.acquire(_key1);
+
+        expect(
+          () => cache.acquire(_key1),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('already executing'),
+            ),
+          ),
+        );
+      });
+
       test('release is idempotent for unknown key', () {
         cache.release(_key1);
         expect(cache.length, 0);
