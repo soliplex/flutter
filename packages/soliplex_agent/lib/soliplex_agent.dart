@@ -42,4 +42,6 @@ export 'src/models/agent_result.dart';
 export 'src/runtime/agent_runtime.dart';
 export 'src/runtime/agent_session.dart';
 export 'src/runtime/agent_session_state.dart';
+export 'src/runtime/server_connection.dart';
+export 'src/runtime/server_registry.dart';
 export 'src/tools/tool_registry_resolver.dart';
