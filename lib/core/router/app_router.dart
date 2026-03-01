@@ -11,6 +11,7 @@ import 'package:soliplex_frontend/core/providers/shell_config_provider.dart';
 import 'package:soliplex_frontend/features/auth/auth_callback_screen.dart';
 // TEMPORARY: Debug agent screen — remove after F1 validation.
 import 'package:soliplex_frontend/features/debug/debug_agent_screen.dart';
+import 'package:soliplex_frontend/features/demos/debate_arena/debate_arena_screen.dart';
 import 'package:soliplex_frontend/features/home/home_screen.dart';
 import 'package:soliplex_frontend/features/inspector/network_inspector_screen.dart';
 import 'package:soliplex_frontend/features/log_viewer/log_viewer_screen.dart';
@@ -337,6 +338,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
       // --- END TEMPORARY ---
+      GoRoute(
+        path: '/demos/debate',
+        name: 'debate-arena',
+        pageBuilder: (context, state) => _staticPage(
+          title: const Text('Debate Arena'),
+          body: const DebateArenaScreen(),
+          actions: [if (features.enableSettings) const _SettingsButton()],
+        ),
+      ),
       if (features.enableSettings)
         GoRoute(
           path: '/settings',

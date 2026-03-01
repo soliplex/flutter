@@ -232,7 +232,9 @@ class RunOrchestrator {
     if (_disposed) return;
     _disposed = true;
     _cancelToken?.cancel();
-    _cleanup();
+    unawaited(_subscription?.cancel());
+    _subscription = null;
+    _cancelToken = null;
     unawaited(_controller.close());
   }
 
@@ -413,7 +415,10 @@ class RunOrchestrator {
 
   void _handleRunFinished(RunningState previous, Conversation conversation) {
     _receivedTerminalEvent = true;
-    _cleanup();
+    // Don't cancel the subscription — let the SSE stream drain naturally.
+    // Cancelling it sends a client disconnect to the backend, which can
+    // trigger CancelledError in the backend's async DB session cleanup.
+    _cancelToken = null;
     final pendingTools = _extractPendingTools(conversation);
     if (pendingTools.isNotEmpty) {
       _setState(
@@ -437,6 +442,8 @@ class RunOrchestrator {
   }
 
   void _onStreamDone() {
+    // Always clean up the subscription reference when the stream ends.
+    _subscription = null;
     if (_receivedTerminalEvent) return;
     final running = _currentState;
     if (running is! RunningState) return;
