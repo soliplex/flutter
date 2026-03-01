@@ -93,10 +93,7 @@ void main() {
       test('looks up a registered tool', () {
         final tool = registry.lookup('get_location');
         expect(tool.definition.name, equals('get_location'));
-        expect(
-          tool.definition.description,
-          equals('Get GPS coordinates'),
-        );
+        expect(tool.definition.description, equals('Get GPS coordinates'));
       });
 
       test('executes tool with JSON arguments', () async {
@@ -127,10 +124,7 @@ void main() {
 
       test('executes a different tool', () async {
         final result = await registry.execute(
-          const ToolCallInfo(
-            id: 'tc-3',
-            name: 'clipboard_read',
-          ),
+          const ToolCallInfo(id: 'tc-3', name: 'clipboard_read'),
         );
 
         expect(result, equals('clipboard text'));
@@ -310,10 +304,7 @@ void main() {
         const original = ToolRegistry();
         final updated = original.register(
           ClientTool(
-            definition: const Tool(
-              name: 'tool_a',
-              description: 'Tool A',
-            ),
+            definition: const Tool(name: 'tool_a', description: 'Tool A'),
             executor: (call) async => 'a',
           ),
         );
@@ -326,28 +317,19 @@ void main() {
         final registry = const ToolRegistry()
             .register(
               ClientTool(
-                definition: const Tool(
-                  name: 'tool_1',
-                  description: 'First',
-                ),
+                definition: const Tool(name: 'tool_1', description: 'First'),
                 executor: (call) async => '1',
               ),
             )
             .register(
               ClientTool(
-                definition: const Tool(
-                  name: 'tool_2',
-                  description: 'Second',
-                ),
+                definition: const Tool(name: 'tool_2', description: 'Second'),
                 executor: (call) async => '2',
               ),
             )
             .register(
               ClientTool(
-                definition: const Tool(
-                  name: 'tool_3',
-                  description: 'Third',
-                ),
+                definition: const Tool(name: 'tool_3', description: 'Third'),
                 executor: (call) async => '3',
               ),
             );

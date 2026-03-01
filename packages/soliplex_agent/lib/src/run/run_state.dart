@@ -235,10 +235,7 @@ bool _listEquals<T>(List<T> a, List<T> b) {
 /// Run was cancelled by the user.
 @immutable
 class CancelledState extends RunState {
-  const CancelledState({
-    required this.threadKey,
-    this.conversation,
-  });
+  const CancelledState({required this.threadKey, this.conversation});
 
   /// The thread this run belonged to.
   final ThreadKey threadKey;

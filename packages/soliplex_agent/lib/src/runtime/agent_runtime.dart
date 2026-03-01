@@ -93,10 +93,7 @@ class AgentRuntime {
       ephemeral: ephemeral,
     );
     _trackSession(session);
-    await session.start(
-      userMessage: prompt,
-      existingRunId: existingRunId,
-    );
+    await session.start(userMessage: prompt, existingRunId: existingRunId);
     _scheduleCompletion(session, timeout);
     return session;
   }
@@ -106,9 +103,7 @@ class AgentRuntime {
     List<AgentSession> sessions, {
     Duration? timeout,
   }) {
-    return Future.wait(
-      sessions.map((s) => s.awaitResult(timeout: timeout)),
-    );
+    return Future.wait(sessions.map((s) => s.awaitResult(timeout: timeout)));
   }
 
   /// Returns the first result from any of the given sessions.
@@ -116,9 +111,7 @@ class AgentRuntime {
     List<AgentSession> sessions, {
     Duration? timeout,
   }) {
-    return Future.any(
-      sessions.map((s) => s.awaitResult(timeout: timeout)),
-    );
+    return Future.any(sessions.map((s) => s.awaitResult(timeout: timeout)));
   }
 
   /// Cancels all active sessions.
@@ -156,9 +149,7 @@ class AgentRuntime {
 
   void _guardWasmReentrancy() {
     if (!_platform.supportsReentrantInterpreter && _activeCount > 0) {
-      throw StateError(
-        'WASM runtime does not support concurrent sessions',
-      );
+      throw StateError('WASM runtime does not support concurrent sessions');
     }
   }
 
@@ -183,19 +174,11 @@ class AgentRuntime {
     String? threadId,
   ) async {
     if (threadId != null) {
-      final key = (
-        serverId: serverId,
-        roomId: roomId,
-        threadId: threadId,
-      );
+      final key = (serverId: serverId, roomId: roomId, threadId: threadId);
       return (key, null);
     }
     final (threadInfo, _) = await _api.createThread(roomId);
-    final key = (
-      serverId: serverId,
-      roomId: roomId,
-      threadId: threadInfo.id,
-    );
+    final key = (serverId: serverId, roomId: roomId, threadId: threadInfo.id);
     final existingRunId =
         threadInfo.hasInitialRun ? threadInfo.initialRunId : null;
     return (key, existingRunId);
@@ -286,10 +269,7 @@ class AgentRuntime {
     try {
       await _api.deleteThread(key.roomId, key.threadId);
     } on Object catch (error) {
-      _logger.warning(
-        'Failed to delete thread ${key.threadId}',
-        error: error,
-      );
+      _logger.warning('Failed to delete thread ${key.threadId}', error: error);
     }
   }
 }

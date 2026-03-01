@@ -96,10 +96,7 @@ class AgentFailure extends AgentResult {
 @immutable
 class AgentTimedOut extends AgentResult {
   /// Creates a timeout result.
-  const AgentTimedOut({
-    required super.threadKey,
-    required this.elapsed,
-  });
+  const AgentTimedOut({required super.threadKey, required this.elapsed});
 
   /// How long the run was active before timing out.
   final Duration elapsed;

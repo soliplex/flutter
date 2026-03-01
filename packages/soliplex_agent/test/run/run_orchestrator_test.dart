@@ -32,11 +32,8 @@ const ThreadKey _key = (
 
 const _runId = 'run-abc';
 
-RunInfo _runInfo() => RunInfo(
-      id: _runId,
-      threadId: _key.threadId,
-      createdAt: DateTime(2026),
-    );
+RunInfo _runInfo() =>
+    RunInfo(id: _runId, threadId: _key.threadId, createdAt: DateTime(2026));
 
 List<BaseEvent> _happyPathEvents() => [
       const RunStartedEvent(threadId: 'thread-1', runId: _runId),
@@ -109,9 +106,7 @@ void main() {
   });
 
   void stubCreateRun() {
-    when(() => api.createRun(any(), any())).thenAnswer(
-      (_) async => _runInfo(),
-    );
+    when(() => api.createRun(any(), any())).thenAnswer((_) async => _runInfo());
   }
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
@@ -202,62 +197,68 @@ void main() {
       expect(failed.error, equals('backend error'));
     });
 
-    test('HTTP 401 TransportError transitions to FailedState(authExpired)',
-        () async {
-      stubCreateRun();
-      stubRunAgent(
-        stream: Stream.error(
-          const TransportError('Unauthorized', statusCode: 401),
-        ),
-      );
+    test(
+      'HTTP 401 TransportError transitions to FailedState(authExpired)',
+      () async {
+        stubCreateRun();
+        stubRunAgent(
+          stream: Stream.error(
+            const TransportError('Unauthorized', statusCode: 401),
+          ),
+        );
 
-      await orchestrator.startRun(key: _key, userMessage: 'Hi');
-      await Future<void>.delayed(Duration.zero);
+        await orchestrator.startRun(key: _key, userMessage: 'Hi');
+        await Future<void>.delayed(Duration.zero);
 
-      expect(orchestrator.currentState, isA<FailedState>());
-      final failed = orchestrator.currentState as FailedState;
-      expect(failed.reason, equals(FailureReason.authExpired));
-    });
+        expect(orchestrator.currentState, isA<FailedState>());
+        final failed = orchestrator.currentState as FailedState;
+        expect(failed.reason, equals(FailureReason.authExpired));
+      },
+    );
 
-    test('HTTP 429 TransportError transitions to FailedState(rateLimited)',
-        () async {
-      stubCreateRun();
-      stubRunAgent(
-        stream: Stream.error(
-          const TransportError('Too many requests', statusCode: 429),
-        ),
-      );
+    test(
+      'HTTP 429 TransportError transitions to FailedState(rateLimited)',
+      () async {
+        stubCreateRun();
+        stubRunAgent(
+          stream: Stream.error(
+            const TransportError('Too many requests', statusCode: 429),
+          ),
+        );
 
-      await orchestrator.startRun(key: _key, userMessage: 'Hi');
-      await Future<void>.delayed(Duration.zero);
+        await orchestrator.startRun(key: _key, userMessage: 'Hi');
+        await Future<void>.delayed(Duration.zero);
 
-      expect(orchestrator.currentState, isA<FailedState>());
-      final failed = orchestrator.currentState as FailedState;
-      expect(failed.reason, equals(FailureReason.rateLimited));
-    });
+        expect(orchestrator.currentState, isA<FailedState>());
+        final failed = orchestrator.currentState as FailedState;
+        expect(failed.reason, equals(FailureReason.rateLimited));
+      },
+    );
 
-    test('stream ends without terminal event transitions to networkLost',
-        () async {
-      stubCreateRun();
-      stubRunAgent(
-        stream: Stream.fromIterable([
-          const RunStartedEvent(threadId: 'thread-1', runId: _runId),
-          const TextMessageStartEvent(messageId: 'msg-1'),
-        ]),
-      );
+    test(
+      'stream ends without terminal event transitions to networkLost',
+      () async {
+        stubCreateRun();
+        stubRunAgent(
+          stream: Stream.fromIterable([
+            const RunStartedEvent(threadId: 'thread-1', runId: _runId),
+            const TextMessageStartEvent(messageId: 'msg-1'),
+          ]),
+        );
 
-      await orchestrator.startRun(key: _key, userMessage: 'Hi');
-      await Future<void>.delayed(Duration.zero);
+        await orchestrator.startRun(key: _key, userMessage: 'Hi');
+        await Future<void>.delayed(Duration.zero);
 
-      expect(orchestrator.currentState, isA<FailedState>());
-      final failed = orchestrator.currentState as FailedState;
-      expect(failed.reason, equals(FailureReason.networkLost));
-    });
+        expect(orchestrator.currentState, isA<FailedState>());
+        final failed = orchestrator.currentState as FailedState;
+        expect(failed.reason, equals(FailureReason.networkLost));
+      },
+    );
 
     test('createRun throws transitions to FailedState', () async {
-      when(() => api.createRun(any(), any())).thenThrow(
-        const AuthException(message: 'Token expired'),
-      );
+      when(
+        () => api.createRun(any(), any()),
+      ).thenThrow(const AuthException(message: 'Token expired'));
 
       await orchestrator.startRun(key: _key, userMessage: 'Hi');
 
@@ -601,9 +602,9 @@ void main() {
   group('cancel during async gap', () {
     test('dispose during startRun await aborts', () async {
       final createRunCompleter = Completer<RunInfo>();
-      when(() => api.createRun(any(), any())).thenAnswer(
-        (_) => createRunCompleter.future,
-      );
+      when(
+        () => api.createRun(any(), any()),
+      ).thenAnswer((_) => createRunCompleter.future);
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
       // Start run — will suspend on createRun.
@@ -644,9 +645,9 @@ void main() {
 
       // Make the resume createRun hang.
       final resumeCompleter = Completer<RunInfo>();
-      when(() => api.createRun(any(), any())).thenAnswer(
-        (_) => resumeCompleter.future,
-      );
+      when(
+        () => api.createRun(any(), any()),
+      ).thenAnswer((_) => resumeCompleter.future);
 
       unawaited(orchestrator.submitToolOutputs(_executedTools()));
       await Future<void>.delayed(Duration.zero);
@@ -680,10 +681,7 @@ void main() {
 
     test('stateChanges stream closes on dispose', () async {
       final done = Completer<void>();
-      orchestrator.stateChanges.listen(
-        null,
-        onDone: done.complete,
-      );
+      orchestrator.stateChanges.listen(null, onDone: done.complete);
 
       orchestrator.dispose();
 

@@ -125,11 +125,7 @@ class RunOrchestrator {
     try {
       final runId = await _createOrUseRun(key, existingRunId);
       if (_disposedDuringAwait()) return;
-      final conversation = _buildConversation(
-        key,
-        userMessage,
-        cachedHistory,
-      );
+      final conversation = _buildConversation(key, userMessage, cachedHistory);
       final input = _buildInput(key, runId, conversation);
       final endpoint = _buildEndpoint(key, runId);
       final initialState = RunningState(
@@ -306,10 +302,7 @@ class RunOrchestrator {
     );
   }
 
-  Future<String> _createOrUseRun(
-    ThreadKey key,
-    String? existingRunId,
-  ) async {
+  Future<String> _createOrUseRun(ThreadKey key, String? existingRunId) async {
     if (existingRunId != null) return existingRunId;
     final runInfo = await _api.createRun(key.roomId, key.threadId);
     return runInfo.id;
@@ -375,11 +368,7 @@ class RunOrchestrator {
   void _onEvent(BaseEvent event) {
     final running = _currentState;
     if (running is! RunningState) return;
-    final result = processEvent(
-      running.conversation,
-      running.streaming,
-      event,
-    );
+    final result = processEvent(running.conversation, running.streaming, event);
     _mapEventResult(running, result, event);
   }
 
@@ -473,11 +462,7 @@ class RunOrchestrator {
       return;
     }
     final reason = classifyError(error);
-    _logger.error(
-      'Run failed',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    _logger.error('Run failed', error: error, stackTrace: stackTrace);
     _setState(
       FailedState(
         threadKey: running.threadKey,
@@ -488,24 +473,12 @@ class RunOrchestrator {
     );
   }
 
-  void _handleStartError(
-    ThreadKey key,
-    Object error,
-    StackTrace stackTrace,
-  ) {
+  void _handleStartError(ThreadKey key, Object error, StackTrace stackTrace) {
     _cleanup();
     final reason = classifyError(error);
-    _logger.error(
-      'Failed to start run',
-      error: error,
-      stackTrace: stackTrace,
-    );
+    _logger.error('Failed to start run', error: error, stackTrace: stackTrace);
     _setState(
-      FailedState(
-        threadKey: key,
-        reason: reason,
-        error: error.toString(),
-      ),
+      FailedState(threadKey: key, reason: reason, error: error.toString()),
     );
   }
 

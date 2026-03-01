@@ -28,42 +28,22 @@ void main() {
     });
 
     test('equal instances are equal', () {
-      const a = AgentSuccess(
-        threadKey: _key,
-        output: 'hello',
-        runId: 'run-1',
-      );
-      const b = AgentSuccess(
-        threadKey: _key,
-        output: 'hello',
-        runId: 'run-1',
-      );
+      const a = AgentSuccess(threadKey: _key, output: 'hello', runId: 'run-1');
+      const b = AgentSuccess(threadKey: _key, output: 'hello', runId: 'run-1');
 
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });
 
     test('different output produces inequality', () {
-      const a = AgentSuccess(
-        threadKey: _key,
-        output: 'hello',
-        runId: 'run-1',
-      );
-      const b = AgentSuccess(
-        threadKey: _key,
-        output: 'world',
-        runId: 'run-1',
-      );
+      const a = AgentSuccess(threadKey: _key, output: 'hello', runId: 'run-1');
+      const b = AgentSuccess(threadKey: _key, output: 'world', runId: 'run-1');
 
       expect(a, isNot(equals(b)));
     });
 
     test('different threadKey produces inequality', () {
-      const a = AgentSuccess(
-        threadKey: _key,
-        output: 'hello',
-        runId: 'run-1',
-      );
+      const a = AgentSuccess(threadKey: _key, output: 'hello', runId: 'run-1');
       const b = AgentSuccess(
         threadKey: _otherKey,
         output: 'hello',
@@ -166,28 +146,16 @@ void main() {
     });
 
     test('equal instances are equal', () {
-      const a = AgentTimedOut(
-        threadKey: _key,
-        elapsed: Duration(seconds: 30),
-      );
-      const b = AgentTimedOut(
-        threadKey: _key,
-        elapsed: Duration(seconds: 30),
-      );
+      const a = AgentTimedOut(threadKey: _key, elapsed: Duration(seconds: 30));
+      const b = AgentTimedOut(threadKey: _key, elapsed: Duration(seconds: 30));
 
       expect(a, equals(b));
       expect(a.hashCode, equals(b.hashCode));
     });
 
     test('different elapsed produces inequality', () {
-      const a = AgentTimedOut(
-        threadKey: _key,
-        elapsed: Duration(seconds: 30),
-      );
-      const b = AgentTimedOut(
-        threadKey: _key,
-        elapsed: Duration(seconds: 60),
-      );
+      const a = AgentTimedOut(threadKey: _key, elapsed: Duration(seconds: 30));
+      const b = AgentTimedOut(threadKey: _key, elapsed: Duration(seconds: 60));
 
       expect(a, isNot(equals(b)));
     });
