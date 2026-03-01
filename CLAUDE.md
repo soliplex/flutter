@@ -20,19 +20,23 @@ npx markdownlint-cli "<file>"            # Lint markdown after editing .md files
 lib/
   core/           # auth/, logging/, models/, providers/ (17), router/
   design/         # Color, theme, tokens (design system)
-  features/       # auth, chat, history, home, inspector, log_viewer,
+  features/       # auth, chat, debug, history, home, inspector, log_viewer,
                   # login, quiz, room, rooms, settings
   shared/         # Reusable widgets and utilities
 packages/
-  soliplex_client/        # Pure Dart: REST API, AG-UI, domain models
-  soliplex_client_native/ # Platform HTTP adapters (Cupertino)
-  soliplex_logging/       # Pure Dart: logging, DiskQueue, BackendLogSink
+  soliplex_agent/          # Pure Dart: agent orchestration (RunOrchestrator, AgentRuntime, AgentSession)
+  soliplex_cli/            # Interactive REPL for exercising soliplex_agent
+  soliplex_client/         # Pure Dart: REST API, AG-UI, domain models
+  soliplex_client_native/  # Platform HTTP adapters (Cupertino)
+  soliplex_interpreter_monty/ # Pure Dart: Monty Python sandbox bridge
+  soliplex_logging/        # Pure Dart: logging, DiskQueue, BackendLogSink
+  soliplex_scripting/      # Pure Dart: wiring ag-ui <-> interpreter bridge
 docs/                     # Documentation (see docs/index.md)
 ```
 
 ## Architecture
 
-Three layers: UI (features/) -> Core (providers, auth, logging) -> soliplex_client (pure Dart).
+Four layers: UI (features/) -> Core (providers, auth, logging) -> soliplex_agent (orchestration) -> soliplex_client (pure Dart). soliplex_scripting wires soliplex_agent to soliplex_interpreter_monty. soliplex_cli provides a terminal REPL over soliplex_agent.
 State management: Riverpod (manual providers, no codegen).
 Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
 
@@ -43,7 +47,7 @@ Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
 - Match surrounding code style exactly
 - Always refer to and abide by `docs/rules/flutter_rules.md`
 - Never use `// ignore:` directives - restructure code instead
-- Keep `soliplex_client` and `soliplex_logging` pure Dart (no Flutter imports)
+- Keep `soliplex_client`, `soliplex_logging`, `soliplex_agent`, `soliplex_scripting`, and `soliplex_interpreter_monty` pure Dart (no Flutter imports)
 - Platform-specific code goes in `soliplex_client_native`
 
 ## Code Quality
@@ -70,3 +74,4 @@ After any code modification, run in order:
 - [docs/logging-quickstart.md](docs/logging-quickstart.md) - Logging usage guide
 - [docs/guides/logging.md](docs/guides/logging.md) - Logging architecture
 - [docs/summary/client.md](docs/summary/client.md) - soliplex_client package
+- [docs/design/index.md](docs/design/index.md) - Design documents index

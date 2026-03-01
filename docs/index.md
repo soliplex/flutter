@@ -36,6 +36,10 @@ The current frontend focuses on core chat functionality with essential features 
 ### Package Documentation
 
 - [Client Package](summary/client.md) - soliplex_client architecture and usage
+- [Agent Package](../packages/soliplex_agent/README.md) - soliplex_agent orchestration layer
+- [CLI Package](../packages/soliplex_cli/README.md) - Interactive REPL for soliplex_agent
+- [Scripting Package](../packages/soliplex_scripting/README.md) - AG-UI to interpreter bridge wiring
+- [Interpreter Monty Package](../packages/soliplex_interpreter_monty/README.md) - Monty Python sandbox bridge
 
 ---
 
@@ -43,29 +47,51 @@ The current frontend focuses on core chat functionality with essential features 
 
 ### Architecture
 
-The project follows a three-layer architecture:
+The project follows a four-layer architecture:
 
 ```mermaid
 flowchart TD
     A["UI Components<br/>(Chat, History, HttpInspector)"]
     B["Core Frontend<br/>Providers | Navigation | AG-UI Processing"]
-    C["soliplex_client<br/>(Pure Dart package)"]
+    C["soliplex_agent<br/>(Orchestration)"]
+    D["soliplex_client<br/>(Pure Dart package)"]
+    E["soliplex_scripting<br/>(AG-UI bridge wiring)"]
+    F["soliplex_interpreter_monty<br/>(Monty sandbox bridge)"]
+    G["soliplex_cli<br/>(Terminal REPL)"]
 
     A --> B
     B --> C
+    C --> D
+    E --> C
+    E --> F
+    G --> C
 
     style A fill:#e1f5ff
     style B fill:#fff4e1
-    style C fill:#e8f5e9
+    style C fill:#ffe4e1
+    style D fill:#e8f5e9
+    style E fill:#f3e5f5
+    style F fill:#f3e5f5
+    style G fill:#e0f7fa
 ```
 
 ### Packages
 
 | Package | Type | Status | Description |
 |---------|------|--------|-------------|
+| `soliplex_agent` | Pure Dart | Implemented | Agent orchestration (RunOrchestrator, AgentRuntime, AgentSession) |
+| `soliplex_cli` | Dart | Implemented | Interactive REPL for exercising soliplex_agent |
 | `soliplex_client` | Pure Dart | Implemented | HTTP/AG-UI client, models, sessions |
 | `soliplex_client_native` | Flutter | Implemented | Native HTTP adapters (iOS/macOS via Cupertino) |
+| `soliplex_interpreter_monty` | Pure Dart | Implemented | Monty Python sandbox bridge |
 | `soliplex_logging` | Pure Dart | Implemented | Logging primitives, DiskQueue, BackendLogSink |
+| `soliplex_scripting` | Pure Dart | Implemented | Wiring AG-UI to interpreter bridge |
+
+### Design & Planning
+
+- [Design Documents](design/index.md) - Architecture design documents and diagrams
+- [Planning Documents](planning/) - Implementation planning slices and references
+- [PLANS](../PLANS/) - Sprint plans, specs, and audit findings
 
 ### Implemented Features
 
