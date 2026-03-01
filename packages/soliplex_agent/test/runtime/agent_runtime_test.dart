@@ -564,4 +564,42 @@ void main() {
       await session.result;
     });
   });
+
+  group('Phase 1 integration', () {
+    test('registry → connection → runtime → session', () async {
+      final prodConn = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+      final stagingConn = ServerConnection(
+        serverId: 'staging',
+        api: MockSoliplexApi(),
+        agUiClient: MockAgUiClient(),
+      );
+
+      final reg = ServerRegistry()
+        ..add(prodConn)
+        ..add(stagingConn);
+
+      runtime = AgentRuntime.fromConnection(
+        connection: reg.require('prod'),
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+      );
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'hi');
+
+      expect(session.threadKey.serverId, equals('prod'));
+
+      final result = await session.result;
+      expect(result, isA<AgentSuccess>());
+    });
+  });
 }
