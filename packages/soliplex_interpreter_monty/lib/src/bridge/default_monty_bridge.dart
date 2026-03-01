@@ -19,6 +19,19 @@ print = _cw
 
 const _consoleWriteFn = '__console_write__';
 
+/// Tracks an in-flight host function future awaiting resolution.
+class _PendingFuture {
+  _PendingFuture({
+    required this.future,
+    required this.bridgeCallId,
+    required this.stepName,
+  });
+
+  final Future<Object?> future;
+  final String bridgeCallId;
+  final String stepName;
+}
+
 /// Default [MontyBridge] implementation.
 ///
 /// Orchestrates the Monty start/resume loop, dispatching external function
@@ -31,6 +44,7 @@ class DefaultMontyBridge implements MontyBridge {
   final MontyPlatform? _explicitPlatform;
   final MontyLimits? _limits;
   final Map<String, HostFunction> _functions = {};
+  final Map<int, _PendingFuture> _pendingFutures = {};
   int _idCounter = 0;
   bool _isExecuting = false;
   bool _isDisposed = false;
@@ -91,6 +105,9 @@ class DefaultMontyBridge implements MontyBridge {
     final printBuffer = StringBuffer();
     final wrappedCode = '$_printPreamble\n$code';
     final externalFunctions = [_consoleWriteFn, ..._functions.keys];
+    final futuresCapable = _platform is MontyFutureCapable;
+
+    _pendingFutures.clear();
 
     try {
       var progress = await _platform.start(
@@ -102,11 +119,19 @@ class DefaultMontyBridge implements MontyBridge {
       while (true) {
         switch (progress) {
           case final MontyPending pending:
-            progress = await _handlePending(pending, printBuffer, controller);
+            progress = await _handlePending(
+              pending,
+              printBuffer,
+              controller,
+              futuresCapable: futuresCapable,
+            );
 
-          case MontyResolveFutures():
-            // TODO(M13): Implement async/futures support.
-            progress = await _platform.resume(null);
+          case final MontyResolveFutures resolve:
+            if (futuresCapable && _pendingFutures.isNotEmpty) {
+              progress = await _resolveFutures(resolve, controller);
+            } else {
+              progress = await _platform.resume(null);
+            }
 
           case MontyComplete(:final result):
             _flushPrintBuffer(printBuffer, controller);
@@ -125,14 +150,17 @@ class DefaultMontyBridge implements MontyBridge {
       controller.add(BridgeRunError(message: e.message));
     } on Exception catch (e) {
       controller.addError(e);
+    } finally {
+      _pendingFutures.clear();
     }
   }
 
   Future<MontyProgress> _handlePending(
     MontyPending pending,
     StringBuffer printBuffer,
-    StreamController<BridgeEvent> controller,
-  ) async {
+    StreamController<BridgeEvent> controller, {
+    required bool futuresCapable,
+  }) async {
     final name = pending.functionName;
 
     // Console write — always intercept, buffer for text flush.
@@ -147,6 +175,9 @@ class DefaultMontyBridge implements MontyBridge {
     // Registered host function — emit tool call events.
     final fn = _functions[name];
     if (fn != null) {
+      if (futuresCapable) {
+        return _dispatchToolCallAsFuture(fn, pending, controller);
+      }
       return _dispatchToolCall(fn, pending, controller);
     }
 
@@ -201,6 +232,95 @@ class DefaultMontyBridge implements MontyBridge {
 
       return _platform.resumeWithError(e.toString());
     }
+  }
+
+  Future<MontyProgress> _dispatchToolCallAsFuture(
+    HostFunction fn,
+    MontyPending pending,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final callId = _nextId;
+    final stepName = pending.functionName;
+
+    controller
+      ..add(BridgeStepStarted(stepId: stepName))
+      ..add(BridgeToolCallStart(callId: callId, name: stepName));
+
+    // Map and validate arguments.
+    final Map<String, Object?> args;
+    try {
+      args = fn.schema.mapAndValidate(pending);
+    } on FormatException catch (e) {
+      controller
+        ..add(BridgeToolCallResult(callId: callId, result: 'Error: $e'))
+        ..add(BridgeStepFinished(stepId: stepName));
+
+      return _platform.resumeWithError(e.toString());
+    }
+    controller
+      ..add(BridgeToolCallArgs(callId: callId, delta: jsonEncode(args)))
+      ..add(BridgeToolCallEnd(callId: callId));
+
+    // Launch handler and store future for later resolution.
+    // Errors are caught during resolution in _resolveFutures; suppress
+    // unhandled async error reporting in the meantime.
+    final handlerFuture = fn.handler(args);
+    unawaited(handlerFuture.then<void>((_) {}, onError: (_, __) {}));
+    _pendingFutures[pending.callId] = _PendingFuture(
+      future: handlerFuture,
+      bridgeCallId: callId,
+      stepName: stepName,
+    );
+
+    return (_platform as MontyFutureCapable).resumeAsFuture();
+  }
+
+  Future<MontyProgress> _resolveFutures(
+    MontyResolveFutures resolve,
+    StreamController<BridgeEvent> controller,
+  ) async {
+    final results = <int, Object?>{};
+    final errors = <int, String>{};
+
+    // Collect futures for the requested call IDs.
+    final entries = <int, _PendingFuture>{};
+    for (final id in resolve.pendingCallIds) {
+      final pending = _pendingFutures.remove(id);
+      if (pending != null) entries[id] = pending;
+    }
+
+    // Await all futures and partition into results/errors.
+    for (final entry in entries.entries) {
+      final id = entry.key;
+      final pending = entry.value;
+      try {
+        final value = await pending.future;
+        results[id] = value;
+        controller
+          ..add(
+            BridgeToolCallResult(
+              callId: pending.bridgeCallId,
+              result: value?.toString() ?? '',
+            ),
+          )
+          ..add(BridgeStepFinished(stepId: pending.stepName));
+      } on Exception catch (e) {
+        errors[id] = e.toString();
+        controller
+          ..add(
+            BridgeToolCallResult(
+              callId: pending.bridgeCallId,
+              result: 'Error: $e',
+            ),
+          )
+          ..add(BridgeStepFinished(stepId: pending.stepName));
+      }
+    }
+
+    return (_platform as MontyFutureCapable).resolveFutures(
+      results,
+      errors: errors.isEmpty ? null : errors,
+    );
   }
 
   void _flushPrintBuffer(

@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
@@ -60,6 +61,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1]),
+        )
+        ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
 
@@ -86,8 +90,9 @@ void main() {
       final resultEvent = events[5] as BridgeToolCallResult;
       expect(resultEvent.result, 'result for test query');
 
-      // Verify Monty resumed with handler return value
-      expect(mock.lastResumeReturnValue, 'result for test query');
+      // Verify futures path was used
+      expect(mock.resumeAsFutureCount, 1);
+      expect(mock.lastResolveFuturesResults![1], 'result for test query');
     });
 
     test('handles multiple tool calls in sequence', () async {
@@ -114,11 +119,17 @@ void main() {
           ),
         )
         ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1]),
+        )
+        ..enqueueProgress(
           const MontyPending(
             functionName: 'add',
             arguments: [3, 4],
             callId: 2,
           ),
+        )
+        ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [2]),
         )
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(value: 10, usage: _usage)),
@@ -247,6 +258,9 @@ void main() {
           ),
         )
         ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1]),
+        )
+        ..enqueueProgress(
           const MontyComplete(
             result: MontyResult(usage: _usage),
           ),
@@ -258,8 +272,8 @@ void main() {
       expect(results, hasLength(1));
       expect(results.first.result, contains('handler error'));
 
-      // Should have resumed with error in Python
-      expect(mock.resumeErrorMessages, isNotEmpty);
+      // Error routed through resolveFutures errors map
+      expect(mock.lastResolveFuturesErrors![1], contains('handler error'));
     });
   });
 
@@ -367,9 +381,29 @@ void main() {
     });
   });
 
-  group('MontyResolveFutures', () {
-    test('resumes with null (M13 placeholder)', () async {
+  group('async/futures (M13)', () {
+    test('single host function uses resumeAsFuture', () async {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fetch',
+            description: 'Fetch data',
+            params: [
+              HostParam(name: 'url', type: HostParamType.string),
+            ],
+          ),
+          handler: (args) async => 'data from ${args['url']}',
+        ),
+      );
+
       mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fetch',
+            arguments: ['example.com'],
+            callId: 1,
+          ),
+        )
         ..enqueueProgress(
           const MontyResolveFutures(pendingCallIds: [1]),
         )
@@ -377,10 +411,292 @@ void main() {
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
 
-      final events = await bridge.execute('async_call()').toList();
+      final events =
+          await bridge.execute('await fetch("example.com")').toList();
+
+      expect(mock.resumeAsFutureCount, 1);
+      expect(mock.lastResolveFuturesResults![1], 'data from example.com');
+
+      final results = events.whereType<BridgeToolCallResult>().toList();
+      expect(results, hasLength(1));
+      expect(results.first.result, 'data from example.com');
+    });
+
+    test('multiple concurrent futures resolved together', () async {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fetch',
+            description: 'Fetch data',
+            params: [
+              HostParam(name: 'url', type: HostParamType.string),
+            ],
+          ),
+          handler: (args) async => 'data from ${args['url']}',
+        ),
+      );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fetch',
+            arguments: ['a'],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fetch',
+            arguments: ['b'],
+            callId: 2,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fetch',
+            arguments: ['c'],
+            callId: 3,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1, 2, 3]),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('asyncio.gather(...)').toList();
+
+      expect(mock.resumeAsFutureCount, 3);
+      expect(mock.lastResolveFuturesResults, {
+        1: 'data from a',
+        2: 'data from b',
+        3: 'data from c',
+      });
+
+      final results = events.whereType<BridgeToolCallResult>().toList();
+      expect(results, hasLength(3));
+    });
+
+    test('handler failure populates errors map', () async {
+      bridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fail',
+            description: 'Always fails',
+          ),
+          handler: (args) async => throw Exception('boom'),
+        ),
+      );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fail',
+            arguments: [],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1]),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await bridge.execute('await fail()').toList();
+
+      expect(mock.resumeAsFutureCount, 1);
+      expect(mock.lastResolveFuturesResults, isEmpty);
+      expect(mock.lastResolveFuturesErrors![1], contains('boom'));
+
+      final results = events.whereType<BridgeToolCallResult>().toList();
+      expect(results.first.result, contains('boom'));
+    });
+
+    test('mixed success and failure', () async {
+      bridge
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'succeed',
+              description: 'Succeeds',
+            ),
+            handler: (args) async => 'ok',
+          ),
+        )
+        ..register(
+          HostFunction(
+            schema: const HostFunctionSchema(
+              name: 'fail',
+              description: 'Fails',
+            ),
+            handler: (args) async => throw Exception('nope'),
+          ),
+        );
+
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'succeed',
+            arguments: [],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'fail',
+            arguments: [],
+            callId: 2,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1, 2]),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('gather(...)').toList();
+
+      expect(mock.lastResolveFuturesResults, {1: 'ok'});
+      expect(mock.lastResolveFuturesErrors![2], contains('nope'));
+    });
+
+    test('console write stays synchronous', () async {
+      mock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: '__console_write__',
+            arguments: ['hello\n'],
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      await bridge.execute('print("hello")').toList();
+
+      expect(mock.resumeAsFutureCount, 0);
+      expect(mock.resumeReturnValues, [null]);
+    });
+
+    test('non-future platform uses sync path', () async {
+      final syncMock = _SyncOnlyMockPlatform();
+      final syncBridge = DefaultMontyBridge(platform: syncMock);
+      addTearDown(syncBridge.dispose);
+
+      syncBridge.register(
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'search',
+            description: 'Search',
+            params: [
+              HostParam(name: 'query', type: HostParamType.string),
+            ],
+          ),
+          handler: (args) async => 'found ${args['query']}',
+        ),
+      );
+
+      syncMock
+        ..enqueueProgress(
+          const MontyPending(
+            functionName: 'search',
+            arguments: ['test'],
+            callId: 1,
+          ),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await syncBridge.execute('search("test")').toList();
+
+      // Should have used resume() not resumeAsFuture()
+      expect(syncMock.lastResumeReturnValue, 'found test');
+
+      final results = events.whereType<BridgeToolCallResult>().toList();
+      expect(results.first.result, 'found test');
+    });
+
+    test('MontyResolveFutures fallback without futures', () async {
+      final syncMock = _SyncOnlyMockPlatform();
+      final syncBridge = DefaultMontyBridge(platform: syncMock);
+      addTearDown(syncBridge.dispose);
+
+      syncMock
+        ..enqueueProgress(
+          const MontyResolveFutures(pendingCallIds: [1]),
+        )
+        ..enqueueProgress(
+          const MontyComplete(result: MontyResult(usage: _usage)),
+        );
+
+      final events = await syncBridge.execute('async_call()').toList();
 
       expect(events.first, isA<BridgeRunStarted>());
       expect(events.last, isA<BridgeRunFinished>());
+      // Should have called resume(null) as fallback
+      expect(syncMock.lastResumeReturnValue, null);
     });
   });
+}
+
+/// Mock platform that does NOT implement [MontyFutureCapable].
+///
+/// Used to test that [DefaultMontyBridge] falls back to synchronous behavior
+/// when the platform does not support futures.
+class _SyncOnlyMockPlatform extends MontyPlatform {
+  final Queue<MontyProgress> _progressQueue = Queue<MontyProgress>();
+  final List<Object?> resumeReturnValues = [];
+  final List<String> resumeErrorMessages = [];
+
+  Object? get lastResumeReturnValue =>
+      resumeReturnValues.isEmpty ? null : resumeReturnValues.last;
+
+  void enqueueProgress(MontyProgress progress) {
+    _progressQueue.add(progress);
+  }
+
+  @override
+  Future<MontyProgress> start(
+    String code, {
+    Map<String, Object?>? inputs,
+    List<String>? externalFunctions,
+    MontyLimits? limits,
+    String? scriptName,
+  }) async =>
+      _dequeueProgress();
+
+  @override
+  Future<MontyProgress> resume(Object? returnValue) async {
+    resumeReturnValues.add(returnValue);
+    return _dequeueProgress();
+  }
+
+  @override
+  Future<MontyProgress> resumeWithError(String errorMessage) async {
+    resumeErrorMessages.add(errorMessage);
+    return _dequeueProgress();
+  }
+
+  @override
+  Future<MontyResult> run(
+    String code, {
+    Map<String, Object?>? inputs,
+    MontyLimits? limits,
+    String? scriptName,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<void> dispose() async {}
+
+  MontyProgress _dequeueProgress() {
+    if (_progressQueue.isEmpty) {
+      throw StateError('No progress enqueued.');
+    }
+    return _progressQueue.removeFirst();
+  }
 }

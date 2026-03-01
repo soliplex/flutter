@@ -11,7 +11,7 @@ functions or LLM system prompts.
 | No `import` | All capabilities come from registered host functions |
 | No `class` | Flat procedural code only — dicts, lists, strings, host function returns |
 | No I/O | No file, network, or system calls |
-| No `async`/`await` | Synchronous execution only (M13 future) |
+| `async`/`await` | Supported when platform implements `MontyFutureCapable` |
 
 ## Supported Control Flow
 
@@ -50,8 +50,8 @@ Only JSON-serializable types cross the Python-Dart boundary:
 | Handler errors | Dart handler exceptions → `resumeWithError()` → Python sees error |
 | Unknown functions | Calls to unregistered functions → `resumeWithError()` |
 | Concurrency | Single execution at a time per bridge instance |
+| Async host functions | Host function futures launched immediately, resolved on `MontyResolveFutures` |
 
 ## Future Work
 
-- **M13:** Async/await support (`MontyResolveFutures` handling)
 - **S10:** `MontySession` for persistent state across executions
