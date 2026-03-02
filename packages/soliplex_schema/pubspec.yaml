@@ -1,0 +1,14 @@
+name: soliplex_schema
+description: Runtime JSON Schema parsing and typed state views for AG-UI features.
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+
+dependencies:
+  meta: ^1.9.0
+
+dev_dependencies:
+  test: ^1.24.0
+  very_good_analysis: ^7.0.0

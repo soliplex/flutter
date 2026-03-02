@@ -1,0 +1,58 @@
+name: Build Web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/**'
+      - 'pubspec.*'
+      - 'web/**'
+      - 'packages/soliplex_agent/**'
+      - 'packages/soliplex_client/**'
+      - 'packages/soliplex_client_native/**'
+      - 'packages/soliplex_logging/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Dart environment
+        uses: ./.github/actions/setup-dart-env
+
+      - name: Build web
+        run: flutter build web --release
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: web-build
+          path: build/web/
+          retention-days: 7
+
+      - name: Notify Slack on failure
+        if: failure() && env.SLACK_NOTIFY_URL != ''
+        uses: slackapi/slack-github-action@v2.1.1
+        with:
+          webhook: ${{ env.SLACK_NOTIFY_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "channel": "#soliplex",
+              "username": "flutter-ci",
+              "text": ${{ toJson(format(':x: Web build failed on {0}:\n{1}\n{2}/{3}/actions/runs/{4}', github.ref, github.event.head_commit.message, github.server_url, github.repository, github.run_id)) }},
+              "icon_emoji": ":flutter:"
+            }

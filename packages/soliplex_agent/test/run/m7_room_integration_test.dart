@@ -7,7 +7,6 @@ library;
 import 'dart:convert';
 
 import 'package:soliplex_agent/soliplex_agent.dart';
-import 'package:soliplex_client/soliplex_client.dart';
 import 'package:test/test.dart';
 
 import '../integration/helpers/helpers.dart';
@@ -117,11 +116,9 @@ void main() {
         reason: 'Should yield at least once for system_status',
       );
       expect(orchestrator.currentState, isA<CompletedState>());
-      print(
-        'Response: ${lastAssistantText(
-          (orchestrator.currentState as CompletedState).conversation,
-        )}',
-      );
+      final completedConvo =
+          (orchestrator.currentState as CompletedState).conversation;
+      print('Response: ${lastAssistantText(completedConvo)}');
     });
   });
 
@@ -240,9 +237,8 @@ void main() {
         for (final tc in yielding.pendingToolCalls) {
           calledTools.add(tc.name);
         }
-        print('Round ${round + 1}: ${yielding.pendingToolCalls.map(
-              (t) => t.name,
-            ).toList()}');
+        final toolNames = yielding.pendingToolCalls.map((t) => t.name).toList();
+        print('Round ${round + 1}: $toolNames');
 
         final executed = yielding.pendingToolCalls
             .map(
@@ -531,11 +527,9 @@ void main() {
         isA<CompletedState>(),
         reason: 'Agent should recover from tool failure',
       );
-      print(
-        'Response: ${lastAssistantText(
-          (orchestrator.currentState as CompletedState).conversation,
-        )}',
-      );
+      final completedConvo2 =
+          (orchestrator.currentState as CompletedState).conversation;
+      print('Response: ${lastAssistantText(completedConvo2)}');
     });
   });
 

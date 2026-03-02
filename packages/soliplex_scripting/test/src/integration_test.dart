@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:soliplex_agent/soliplex_agent.dart' show HostApi;
+import 'package:soliplex_agent/soliplex_agent.dart' show FakeAgentApi, HostApi;
 import 'package:soliplex_client/soliplex_client.dart'
     show ToolCallInfo, ToolRegistry;
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
@@ -199,6 +199,133 @@ void main() {
       expect(hostApi.calls, contains('registerChart'));
 
       cache.disposeAll();
+    });
+  });
+
+  group('Integration: agent host functions', () {
+    test('spawn_agent via executor → bridge → AgentApi', () async {
+      final hostApi = _FakeHostApi();
+      final agentApi = FakeAgentApi(
+        spawnResult: 42,
+        getResultResult: 'agent says hello',
+      );
+      final wiring = HostFunctionWiring(
+        hostApi: hostApi,
+        agentApi: agentApi,
+      );
+      final cache = BridgeCache(
+        limit: 2,
+        bridgeFactory: _ScriptableBridge.new,
+      );
+      final executor = MontyToolExecutor(
+        threadKey: _key,
+        bridgeCache: cache,
+        hostWiring: wiring,
+      );
+
+      final toolCall = ToolCallInfo(
+        id: 'tc-agent-spawn',
+        name: PythonExecutorTool.toolName,
+        arguments: jsonEncode({
+          'code': 'spawn_agent({"room": "echo", "prompt": "hi"})',
+        }),
+      );
+
+      final result = await executor.execute(toolCall);
+      expect(result, 'done');
+      expect(agentApi.calls, contains('spawnAgent'));
+      expect(agentApi.calls['spawnAgent']![0], 'echo');
+      expect(agentApi.calls['spawnAgent']![1], 'hi');
+
+      cache.disposeAll();
+    });
+
+    test('ask_llm via executor → bridge → spawn + getResult', () async {
+      final hostApi = _FakeHostApi();
+      final agentApi = FakeAgentApi(
+        spawnResult: 7,
+        getResultResult: 'the answer is 42',
+      );
+      final wiring = HostFunctionWiring(
+        hostApi: hostApi,
+        agentApi: agentApi,
+      );
+      final cache = BridgeCache(
+        limit: 2,
+        bridgeFactory: _ScriptableBridge.new,
+      );
+      final executor = MontyToolExecutor(
+        threadKey: _key,
+        bridgeCache: cache,
+        hostWiring: wiring,
+      );
+
+      final toolCall = ToolCallInfo(
+        id: 'tc-agent-ask',
+        name: PythonExecutorTool.toolName,
+        arguments: jsonEncode({
+          'code': 'ask_llm({"prompt": "what is 6*7?", "room": "math"})',
+        }),
+      );
+
+      final result = await executor.execute(toolCall);
+      expect(result, 'done');
+      // ask_llm should have called spawnAgent then getResult.
+      expect(agentApi.calls, contains('spawnAgent'));
+      expect(agentApi.calls['spawnAgent']![0], 'math');
+      expect(agentApi.calls['spawnAgent']![1], 'what is 6*7?');
+      expect(agentApi.calls, contains('getResult'));
+      expect(agentApi.calls['getResult']![0], 7);
+
+      cache.disposeAll();
+    });
+
+    test('wait_all via executor → bridge → AgentApi', () async {
+      final hostApi = _FakeHostApi();
+      final agentApi = FakeAgentApi(
+        waitAllResult: ['result-a', 'result-b'],
+      );
+      final wiring = HostFunctionWiring(
+        hostApi: hostApi,
+        agentApi: agentApi,
+      );
+      final cache = BridgeCache(
+        limit: 2,
+        bridgeFactory: _ScriptableBridge.new,
+      );
+      final executor = MontyToolExecutor(
+        threadKey: _key,
+        bridgeCache: cache,
+        hostWiring: wiring,
+      );
+
+      final toolCall = ToolCallInfo(
+        id: 'tc-agent-wait',
+        name: PythonExecutorTool.toolName,
+        arguments: jsonEncode({
+          'code': 'wait_all({"handles": [1, 2]})',
+        }),
+      );
+
+      final result = await executor.execute(toolCall);
+      expect(result, 'done');
+      expect(agentApi.calls, contains('waitAll'));
+      expect(agentApi.calls['waitAll']![0], [1, 2]);
+
+      cache.disposeAll();
+    });
+
+    test('agent functions absent when no agentApi', () async {
+      final hostApi = _FakeHostApi();
+      final wiring = HostFunctionWiring(hostApi: hostApi);
+      final bridge = _ScriptableBridge();
+      wiring.registerOnto(bridge);
+
+      final names = bridge.schemas.map((s) => s.name).toSet();
+      expect(names, isNot(contains('spawn_agent')));
+      expect(names, isNot(contains('ask_llm')));
+      expect(names, isNot(contains('wait_all')));
+      expect(names, isNot(contains('get_result')));
     });
   });
 }

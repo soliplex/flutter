@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
-import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -32,11 +31,8 @@ const ThreadKey _key = (
 
 const _runId = 'run-abc';
 
-RunInfo _runInfo() => RunInfo(
-      id: _runId,
-      threadId: _key.threadId,
-      createdAt: DateTime(2026),
-    );
+RunInfo _runInfo() =>
+    RunInfo(id: _runId, threadId: _key.threadId, createdAt: DateTime(2026));
 
 List<BaseEvent> _happyPathEvents() => [
       const RunStartedEvent(threadId: 'thread-1', runId: _runId),
@@ -119,9 +115,7 @@ void main() {
   });
 
   void stubCreateRun() {
-    when(() => api.createRun(any(), any())).thenAnswer(
-      (_) async => _runInfo(),
-    );
+    when(() => api.createRun(any(), any())).thenAnswer((_) async => _runInfo());
   }
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {

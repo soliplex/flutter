@@ -22,7 +22,6 @@ import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/room/widgets/room_info_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
 import 'package:soliplex_frontend/features/settings/backend_versions_screen.dart';
-import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 import 'package:soliplex_frontend/features/settings/telemetry_screen.dart';
 import 'package:soliplex_frontend/shared/widgets/app_shell.dart';
 import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
@@ -395,7 +394,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           name: 'settings',
           pageBuilder: (context, state) => _staticPage(
             title: const Text('Settings'),
-            body: const SettingsScreen(),
+            body: const Center(child: Text('Settings — under construction')),
           ),
           routes: [
             GoRoute(

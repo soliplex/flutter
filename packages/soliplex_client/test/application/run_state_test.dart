@@ -26,10 +26,7 @@ void main() {
     });
 
     test('hashCode is consistent', () {
-      expect(
-        const IdleState().hashCode,
-        equals(const IdleState().hashCode),
-      );
+      expect(const IdleState().hashCode, equals(const IdleState().hashCode));
     });
 
     test('toString', () {
@@ -77,9 +74,7 @@ void main() {
         conversation: conversation,
         streaming: streaming,
       );
-      final updated = conversation.withStatus(
-        const Running(runId: 'run-1'),
-      );
+      final updated = conversation.withStatus(const Running(runId: 'run-1'));
       final copied = original.copyWith(conversation: updated);
 
       expect(copied.conversation, equals(updated));
@@ -231,9 +226,7 @@ void main() {
   });
 
   group('ToolYieldingState', () {
-    final pendingTools = [
-      const ToolCallInfo(id: 'tc-1', name: 'search'),
-    ];
+    final pendingTools = [const ToolCallInfo(id: 'tc-1', name: 'search')];
 
     test('equality with same fields', () {
       final stateA = ToolYieldingState(

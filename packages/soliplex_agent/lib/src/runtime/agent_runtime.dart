@@ -4,6 +4,7 @@ import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
+import 'package:soliplex_agent/src/runtime/server_connection.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
 import 'package:soliplex_client/run.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -43,6 +44,22 @@ class AgentRuntime {
         _toolRegistryResolver = toolRegistryResolver,
         _platform = platform,
         _logger = logger;
+
+  /// Creates a runtime from a [ServerConnection], extracting the API
+  /// clients and server identity.
+  AgentRuntime.fromConnection({
+    required ServerConnection connection,
+    required ToolRegistryResolver toolRegistryResolver,
+    required PlatformConstraints platform,
+    required Logger logger,
+  }) : this(
+          api: connection.api,
+          agUiClient: connection.agUiClient,
+          toolRegistryResolver: toolRegistryResolver,
+          platform: platform,
+          logger: logger,
+          serverId: connection.serverId,
+        );
 
   final SoliplexApi _api;
   final AgUiClient _agUiClient;
@@ -92,10 +109,7 @@ class AgentRuntime {
       ephemeral: ephemeral,
     );
     _trackSession(session);
-    await session.start(
-      userMessage: prompt,
-      existingRunId: existingRunId,
-    );
+    await session.start(userMessage: prompt, existingRunId: existingRunId);
     _scheduleCompletion(session, timeout);
     return session;
   }
@@ -105,9 +119,7 @@ class AgentRuntime {
     List<AgentSession> sessions, {
     Duration? timeout,
   }) {
-    return Future.wait(
-      sessions.map((s) => s.awaitResult(timeout: timeout)),
-    );
+    return Future.wait(sessions.map((s) => s.awaitResult(timeout: timeout)));
   }
 
   /// Returns the first result from any of the given sessions.
@@ -115,9 +127,7 @@ class AgentRuntime {
     List<AgentSession> sessions, {
     Duration? timeout,
   }) {
-    return Future.any(
-      sessions.map((s) => s.awaitResult(timeout: timeout)),
-    );
+    return Future.any(sessions.map((s) => s.awaitResult(timeout: timeout)));
   }
 
   /// Cancels all active sessions.
@@ -155,9 +165,7 @@ class AgentRuntime {
 
   void _guardWasmReentrancy() {
     if (!_platform.supportsReentrantInterpreter && _activeCount > 0) {
-      throw StateError(
-        'WASM runtime does not support concurrent sessions',
-      );
+      throw StateError('WASM runtime does not support concurrent sessions');
     }
   }
 
@@ -182,19 +190,11 @@ class AgentRuntime {
     String? threadId,
   ) async {
     if (threadId != null) {
-      final key = (
-        serverId: serverId,
-        roomId: roomId,
-        threadId: threadId,
-      );
+      final key = (serverId: serverId, roomId: roomId, threadId: threadId);
       return (key, null);
     }
     final (threadInfo, _) = await _api.createThread(roomId);
-    final key = (
-      serverId: serverId,
-      roomId: roomId,
-      threadId: threadInfo.id,
-    );
+    final key = (serverId: serverId, roomId: roomId, threadId: threadInfo.id);
     final existingRunId =
         threadInfo.hasInitialRun ? threadInfo.initialRunId : null;
     return (key, existingRunId);
@@ -284,10 +284,7 @@ class AgentRuntime {
     try {
       await _api.deleteThread(key.roomId, key.threadId);
     } on Object catch (error) {
-      _logger.warning(
-        'Failed to delete thread ${key.threadId}',
-        error: error,
-      );
+      _logger.warning('Failed to delete thread ${key.threadId}', error: error);
     }
   }
 }
