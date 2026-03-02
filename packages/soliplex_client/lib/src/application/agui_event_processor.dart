@@ -111,6 +111,8 @@ EventProcessingResult processEvent(
         streaming,
         toolCallId,
       ),
+    ToolCallResultEvent(:final toolCallId, :final content) =>
+      _processToolCallResult(conversation, streaming, toolCallId, content),
 
     // State events - apply to conversation.aguiState
     StateSnapshotEvent(:final snapshot) => EventProcessingResult(
@@ -326,6 +328,30 @@ EventProcessingResult _processToolCallEnd(
   final updatedToolCalls = conversation.toolCalls.map((tc) {
     if (tc.id == toolCallId && tc.status == ToolCallStatus.streaming) {
       return tc.copyWith(status: ToolCallStatus.pending);
+    }
+    return tc;
+  }).toList();
+
+  return EventProcessingResult(
+    conversation: conversation.copyWith(toolCalls: updatedToolCalls),
+    streaming: streaming,
+  );
+}
+
+EventProcessingResult _processToolCallResult(
+  Conversation conversation,
+  StreamingState streaming,
+  String toolCallId,
+  String content,
+) {
+  final updatedToolCalls = conversation.toolCalls.map((tc) {
+    if (tc.id == toolCallId &&
+        (tc.status == ToolCallStatus.pending ||
+            tc.status == ToolCallStatus.streaming)) {
+      return tc.copyWith(
+        status: ToolCallStatus.completed,
+        result: content,
+      );
     }
     return tc;
   }).toList();
