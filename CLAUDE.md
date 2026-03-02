@@ -30,7 +30,7 @@ packages/
 docs/                     # Documentation (see docs/index.md)
 ```
 
-## Architecture
+## Architecture (adapted from the Clean Architecture by Robert C. Martin)
 
 Source code dependencies point inward only (the dependency rule). Four
 layers, from innermost to outermost:
@@ -89,10 +89,7 @@ original principles:
 
 ## Development Rules
 
-- KISS, YAGNI, SOLID — simple solutions over clever ones
 - Actively improve cohesion and reduce coupling when touching existing code
-- Edit existing files; do not create new ones without need
-- Match surrounding code style exactly
 - Always refer to and abide by `docs/rules/flutter_rules.md`
 - Never use `// ignore:` directives - restructure code instead
 - Keep `soliplex_client` and `soliplex_logging` pure Dart (no Flutter imports)
