@@ -161,8 +161,10 @@ void main() {
         expect(names, isNot(contains('wait_all')));
         expect(names, isNot(contains('get_result')));
         expect(names, isNot(contains('ask_llm')));
-        expect(b.registered,
-            hasLength(41)); // 37 df + 1 chart + 1 platform + 2 introspection
+        expect(
+          b.registered,
+          hasLength(41),
+        ); // 37 df + 1 chart + 1 platform + 2 introspection
       });
     });
   });

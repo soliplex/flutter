@@ -7,8 +7,7 @@ environment:
   sdk: ^3.6.0
 
 dependencies:
-  dart_monty_platform_interface:
-    path: /Users/runyaga/dev/dart_monty/packages/dart_monty_platform_interface
+  dart_monty_platform_interface: ^0.6.1
   meta: ^1.11.0
 
 dev_dependencies:

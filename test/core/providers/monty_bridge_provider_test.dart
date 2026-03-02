@@ -7,7 +7,6 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/services/thread_bridge_cache.dart';
-import 'package:soliplex_frontend/core/services/tool_execution_zone.dart';
 import 'package:soliplex_monty/soliplex_monty.dart';
 
 // ---------------------------------------------------------------------------
@@ -71,39 +70,44 @@ void main() {
     registerFallbackValue(FakeToolCallInfo());
   });
 
-  group('execute_python in toolRegistryProvider', () {
-    test('present when room has tool definitions', () {
+  group('toolRegistryProvider', () {
+    test('returns empty registry by default', () {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+
+      final registry = container.read(toolRegistryProvider);
+
+      expect(registry.toolDefinitions, isEmpty);
+    });
+
+    test('can be overridden with custom tools', () {
+      final tool = ClientTool(
+        definition: const Tool(
+          name: 'custom_tool',
+          description: 'A custom tool',
+        ),
+        executor: (_) async => 'result',
+      );
       final container = ProviderContainer(
         overrides: [
-          currentRoomProvider.overrideWithValue(_roomWithTools),
-          threadBridgeCacheProvider.overrideWith(
-            _TestBridgeCacheNotifier.new,
-          ),
+          toolRegistryProvider
+              .overrideWithValue(const ToolRegistry().register(tool)),
         ],
       );
       addTearDown(container.dispose);
 
       final registry = container.read(toolRegistryProvider);
 
-      expect(registry.contains(PythonExecutorTool.toolName), isTrue);
+      expect(registry.contains('custom_tool'), isTrue);
     });
 
-    test('absent when no room selected', () {
+    test('does not contain execute_python by default', () {
+      // execute_python is registered by AgentRunNotifier, not
+      // toolRegistryProvider — which is just a base registry.
       final container = ProviderContainer(
-        overrides: [currentRoomProvider.overrideWithValue(null)],
-      );
-      addTearDown(container.dispose);
-
-      final registry = container.read(toolRegistryProvider);
-
-      expect(registry.contains(PythonExecutorTool.toolName), isFalse);
-    });
-
-    test('absent when room has no tool definitions', () {
-      const emptyRoom = Room(id: 'room-1', name: 'Empty');
-
-      final container = ProviderContainer(
-        overrides: [currentRoomProvider.overrideWithValue(emptyRoom)],
+        overrides: [
+          currentRoomProvider.overrideWithValue(_roomWithTools),
+        ],
       );
       addTearDown(container.dispose);
 
@@ -113,7 +117,17 @@ void main() {
     });
   });
 
-  group('execute_python executor', () {
+  group('PythonExecutorTool', () {
+    test('has correct tool definition', () {
+      const definition = PythonExecutorTool.definition;
+
+      expect(definition.name, 'execute_python');
+      expect(definition.description, contains('Python'));
+      expect(definition.parameters, isA<Map<String, Object?>>());
+    });
+  });
+
+  group('MontyToolExecutor via threadBridgeCacheProvider', () {
     late MockMontyBridge mockBridge;
     late _TestBridgeCacheNotifier cacheNotifier;
     late ProviderContainer container;
@@ -132,60 +146,14 @@ void main() {
 
     tearDown(() => container.dispose());
 
-    /// Executes code via the execute_python tool inside a Zone with [_testKey].
-    Future<String> executeInZone(String code) {
-      final registry = container.read(toolRegistryProvider);
-      return runInToolExecutionZone(
-        _testKey,
-        () => registry.execute(
-          ToolCallInfo(
-            id: 'test',
-            name: PythonExecutorTool.toolName,
-            arguments: jsonEncode({'code': code}),
-          ),
-        ),
-      );
-    }
+    test('bridge cache creates bridge for seeded key', () {
+      final cache = container.read(threadBridgeCacheProvider.notifier);
+      final bridge = cache.getOrCreate(_testKey, []);
 
-    test('returns error when no thread context', () async {
-      final registry = container.read(toolRegistryProvider);
-
-      // Execute WITHOUT zone wrapper — activeThreadKey will be null.
-      final result = await registry.execute(
-        ToolCallInfo(
-          id: 'test',
-          name: PythonExecutorTool.toolName,
-          arguments: jsonEncode({'code': 'print(1)'}),
-        ),
-      );
-
-      expect(result, 'Error: No thread context for execute_python');
+      expect(bridge, same(mockBridge));
     });
 
-    test('returns error on empty code', () async {
-      final result = await executeInZone('');
-
-      expect(result, 'Error: No code provided');
-      verifyNever(() => mockBridge.execute(any()));
-    });
-
-    test('returns error on missing code key', () async {
-      final registry = container.read(toolRegistryProvider);
-      final result = await runInToolExecutionZone(
-        _testKey,
-        () => registry.execute(
-          ToolCallInfo(
-            id: 'test',
-            name: PythonExecutorTool.toolName,
-            arguments: jsonEncode(<String, dynamic>{}),
-          ),
-        ),
-      );
-
-      expect(result, 'Error: No code provided');
-    });
-
-    test('collects text output from bridge events', () async {
+    test('bridge collects text output from events', () async {
       when(() => mockBridge.execute(any())).thenAnswer((_) {
         return Stream.fromIterable([
           const RunStartedEvent(threadId: '1', runId: '1'),
@@ -199,25 +167,18 @@ void main() {
         ]);
       });
 
-      final result = await executeInZone('print("Hello World")');
+      final events = mockBridge.execute('print("Hello World")');
+      final buffer = StringBuffer();
+      await for (final event in events) {
+        if (event is TextMessageContentEvent) {
+          buffer.write(event.delta);
+        }
+      }
 
-      expect(result, 'Hello World');
+      expect(buffer.toString(), 'Hello World');
     });
 
-    test('returns informative message when bridge produces no text', () async {
-      when(() => mockBridge.execute(any())).thenAnswer((_) {
-        return Stream.fromIterable([
-          const RunStartedEvent(threadId: '1', runId: '1'),
-          const RunFinishedEvent(threadId: '1', runId: '1'),
-        ]);
-      });
-
-      final result = await executeInZone('x = 1');
-
-      expect(result, 'Code executed successfully with no output.');
-    });
-
-    test('returns error message from RunErrorEvent', () async {
+    test('bridge emits error event on failure', () async {
       when(() => mockBridge.execute(any())).thenAnswer((_) {
         return Stream.fromIterable([
           const RunStartedEvent(threadId: '1', runId: '1'),
@@ -225,41 +186,31 @@ void main() {
         ]);
       });
 
-      final result = await executeInZone('print(x)');
+      final events = mockBridge.execute('print(x)');
+      String? errorMessage;
+      await for (final event in events) {
+        if (event is RunErrorEvent) {
+          errorMessage = event.message;
+        }
+      }
 
-      expect(result, 'Error: NameError: undefined variable');
+      expect(errorMessage, 'NameError: undefined variable');
     });
 
-    test('catches StateError from stuck platform', () async {
+    test('bridge throws StateError when already executing', () {
       when(() => mockBridge.execute(any())).thenThrow(
         StateError('Cannot call start() while execution is active'),
       );
 
-      final result = await executeInZone('print(1)');
-
       expect(
-        result,
-        'Error: Cannot call start() while execution is active',
+        () => mockBridge.execute('print(1)'),
+        throwsA(isA<StateError>()),
       );
-    });
-
-    test('has correct tool definition', () {
-      final registry = container.read(toolRegistryProvider);
-      final tools = registry.toolDefinitions;
-      final executePython = tools.firstWhere(
-        (t) => t.name == PythonExecutorTool.toolName,
-      );
-
-      expect(executePython.description, contains('Python'));
-      expect(executePython.parameters, isA<Map<String, Object?>>());
     });
   });
 
   group('host function dispatch via toolRegistryProvider', () {
     test('handler calls registry.execute with correct ToolCallInfo', () async {
-      // Use a tool name that doesn't conflict with room tools.
-      // Room tools are registered after client tools and would overwrite
-      // a client tool with the same name.
       final executedCalls = <ToolCallInfo>[];
       final spyTool = ClientTool(
         definition: const Tool(
@@ -276,24 +227,16 @@ void main() {
 
       final container = ProviderContainer(
         overrides: [
-          clientToolRegistryProvider.overrideWithValue(registry),
-          currentRoomProvider.overrideWithValue(_roomWithTools),
-          threadBridgeCacheProvider.overrideWith(
-            _TestBridgeCacheNotifier.new,
-          ),
+          toolRegistryProvider.overrideWithValue(registry),
         ],
       );
       addTearDown(container.dispose);
 
-      final mergedRegistry = container.read(toolRegistryProvider);
+      final readRegistry = container.read(toolRegistryProvider);
 
-      expect(mergedRegistry.contains('custom.tools.weather'), isTrue);
-      expect(
-        mergedRegistry.contains(PythonExecutorTool.toolName),
-        isTrue,
-      );
+      expect(readRegistry.contains('custom.tools.weather'), isTrue);
 
-      final result = await mergedRegistry.execute(
+      final result = await readRegistry.execute(
         ToolCallInfo(
           id: 'dispatch-test',
           name: 'custom.tools.weather',

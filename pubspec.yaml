@@ -12,8 +12,10 @@ environment:
 dependencies:
   connectivity_plus: ^7.0.0
   cupertino_icons: ^1.0.8
-  dart_monty_native:
-    path: /Users/runyaga/dev/dart_monty/packages/dart_monty_native
+  dart_monty_native: ^0.6.1
+  dart_monty_platform_interface: ^0.6.1
+  dart_monty_wasm: ^0.6.1
+  dart_monty_web: ^0.6.1
   device_info_plus: ^12.3.0
   fl_chart: ^0.70.2
   flutter:
@@ -70,11 +72,6 @@ dev_dependencies:
   riverpod: 3.2.1
   very_good_analysis: ^10.1.0
 
-dependency_overrides:
-  dart_monty_platform_interface:
-    path: /Users/runyaga/dev/dart_monty/packages/dart_monty_platform_interface
-  dart_monty_ffi:
-    path: /Users/runyaga/dev/dart_monty/packages/dart_monty_ffi
 
 flutter:
   uses-material-design: true

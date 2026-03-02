@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -201,17 +202,40 @@ class _SettingsHub extends StatelessWidget {
           return const SizedBox.shrink();
         }
         final (title, subtitle, route, icon, _) = _items[itemIndex];
+        final incompatible = kIsWeb && route == '/demos/pipeline';
         return Card(
           child: ListTile(
             leading: Icon(icon, size: 28),
-            title: Text(title),
+            title: Row(
+              children: [
+                Flexible(child: Text(title)),
+                if (incompatible) ...[
+                  const SizedBox(width: 8),
+                  Chip(
+                    label: const Text('INCOMPATIBLE'),
+                    labelStyle: TextStyle(
+                      fontSize: 10,
+                      color: theme.colorScheme.error,
+                    ),
+                    backgroundColor:
+                        theme.colorScheme.error.withValues(alpha: 0.1),
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ],
+            ),
             subtitle: Text(
-              subtitle,
+              incompatible
+                  ? 'Requires concurrent Monty sessions '
+                      '(not supported in WASM).'
+                  : subtitle,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.go(route),
+            trailing: incompatible ? null : const Icon(Icons.chevron_right),
+            enabled: !incompatible,
+            onTap: incompatible ? null : () => context.go(route),
           ),
         );
       },

@@ -583,7 +583,7 @@ void main() {
       // Navigate to settings
       container.read(routerProvider).go('/settings');
       await tester.pumpAndSettle();
-      expect(find.text('Settings — under construction'), findsOneWidget);
+      expect(find.text('Monty Autonomy'), findsOneWidget);
 
       // Rapid token refreshes (simulating background refresh)
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
@@ -593,7 +593,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should still be on settings screen
-      expect(find.text('Settings — under construction'), findsOneWidget);
+      expect(find.text('Monty Autonomy'), findsOneWidget);
     });
   });
 
@@ -1090,7 +1090,7 @@ void main() {
 
       // Expect: initialLocation is /rooms (fallback), not /settings
       expect(find.byType(RoomsScreen), findsOneWidget);
-      expect(find.text('Settings — under construction'), findsNothing);
+      expect(find.text('Monty Autonomy'), findsNothing);
     });
 
     testWidgets('initialRoute used when target enabled', (tester) async {
@@ -1131,7 +1131,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Expect: initialLocation is /settings
-      expect(find.text('Settings — under construction'), findsOneWidget);
+      expect(find.text('Monty Autonomy'), findsOneWidget);
     });
   });
 

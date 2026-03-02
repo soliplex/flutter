@@ -217,12 +217,12 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
-  // Parse tools — skip malformed entries
-  final toolsJson = json['tools'] as Map<String, dynamic>?;
+  // Parse tools — accept Map (backend) or List (fallback) format
+  final rawTools = json['tools'];
   final tools = <String, RoomTool>{};
   final toolDefinitions = <Map<String, dynamic>>[];
-  if (toolsJson != null) {
-    for (final entry in toolsJson.entries) {
+  if (rawTools is Map<String, dynamic>) {
+    for (final entry in rawTools.entries) {
       if (entry.value is! Map<String, dynamic>) {
         developer.log(
           'Malformed tool ignored: ${entry.key}\n${entry.value}',
@@ -236,6 +236,12 @@ Room roomFromJson(Map<String, dynamic> json) {
         entry.value as Map<String, dynamic>,
       );
       toolDefinitions.add(entry.value as Map<String, dynamic>);
+    }
+  } else if (rawTools is List) {
+    for (final item in rawTools) {
+      if (item is Map<String, dynamic>) {
+        toolDefinitions.add(item);
+      }
     }
   }
 

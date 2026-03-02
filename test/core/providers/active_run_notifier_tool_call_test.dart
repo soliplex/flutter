@@ -33,7 +33,7 @@ void main() {
         agUiClientProvider.overrideWithValue(fakeAgUiClient),
         apiProvider.overrideWithValue(mockApi),
         if (toolRegistry != null)
-          clientToolRegistryProvider.overrideWithValue(toolRegistry),
+          toolRegistryProvider.overrideWithValue(toolRegistry),
       ],
     );
   }

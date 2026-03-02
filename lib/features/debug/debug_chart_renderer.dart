@@ -130,6 +130,7 @@ class _ScatterChartView extends StatelessWidget {
               p.y,
               dotPainter: FlDotCirclePainter(
                 color: color,
+                radius: 10,
               ),
             ),
         ],

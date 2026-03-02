@@ -3,3 +3,5 @@
 soliplex_agent
 soliplex_cli
 soliplex_interpreter_monty
+soliplex_skills
+soliplex_tui
