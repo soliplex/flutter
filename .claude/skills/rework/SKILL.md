@@ -40,10 +40,10 @@ Then expand the scope to include:
 - **Consuming widgets**: files in `lib/features/` that `ref.watch()` or
   `ref.read()` these providers
 - **Related providers**: other providers watched/read by the target providers
-- **Existing domain classes**: related classes in `lib/core/domain/`,
-  `lib/core/models/`, or `packages/soliplex_client/` that could be enriched.
-  Note: `lib/core/models/` contains legacy types that migrate to `domain/`
-  during reworks.
+- **Existing domain classes**: related classes in `lib/core/domain/` that
+  could be enriched. Also search `lib/core/models/` and
+  `packages/soliplex_client/lib/src/domain/` for misplaced domain types —
+  these are legacy and migrate to `lib/core/domain/` during reworks.
 - **Tests**: corresponding test files in `test/`
 
 Present the resolved scope to the user before proceeding.
@@ -98,8 +98,7 @@ For each diagnosed anti-pattern, propose a specific change:
   (state transitions, composition rules, validation, invariant checks)
 - Show the method signature and which domain class it belongs to
 - The domain class must be pure Dart (no Flutter, no Riverpod)
-- Domain classes live in `lib/core/domain/` or
-  `packages/soliplex_client/lib/src/domain/`
+- Domain classes live in `lib/core/domain/`
 
 ### Use Case Extraction (dependency rule: use cases orchestrate I/O)
 

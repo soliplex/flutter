@@ -24,7 +24,7 @@ lib/
                   # login, quiz, room, rooms, settings
   shared/         # Reusable widgets and utilities
 packages/
-  soliplex_client/        # Pure Dart: REST API, AG-UI, domain models
+  soliplex_client/        # Pure Dart: REST API client, AG-UI protocol, DTOs
   soliplex_client_native/ # Platform HTTP adapters (Cupertino)
   soliplex_logging/       # Pure Dart: logging, DiskQueue, BackendLogSink
 docs/                     # Documentation (see docs/index.md)
@@ -35,13 +35,14 @@ docs/                     # Documentation (see docs/index.md)
 Source code dependencies point inward only (the dependency rule). Four
 layers, from innermost to outermost:
 
-**Domain** (`soliplex_client` + `lib/core/domain/`): The richest layer.
-Domain objects own the business rules of the system — state machines
-(states and the transitions between them), composition rules, validation,
-and invariants. They are pure Dart: no Flutter, no Riverpod, no I/O.
-When domain logic needs I/O, the domain object defines the decision; the
-use case executes the side effect. `lib/core/models/` contains legacy
-types that predate `domain/`; they migrate to `domain/` during reworks.
+**Domain** (`lib/core/domain/`): The richest layer. Domain objects own
+the business rules of the system — state machines (states and the
+transitions between them), composition rules, validation, and invariants.
+They are pure Dart: no Flutter, no Riverpod, no I/O. When domain logic
+needs I/O, the domain object defines the decision; the use case executes
+the side effect. `lib/core/models/` and `packages/soliplex_client/lib/src/domain/`
+contain legacy types that predate `lib/core/domain/`; they migrate inward
+during reworks.
 
 **Use Cases** (`lib/core/usecases/`): Plain Dart classes that orchestrate
 domain objects and I/O. Named by user intent: `SubmitQuizAnswer`,
@@ -69,6 +70,12 @@ by inner layers, consume streams, and dispatch user intent to providers.
 UI files contain only UI logic: layout, animation, text rendering,
 visibility, navigation. Business decisions belong in domain objects, not
 in widget `build()` methods or callbacks.
+
+`soliplex_client` is an interface adapter — a pure Dart HTTP client that
+translates between domain types and the backend REST/AG-UI APIs. It defines
+DTOs shaped by the backend contract; domain types shaped by business rules
+live in `lib/core/domain/`. Do not create new domain types in
+`soliplex_client`.
 
 Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
 Riverpod uses manual providers (no codegen).

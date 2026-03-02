@@ -33,10 +33,10 @@ back to the user and get confirmation before proceeding.
 
 Before proposing new structures, understand what already exists:
 
-- Search `lib/core/domain/`, `lib/core/models/`, and
-  `packages/soliplex_client/lib/src/domain/` for domain objects that this
-  feature might extend. Note: `lib/core/models/` contains legacy types
-  that migrate to `domain/` during reworks.
+- Search `lib/core/domain/` for domain objects this feature might extend.
+  Also search `lib/core/models/` and `packages/soliplex_client/lib/src/domain/`
+  for misplaced domain types — these are legacy and migrate to
+  `lib/core/domain/` during reworks.
 - Search `lib/core/providers/` for providers this feature will interact with
 - Search `lib/features/` for UI patterns relevant to this feature
 - Search `lib/core/usecases/` for existing use cases that might be related
@@ -64,7 +64,7 @@ For each domain concept, describe:
 - What invariants does it enforce?
 
 Domain objects are pure Dart. No Flutter imports, no Riverpod, no I/O.
-They live in `lib/core/domain/` or `packages/soliplex_client/lib/src/domain/`.
+They live in `lib/core/domain/`.
 
 Present these to the user and iterate before moving on.
 
@@ -136,7 +136,7 @@ Proposed
 
 ### Layer Decomposition
 
-#### Domain Layer (`lib/core/domain/` or `packages/soliplex_client/`)
+#### Domain Layer (`lib/core/domain/`)
 
 [For each domain object:]
 - What it is (entity, value object, aggregate)
