@@ -1,5 +1,4 @@
 import 'package:soliplex_agent/soliplex_agent.dart' show ThreadKey;
-import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 
 /// Manages a pool of [MontyBridge] instances keyed by [ThreadKey].
@@ -7,8 +6,6 @@ import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 /// Bridges are lazily created on first [acquire] and cached for reuse by
 /// the same thread. When the concurrency limit is reached, the
 /// least-recently-used idle bridge is evicted and disposed.
-///
-/// Each bridge has an associated [DfRegistry] that is cleaned up on evict.
 ///
 /// The WASM guard throws [StateError] when all bridges are executing
 /// and the limit is reached — preventing deadlock on single-threaded
@@ -28,9 +25,6 @@ class BridgeCache {
   /// Bridges keyed by thread. Insertion order tracks LRU (oldest first).
   final _bridges = <ThreadKey, MontyBridge>{};
 
-  /// DfRegistry per thread — cleaned up when bridge is evicted.
-  final _registries = <ThreadKey, DfRegistry>{};
-
   /// Threads whose bridge is currently executing.
   final _executing = <ThreadKey>{};
 
@@ -42,11 +36,6 @@ class BridgeCache {
 
   /// Whether the bridge for [key] is currently executing.
   bool isExecuting(ThreadKey key) => _executing.contains(key);
-
-  /// Returns the [DfRegistry] associated with [key].
-  ///
-  /// Creates one if it doesn't exist yet.
-  DfRegistry registryFor(ThreadKey key) => _registries[key] ??= DfRegistry();
 
   /// Returns the bridge for [key], creating one if needed.
   ///
@@ -89,24 +78,17 @@ class BridgeCache {
   }
 
   /// Removes and disposes the bridge for [key].
-  ///
-  /// Also disposes the associated [DfRegistry].
   void evict(ThreadKey key) {
     _executing.remove(key);
     _bridges.remove(key)?.dispose();
-    _registries.remove(key)?.disposeAll();
   }
 
-  /// Disposes all cached bridges and registries, then clears the cache.
+  /// Disposes all cached bridges, then clears the cache.
   void disposeAll() {
     for (final bridge in _bridges.values) {
       bridge.dispose();
     }
-    for (final registry in _registries.values) {
-      registry.disposeAll();
-    }
     _bridges.clear();
-    _registries.clear();
     _executing.clear();
   }
 

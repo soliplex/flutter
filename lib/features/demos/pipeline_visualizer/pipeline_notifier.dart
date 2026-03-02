@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart' show ClientTool;
+import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/features/demos/pipeline_visualizer/pipeline_pattern.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
@@ -136,8 +137,13 @@ class PipelineNotifier extends Notifier<PipelineState> {
       '"${prompt.substring(0, prompt.length.clamp(0, 60))}"',
     );
 
+    // TODO(phase2): Use ref.read(bridgeCacheProvider) + per-node bundle.
     final bridgeCache = BridgeCache(limit: 4);
-    final hostWiring = HostFunctionWiring(hostApi: FakeHostApi());
+    final dfRegistry = DfRegistry();
+    final hostWiring = HostFunctionWiring(
+      hostApi: FakeHostApi(),
+      dfRegistry: dfRegistry,
+    );
     var nodeCounter = 0;
 
     final runtime = AgentRuntime(
@@ -272,7 +278,7 @@ class PipelineNotifier extends Notifier<PipelineState> {
         completedAt: DateTime.now(),
       );
     } finally {
-      hostWiring.dfRegistry.disposeAll();
+      dfRegistry.disposeAll();
       bridgeCache.disposeAll();
     }
   }

@@ -66,7 +66,10 @@ void main() {
     setUp(() {
       bridge = _RecordingBridge();
       hostApi = _FakeHostApi();
-      wiring = HostFunctionWiring(hostApi: hostApi);
+      wiring = HostFunctionWiring(
+        hostApi: hostApi,
+        dfRegistry: DfRegistry(),
+      );
     });
 
     test('registerOnto registers df + chart + platform + introspection', () {
@@ -82,19 +85,6 @@ void main() {
       expect(names, contains('host_invoke'));
       expect(names, contains('list_functions'));
       expect(names, contains('help'));
-    });
-
-    test('exposes dfRegistry', () {
-      expect(wiring.dfRegistry, isA<DfRegistry>());
-    });
-
-    test('accepts injected DfRegistry', () {
-      final registry = DfRegistry();
-      final custom = HostFunctionWiring(
-        hostApi: hostApi,
-        dfRegistry: registry,
-      );
-      expect(custom.dfRegistry, same(registry));
     });
 
     group('handler delegation', () {

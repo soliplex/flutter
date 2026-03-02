@@ -6,15 +6,19 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:soliplex_agent/soliplex_agent.dart' show HostApi;
+import 'package:soliplex_client/soliplex_client.dart' show ToolCallInfo;
 import 'package:soliplex_dataframe/soliplex_dataframe.dart';
+import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/flutter_host_api.dart';
 import 'package:soliplex_frontend/features/debug/debug_chart_config.dart';
 import 'package:soliplex_frontend/features/debug/debug_chart_renderer.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 
 /// REPL-style debug screen for testing DataFrame operations directly.
 ///
-/// Executes df_* host functions backed by a local [DfRegistry], without
-/// needing a Monty bridge or backend connection.
+/// Executes df_* host functions backed by a shared [DfRegistry], and
+/// supports `py <code>` for full Monty bridge execution.
 class DebugDataFrameScreen extends ConsumerStatefulWidget {
   const DebugDataFrameScreen({super.key});
 
@@ -30,15 +34,44 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
   final _charts = <DebugChartConfig>[];
   int _currentChartIndex = 0;
 
+  static const _threadKey = (
+    serverId: 'local',
+    roomId: 'debug',
+    threadId: 'repl',
+  );
+
   late final DfRegistry _registry;
+  late final HostApi _hostApi;
+  late final MontyToolExecutor _executor;
   late final Map<String, _DfCommand> _commands;
 
   @override
   void initState() {
     super.initState();
-    _registry = DfRegistry();
+    final (:hostApi, :dfRegistry) = createFlutterHostBundle(
+      onChartCreated: (id, config) {
+        setState(() {
+          _charts.add(config);
+          _currentChartIndex = _charts.length - 1;
+        });
+      },
+    );
+    _hostApi = hostApi;
+    _registry = dfRegistry;
+    _executor = MontyToolExecutor(
+      threadKey: _threadKey,
+      bridgeCache: ref.read(bridgeCacheProvider),
+      hostWiring: HostFunctionWiring(
+        hostApi: hostApi,
+        dfRegistry: dfRegistry,
+      ),
+    );
     _commands = _buildCommands();
-    _addOutput('DataFrame REPL ready. Type "help" for commands.', _Kind.info);
+    _addOutput(
+      'DataFrame REPL ready. Type "help" for commands, '
+      '"py <code>" for Python.',
+      _Kind.info,
+    );
   }
 
   @override
@@ -46,6 +79,7 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
     _inputController.dispose();
     _scrollController.dispose();
     _registry.disposeAll();
+    ref.read(bridgeCacheProvider).evict(_threadKey);
     super.dispose();
   }
 
@@ -87,9 +121,12 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
               Expanded(
                 child: TextField(
                   controller: _inputController,
-                  style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                  ),
                   decoration: const InputDecoration(
-                    hintText: 'df_create, chart_line, chart_bar, help ...',
+                    hintText: 'df_create, chart_line, py <code>, help ...',
                     border: OutlineInputBorder(),
                     isDense: true,
                     contentPadding:
@@ -141,8 +178,10 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
               Text(
                 '${chart.title}  '
                 '(${_currentChartIndex + 1}/${_charts.length})',
-                style:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.chevron_right),
@@ -212,6 +251,22 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
       return;
     }
 
+    // py <code> — execute Python via Monty bridge
+    if (input.startsWith('py ')) {
+      final code = input.substring(3).trim();
+      if (code.isEmpty) {
+        _addOutput('Usage: py <python code>', _Kind.error);
+        return;
+      }
+      try {
+        final result = await _executePython(code);
+        if (result.isNotEmpty) _addOutput(result, _Kind.result);
+      } on Object catch (e) {
+        _addOutput('$e', _Kind.error);
+      }
+      return;
+    }
+
     // Parse: command_name arg1 arg2 ...  OR  command_name(json_args)
     final parenMatch = RegExp(r'^(\w+)\((.+)\)$').firstMatch(input);
     final spaceMatch = RegExp(r'^(\w+)\s*(.*)$').firstMatch(input);
@@ -243,6 +298,19 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
     }
   }
 
+  /// Executes Python code via `MontyToolExecutor`.
+  ///
+  /// Uses the per-session `_hostApi` and `_registry` so DataFrame handles
+  /// persist across `py` commands.
+  Future<String> _executePython(String code) async {
+    final toolCall = ToolCallInfo(
+      id: 'repl-${DateTime.now().millisecondsSinceEpoch}',
+      name: PythonExecutorTool.toolName,
+      arguments: jsonEncode({'code': code}),
+    );
+    return _executor.execute(toolCall);
+  }
+
   void _showHelp() {
     final buf = StringBuffer('Available commands:\n');
     for (final entry in _commands.entries) {
@@ -252,7 +320,9 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
       ..writeln('\nChart commands:')
       ..writeln('  chart_line(handle, x_col, y_col)')
       ..writeln('  chart_bar(handle, label_col, value_col)')
-      ..writeln('  chart_scatter(handle, x_col, y_col)');
+      ..writeln('  chart_scatter(handle, x_col, y_col)')
+      ..writeln('\nPython execution:')
+      ..writeln('  py <python code>');
     _writeExamples(buf);
     _addOutput(buf.toString(), _Kind.info);
   }
@@ -288,7 +358,9 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
       ..writeln('  df_shape 1')
       ..writeln('  df_columns 1')
       ..writeln(filterData)
-      ..writeln(r'  df_from_csv name,age\nAlice,30\nBob,25');
+      ..writeln(r'  df_from_csv name,age\nAlice,30\nBob,25')
+      ..writeln('\nPython example:')
+      ..writeln('  py h = df_create([{"a":1},{"a":2}])');
   }
 
   Map<String, _DfCommand> _buildCommands() {
@@ -327,31 +399,26 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
       );
     }
 
-    // Chart commands
+    // Chart commands — go through HostApi so callback fires
     cmds['chart_line'] = _DfCommand(
-      help: '(handle, x_col, y_col) '
-          'Render a line chart',
-      execute: (rawArgs) async =>
-          _executeChartCommand(rawArgs, _ChartType.line),
+      help: '(handle, x_col, y_col) Render a line chart',
+      execute: (rawArgs) async => _executeChartCommand(rawArgs, 'line'),
     );
     cmds['chart_bar'] = _DfCommand(
-      help: '(handle, label_col, value_col) '
-          'Render a bar chart',
-      execute: (rawArgs) async => _executeChartCommand(rawArgs, _ChartType.bar),
+      help: '(handle, label_col, value_col) Render a bar chart',
+      execute: (rawArgs) async => _executeChartCommand(rawArgs, 'bar'),
     );
     cmds['chart_scatter'] = _DfCommand(
-      help: '(handle, x_col, y_col) '
-          'Render a scatter chart',
-      execute: (rawArgs) async => _executeChartCommand(
-        rawArgs,
-        _ChartType.scatter,
-      ),
+      help: '(handle, x_col, y_col) Render a scatter chart',
+      execute: (rawArgs) async => _executeChartCommand(rawArgs, 'scatter'),
     );
 
     return cmds;
   }
 
-  String _executeChartCommand(String rawArgs, _ChartType type) {
+  /// Builds a chart config map and registers it through `_hostApi` so the
+  /// `onChartCreated` callback fires (same path as Python `chart_create`).
+  String _executeChartCommand(String rawArgs, String type) {
     final parts = rawArgs.split(',').map((s) => s.trim()).toList();
     if (parts.length < 3) {
       throw ArgumentError('Expected: handle, column1, column2');
@@ -365,56 +432,47 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
     final col1Values = df.columnValues(col1);
     final col2Values = df.columnValues(col2);
 
-    final DebugChartConfig config;
+    final Map<String, Object?> config;
     switch (type) {
-      case _ChartType.line:
-        config = LineChartConfig(
-          title: 'Line: $col1 vs $col2',
-          xLabel: col1,
-          yLabel: col2,
-          points: _extractPoints(col1Values, col2Values),
-        );
-      case _ChartType.bar:
-        config = BarChartConfig(
-          title: 'Bar: $col1 vs $col2',
-          xLabel: col1,
-          yLabel: col2,
-          labels: col1Values.map((v) => '$v').toList(),
-          values: _toDoubles(col2Values),
-        );
-      case _ChartType.scatter:
-        config = ScatterChartConfig(
-          title: 'Scatter: $col1 vs $col2',
-          xLabel: col1,
-          yLabel: col2,
-          points: _extractPoints(col1Values, col2Values),
-        );
+      case 'line' || 'scatter':
+        config = {
+          'type': type,
+          'title': '${type[0].toUpperCase()}${type.substring(1)}: '
+              '$col1 vs $col2',
+          'x_label': col1,
+          'y_label': col2,
+          'points': _extractPointsList(col1Values, col2Values),
+        };
+      case 'bar':
+        config = {
+          'type': 'bar',
+          'title': 'Bar: $col1 vs $col2',
+          'x_label': col1,
+          'y_label': col2,
+          'labels': col1Values.map((v) => '$v').toList(),
+          'values':
+              col2Values.map((v) => v is num ? v.toDouble() : 0.0).toList(),
+        };
+      default:
+        throw ArgumentError('Unknown chart type: $type');
     }
 
-    setState(() {
-      _charts.add(config);
-      _currentChartIndex = _charts.length - 1;
-    });
-    return 'Chart added (${type.name}): ${config.title}';
+    final id = _hostApi.registerChart(config);
+    return 'Chart #$id added ($type)';
   }
 
-  List<math.Point<double>> _extractPoints(
+  List<List<double>> _extractPointsList(
     List<Object?> xValues,
     List<Object?> yValues,
   ) {
-    final points = <math.Point<double>>[];
+    final points = <List<double>>[];
     for (var i = 0; i < math.min(xValues.length, yValues.length); i++) {
       final x = _toDouble(xValues[i]);
       final y = _toDouble(yValues[i]);
-      if (x != null && y != null) {
-        points.add(math.Point(x, y));
-      }
+      if (x != null && y != null) points.add([x, y]);
     }
     return points;
   }
-
-  List<double> _toDoubles(List<Object?> values) =>
-      values.map((v) => _toDouble(v) ?? 0).toList();
 
   double? _toDouble(Object? value) {
     if (value is num) return value.toDouble();
@@ -454,8 +512,6 @@ class _DebugDataFrameScreenState extends ConsumerState<DebugDataFrameScreen> {
 }
 
 enum _Kind { input, result, error, info }
-
-enum _ChartType { line, bar, scatter }
 
 class _OutputLine {
   const _OutputLine(this.text, this.kind);

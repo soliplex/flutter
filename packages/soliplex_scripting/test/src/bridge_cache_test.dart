@@ -1,4 +1,3 @@
-import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 import 'package:test/test.dart';
@@ -217,57 +216,6 @@ void main() {
           ..disposeAll();
 
         expect(cache.isExecuting(_key1), isFalse);
-      });
-    });
-
-    group('registryFor', () {
-      test('creates DfRegistry on first call', () {
-        final reg = cache.registryFor(_key1);
-        expect(reg, isA<DfRegistry>());
-      });
-
-      test('returns same registry for same key', () {
-        final reg1 = cache.registryFor(_key1);
-        final reg2 = cache.registryFor(_key1);
-        expect(identical(reg1, reg2), isTrue);
-      });
-
-      test('returns different registry for different key', () {
-        final reg1 = cache.registryFor(_key1);
-        final reg2 = cache.registryFor(_key2);
-        expect(identical(reg1, reg2), isFalse);
-      });
-
-      test('evict cleans up registry', () {
-        cache
-          ..acquire(_key1)
-          ..release(_key1);
-        cache.registryFor(_key1).register(
-              const DataFrame([
-                {'a': 1},
-              ]),
-            );
-
-        cache.evict(_key1);
-
-        // After evict, registryFor returns a fresh registry.
-        final newReg = cache.registryFor(_key1);
-        expect(
-          identical(cache.registryFor(_key1), newReg),
-          isTrue,
-        );
-      });
-
-      test('disposeAll cleans up all registries', () {
-        cache
-          ..registryFor(_key1)
-          ..registryFor(_key2)
-          ..acquire(_key1)
-          ..acquire(_key2)
-          ..disposeAll();
-
-        // Fresh registries after disposeAll.
-        expect(cache.registryFor(_key1), isA<DfRegistry>());
       });
     });
 

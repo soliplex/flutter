@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:soliplex_agent/soliplex_agent.dart' show HostApi;
 import 'package:soliplex_client/soliplex_client.dart'
     show ToolCallInfo, ToolRegistry;
+import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 import 'package:test/test.dart';
@@ -123,7 +124,10 @@ void main() {
   group('Integration', () {
     test('executor → bridge → host function → result', () async {
       final hostApi = _FakeHostApi();
-      final wiring = HostFunctionWiring(hostApi: hostApi);
+      final wiring = HostFunctionWiring(
+        hostApi: hostApi,
+        dfRegistry: DfRegistry(),
+      );
       final cache = BridgeCache(
         limit: 2,
         bridgeFactory: _ScriptableBridge.new,
@@ -155,7 +159,10 @@ void main() {
 
     test('resolver + executor end-to-end', () async {
       final hostApi = _FakeHostApi();
-      final wiring = HostFunctionWiring(hostApi: hostApi);
+      final wiring = HostFunctionWiring(
+        hostApi: hostApi,
+        dfRegistry: DfRegistry(),
+      );
       final cache = BridgeCache(
         limit: 2,
         bridgeFactory: _ScriptableBridge.new,

@@ -1,14 +1,32 @@
-import 'dart:convert';
-import 'dart:math';
-
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+import 'package:soliplex_agent/soliplex_agent.dart'
+    show NativePlatformConstraints, PlatformConstraints, WebPlatformConstraints;
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_client_native/soliplex_client_native.dart';
 import 'package:soliplex_frontend/core/auth/auth_provider.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
+import 'package:soliplex_scripting/soliplex_scripting.dart' show BridgeCache;
+
+/// Provider for platform constraints (WASM vs native concurrency limits).
+final platformConstraintsProvider = Provider<PlatformConstraints>((ref) {
+  return kIsWeb
+      ? const WebPlatformConstraints()
+      : const NativePlatformConstraints();
+});
+
+/// Singleton [BridgeCache] managing the Monty bridge pool.
+///
+/// Keyed by `ThreadKey`. Limit comes from [PlatformConstraints].
+final bridgeCacheProvider = Provider<BridgeCache>((ref) {
+  final constraints = ref.read(platformConstraintsProvider);
+  final cache = BridgeCache(limit: constraints.maxConcurrentBridges);
+  ref.onDispose(cache.disposeAll);
+  return cache;
+});
 
 /// Provider for the client-side [ToolRegistry].
 ///
@@ -23,40 +41,8 @@ import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
 /// ),
 /// ```
 final toolRegistryProvider = Provider<ToolRegistry>((ref) {
-  // --- TEMPORARY: Debug tool — remove after F1 validation ---
-  return const ToolRegistry().register(
-    const ClientTool(
-      definition: Tool(
-        name: 'random_number',
-        description:
-            'Generate a random integer between min and max (inclusive).',
-        parameters: {
-          'type': 'object',
-          'properties': {
-            'min': {'type': 'integer', 'description': 'Minimum value'},
-            'max': {'type': 'integer', 'description': 'Maximum value'},
-          },
-        },
-      ),
-      executor: _executeRandomNumber,
-    ),
-  );
-  // --- END TEMPORARY ---
+  return const ToolRegistry();
 });
-
-// --- TEMPORARY: Debug tool executor — remove after F1 validation ---
-Future<String> _executeRandomNumber(ToolCallInfo call) async {
-  var lo = 1;
-  var hi = 100;
-  if (call.arguments.isNotEmpty) {
-    final args = jsonDecode(call.arguments) as Map<String, dynamic>;
-    lo = (args['min'] as num?)?.toInt() ?? 1;
-    hi = (args['max'] as num?)?.toInt() ?? 100;
-  }
-  final result = Random().nextInt(hi - lo + 1) + lo;
-  return '{"result": $result}';
-}
-// --- END TEMPORARY ---
 
 /// HTTP client wrapper that delegates all operations except close().
 ///

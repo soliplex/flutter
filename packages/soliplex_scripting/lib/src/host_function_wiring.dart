@@ -17,15 +17,12 @@ import 'package:soliplex_scripting/src/df_functions.dart';
 class HostFunctionWiring {
   HostFunctionWiring({
     required HostApi hostApi,
-    DfRegistry? dfRegistry,
+    required DfRegistry dfRegistry,
   })  : _hostApi = hostApi,
-        _dfRegistry = dfRegistry ?? DfRegistry();
+        _dfRegistry = dfRegistry;
 
   final HostApi _hostApi;
   final DfRegistry _dfRegistry;
-
-  /// The [DfRegistry] backing all df_* operations for this wiring.
-  DfRegistry get dfRegistry => _dfRegistry;
 
   /// Registers all host function categories (plus introspection builtins)
   /// onto [bridge].

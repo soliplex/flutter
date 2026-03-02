@@ -1,6 +1,7 @@
 import 'package:soliplex_agent/soliplex_agent.dart' show HostApi;
 import 'package:soliplex_client/soliplex_client.dart'
     show ClientTool, Tool, ToolCallInfo, ToolRegistry;
+import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 import 'package:test/test.dart';
 
@@ -38,7 +39,10 @@ void main() {
       executor = MontyToolExecutor(
         threadKey: _key,
         bridgeCache: cache,
-        hostWiring: HostFunctionWiring(hostApi: _StubHostApi()),
+        hostWiring: HostFunctionWiring(
+          hostApi: _StubHostApi(),
+          dfRegistry: DfRegistry(),
+        ),
       );
     });
 

@@ -18,6 +18,9 @@ class DfRegistry {
     return id;
   }
 
+  /// Whether a [DataFrame] with [id] exists.
+  bool containsHandle(int id) => _store.containsKey(id);
+
   /// Get a [DataFrame] by handle ID.
   ///
   /// Throws [ArgumentError] if no DataFrame with [id] exists.
