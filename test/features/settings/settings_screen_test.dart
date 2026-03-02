@@ -111,6 +111,19 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   }
 }
 
+/// Scrolls the settings ListView until [finder] becomes visible.
+///
+/// The auth section is near the bottom of the list and won't be built
+/// by the lazy ListView on small test surfaces (800x600 CI default).
+Future<void> _scrollUntilVisible(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(
+    finder,
+    200,
+    scrollable: find.byType(Scrollable).first,
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('SettingsScreen', () {
     testWidgets('displays frontend version', (tester) async {
@@ -144,6 +157,7 @@ void main() {
         ),
       );
 
+      await _scrollUntilVisible(tester, find.text('Authentication'));
       expect(find.text('Authentication'), findsOneWidget);
       expect(find.text('Not signed in'), findsOneWidget);
     });
@@ -162,6 +176,7 @@ void main() {
         ),
       );
 
+      await _scrollUntilVisible(tester, find.text('No Authentication'));
       expect(find.text('No Authentication'), findsOneWidget);
       expect(find.text('Backend does not require login'), findsOneWidget);
       expect(find.text('Disconnect'), findsOneWidget);
@@ -183,7 +198,7 @@ void main() {
         ),
       );
 
-      await tester.ensureVisible(find.text('Disconnect'));
+      await _scrollUntilVisible(tester, find.text('Disconnect'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
@@ -208,6 +223,7 @@ void main() {
           ),
         );
 
+        await _scrollUntilVisible(tester, find.text('Signed In'));
         expect(find.text('Signed In'), findsOneWidget);
         expect(find.text('via google-oauth'), findsOneWidget);
         expect(find.text('Sign Out'), findsOneWidget);
@@ -227,7 +243,7 @@ void main() {
           ),
         );
 
-        await tester.ensureVisible(find.text('Sign Out'));
+        await _scrollUntilVisible(tester, find.text('Sign Out'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
@@ -250,7 +266,7 @@ void main() {
           ),
         );
 
-        await tester.ensureVisible(find.text('Sign Out'));
+        await _scrollUntilVisible(tester, find.text('Sign Out'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
@@ -279,7 +295,7 @@ void main() {
         );
 
         // Tap Sign Out
-        await tester.ensureVisible(find.text('Sign Out'));
+        await _scrollUntilVisible(tester, find.text('Sign Out'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
@@ -304,7 +320,11 @@ void main() {
             ],
           ),
         );
-        // Don't use pumpAndSettle - CircularProgressIndicator animates forever
+
+        // Scroll to the auth section (at bottom of lazy ListView).
+        // Use drag instead of scrollUntilVisible since pumpAndSettle
+        // hangs on CircularProgressIndicator's animation.
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
         await tester.pump();
 
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
