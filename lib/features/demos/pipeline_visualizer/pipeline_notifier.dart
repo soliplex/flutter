@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart' show ClientTool;
-import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/flutter_host_api.dart';
 import 'package:soliplex_frontend/features/demos/pipeline_visualizer/pipeline_pattern.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
@@ -137,13 +137,7 @@ class PipelineNotifier extends Notifier<PipelineState> {
       '"${prompt.substring(0, prompt.length.clamp(0, 60))}"',
     );
 
-    // TODO(phase2): Use ref.read(bridgeCacheProvider) + per-node bundle.
-    final bridgeCache = BridgeCache(limit: 4);
-    final dfRegistry = DfRegistry();
-    final hostWiring = HostFunctionWiring(
-      hostApi: FakeHostApi(),
-      dfRegistry: dfRegistry,
-    );
+    final bridgeCache = ref.read(bridgeCacheProvider);
     var nodeCounter = 0;
 
     final runtime = AgentRuntime(
@@ -156,10 +150,21 @@ class PipelineNotifier extends Notifier<PipelineState> {
           roomId: roomId,
           threadId: 'node-${nodeCounter++}',
         );
+        // Per-node isolated HostApi + DfRegistry.
+        final hostBundle = createFlutterHostBundle(
+          onChartCreated: (_, __) {
+            // Charts in pipeline nodes are silently captured;
+            // per-node chart rendering is a future enhancement.
+          },
+        );
+        final wiring = HostFunctionWiring(
+          hostApi: hostBundle.hostApi,
+          dfRegistry: hostBundle.dfRegistry,
+        );
         final executor = MontyToolExecutor(
           threadKey: threadKey,
           bridgeCache: bridgeCache,
-          hostWiring: hostWiring,
+          hostWiring: wiring,
         );
         return base.register(
           ClientTool(
@@ -168,7 +173,7 @@ class PipelineNotifier extends Notifier<PipelineState> {
           ),
         );
       },
-      platform: const NativePlatformConstraints(),
+      platform: ref.read(platformConstraintsProvider),
       logger: LogManager.instance.getLogger('PipelineViz'),
     );
 
@@ -278,8 +283,8 @@ class PipelineNotifier extends Notifier<PipelineState> {
         completedAt: DateTime.now(),
       );
     } finally {
-      dfRegistry.disposeAll();
-      bridgeCache.disposeAll();
+      // BridgeCache lifecycle managed by bridgeCacheProvider.
+      // Per-node DfRegistry instances are GC'd with their HostApi closures.
     }
   }
 

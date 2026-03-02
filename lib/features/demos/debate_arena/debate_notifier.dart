@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart' show ClientTool;
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
+import 'package:soliplex_frontend/core/providers/flutter_host_api.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
+import 'package:soliplex_scripting/soliplex_scripting.dart';
 
 // ---------------------------------------------------------------------------
 // State model
@@ -93,11 +96,39 @@ class DebateNotifier extends Notifier<DebateState> {
 
     _log.info('Starting debate: "$topic"');
 
+    final bridgeCache = ref.read(bridgeCacheProvider);
+    var agentCounter = 0;
+
     final runtime = AgentRuntime(
       api: ref.read(apiProvider),
       agUiClient: ref.read(agUiClientProvider),
-      toolRegistryResolver: (roomId) async => ref.read(toolRegistryProvider),
-      platform: const NativePlatformConstraints(),
+      toolRegistryResolver: (roomId) async {
+        final base = ref.read(toolRegistryProvider);
+        final threadKey = (
+          serverId: 'debate',
+          roomId: roomId,
+          threadId: 'agent-${agentCounter++}',
+        );
+        final hostBundle = createFlutterHostBundle(
+          onChartCreated: (_, __) {},
+        );
+        final wiring = HostFunctionWiring(
+          hostApi: hostBundle.hostApi,
+          dfRegistry: hostBundle.dfRegistry,
+        );
+        final executor = MontyToolExecutor(
+          threadKey: threadKey,
+          bridgeCache: bridgeCache,
+          hostWiring: wiring,
+        );
+        return base.register(
+          ClientTool(
+            definition: PythonExecutorTool.definition,
+            executor: executor.execute,
+          ),
+        );
+      },
+      platform: ref.read(platformConstraintsProvider),
       logger: LogManager.instance.getLogger('DebateArena'),
     );
 
