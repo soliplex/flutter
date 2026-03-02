@@ -1,4 +1,4 @@
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_agent/soliplex_agent.dart';
 
 /// Chat state for the TUI.
 ///

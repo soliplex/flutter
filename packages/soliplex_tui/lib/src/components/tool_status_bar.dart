@@ -1,5 +1,5 @@
 import 'package:nocterm/nocterm.dart';
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_agent/soliplex_agent.dart';
 
 /// Status bar shown while client-side tools are executing.
 class ToolStatusBar extends StatelessComponent {

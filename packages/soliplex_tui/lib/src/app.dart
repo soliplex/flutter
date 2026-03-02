@@ -4,43 +4,12 @@ import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:nocterm_bloc/nocterm_bloc.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
-import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 import 'package:soliplex_tui/src/components/chat_page.dart';
 import 'package:soliplex_tui/src/file_sink.dart';
 import 'package:soliplex_tui/src/loggers.dart';
 import 'package:soliplex_tui/src/state/tui_chat_cubit.dart';
-
-/// Shared infrastructure stack used by both [launchTui] and [runHeadless].
-typedef _Stack = ({
-  SoliplexApi api,
-  AgUiClient agUiClient,
-  Future<void> Function() close,
-});
-
-/// Builds the HTTP client, API, and AgUiClient.
-_Stack _buildStack(String serverUrl) {
-  final httpClient = DartHttpClient();
-  final transport = HttpTransport(client: httpClient);
-  final urlBuilder = UrlBuilder('$serverUrl/api/v1');
-  final api = SoliplexApi(transport: transport, urlBuilder: urlBuilder);
-
-  final adapter = HttpClientAdapter(client: httpClient);
-  final agUiClient = AgUiClient(
-    config: AgUiClientConfig(baseUrl: '$serverUrl/api/v1'),
-    httpClient: adapter,
-  );
-
-  return (
-    api: api,
-    agUiClient: agUiClient,
-    close: () async {
-      await agUiClient.close();
-      api.close();
-    },
-  );
-}
 
 /// Launches the Soliplex TUI application.
 ///
@@ -60,7 +29,7 @@ Future<void> launchTui({
 
   Loggers.app.info('Starting TUI, server=$serverUrl, logFile=$logFile');
 
-  final stack = _buildStack(serverUrl);
+  final stack = createClientBundle(serverUrl);
 
   try {
     // Resolve room.
@@ -79,7 +48,6 @@ Future<void> launchTui({
       api: stack.api,
       agUiClient: stack.agUiClient,
       toolRegistry: const ToolRegistry(),
-      platformConstraints: const NativePlatformConstraints(),
       logger: Loggers.agui,
     );
 
@@ -134,7 +102,7 @@ Future<void> runHeadless({
     'Starting headless mode, server=$serverUrl, logFile=$logFile',
   );
 
-  final stack = _buildStack(serverUrl);
+  final stack = createClientBundle(serverUrl);
   AgentRuntime? runtime;
 
   try {
@@ -189,7 +157,7 @@ Future<void> runHeadless({
 Future<void> listRooms({
   required String serverUrl,
 }) async {
-  final stack = _buildStack(serverUrl);
+  final stack = createClientBundle(serverUrl);
   try {
     final rooms = await stack.api.getRooms();
     for (final room in rooms) {

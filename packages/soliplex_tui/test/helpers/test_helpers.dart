@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
-import 'package:soliplex_client/soliplex_client.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
