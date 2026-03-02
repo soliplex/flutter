@@ -24,7 +24,6 @@ import 'package:soliplex_frontend/features/login/login_screen.dart';
 import 'package:soliplex_frontend/features/quiz/quiz_screen.dart';
 import 'package:soliplex_frontend/features/room/room_screen.dart';
 import 'package:soliplex_frontend/features/rooms/rooms_screen.dart';
-import 'package:soliplex_frontend/features/settings/settings_screen.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -180,7 +179,9 @@ Widget createRouterAppAt(
             GoRoute(
               path: '/settings',
               name: 'settings',
-              builder: (_, __) => const Scaffold(body: SettingsScreen()),
+              builder: (_, __) => const Scaffold(
+                body: Center(child: Text('Settings — under construction')),
+              ),
             ),
           ],
           errorBuilder: (context, state) => Scaffold(
@@ -340,7 +341,7 @@ void main() {
     testWidgets('navigates to settings screen', (tester) async {
       await tester.pumpWidget(createRouterAppAt('/settings'));
       await tester.pumpAndSettle();
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.text('Settings — under construction'), findsOneWidget);
     });
 
     testWidgets('shows error page for unknown route', (tester) async {
@@ -582,7 +583,7 @@ void main() {
       // Navigate to settings
       container.read(routerProvider).go('/settings');
       await tester.pumpAndSettle();
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.text('Settings — under construction'), findsOneWidget);
 
       // Rapid token refreshes (simulating background refresh)
       (container.read(authProvider.notifier) as _ControllableAuthNotifier)
@@ -592,7 +593,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should still be on settings screen
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.text('Settings — under construction'), findsOneWidget);
     });
   });
 
@@ -1089,7 +1090,7 @@ void main() {
 
       // Expect: initialLocation is /rooms (fallback), not /settings
       expect(find.byType(RoomsScreen), findsOneWidget);
-      expect(find.byType(SettingsScreen), findsNothing);
+      expect(find.text('Settings — under construction'), findsNothing);
     });
 
     testWidgets('initialRoute used when target enabled', (tester) async {
@@ -1130,7 +1131,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Expect: initialLocation is /settings
-      expect(find.byType(SettingsScreen), findsOneWidget);
+      expect(find.text('Settings — under construction'), findsOneWidget);
     });
   });
 
