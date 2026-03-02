@@ -14,8 +14,6 @@ dependencies:
   nocterm_bloc: ^1.0.0
   soliplex_agent:
     path: ../soliplex_agent
-  soliplex_client:
-    path: ../soliplex_client
   soliplex_logging:
     path: ../soliplex_logging
 

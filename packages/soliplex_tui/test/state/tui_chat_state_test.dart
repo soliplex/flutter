@@ -1,4 +1,4 @@
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_tui/src/state/tui_chat_state.dart';
 import 'package:test/test.dart';
 

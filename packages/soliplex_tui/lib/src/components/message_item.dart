@@ -1,5 +1,5 @@
 import 'package:nocterm/nocterm.dart';
-import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_agent/soliplex_agent.dart';
 
 /// Renders a single chat message based on its subtype.
 class MessageItem extends StatelessComponent {
