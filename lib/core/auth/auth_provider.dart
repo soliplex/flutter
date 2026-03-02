@@ -37,6 +37,13 @@ final authFlowProvider = Provider<AuthFlow>((ref) {
   );
 });
 
+/// Provider for initial URL hash path captured at startup.
+///
+/// On web, captures the hash path before GoRouter overwrites it.
+/// Used to detect post-logout redirect from IdP (e.g., '/signedout').
+/// On native, always null.
+final capturedInitialPathProvider = Provider<String?>((ref) => null);
+
 /// Provider for callback params captured at startup.
 ///
 /// Override this in [ProviderScope.overrides] with the value from

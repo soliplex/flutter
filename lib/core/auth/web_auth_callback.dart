@@ -26,6 +26,12 @@ abstract final class CallbackParamsCapture {
   /// On web, extracts tokens from URL query params.
   /// On native, returns [NoCallbackParams] (native uses flutter_appauth).
   static CallbackParams captureNow() => impl.captureCallbackParamsNow();
+
+  /// Capture the initial URL hash path before GoRouter overwrites it.
+  ///
+  /// On web, returns the path from the hash (e.g., '/signedout').
+  /// On native, returns null (not applicable).
+  static String? captureInitialHashPath() => impl.captureInitialHashPath();
 }
 
 /// Service for handling OAuth callback URL operations.

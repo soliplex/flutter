@@ -4,6 +4,19 @@ import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:web/web.dart' as web;
 
+/// Capture the initial URL hash path on web (e.g., '/signedout' from '/#/signedout').
+///
+/// Returns the path portion of the hash, or null if no hash or empty.
+/// Used to detect post-logout redirect from IdP before GoRouter overrides it.
+String? captureInitialHashPath() {
+  final hash = web.window.location.hash;
+  if (hash.isEmpty || hash == '#/') return null;
+  // Strip leading '#' to get path (e.g., '#/signedout' → '/signedout')
+  final path = hash.startsWith('#') ? hash.substring(1) : hash;
+  Loggers.auth.debug('Web auth: Captured initial hash path: $path');
+  return path;
+}
+
 /// Capture callback params from current URL.
 ///
 /// Used by [CallbackParamsCapture.captureNow] in main() before ProviderScope.
