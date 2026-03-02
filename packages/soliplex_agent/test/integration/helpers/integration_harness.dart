@@ -68,13 +68,11 @@ class IntegrationHarness {
   RunOrchestrator createOrchestrator({
     required String loggerName,
     ToolRegistry toolRegistry = const ToolRegistry(),
-    PlatformConstraints platformConstraints = const NativePlatformConstraints(),
   }) {
     return RunOrchestrator(
       api: api,
       agUiClient: agUiClient,
       toolRegistry: toolRegistry,
-      platformConstraints: platformConstraints,
       logger: createTestLogger(loggerName),
     );
   }

@@ -24,14 +24,16 @@ Future<void> main() async {
   final transport = HttpTransport(client: httpClient);
   final urlBuilder = UrlBuilder('http://localhost:8000');
   final api = SoliplexApi(transport: transport, urlBuilder: urlBuilder);
-  final agUiClient =
-      AgUiClient(baseClient: HttpClientAdapter(client: httpClient));
+  final agUiClient = AgUiClient(
+    config: AgUiClientConfig(baseUrl: 'http://localhost:8000/api/v1'),
+    httpClient: HttpClientAdapter(client: httpClient),
+  );
 
   // Create the agent runtime.
   final runtime = AgentRuntime(
     api: api,
     agUiClient: agUiClient,
-    toolRegistryResolver: (_) async => ToolRegistry(),
+    toolRegistryResolver: (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),
     logger: logger,
   );

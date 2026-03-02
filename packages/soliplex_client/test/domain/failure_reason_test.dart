@@ -1,4 +1,4 @@
-import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/src/domain/failure_reason.dart';
 import 'package:test/test.dart';
 
 void main() {

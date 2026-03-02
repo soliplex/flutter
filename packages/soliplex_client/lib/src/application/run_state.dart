@@ -1,8 +1,8 @@
 import 'package:meta/meta.dart';
-
-import 'package:soliplex_agent/src/models/failure_reason.dart';
-import 'package:soliplex_agent/src/models/thread_key.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+
+import 'package:soliplex_client/src/domain/failure_reason.dart';
+import 'package:soliplex_client/src/domain/thread_key.dart';
 
 /// State of a single agent run lifecycle.
 ///
@@ -31,6 +31,7 @@ sealed class RunState {
 /// No active run.
 @immutable
 class IdleState extends RunState {
+  /// Creates an [IdleState].
   const IdleState();
 
   @override
@@ -47,6 +48,7 @@ class IdleState extends RunState {
 /// Stream connected and receiving events.
 @immutable
 class RunningState extends RunState {
+  /// Creates a [RunningState].
   const RunningState({
     required this.threadKey,
     required this.runId,
@@ -98,6 +100,7 @@ class RunningState extends RunState {
 /// Run completed successfully (RunFinished received).
 @immutable
 class CompletedState extends RunState {
+  /// Creates a [CompletedState].
   const CompletedState({
     required this.threadKey,
     required this.runId,
@@ -131,6 +134,7 @@ class CompletedState extends RunState {
 /// Run failed with a classified error.
 @immutable
 class FailedState extends RunState {
+  /// Creates a [FailedState].
   const FailedState({
     required this.threadKey,
     required this.reason,
@@ -182,6 +186,7 @@ class FailedState extends RunState {
 /// Calling `startRun()` during this state throws [StateError].
 @immutable
 class ToolYieldingState extends RunState {
+  /// Creates a [ToolYieldingState].
   const ToolYieldingState({
     required this.threadKey,
     required this.runId,
@@ -235,6 +240,7 @@ bool _listEquals<T>(List<T> a, List<T> b) {
 /// Run was cancelled by the user.
 @immutable
 class CancelledState extends RunState {
+  /// Creates a [CancelledState].
   const CancelledState({
     required this.threadKey,
     this.conversation,

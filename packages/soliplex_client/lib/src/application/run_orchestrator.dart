@@ -1,11 +1,10 @@
 import 'dart:async';
 
-import 'package:soliplex_agent/src/host/platform_constraints.dart';
-import 'package:soliplex_agent/src/models/failure_reason.dart';
-import 'package:soliplex_agent/src/models/thread_key.dart';
-import 'package:soliplex_agent/src/run/error_classifier.dart';
-import 'package:soliplex_agent/src/run/run_state.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_client/src/application/error_classifier.dart';
+import 'package:soliplex_client/src/application/run_state.dart';
+import 'package:soliplex_client/src/domain/failure_reason.dart';
+import 'package:soliplex_client/src/domain/thread_key.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Orchestrates a single AG-UI run lifecycle.
@@ -74,11 +73,11 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// **Important:** Each [Tool] definition must include a `parameters` field
 /// (JSON Schema). The backend rejects tool definitions without it.
 class RunOrchestrator {
+  /// Creates a [RunOrchestrator] with the given dependencies.
   RunOrchestrator({
     required SoliplexApi api,
     required AgUiClient agUiClient,
     required ToolRegistry toolRegistry,
-    required this.platformConstraints,
     required Logger logger,
   })  : _api = api,
         _agUiClient = agUiClient,
@@ -88,9 +87,6 @@ class RunOrchestrator {
   final SoliplexApi _api;
   final AgUiClient _agUiClient;
   final ToolRegistry _toolRegistry;
-
-  /// Platform capabilities for tool yielding decisions.
-  final PlatformConstraints platformConstraints;
   final Logger _logger;
 
   static const _maxToolDepth = 10;

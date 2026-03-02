@@ -27,7 +27,6 @@ class AgentRunNotifier extends Notifier<RunState> {
       api: ref.watch(apiProvider),
       agUiClient: ref.watch(agUiClientProvider),
       toolRegistry: ref.watch(toolRegistryProvider),
-      platformConstraints: const NativePlatformConstraints(),
       logger: LogManager.instance.getLogger('AgentRun'),
     );
     _subscription = _orchestrator.stateChanges.listen(_onState);

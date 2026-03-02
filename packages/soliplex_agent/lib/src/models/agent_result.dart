@@ -1,7 +1,6 @@
 import 'package:meta/meta.dart';
 
-import 'package:soliplex_agent/src/models/failure_reason.dart';
-import 'package:soliplex_agent/src/models/thread_key.dart';
+import 'package:soliplex_client/run.dart';
 
 /// Result of a completed agent session.
 ///

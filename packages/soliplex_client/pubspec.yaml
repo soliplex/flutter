@@ -14,6 +14,8 @@ dependencies:
   collection: ^1.19.1
   http: ^1.2.0
   meta: ^1.9.0
+  soliplex_logging:
+    path: ../soliplex_logging
 
 dev_dependencies:
   mocktail: ^1.0.0

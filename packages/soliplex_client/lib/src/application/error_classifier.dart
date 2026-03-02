@@ -1,5 +1,6 @@
-import 'package:soliplex_agent/src/models/failure_reason.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+
+import 'package:soliplex_client/src/domain/failure_reason.dart';
 
 /// Maps an error to a [FailureReason] for state machine transitions.
 ///

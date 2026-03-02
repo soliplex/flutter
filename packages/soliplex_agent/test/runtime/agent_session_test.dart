@@ -91,7 +91,6 @@ AgentSession createSession({
     api: api,
     agUiClient: agUiClient,
     toolRegistry: registry,
-    platformConstraints: const NativePlatformConstraints(),
     logger: logger,
   );
   return AgentSession(
