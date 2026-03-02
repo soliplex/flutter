@@ -382,7 +382,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Document 1.pdf'),
+        find.text('document1.pdf'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
@@ -392,7 +392,7 @@ void main() {
       expect(find.text('file:///docs/document1.pdf'), findsNothing);
 
       // Tap to expand
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
 
       // ID, URI, and dates visible; metadata behind button
@@ -429,19 +429,19 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Document 1.pdf'),
+        find.text('document1.pdf'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
       // Tap to expand
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
       expect(find.text('file:///docs/document1.pdf'), findsOneWidget);
 
       // Tap again to collapse
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
       expect(find.text('file:///docs/document1.pdf'), findsNothing);
     });
@@ -478,13 +478,13 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Document 1.pdf'),
+        find.text('document1.pdf'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
 
       // URI and dates still visible
@@ -748,8 +748,8 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Alpha.pdf'), findsOneWidget);
-        expect(find.text('Beta.pdf'), findsNothing);
+        expect(find.text('path'), findsOneWidget);
+        expect(find.text('other'), findsNothing);
       });
 
       testWidgets('shows filtered count in title when searching',

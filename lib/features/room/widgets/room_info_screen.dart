@@ -638,7 +638,7 @@ class _DocumentsCardState extends State<_DocumentsCard> {
     return docs
         .where(
           (d) =>
-              d.title.toLowerCase().contains(query) ||
+              documentDisplayName(d).toLowerCase().contains(query) ||
               d.uri.toLowerCase().contains(query),
         )
         .toList();
@@ -766,11 +766,14 @@ class _DocumentsCardState extends State<_DocumentsCard> {
           children: [
             Row(
               children: [
-                Icon(getFileTypeIcon(doc.title), size: 22),
+                Icon(
+                  getFileTypeIcon(documentIconPath(doc)),
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    doc.title,
+                    documentDisplayName(doc),
                     style: theme.textTheme.bodyMedium,
                     overflow: TextOverflow.ellipsis,
                   ),

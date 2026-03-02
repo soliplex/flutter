@@ -9,31 +9,6 @@ import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/shared/utils/file_type_icons.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
 
-/// Formats a document path/title to show filename with up to 2 parent folders.
-///
-/// Examples:
-/// - "file:///path/to/my/favorite/document.txt" -> "my/favorite/document.txt"
-/// - "/path/to/file.pdf" -> "to/file.pdf"
-/// - "document.txt" -> "document.txt"
-String formatDocumentTitle(String title) {
-  // Remove file:// prefix if present
-  var path = title;
-  if (path.startsWith('file://')) {
-    path = path.substring(7);
-  }
-
-  // Split by path separator
-  final segments = path.split('/').where((s) => s.isNotEmpty).toList();
-
-  if (segments.isEmpty) return title;
-
-  // Take the last 3 segments (filename + up to 2 parent folders)
-  final displaySegments =
-      segments.length <= 3 ? segments : segments.sublist(segments.length - 3);
-
-  return displaySegments.join('/');
-}
-
 /// Widget for chat message input.
 ///
 /// Provides:
@@ -215,13 +190,13 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          getFileTypeIcon(doc.title),
+                          getFileTypeIcon(documentIconPath(doc)),
                           size: 16,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: SoliplexSpacing.s1),
                         Text(
-                          formatDocumentTitle(doc.title),
+                          documentDisplayName(doc),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -372,7 +347,11 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
     final query = _searchController.text.toLowerCase();
     if (query.isEmpty) return documents;
     return documents
-        .where((doc) => doc.title.toLowerCase().contains(query))
+        .where(
+          (doc) =>
+              documentDisplayName(doc).toLowerCase().contains(query) ||
+              doc.uri.toLowerCase().contains(query),
+        )
         .toList();
   }
 
@@ -413,8 +392,10 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
                             final doc = filteredDocs[index];
                             final isSelected = _selected.contains(doc);
                             return CheckboxListTile(
-                              secondary: Icon(getFileTypeIcon(doc.title)),
-                              title: Text(formatDocumentTitle(doc.title)),
+                              secondary: Icon(
+                                getFileTypeIcon(documentIconPath(doc)),
+                              ),
+                              title: Text(documentDisplayName(doc)),
                               value: isSelected,
                               onChanged: (_) => _toggleDocument(doc),
                             );
