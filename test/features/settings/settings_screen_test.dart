@@ -111,6 +111,19 @@ class _MockAuthNotifier extends Notifier<AuthState> implements AuthNotifier {
   }
 }
 
+/// Scrolls the settings ListView down until [target] is visible.
+///
+/// The auth section sits at the bottom of a long list and is not built
+/// by the lazy ListView until scrolled into the viewport.
+Future<void> _scrollToAuthSection(WidgetTester tester, Finder target) async {
+  await tester.dragUntilVisible(
+    target,
+    find.byType(ListView),
+    const Offset(0, -300),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   group('SettingsScreen', () {
     testWidgets('displays frontend version', (tester) async {
@@ -144,6 +157,8 @@ void main() {
         ),
       );
 
+      await _scrollToAuthSection(tester, find.text('Authentication'));
+
       expect(find.text('Authentication'), findsOneWidget);
       expect(find.text('Not signed in'), findsOneWidget);
     });
@@ -161,6 +176,8 @@ void main() {
           ],
         ),
       );
+
+      await _scrollToAuthSection(tester, find.text('No Authentication'));
 
       expect(find.text('No Authentication'), findsOneWidget);
       expect(find.text('Backend does not require login'), findsOneWidget);
@@ -183,8 +200,7 @@ void main() {
         ),
       );
 
-      await tester.ensureVisible(find.text('Disconnect'));
-      await tester.pumpAndSettle();
+      await _scrollToAuthSection(tester, find.text('Disconnect'));
       await tester.tap(find.text('Disconnect'));
       await tester.pumpAndSettle();
 
@@ -208,12 +224,16 @@ void main() {
           ),
         );
 
+        await _scrollToAuthSection(tester, find.text('Signed In'));
+
         expect(find.text('Signed In'), findsOneWidget);
         expect(find.text('via google-oauth'), findsOneWidget);
         expect(find.text('Sign Out'), findsOneWidget);
       });
 
-      testWidgets('shows confirmation dialog on Sign Out tap', (tester) async {
+      testWidgets('shows confirmation dialog on Sign Out tap', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           createTestApp(
             home: const SettingsScreen(),
@@ -227,12 +247,14 @@ void main() {
           ),
         );
 
-        await tester.ensureVisible(find.text('Sign Out'));
-        await tester.pumpAndSettle();
+        await _scrollToAuthSection(tester, find.text('Sign Out'));
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Are you sure you want to sign out?'), findsOneWidget);
+        expect(
+          find.text('Are you sure you want to sign out?'),
+          findsOneWidget,
+        );
         expect(find.text('Cancel'), findsOneWidget);
       });
 
@@ -250,8 +272,7 @@ void main() {
           ),
         );
 
-        await tester.ensureVisible(find.text('Sign Out'));
-        await tester.pumpAndSettle();
+        await _scrollToAuthSection(tester, find.text('Sign Out'));
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
 
@@ -259,7 +280,10 @@ void main() {
         await tester.pumpAndSettle();
 
         // Dialog should be dismissed
-        expect(find.text('Are you sure you want to sign out?'), findsNothing);
+        expect(
+          find.text('Are you sure you want to sign out?'),
+          findsNothing,
+        );
       });
 
       testWidgets('calls signOut on confirm', (tester) async {
@@ -278,9 +302,7 @@ void main() {
           ),
         );
 
-        // Tap Sign Out
-        await tester.ensureVisible(find.text('Sign Out'));
-        await tester.pumpAndSettle();
+        await _scrollToAuthSection(tester, find.text('Sign Out'));
         await tester.tap(find.text('Sign Out'));
         await tester.pumpAndSettle();
 
@@ -304,12 +326,14 @@ void main() {
             ],
           ),
         );
-        // Don't use pumpAndSettle - CircularProgressIndicator animates forever
+
+        // Scroll auth section into view. Use drag instead of
+        // dragUntilVisible since the CircularProgressIndicator's
+        // infinite animation prevents pumpAndSettle from completing.
+        await tester.drag(find.byType(ListView), const Offset(0, -600));
         await tester.pump();
 
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
-        // Verify the auth section shows "Loading..." by checking it's in a
-        // ListTile with a CircularProgressIndicator
         final loadingTile = find.ancestor(
           of: find.byType(CircularProgressIndicator),
           matching: find.byType(ListTile),
