@@ -27,11 +27,8 @@ const _roomId = 'room-1';
 const _threadId = 'thread-1';
 const _runId = 'run-abc';
 
-ThreadInfo _threadInfo() => ThreadInfo(
-      id: _threadId,
-      roomId: _roomId,
-      createdAt: DateTime(2026),
-    );
+ThreadInfo _threadInfo() =>
+    ThreadInfo(id: _threadId, roomId: _roomId, createdAt: DateTime(2026));
 
 ThreadInfo _threadInfoWithRun() => ThreadInfo(
       id: _threadId,
@@ -40,11 +37,8 @@ ThreadInfo _threadInfoWithRun() => ThreadInfo(
       createdAt: DateTime(2026),
     );
 
-RunInfo _runInfo() => RunInfo(
-      id: _runId,
-      threadId: _threadId,
-      createdAt: DateTime(2026),
-    );
+RunInfo _runInfo() =>
+    RunInfo(id: _runId, threadId: _threadId, createdAt: DateTime(2026));
 
 List<BaseEvent> _happyPathEvents() => [
       const RunStartedEvent(threadId: _threadId, runId: _runId),
@@ -115,21 +109,17 @@ void main() {
   });
 
   void stubCreateThread({ThreadInfo? info}) {
-    when(() => api.createThread(any())).thenAnswer(
-      (_) async => (info ?? _threadInfo(), <String, dynamic>{}),
-    );
+    when(
+      () => api.createThread(any()),
+    ).thenAnswer((_) async => (info ?? _threadInfo(), <String, dynamic>{}));
   }
 
   void stubCreateRun() {
-    when(() => api.createRun(any(), any())).thenAnswer(
-      (_) async => _runInfo(),
-    );
+    when(() => api.createRun(any(), any())).thenAnswer((_) async => _runInfo());
   }
 
   void stubDeleteThread() {
-    when(() => api.deleteThread(any(), any())).thenAnswer(
-      (_) async {},
-    );
+    when(() => api.deleteThread(any(), any())).thenAnswer((_) async {});
   }
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
@@ -149,10 +139,7 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
       final result = await session.result;
 
       expect(result, isA<AgentSuccess>());
@@ -186,10 +173,7 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
 
       await session.result;
       // Should NOT call createRun because initialRunId was provided
@@ -203,16 +187,11 @@ void main() {
       final controller = StreamController<BaseEvent>();
       stubRunAgent(stream: controller.stream);
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
 
       expect(runtime.activeSessions, contains(session));
 
-      controller.add(
-        const RunStartedEvent(threadId: _threadId, runId: _runId),
-      );
+      controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
       await Future<void>.delayed(Duration.zero);
 
       await controller.close();
@@ -229,27 +208,18 @@ void main() {
       final controller = StreamController<BaseEvent>();
       stubRunAgent(stream: controller.stream);
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
 
       final found = runtime.getSession(session.threadKey);
       expect(found, equals(session));
 
-      controller.add(
-        const RunStartedEvent(threadId: _threadId, runId: _runId),
-      );
+      controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
       await controller.close();
       await session.result;
     });
 
     test('returns null for unknown key', () {
-      const unknown = (
-        serverId: 'x',
-        roomId: 'x',
-        threadId: 'x',
-      );
+      const unknown = (serverId: 'x', roomId: 'x', threadId: 'x');
       expect(runtime.getSession(unknown), isNull);
     });
   });
@@ -309,9 +279,7 @@ void main() {
 
   group('WASM guard', () {
     test('blocks second spawn on non-reentrant platform', () async {
-      runtime = createRuntime(
-        platform: const WebPlatformConstraints(),
-      );
+      runtime = createRuntime(platform: const WebPlatformConstraints());
 
       stubCreateThread();
       stubCreateRun();
@@ -377,10 +345,7 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
 
       await session.result;
       // Give time for completion handler
@@ -418,9 +383,7 @@ void main() {
       final s1 = await runtime.spawn(roomId: _roomId, prompt: 'A');
       final s2 = await runtime.spawn(roomId: _roomId, prompt: 'B');
 
-      controller.add(
-        const RunStartedEvent(threadId: _threadId, runId: _runId),
-      );
+      controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
       await Future<void>.delayed(Duration.zero);
 
       await runtime.cancelAll();
@@ -459,9 +422,7 @@ void main() {
       stubRunAgent(stream: controller.stream);
 
       await runtime.spawn(roomId: _roomId, prompt: 'A');
-      controller.add(
-        const RunStartedEvent(threadId: _threadId, runId: _runId),
-      );
+      controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
       await Future<void>.delayed(Duration.zero);
 
       await runtime.dispose();
@@ -474,9 +435,9 @@ void main() {
 
   group('error propagation', () {
     test('createThread failure propagates', () async {
-      when(() => api.createThread(any())).thenThrow(
-        const AuthException(message: 'Token expired'),
-      );
+      when(
+        () => api.createThread(any()),
+      ).thenThrow(const AuthException(message: 'Token expired'));
 
       expect(
         () => runtime.spawn(roomId: _roomId, prompt: 'Hello'),
@@ -520,10 +481,7 @@ void main() {
             : Stream.fromIterable(_resumeTextEvents());
       });
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Weather?',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Weather?');
       final result = await session.result;
 
       expect(result, isA<AgentSuccess>());
@@ -553,13 +511,95 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
+
+      expect(session.threadKey.serverId, equals('staging.soliplex.io'));
+      await session.result;
+    });
+  });
+
+  group('fromConnection', () {
+    test('produces runtime with correct serverId', () {
+      final connection = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+
+      runtime = AgentRuntime.fromConnection(
+        connection: connection,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+      );
+
+      expect(runtime.serverId, equals('prod'));
+    });
+
+    test('spawn creates session with matching ThreadKey.serverId', () async {
+      final connection = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+
+      runtime = AgentRuntime.fromConnection(
+        connection: connection,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+      );
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
       final session = await runtime.spawn(
         roomId: _roomId,
         prompt: 'Hello',
       );
 
-      expect(session.threadKey.serverId, equals('staging.soliplex.io'));
+      expect(session.threadKey.serverId, equals('prod'));
       await session.result;
+    });
+  });
+
+  group('Phase 1 integration', () {
+    test('registry → connection → runtime → session', () async {
+      final prodConn = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+      final stagingConn = ServerConnection(
+        serverId: 'staging',
+        api: MockSoliplexApi(),
+        agUiClient: MockAgUiClient(),
+      );
+
+      final reg = ServerRegistry()
+        ..add(prodConn)
+        ..add(stagingConn);
+
+      runtime = AgentRuntime.fromConnection(
+        connection: reg.require('prod'),
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+      );
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'hi');
+
+      expect(session.threadKey.serverId, equals('prod'));
+
+      final result = await session.result;
+      expect(result, isA<AgentSuccess>());
     });
   });
 }

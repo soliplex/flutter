@@ -1,4 +1,4 @@
-import 'package:soliplex_agent/soliplex_agent.dart' show HostApi;
+import 'package:soliplex_agent/soliplex_agent.dart' show FakeAgentApi, HostApi;
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 import 'package:test/test.dart';
@@ -141,6 +141,155 @@ void main() {
           'native.clipboard',
           {'action': 'read'},
         ]);
+      });
+    });
+
+    group('agent category absent when agentApi is null', () {
+      test('does not register agent functions', () {
+        final b = _RecordingBridge();
+        HostFunctionWiring(hostApi: _FakeHostApi()).registerOnto(b);
+
+        final names = b.registered.map((f) => f.schema.name).toSet();
+        expect(names, isNot(contains('spawn_agent')));
+        expect(names, isNot(contains('wait_all')));
+        expect(names, isNot(contains('get_result')));
+        expect(names, isNot(contains('ask_llm')));
+        expect(b.registered, hasLength(6)); // 4 domain + 2 introspection
+      });
+    });
+  });
+
+  group('HostFunctionWiring with AgentApi', () {
+    late _RecordingBridge bridge;
+    late _FakeHostApi hostApi;
+    late FakeAgentApi agentApi;
+    late HostFunctionWiring wiring;
+
+    setUp(() {
+      bridge = _RecordingBridge();
+      hostApi = _FakeHostApi();
+      agentApi = FakeAgentApi(
+        spawnResult: 10,
+        getResultResult: 'agent output',
+        waitAllResult: ['r1', 'r2'],
+      );
+      wiring = HostFunctionWiring(hostApi: hostApi, agentApi: agentApi);
+    });
+
+    test('registers agent functions when agentApi provided', () {
+      wiring.registerOnto(bridge);
+
+      final names = bridge.registered.map((f) => f.schema.name).toSet();
+      expect(
+        names,
+        containsAll([
+          'spawn_agent',
+          'wait_all',
+          'get_result',
+          'ask_llm',
+        ]),
+      );
+      // 4 domain + 4 agent + 2 introspection
+      expect(bridge.registered, hasLength(10));
+    });
+
+    group('agent handler delegation', () {
+      late Map<String, HostFunction> byName;
+
+      setUp(() {
+        wiring.registerOnto(bridge);
+        byName = {
+          for (final f in bridge.registered) f.schema.name: f,
+        };
+      });
+
+      test('spawn_agent delegates to AgentApi.spawnAgent', () async {
+        final result = await byName['spawn_agent']!.handler({
+          'room': 'weather',
+          'prompt': 'Is it raining?',
+        });
+
+        expect(result, 10);
+        expect(
+          agentApi.calls['spawnAgent'],
+          ['weather', 'Is it raining?', null],
+        );
+      });
+
+      test('wait_all delegates to AgentApi.waitAll', () async {
+        final result = await byName['wait_all']!.handler({
+          'handles': <Object?>[1, 2],
+        });
+
+        expect(result, ['r1', 'r2']);
+        expect(agentApi.calls['waitAll'], [
+          [1, 2],
+          null,
+        ]);
+      });
+
+      test('get_result delegates to AgentApi.getResult', () async {
+        final result = await byName['get_result']!.handler({
+          'handle': 5,
+        });
+
+        expect(result, 'agent output');
+        expect(agentApi.calls['getResult'], [5, null]);
+      });
+
+      test('ask_llm spawns agent and gets result', () async {
+        final result = await byName['ask_llm']!.handler({
+          'prompt': 'What is 2+2?',
+          'room': 'math',
+        });
+
+        expect(result, 'agent output');
+        expect(agentApi.calls['spawnAgent'], ['math', 'What is 2+2?', null]);
+        expect(agentApi.calls['getResult'], [10, null]);
+      });
+
+      test('ask_llm uses "general" as default room', () async {
+        await byName['ask_llm']!.handler({
+          'prompt': 'Hello',
+          'room': 'general',
+        });
+
+        expect(agentApi.calls['spawnAgent']![0], 'general');
+      });
+
+      test('spawn_agent schema has correct params', () {
+        final schema = byName['spawn_agent']!.schema;
+        expect(schema.params, hasLength(2));
+        expect(schema.params[0].name, 'room');
+        expect(schema.params[0].type, HostParamType.string);
+        expect(schema.params[1].name, 'prompt');
+        expect(schema.params[1].type, HostParamType.string);
+      });
+
+      test('wait_all schema has list param', () {
+        final schema = byName['wait_all']!.schema;
+        expect(schema.params, hasLength(1));
+        expect(schema.params[0].name, 'handles');
+        expect(schema.params[0].type, HostParamType.list);
+      });
+
+      test('get_result schema has integer param', () {
+        final schema = byName['get_result']!.schema;
+        expect(schema.params, hasLength(1));
+        expect(schema.params[0].name, 'handle');
+        expect(schema.params[0].type, HostParamType.integer);
+      });
+
+      test('ask_llm schema has string prompt and optional room', () {
+        final schema = byName['ask_llm']!.schema;
+        expect(schema.params, hasLength(2));
+        expect(schema.params[0].name, 'prompt');
+        expect(schema.params[0].type, HostParamType.string);
+        expect(schema.params[0].isRequired, isTrue);
+        expect(schema.params[1].name, 'room');
+        expect(schema.params[1].type, HostParamType.string);
+        expect(schema.params[1].isRequired, isFalse);
+        expect(schema.params[1].defaultValue, 'general');
       });
     });
   });

@@ -12,9 +12,7 @@ String env(String name, [String? fallback]) {
   final value = Platform.environment[name];
   if (value != null && value.isNotEmpty) return value;
   if (fallback != null) return fallback;
-  throw TestFailure(
-    'Missing env var $name — set it to run integration tests',
-  );
+  throw TestFailure('Missing env var $name — set it to run integration tests');
 }
 
 /// Shared lifecycle for all integration tiers.
@@ -55,11 +53,7 @@ class IntegrationHarness {
   /// Create a thread in [roomId], returning `(ThreadKey, initialRunId?)`.
   Future<(ThreadKey, String?)> createThread(String roomId) async {
     final (info, _) = await api.createThread(roomId);
-    final key = (
-      serverId: 'default',
-      roomId: roomId,
-      threadId: info.id,
-    );
+    final key = (serverId: 'default', roomId: roomId, threadId: info.id);
     final initialRunId = info.hasInitialRun ? info.initialRunId : null;
     return (key, initialRunId);
   }

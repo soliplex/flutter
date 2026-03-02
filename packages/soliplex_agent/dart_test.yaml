@@ -1,0 +1,4 @@
+tags:
+  integration:
+    # Requires a running Soliplex backend.
+    # Run explicitly: dart test -t integration

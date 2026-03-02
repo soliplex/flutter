@@ -48,9 +48,7 @@ void main() {
   });
 
   setUp(() {
-    orchestrator = harness.createOrchestrator(
-      loggerName: 'integration-test',
-    );
+    orchestrator = harness.createOrchestrator(loggerName: 'integration-test');
   });
 
   tearDown(() {
@@ -123,10 +121,7 @@ void main() {
 
     test('reset returns to IdleState and can run again', () async {
       // Run 3.
-      await orchestrator.startRun(
-        key: sharedKey,
-        userMessage: 'Say "ok".',
-      );
+      await orchestrator.startRun(key: sharedKey, userMessage: 'Say "ok".');
       await waitForTerminalState(orchestrator, timeout: 60);
       expect(orchestrator.currentState, isA<CompletedState>());
 
@@ -196,9 +191,7 @@ void main() {
 
       // Wait for either ToolYielding or terminal state.
       await waitForYieldOrTerminal(orchestrator, timeout: 60);
-      print(
-        'States so far: ${states.map((s) => s.runtimeType).toList()}',
-      );
+      print('States so far: ${states.map((s) => s.runtimeType).toList()}');
 
       expect(
         orchestrator.currentState,
@@ -218,10 +211,7 @@ void main() {
       // Execute tool and submit results.
       final executed = yielding.pendingToolCalls
           .map(
-            (tc) => tc.copyWith(
-              status: ToolCallStatus.completed,
-              result: '42',
-            ),
+            (tc) => tc.copyWith(status: ToolCallStatus.completed, result: '42'),
           )
           .toList();
 
@@ -231,8 +221,10 @@ void main() {
 
       expect(orchestrator.currentState, isA<CompletedState>());
       final completed = orchestrator.currentState as CompletedState;
-      print('M5 completed. Response: '
-          '${lastAssistantText(completed.conversation)}');
+      print(
+        'M5 completed. Response: '
+        '${lastAssistantText(completed.conversation)}',
+      );
 
       // The model should mention "42" in its response.
       final responseText = lastAssistantText(completed.conversation);
@@ -246,9 +238,7 @@ void main() {
     test('server-side tools do not cause yielding', () async {
       // Use empty registry — no client tools. Server-side
       // get_current_datetime should not cause ToolYieldingState.
-      orchestrator = harness.createOrchestrator(
-        loggerName: 'm5-server-tools',
-      );
+      orchestrator = harness.createOrchestrator(loggerName: 'm5-server-tools');
 
       await orchestrator.startRun(
         key: m5Key,
@@ -262,8 +252,10 @@ void main() {
         reason: 'Server-side tool calls should not yield',
       );
       final completed = orchestrator.currentState as CompletedState;
-      print('Server-side tool test completed: '
-          '${lastAssistantText(completed.conversation)}');
+      print(
+        'Server-side tool test completed: '
+        '${lastAssistantText(completed.conversation)}',
+      );
     });
   });
 
@@ -328,10 +320,7 @@ void main() {
     test('spawn without tools → AgentSuccess (no yield)', () async {
       runtime = harness.createRuntime(loggerName: 'm6-no-tools');
 
-      final session = await runtime.spawn(
-        roomId: roomId,
-        prompt: 'Say hello.',
-      );
+      final session = await runtime.spawn(roomId: roomId, prompt: 'Say hello.');
 
       final result = await session.awaitResult(
         timeout: const Duration(seconds: 60),
@@ -384,14 +373,8 @@ void main() {
     test('waitAll collects results from multiple sessions', () async {
       runtime = harness.createRuntime(loggerName: 'm6-waitall');
 
-      final s1 = await runtime.spawn(
-        roomId: roomId,
-        prompt: 'Say "alpha".',
-      );
-      final s2 = await runtime.spawn(
-        roomId: roomId,
-        prompt: 'Say "beta".',
-      );
+      final s1 = await runtime.spawn(roomId: roomId, prompt: 'Say "alpha".');
+      final s2 = await runtime.spawn(roomId: roomId, prompt: 'Say "beta".');
 
       final results = await runtime.waitAll(
         [s1, s2],
