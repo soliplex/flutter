@@ -28,32 +28,18 @@ env:
   SLACK_NOTIFY_URL: ${{ secrets.SLACK_NOTIFY_URL }}
 
 jobs:
-  lint:
+  lint-markdown:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
 
-      - name: Setup Dart environment
-        uses: ./.github/actions/setup-dart-env
-
-      - name: Check formatting
-        run: |
-          find . -name "*.dart" \
-            -not -path "./packages/soliplex_client/lib/src/schema/*" \
-            -print0 | xargs -0 dart format --set-exit-if-changed
-
-      - name: Analyze code
-        run: dart analyze --fatal-infos lib/ test/
-
-      - name: Check documentation
-        run: |
-          dart doc --dry-run
-          for dir in packages/*/; do
-            echo "::group::dart doc $dir"
-            (cd "$dir" && dart doc --dry-run)
-            echo "::endgroup::"
-          done
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: .github/workflows/flutter.yaml
 
       - name: Lint markdown
         run: |
@@ -63,9 +49,22 @@ jobs:
             scan docs/ *.md
 
   # ---------------------------------------------------------------------------
-  # Detect which packages changed to skip unnecessary test / build jobs.
+  # Detect which packages changed to skip unnecessary test jobs.
   # On workflow_dispatch (no base ref) dorny/paths-filter marks every file as
   # changed, so all targets run – which is the correct fallback.
+  #
+  # Dependency graph (transitive):
+  #   soliplex_logging           (leaf)
+  #   soliplex_schema            (leaf)
+  #   soliplex_interpreter_monty (leaf)
+  #   soliplex_skills            (leaf)
+  #   soliplex_client            → logging
+  #   soliplex_client_native     → client (→ logging)
+  #   soliplex_agent             → client, logging
+  #   soliplex_scripting         → agent, client, interpreter_monty
+  #   soliplex_cli               → agent, client, logging
+  #   soliplex_tui               → agent, logging
+  #   app                        → agent, client, client_native, logging
   # ---------------------------------------------------------------------------
   changes:
     runs-on: ubuntu-latest
@@ -73,27 +72,45 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       has_changes: ${{ steps.set-matrix.outputs.has_changes }}
-      app: ${{ steps.filter.outputs.app }}
     steps:
       - uses: actions/checkout@v6
 
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-          # Dependency-aware filters:
-          #   soliplex_logging  (leaf)
-          #   soliplex_client   depends on logging
-          #   soliplex_client_native depends on client (→ logging)
-          #   app depends on agent, client, client_native, logging
           filters: |
             soliplex_logging:
               - 'packages/soliplex_logging/**'
+            soliplex_schema:
+              - 'packages/soliplex_schema/**'
+            soliplex_interpreter_monty:
+              - 'packages/soliplex_interpreter_monty/**'
+            soliplex_skills:
+              - 'packages/soliplex_skills/**'
             soliplex_client:
               - 'packages/soliplex_client/**'
               - 'packages/soliplex_logging/**'
             soliplex_client_native:
               - 'packages/soliplex_client_native/**'
               - 'packages/soliplex_client/**'
+              - 'packages/soliplex_logging/**'
+            soliplex_agent:
+              - 'packages/soliplex_agent/**'
+              - 'packages/soliplex_client/**'
+              - 'packages/soliplex_logging/**'
+            soliplex_scripting:
+              - 'packages/soliplex_scripting/**'
+              - 'packages/soliplex_agent/**'
+              - 'packages/soliplex_client/**'
+              - 'packages/soliplex_interpreter_monty/**'
+            soliplex_cli:
+              - 'packages/soliplex_cli/**'
+              - 'packages/soliplex_agent/**'
+              - 'packages/soliplex_client/**'
+              - 'packages/soliplex_logging/**'
+            soliplex_tui:
+              - 'packages/soliplex_tui/**'
+              - 'packages/soliplex_agent/**'
               - 'packages/soliplex_logging/**'
             app:
               - 'lib/**'
@@ -108,18 +125,35 @@ jobs:
         id: set-matrix
         run: |
           MATRIX='{"target":[]}'
-          if [ "${{ steps.filter.outputs.app }}" = "true" ]; then
-            MATRIX=$(echo "$MATRIX" | jq '.target += [{"name":"app","path":".","runner":"flutter"}]')
-          fi
-          if [ "${{ steps.filter.outputs.soliplex_client }}" = "true" ]; then
-            MATRIX=$(echo "$MATRIX" | jq '.target += [{"name":"soliplex_client","path":"packages/soliplex_client","runner":"dart"}]')
-          fi
-          if [ "${{ steps.filter.outputs.soliplex_client_native }}" = "true" ]; then
-            MATRIX=$(echo "$MATRIX" | jq '.target += [{"name":"soliplex_client_native","path":"packages/soliplex_client_native","runner":"flutter"}]')
-          fi
-          if [ "${{ steps.filter.outputs.soliplex_logging }}" = "true" ]; then
-            MATRIX=$(echo "$MATRIX" | jq '.target += [{"name":"soliplex_logging","path":"packages/soliplex_logging","runner":"dart"}]')
-          fi
+
+          add_target() {
+            local name="$1" path="$2" runner="$3"
+            MATRIX=$(echo "$MATRIX" | jq --arg n "$name" --arg p "$path" --arg r "$runner" \
+              '.target += [{"name":$n,"path":$p,"runner":$r}]')
+          }
+
+          [ "${{ steps.filter.outputs.app }}" = "true" ] && \
+            add_target "app" "." "flutter"
+          [ "${{ steps.filter.outputs.soliplex_agent }}" = "true" ] && \
+            add_target "soliplex_agent" "packages/soliplex_agent" "dart"
+          [ "${{ steps.filter.outputs.soliplex_cli }}" = "true" ] && \
+            add_target "soliplex_cli" "packages/soliplex_cli" "dart"
+          [ "${{ steps.filter.outputs.soliplex_client }}" = "true" ] && \
+            add_target "soliplex_client" "packages/soliplex_client" "dart"
+          [ "${{ steps.filter.outputs.soliplex_client_native }}" = "true" ] && \
+            add_target "soliplex_client_native" "packages/soliplex_client_native" "flutter"
+          [ "${{ steps.filter.outputs.soliplex_interpreter_monty }}" = "true" ] && \
+            add_target "soliplex_interpreter_monty" "packages/soliplex_interpreter_monty" "dart"
+          [ "${{ steps.filter.outputs.soliplex_logging }}" = "true" ] && \
+            add_target "soliplex_logging" "packages/soliplex_logging" "dart"
+          [ "${{ steps.filter.outputs.soliplex_schema }}" = "true" ] && \
+            add_target "soliplex_schema" "packages/soliplex_schema" "dart"
+          [ "${{ steps.filter.outputs.soliplex_scripting }}" = "true" ] && \
+            add_target "soliplex_scripting" "packages/soliplex_scripting" "dart"
+          [ "${{ steps.filter.outputs.soliplex_skills }}" = "true" ] && \
+            add_target "soliplex_skills" "packages/soliplex_skills" "dart"
+          [ "${{ steps.filter.outputs.soliplex_tui }}" = "true" ] && \
+            add_target "soliplex_tui" "packages/soliplex_tui" "dart"
 
           TARGETS=$(echo "$MATRIX" | jq '.target | length')
           echo "matrix=$(echo "$MATRIX" | jq -c)" >> "$GITHUB_OUTPUT"
@@ -129,7 +163,7 @@ jobs:
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "### Test matrix" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Test matrix ($TARGETS targets)" >> "$GITHUB_STEP_SUMMARY"
           echo "$MATRIX" | jq -r '.target[].name' | while read -r name; do
             echo "- $name" >> "$GITHUB_STEP_SUMMARY"
           done
@@ -148,14 +182,41 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          # Full history needed for diff-cover to compare against base branch
-          fetch-depth: 0
+          # Full history only for app (diff-cover needs it), shallow for others
+          fetch-depth: ${{ matrix.target.name == 'app' && 0 || 1 }}
 
       - name: Setup Dart environment
         uses: ./.github/actions/setup-dart-env
         with:
           working-directory: ${{ matrix.target.path }}
           runner: ${{ matrix.target.runner }}
+
+      - name: Check formatting
+        working-directory: ${{ matrix.target.path }}
+        run: |
+          if [ "${{ matrix.target.path }}" = "." ]; then
+            find . -name "*.dart" \
+              -not -path "./packages/*" \
+              -not -path "./build/*" \
+              -print0 | xargs -0 dart format --set-exit-if-changed
+          else
+            find . -name "*.dart" \
+              -not -path "./build/*" \
+              -print0 | xargs -0 dart format --set-exit-if-changed
+          fi
+
+      - name: Analyze code
+        working-directory: ${{ matrix.target.path }}
+        run: |
+          if [ "${{ matrix.target.runner }}" = "flutter" ]; then
+            flutter analyze --fatal-infos
+          else
+            dart analyze --fatal-infos
+          fi
+
+      - name: Check documentation
+        working-directory: ${{ matrix.target.path }}
+        run: dart doc --dry-run
 
       - name: Generate random seed
         id: seed
@@ -179,6 +240,14 @@ jobs:
           SEED="${{ steps.seed.outputs.value }}"
           echo "::error::Tests failed with ordering seed: $SEED"
           echo "Reproduce with: --test-randomize-ordering-seed=$SEED"
+
+      - name: Setup Python for coverage tools
+        if: matrix.target.name == 'app'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+          cache: pip
+          cache-dependency-path: .github/workflows/flutter.yaml
 
       - name: Check diff coverage
         if: matrix.target.name == 'app'
@@ -217,40 +286,5 @@ jobs:
               "channel": "#soliplex",
               "username": "flutter-ci",
               "text": ${{ toJson(format(':x: Tests failed for {0} on {1}:\n{2}\n{3}/{4}/actions/runs/{5}', matrix.target.name, github.ref, github.event.head_commit.message, github.server_url, github.repository, github.run_id)) }},
-              "icon_emoji": ":flutter:"
-            }
-
-  build-web:
-    needs: [lint, changes]
-    if: needs.changes.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Setup Dart environment
-        uses: ./.github/actions/setup-dart-env
-
-      - name: Build web
-        run: flutter build web --release
-
-      - name: Upload web artifact
-        uses: actions/upload-artifact@v6
-        with:
-          name: web-build
-          path: build/web/
-          retention-days: 7
-
-      - name: Notify Slack on failure
-        if: failure() && env.SLACK_NOTIFY_URL != ''
-        uses: slackapi/slack-github-action@v2.1.1
-        with:
-          webhook: ${{ env.SLACK_NOTIFY_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "channel": "#soliplex",
-              "username": "flutter-ci",
-              "text": ${{ toJson(format(':x: Web build failed on {0}:\n{1}\n{2}/{3}/actions/runs/{4}', github.ref, github.event.head_commit.message, github.server_url, github.repository, github.run_id)) }},
               "icon_emoji": ":flutter:"
             }

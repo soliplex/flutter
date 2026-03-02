@@ -1,5 +1,5 @@
 name: "Setup Dart/Flutter Environment"
-description: "Sets up Flutter SDK, caches pub dependencies, and runs pub get"
+description: "Sets up Dart or Flutter SDK, caches pub dependencies, and runs pub get"
 inputs:
   working-directory:
     description: "Directory to run pub get in"
@@ -10,7 +10,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Setup Flutter
+    - name: Setup Dart SDK
+      if: inputs.runner == 'dart'
+      uses: dart-lang/setup-dart@v1
+
+    - name: Setup Flutter SDK
+      if: inputs.runner == 'flutter'
       uses: subosito/flutter-action@v2
       with:
         channel: stable
