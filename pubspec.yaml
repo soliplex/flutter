@@ -37,7 +37,10 @@ dependencies:
     path: packages/soliplex_logging
   url_launcher: ^6.3.2
   uuid: ^4.5.1
-  wakelock_plus: ^1.4.0
+  wakelock_plus:
+    git:
+      url: https://github.com/soliplex/wakelock_plus.git
+      path: wakelock_plus
   web: ^1.1.1
 
 dev_dependencies:
