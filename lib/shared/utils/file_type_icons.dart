@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 
 /// Returns the appropriate icon for a document based on its file extension.
 ///
@@ -57,3 +58,38 @@ String _extractExtension(String path) {
 
   return filename.substring(lastDot + 1).toLowerCase();
 }
+
+/// Returns a user-friendly display name for a [RagDocument].
+///
+/// Uses the filename from [RagDocument.uri] when it contains a file
+/// path. Falls back to [RagDocument.title] when the URI is empty or
+/// a bare UUID (e.g. quiz items).
+String documentDisplayName(RagDocument doc) {
+  final uri = doc.uri;
+  if (uri.isEmpty || _isUuid(uri)) {
+    return doc.title;
+  }
+  var path = uri;
+  if (path.startsWith('file://')) {
+    path = path.substring(7);
+  }
+  final lastSlash = path.lastIndexOf('/');
+  if (lastSlash == -1) return path;
+  return path.substring(lastSlash + 1);
+}
+
+/// Returns the best path for file-type icon detection from a
+/// [RagDocument]. Uses [RagDocument.uri] when available, falling
+/// back to [RagDocument.title] for UUID or empty URIs.
+String documentIconPath(RagDocument doc) {
+  final uri = doc.uri;
+  if (uri.isEmpty || _isUuid(uri)) return doc.title;
+  return uri;
+}
+
+final _uuidPattern = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
+bool _isUuid(String s) => _uuidPattern.hasMatch(s);

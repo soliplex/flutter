@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/shared/utils/file_type_icons.dart';
 
 void main() {
@@ -163,6 +164,89 @@ void main() {
       test('handles hidden file without extension', () {
         expect(getFileTypeIcon('.gitignore'), equals(Icons.insert_drive_file));
       });
+    });
+  });
+
+  group('documentDisplayName', () {
+    test('returns filename from uri for file-path uri', () {
+      const doc = RagDocument(
+        id: 'doc-1',
+        title: 'COMPLIANCE WITH THIS PUBLICATION IS MANDATORY',
+        uri: 'airpubs/27sog/foo/afman_10-206.pdf',
+      );
+      expect(documentDisplayName(doc), equals('afman_10-206.pdf'));
+    });
+
+    test('falls back to title when uri is empty', () {
+      const doc = RagDocument(
+        id: 'doc-2',
+        title: 'Question 1',
+      );
+      expect(documentDisplayName(doc), equals('Question 1'));
+    });
+
+    test('falls back to title when uri is a UUID', () {
+      const doc = RagDocument(
+        id: 'doc-3',
+        title: 'Question 1',
+        uri: '4e8bf0c7-f504-4ffc-b647-a9f8f255bea5',
+      );
+      expect(documentDisplayName(doc), equals('Question 1'));
+    });
+
+    test('handles file:// prefixed uri', () {
+      const doc = RagDocument(
+        id: 'doc-4',
+        title: 'BY ORDER OF THE SECRETARY OF THE AIR FORCE',
+        uri: 'file:///data/airpubs/27sog/afman_10-206.pdf',
+      );
+      expect(documentDisplayName(doc), equals('afman_10-206.pdf'));
+    });
+
+    test('returns just filename for short uri', () {
+      const doc = RagDocument(
+        id: 'doc-5',
+        title: 'PowerPoint Presentation',
+        uri: 'slides.pptx',
+      );
+      expect(documentDisplayName(doc), equals('slides.pptx'));
+    });
+
+    test('handles uppercase UUID', () {
+      const doc = RagDocument(
+        id: 'doc-6',
+        title: 'Question 2',
+        uri: '4E8BF0C7-F504-4FFC-B647-A9F8F255BEA5',
+      );
+      expect(documentDisplayName(doc), equals('Question 2'));
+    });
+  });
+
+  group('documentIconPath', () {
+    test('returns uri when it is a file path', () {
+      const doc = RagDocument(
+        id: 'doc-1',
+        title: 'COMPLIANCE',
+        uri: 'airpubs/foo/afman.pdf',
+      );
+      expect(documentIconPath(doc), equals('airpubs/foo/afman.pdf'));
+    });
+
+    test('falls back to title when uri is empty', () {
+      const doc = RagDocument(
+        id: 'doc-2',
+        title: 'report.pdf',
+      );
+      expect(documentIconPath(doc), equals('report.pdf'));
+    });
+
+    test('falls back to title when uri is a UUID', () {
+      const doc = RagDocument(
+        id: 'doc-3',
+        title: 'Question 1',
+        uri: '4e8bf0c7-f504-4ffc-b647-a9f8f255bea5',
+      );
+      expect(documentIconPath(doc), equals('Question 1'));
     });
   });
 }
