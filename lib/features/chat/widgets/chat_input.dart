@@ -364,7 +364,28 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
     final dialogWidth = screenWidth * (isMobile ? 0.95 : 0.6);
 
     return AlertDialog(
-      title: const Text('Select documents'),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Select documents'),
+          Row(
+            children: [
+              Text(
+                '${_selected.length} selected',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _selected.isEmpty
+                    ? null
+                    : () => setState(() => _selected.clear()),
+                child: const Text('Clear'),
+              ),
+            ],
+          ),
+        ],
+      ),
       content: SizedBox(
         width: dialogWidth,
         height: 400,
