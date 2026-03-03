@@ -1792,6 +1792,61 @@ void main() {
         expect(find.text('Notes.txt'), findsOneWidget);
       });
 
+      testWidgets('clear icon appears when search has text', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Report.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Notes.txt'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // No clear icon initially
+        expect(find.byIcon(Icons.clear), findsNothing);
+
+        // Type in search
+        final searchFieldFinder = find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(searchFieldFinder, 'pdf');
+        await tester.pumpAndSettle();
+
+        // Clear icon should appear
+        expect(find.byIcon(Icons.clear), findsOneWidget);
+
+        // Tap clear icon
+        await tester.tap(find.byIcon(Icons.clear));
+        await tester.pumpAndSettle();
+
+        // All documents visible, clear icon gone
+        expect(find.text('Report.pdf'), findsOneWidget);
+        expect(find.text('Notes.txt'), findsOneWidget);
+        expect(find.byIcon(Icons.clear), findsNothing);
+      });
+
       testWidgets('selected documents remain selected after filtering', (
         tester,
       ) async {
