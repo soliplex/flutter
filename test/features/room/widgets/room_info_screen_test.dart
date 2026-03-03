@@ -708,50 +708,6 @@ void main() {
         expect(find.text('Gamma.pdf'), findsNothing);
       });
 
-      testWidgets('filters documents by URI', (tester) async {
-        tester.view.physicalSize = const Size(800, 2000);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        const room = Room(id: 'room-1', name: 'Test Room');
-        const docs = [
-          RagDocument(
-            id: 'doc-1',
-            title: 'Alpha.pdf',
-            uri: 'file:///unique/path',
-          ),
-          RagDocument(id: 'doc-2', title: 'Beta.pdf', uri: 'file:///other'),
-        ];
-
-        await tester.pumpWidget(
-          createTestApp(
-            home: const RoomInfoScreen(roomId: 'room-1'),
-            overrides: [
-              roomsProvider.overrideWith((ref) async => [room]),
-              documentsProviderOverride('room-1', docs),
-            ],
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.scrollUntilVisible(
-          find.widgetWithText(TextField, 'Search documents...'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await tester.pumpAndSettle();
-
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Search documents...'),
-          'unique',
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('path'), findsOneWidget);
-        expect(find.text('other'), findsNothing);
-      });
-
       testWidgets('shows filtered count in title when searching',
           (tester) async {
         tester.view.physicalSize = const Size(800, 2000);

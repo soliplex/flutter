@@ -637,9 +637,7 @@ class _DocumentsCardState extends State<_DocumentsCard> {
     final query = _searchQuery.toLowerCase();
     return docs
         .where(
-          (d) =>
-              documentDisplayName(d).toLowerCase().contains(query) ||
-              d.uri.toLowerCase().contains(query),
+          (d) => documentDisplayName(d).toLowerCase().contains(query),
         )
         .toList();
   }

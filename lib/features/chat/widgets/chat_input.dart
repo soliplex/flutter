@@ -349,9 +349,7 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
     if (query.isEmpty) return documents;
     return documents
         .where(
-          (doc) =>
-              documentDisplayName(doc).toLowerCase().contains(query) ||
-              doc.uri.toLowerCase().contains(query),
+          (doc) => documentDisplayName(doc).toLowerCase().contains(query),
         )
         .toList();
   }
