@@ -666,7 +666,8 @@ void main() {
         );
       });
 
-      testWidgets('filters documents by title', (tester) async {
+      testWidgets('filters documents by URI-derived display name',
+          (tester) async {
         tester.view.physicalSize = const Size(800, 2000);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
@@ -674,9 +675,21 @@ void main() {
 
         const room = Room(id: 'room-1', name: 'Test Room');
         const docs = [
-          RagDocument(id: 'doc-1', title: 'Alpha.pdf'),
-          RagDocument(id: 'doc-2', title: 'Beta.pdf'),
-          RagDocument(id: 'doc-3', title: 'Gamma.pdf'),
+          RagDocument(
+            id: 'doc-1',
+            title: 'Alpha Document',
+            uri: 'uploads/alpha_report.pdf',
+          ),
+          RagDocument(
+            id: 'doc-2',
+            title: 'Beta Document',
+            uri: 'uploads/beta_summary.pdf',
+          ),
+          RagDocument(
+            id: 'doc-3',
+            title: 'Gamma Document',
+            uri: 'uploads/gamma_notes.pdf',
+          ),
         ];
 
         await tester.pumpWidget(
@@ -697,15 +710,16 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        // Search by URI-derived filename
         await tester.enterText(
           find.widgetWithText(TextField, 'Search documents...'),
-          'alpha',
+          'alpha_report',
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Alpha.pdf'), findsOneWidget);
-        expect(find.text('Beta.pdf'), findsNothing);
-        expect(find.text('Gamma.pdf'), findsNothing);
+        expect(find.text('alpha_report.pdf'), findsOneWidget);
+        expect(find.text('beta_summary.pdf'), findsNothing);
+        expect(find.text('gamma_notes.pdf'), findsNothing);
       });
 
       testWidgets('shows filtered count in title when searching',

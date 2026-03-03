@@ -1847,6 +1847,74 @@ void main() {
         expect(find.byIcon(Icons.clear), findsNothing);
       });
 
+      testWidgets('filters by URI-derived filename, not title', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(
+            id: 'doc-1',
+            title: 'Air Force Manual 10-206',
+            uri: 'airpubs/27sog/afman_10-206.pdf',
+          ),
+          TestData.createDocument(
+            id: 'doc-2',
+            title: 'Technical Order 00-20-1',
+            uri: 'techorders/to_00-20-1.pdf',
+          ),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Documents should display as URI-derived filenames, not titles
+        expect(find.text('afman_10-206.pdf'), findsOneWidget);
+        expect(find.text('to_00-20-1.pdf'), findsOneWidget);
+        expect(find.text('Air Force Manual 10-206'), findsNothing);
+        expect(find.text('Technical Order 00-20-1'), findsNothing);
+
+        // Search by URI-derived filename should match
+        final searchFieldFinder = find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(searchFieldFinder, 'afman');
+        await tester.pumpAndSettle();
+
+        expect(find.text('afman_10-206.pdf'), findsOneWidget);
+        expect(find.text('to_00-20-1.pdf'), findsNothing);
+
+        // Search by original title should NOT match
+        await tester.enterText(searchFieldFinder, 'Air Force');
+        await tester.pumpAndSettle();
+
+        expect(find.text('No matches'), findsOneWidget);
+        expect(find.byType(CheckboxListTile), findsNothing);
+      });
+
       testWidgets('selected documents remain selected after filtering', (
         tester,
       ) async {

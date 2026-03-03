@@ -78,7 +78,7 @@ String documentDisplayName(RagDocument doc) {
   return path.substring(lastSlash + 1);
 }
 
-/// Returns the best path for file-type icon detection from a
+/// Returns the path used for file-type icon detection from a
 /// [RagDocument]. Uses [RagDocument.uri] when available, falling
 /// back to [RagDocument.title] for UUID or empty URIs.
 String documentIconPath(RagDocument doc) {
