@@ -47,6 +47,7 @@ final ToolRegistryResolver stubResolver =
 | 5 | `toString contains serverId` | `conn.toString().contains(serverId)` | Debuggability |
 
 **Done when:**
+
 - 5/5 tests green
 - `dart analyze --fatal-infos` clean
 - Export visible from `import 'package:soliplex_agent/soliplex_agent.dart'`
@@ -69,6 +70,7 @@ final ToolRegistryResolver stubResolver =
 | 10 | `isEmpty and length` | Empty → `isEmpty == true, length == 0`; after add → `false, 1` | Boundary conditions |
 
 **Done when:**
+
 - 10/10 tests green
 - `dart analyze --fatal-infos` clean
 - Export visible from barrel
@@ -84,6 +86,7 @@ final ToolRegistryResolver stubResolver =
 | 3 | `existing tests still pass` | No regressions | Non-breaking change |
 
 **Done when:**
+
 - 2 new tests green + all existing `agent_runtime_test.dart` tests green
 - `dart analyze --fatal-infos` clean
 
@@ -166,6 +169,7 @@ test('Phase 1: registry → connection → runtime → session', () async {
 | 17 | `concurrent dispose is safe` | `Future.wait([msr.dispose(), msr.dispose()])` completes without error |
 
 **Done when:**
+
 - 17/17 tests green
 - `dart analyze --fatal-infos` clean
 - Export visible from barrel
@@ -231,6 +235,7 @@ test('Phase 2: multi-server spawn + waitAll', () async {
 | 8 | `serverIdFor unknown tool` | `serverIdFor('nope')` → `null` |
 
 **Done when:**
+
 - 8/8 tests green
 - `dart analyze --fatal-infos` clean
 - Both `ServerScopedToolRegistryResolver` and `FederatedToolRegistry` exported from barrel
@@ -259,6 +264,7 @@ test('Phase 2: multi-server spawn + waitAll', () async {
 | 9 | `federated tool execution routes correctly end-to-end` | Call `prod::weather` via session → dispatches to prod server's executor |
 
 **Done when:**
+
 - 9/9 tests green (6 resolver + 3 integration)
 - `dart analyze --fatal-infos` clean
 - All Phase 1 and Phase 2 tests still pass

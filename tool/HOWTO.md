@@ -6,7 +6,7 @@ full validation.
 
 ## Overview
 
-```
+```text
 feature branch (messy commits)
         │
         ▼
@@ -172,7 +172,7 @@ After validation, the script produces a review package in `.validation/`:
 
 To run the review with Gemini MCP:
 
-```
+```text
 mcp__gemini__read_files(
   file_paths: <contents of gemini_review_files.txt>,
   prompt: <contents of gemini_review_prompt.txt>

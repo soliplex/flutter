@@ -1,7 +1,2 @@
 # Packages to skip during pre-commit dart analysis.
-# These have pre-existing issues tracked separately.
-soliplex_agent
-soliplex_cli
-soliplex_interpreter_monty
-soliplex_skills
-soliplex_tui
+# All packages currently pass analysis. Keep this file for future use.

@@ -5,23 +5,72 @@ Flutter frontend.
 
 ## Prerequisites
 
-- Flutter SDK (stable channel)
+- Flutter SDK (stable channel, Dart >= 3.6.0)
 - Xcode (for iOS/macOS)
 - CocoaPods (`gem install cocoapods`)
+- [pre-commit](https://pre-commit.com/) (`pip install pre-commit` or
+  `brew install pre-commit`)
+- [DCM](https://dcm.dev) (optional but recommended — see
+  [CONTRIBUTING.md](../../CONTRIBUTING.md))
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# 1. Install pre-commit hooks
+pre-commit install
+
+# 2. Install app dependencies
 flutter pub get
 
-# Install iOS/macOS pods
+# 3. Install package dependencies (all 12 packages)
+for pkg in packages/*/; do
+  if [ -f "$pkg/pubspec.yaml" ]; then
+    (cd "$pkg" && dart pub get 2>/dev/null || flutter pub get)
+  fi
+done
+
+# 4. Install iOS/macOS pods
 cd ios && pod install && cd ..
 cd macos && pod install && cd ..
 
-# Run the app
-flutter run -d macos   # or: -d ios, -d chrome
+# 5. Run the app
+flutter run -d macos   # or: -d ios, -d chrome --web-port 59001
 ```
+
+## Package Development
+
+The repo contains 12 packages under `packages/`. See
+[packages/README.md](../../packages/README.md) for the full list and dependency
+graph.
+
+```bash
+# Work on a specific package
+cd packages/<package_name>
+dart pub get            # or: flutter pub get (for Flutter packages)
+dart test
+dart format . --set-exit-if-changed
+dart analyze --fatal-infos
+```
+
+Flutter packages (require `flutter` commands):
+`soliplex_client_native`, `soliplex_monty`
+
+All other packages are pure Dart and use `dart` commands.
+
+## Backend Connection
+
+The app connects to a Soliplex backend server. For local development:
+
+```bash
+# Default: http://localhost:8080
+# Configure via the app's Settings screen or at login
+```
+
+Common backend setups:
+
+- **Local backend:** `http://localhost:8080` (see the backend repo for setup)
+- **No-auth mode:** Start the backend with `--no-auth-mode` to skip OIDC
+  during development
 
 ## Platform Setup
 

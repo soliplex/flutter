@@ -53,7 +53,8 @@ Copy it and run with `model="gemini-3.1-pro-preview"`.
 ## Output Location
 
 Review artifacts land in:
-```
+
+```text
 ~/dev/soliplex-plans/ci-review/multi-server-support/slice-reviews/
   m{N}-prompt.md   # Review prompt
   m{N}.diff         # Unified diff

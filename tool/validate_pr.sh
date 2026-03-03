@@ -170,35 +170,40 @@ log_step "DCM ANALYSIS"
 
 dcm_failed=false
 
-# Extract changed .dart lib files from diff (not test files)
-CHANGED_DART_FILES=()
-while IFS= read -r f; do
-  if [[ "$f" == *.dart && "$f" == lib/* ]] || [[ "$f" == *.dart && "$f" == packages/*/lib/* ]]; then
-    if [[ -f "$f" ]]; then
-      CHANGED_DART_FILES+=("$f")
-    fi
-  fi
-done < <(git diff --name-only "$BASE_BRANCH"...HEAD 2>/dev/null || git diff --name-only "$BASE_BRANCH"..HEAD)
-
-if [[ ${#CHANGED_DART_FILES[@]} -eq 0 ]]; then
-  echo "No changed .dart lib files — skipping DCM"
-  log_pass "dcm analyze: skipped (no changed dart files)"
+if ! command -v dcm &>/dev/null; then
+  echo "dcm not installed — skipping (install from https://dcm.dev)"
+  log_pass "dcm analyze: skipped (dcm not installed)"
 else
-  echo "DCM analyzing ${#CHANGED_DART_FILES[@]} changed file(s)..."
-  # Run DCM on each changed file individually to avoid scope bleed
-  dcm_issues=0
-  for dart_file in "${CHANGED_DART_FILES[@]}"; do
-    dcm_out=$(env -u GIT_DIR -u GIT_WORK_TREE dcm analyze "$dart_file" --fatal-warnings 2>&1) || {
-      echo "$dcm_out"
-      dcm_issues=$((dcm_issues + 1))
-    }
-  done
+  # Extract changed .dart lib files from diff (not test files)
+  CHANGED_DART_FILES=()
+  while IFS= read -r f; do
+    if [[ "$f" == *.dart && "$f" == lib/* ]] || [[ "$f" == *.dart && "$f" == packages/*/lib/* ]]; then
+      if [[ -f "$f" ]]; then
+        CHANGED_DART_FILES+=("$f")
+      fi
+    fi
+  done < <(git diff --name-only "$BASE_BRANCH"...HEAD 2>/dev/null || git diff --name-only "$BASE_BRANCH"..HEAD)
 
-  if [[ $dcm_issues -eq 0 ]]; then
-    log_pass "dcm analyze: ${#CHANGED_DART_FILES[@]} file(s) clean"
+  if [[ ${#CHANGED_DART_FILES[@]} -eq 0 ]]; then
+    echo "No changed .dart lib files — skipping DCM"
+    log_pass "dcm analyze: skipped (no changed dart files)"
   else
-    log_fail "dcm analyze: $dcm_issues file(s) with issues"
-    dcm_failed=true
+    echo "DCM analyzing ${#CHANGED_DART_FILES[@]} changed file(s)..."
+    # Run DCM on each changed file individually to avoid scope bleed
+    dcm_issues=0
+    for dart_file in "${CHANGED_DART_FILES[@]}"; do
+      dcm_out=$(env -u GIT_DIR -u GIT_WORK_TREE dcm analyze "$dart_file" --fatal-warnings 2>&1) || {
+        echo "$dcm_out"
+        dcm_issues=$((dcm_issues + 1))
+      }
+    done
+
+    if [[ $dcm_issues -eq 0 ]]; then
+      log_pass "dcm analyze: ${#CHANGED_DART_FILES[@]} file(s) clean"
+    else
+      log_fail "dcm analyze: $dcm_issues file(s) with issues"
+      dcm_failed=true
+    fi
   fi
 fi
 

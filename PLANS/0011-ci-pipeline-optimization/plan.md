@@ -7,7 +7,7 @@ and separate the web build from the test pipeline.
 
 ## Dependency Graph
 
-```
+```text
 soliplex_logging           (leaf)
 soliplex_schema            (leaf)
 soliplex_interpreter_monty (leaf)
@@ -67,11 +67,11 @@ Each filter includes the package itself plus all of its transitive dependencies:
 
 ### `setup-dart-env/action.yaml`
 
-6. **Use `dart-lang/setup-dart` for dart-only packages** instead of full Flutter SDK — faster install, smaller download
+1. **Use `dart-lang/setup-dart` for dart-only packages** instead of full Flutter SDK — faster install, smaller download
 
 ### Additional optimizations (from Gemini review)
 
-7. **Cache pip installs**: Use `actions/setup-python` with `cache: 'pip'` for `diff-cover`/`lcov_cobertura` and `pymarkdownlnt`
+1. **Cache pip installs**: Use `actions/setup-python` with `cache: 'pip'` for `diff-cover`/`lcov_cobertura` and `pymarkdownlnt`
 
 ### Files unchanged
 
