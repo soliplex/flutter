@@ -675,12 +675,22 @@ class _DocumentsCardState extends State<_DocumentsCard> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Search documents...',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Clear search',
+                            onPressed: () => setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            }),
+                          )
+                        : null,
                     isDense: true,
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 8,
                     ),

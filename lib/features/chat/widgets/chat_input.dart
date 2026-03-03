@@ -400,9 +400,18 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
                 TextField(
                   controller: _searchController,
                   autofocus: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Search documents...',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Clear search',
+                            onPressed: () => setState(() {
+                              _searchController.clear();
+                            }),
+                          )
+                        : null,
                     isDense: true,
                   ),
                   onChanged: (_) => setState(() {}),

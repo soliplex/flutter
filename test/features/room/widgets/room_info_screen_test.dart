@@ -792,6 +792,57 @@ void main() {
 
         expect(find.text('DOCUMENTS (2 / 3)'), findsOneWidget);
       });
+
+      testWidgets('clear icon appears when search has text', (tester) async {
+        tester.view.physicalSize = const Size(800, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        const room = Room(id: 'room-1', name: 'Test Room');
+        const docs = [
+          RagDocument(id: 'doc-1', title: 'Alpha.pdf', uri: 'alpha/path'),
+          RagDocument(id: 'doc-2', title: 'Beta.pdf', uri: 'beta/other'),
+        ];
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const RoomInfoScreen(roomId: 'room-1'),
+            overrides: [
+              roomsProvider.overrideWith((ref) async => [room]),
+              documentsProviderOverride('room-1', docs),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.widgetWithText(TextField, 'Search documents...'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+
+        // No clear icon initially
+        expect(find.byIcon(Icons.clear), findsNothing);
+
+        // Type in search
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Search documents...'),
+          'alpha',
+        );
+        await tester.pumpAndSettle();
+
+        // Clear icon should appear
+        expect(find.byIcon(Icons.clear), findsOneWidget);
+
+        // Tap clear icon - restores all documents
+        await tester.tap(find.byIcon(Icons.clear));
+        await tester.pumpAndSettle();
+
+        expect(find.text('DOCUMENTS (2)'), findsOneWidget);
+        expect(find.byIcon(Icons.clear), findsNothing);
+      });
     });
 
     group('system prompt', () {
