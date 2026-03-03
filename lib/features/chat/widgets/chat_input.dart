@@ -5,34 +5,10 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
+import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/shared/utils/file_type_icons.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
-
-/// Formats a document path/title to show filename with up to 2 parent folders.
-///
-/// Examples:
-/// - "file:///path/to/my/favorite/document.txt" -> "my/favorite/document.txt"
-/// - "/path/to/file.pdf" -> "to/file.pdf"
-/// - "document.txt" -> "document.txt"
-String formatDocumentTitle(String title) {
-  // Remove file:// prefix if present
-  var path = title;
-  if (path.startsWith('file://')) {
-    path = path.substring(7);
-  }
-
-  // Split by path separator
-  final segments = path.split('/').where((s) => s.isNotEmpty).toList();
-
-  if (segments.isEmpty) return title;
-
-  // Take the last 3 segments (filename + up to 2 parent folders)
-  final displaySegments =
-      segments.length <= 3 ? segments : segments.sublist(segments.length - 3);
-
-  return displaySegments.join('/');
-}
 
 /// Widget for chat message input.
 ///
@@ -215,13 +191,13 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          getFileTypeIcon(doc.title),
+                          getFileTypeIcon(documentIconPath(doc)),
                           size: 16,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                         const SizedBox(width: SoliplexSpacing.s1),
                         Text(
-                          formatDocumentTitle(doc.title),
+                          documentDisplayName(doc),
                           style: Theme.of(context)
                               .textTheme
                               .bodySmall
@@ -372,18 +348,44 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
     final query = _searchController.text.toLowerCase();
     if (query.isEmpty) return documents;
     return documents
-        .where((doc) => doc.title.toLowerCase().contains(query))
+        .where(
+          (doc) => documentDisplayName(doc).toLowerCase().contains(query),
+        )
         .toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentsProvider(widget.roomId));
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < SoliplexBreakpoints.tablet;
+    final dialogWidth = screenWidth * (isMobile ? 0.95 : 0.6);
 
     return AlertDialog(
-      title: const Text('Select documents'),
+      title: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('Select documents'),
+          Row(
+            children: [
+              Text(
+                '${_selected.length} selected',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: _selected.isEmpty
+                    ? null
+                    : () => setState(() => _selected.clear()),
+                child: const Text('Clear'),
+              ),
+            ],
+          ),
+        ],
+      ),
       content: SizedBox(
-        width: 300,
+        width: dialogWidth,
         height: 400,
         child: documentsAsync.when(
           data: (documents) {
@@ -396,9 +398,18 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
                 TextField(
                   controller: _searchController,
                   autofocus: true,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Search documents...',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Clear search',
+                            onPressed: () => setState(() {
+                              _searchController.clear();
+                            }),
+                          )
+                        : null,
                     isDense: true,
                   ),
                   onChanged: (_) => setState(() {}),
@@ -413,8 +424,10 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
                             final doc = filteredDocs[index];
                             final isSelected = _selected.contains(doc);
                             return CheckboxListTile(
-                              secondary: Icon(getFileTypeIcon(doc.title)),
-                              title: Text(formatDocumentTitle(doc.title)),
+                              secondary: Icon(
+                                getFileTypeIcon(documentIconPath(doc)),
+                              ),
+                              title: Text(documentDisplayName(doc)),
                               value: isSelected,
                               onChanged: (_) => _toggleDocument(doc),
                             );

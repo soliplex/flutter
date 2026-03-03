@@ -21,41 +21,6 @@ import '../../../helpers/test_helpers.dart';
 const _testDelays = [Duration.zero, Duration.zero, Duration.zero];
 
 void main() {
-  group('formatDocumentTitle', () {
-    test('removes file:// prefix and shows up to 2 parent folders', () {
-      expect(
-        formatDocumentTitle('file:///path/to/my/favorite/document.txt'),
-        equals('my/favorite/document.txt'),
-      );
-    });
-
-    test('handles paths without file:// prefix', () {
-      expect(
-        formatDocumentTitle('/path/to/file.pdf'),
-        equals('path/to/file.pdf'),
-      );
-    });
-
-    test('handles deep paths', () {
-      expect(formatDocumentTitle('/a/b/c/d/e/f.txt'), equals('d/e/f.txt'));
-    });
-
-    test('handles short paths', () {
-      expect(
-        formatDocumentTitle('/parent/file.txt'),
-        equals('parent/file.txt'),
-      );
-    });
-
-    test('handles filename only', () {
-      expect(formatDocumentTitle('document.txt'), equals('document.txt'));
-    });
-
-    test('handles paths with exactly 3 segments', () {
-      expect(formatDocumentTitle('/a/b/c.txt'), equals('a/b/c.txt'));
-    });
-  });
-
   group('ChatInput', () {
     group('Send Button', () {
       testWidgets('is enabled when canSendMessage is true', (tester) async {
@@ -705,9 +670,140 @@ void main() {
 
         // Assert - dialog should be open with checkboxes
         expect(find.text('Select documents'), findsOneWidget);
+        expect(find.text('0 selected'), findsOneWidget);
         expect(find.text('Document 1.pdf'), findsOneWidget);
         expect(find.text('Document 2.pdf'), findsOneWidget);
         expect(find.byType(CheckboxListTile), findsNWidgets(2));
+      });
+
+      testWidgets('selection counter updates when documents are toggled', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        expect(find.text('0 selected'), findsOneWidget);
+
+        // Select first document
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+        expect(find.text('1 selected'), findsOneWidget);
+
+        // Select second document
+        await tester.tap(find.text('Document 2.pdf'));
+        await tester.pump();
+        expect(find.text('2 selected'), findsOneWidget);
+      });
+
+      testWidgets('clear button deselects all documents', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Select both documents
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+        await tester.tap(find.text('Document 2.pdf'));
+        await tester.pump();
+        expect(find.text('2 selected'), findsOneWidget);
+
+        // Tap Clear
+        await tester.tap(find.text('Clear'));
+        await tester.pump();
+
+        expect(find.text('0 selected'), findsOneWidget);
+      });
+
+      testWidgets('clear button is disabled when nothing selected', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Clear button should be disabled
+        final clearButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Clear'),
+        );
+        expect(clearButton.onPressed, isNull);
       });
 
       testWidgets('selects document when checkbox tapped and Done pressed', (
@@ -1694,6 +1790,129 @@ void main() {
         // Assert - all documents visible again
         expect(find.text('Report.pdf'), findsOneWidget);
         expect(find.text('Notes.txt'), findsOneWidget);
+      });
+
+      testWidgets('clear icon appears when search has text', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Report.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Notes.txt'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // No clear icon initially
+        expect(find.byIcon(Icons.clear), findsNothing);
+
+        // Type in search
+        final searchFieldFinder = find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(searchFieldFinder, 'pdf');
+        await tester.pumpAndSettle();
+
+        // Clear icon should appear
+        expect(find.byIcon(Icons.clear), findsOneWidget);
+
+        // Tap clear icon
+        await tester.tap(find.byIcon(Icons.clear));
+        await tester.pumpAndSettle();
+
+        // All documents visible, clear icon gone
+        expect(find.text('Report.pdf'), findsOneWidget);
+        expect(find.text('Notes.txt'), findsOneWidget);
+        expect(find.byIcon(Icons.clear), findsNothing);
+      });
+
+      testWidgets('filters by URI-derived filename, not title', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(
+            id: 'doc-1',
+            title: 'Air Force Manual 10-206',
+            uri: 'airpubs/27sog/afman_10-206.pdf',
+          ),
+          TestData.createDocument(
+            id: 'doc-2',
+            title: 'Technical Order 00-20-1',
+            uri: 'techorders/to_00-20-1.pdf',
+          ),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        // Open picker
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Documents should display as URI-derived filenames, not titles
+        expect(find.text('afman_10-206.pdf'), findsOneWidget);
+        expect(find.text('to_00-20-1.pdf'), findsOneWidget);
+        expect(find.text('Air Force Manual 10-206'), findsNothing);
+        expect(find.text('Technical Order 00-20-1'), findsNothing);
+
+        // Search by URI-derived filename should match
+        final searchFieldFinder = find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.byType(TextField),
+        );
+        await tester.enterText(searchFieldFinder, 'afman');
+        await tester.pumpAndSettle();
+
+        expect(find.text('afman_10-206.pdf'), findsOneWidget);
+        expect(find.text('to_00-20-1.pdf'), findsNothing);
+
+        // Search by original title should NOT match
+        await tester.enterText(searchFieldFinder, 'Air Force');
+        await tester.pumpAndSettle();
+
+        expect(find.text('No matches'), findsOneWidget);
+        expect(find.byType(CheckboxListTile), findsNothing);
       });
 
       testWidgets('selected documents remain selected after filtering', (
