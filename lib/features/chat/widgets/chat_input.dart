@@ -5,6 +5,7 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
+import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/shared/utils/file_type_icons.dart';
 import 'package:soliplex_frontend/shared/widgets/error_display.dart';
@@ -358,11 +359,14 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
   @override
   Widget build(BuildContext context) {
     final documentsAsync = ref.watch(documentsProvider(widget.roomId));
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final isMobile = screenWidth < SoliplexBreakpoints.tablet;
+    final dialogWidth = screenWidth * (isMobile ? 0.95 : 0.6);
 
     return AlertDialog(
       title: const Text('Select documents'),
       content: SizedBox(
-        width: 300,
+        width: dialogWidth,
         height: 400,
         child: documentsAsync.when(
           data: (documents) {
