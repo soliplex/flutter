@@ -46,6 +46,8 @@ dependencies:
     path: packages/soliplex_logging
   soliplex_monty:
     path: packages/soliplex_monty
+  soliplex_schema:
+    path: packages/soliplex_schema
   soliplex_scripting:
     path: packages/soliplex_scripting
   url_launcher: ^6.3.2
