@@ -20,22 +20,31 @@ const trickle = setInterval(() => {
   }
 }, 200);
 
-_flutter.loader.load({
-  onEntrypointLoaded: async function (engineInitializer) {
-    try {
-      setStatus('Initializing...');
-      setProgress(90);
+// Wrap loader to inject onEntrypointLoaded for progress tracking.
+// The bare load call below must stay bare for post-build-cache-bust.sh.
+(function() {
+  const nativeLoad = _flutter.loader.load.bind(_flutter.loader);
+  _flutter.loader.load = function(options) {
+    return nativeLoad(Object.assign({
+      onEntrypointLoaded: async function(engineInitializer) {
+        try {
+          setStatus('Initializing...');
+          setProgress(90);
 
-      const appRunner = await engineInitializer.initializeEngine();
+          const appRunner = await engineInitializer.initializeEngine(options?.config);
 
-      setStatus('Starting...');
-      setProgress(95);
+          setStatus('Starting...');
+          setProgress(95);
 
-      await appRunner.runApp();
+          await appRunner.runApp();
 
-      setProgress(100);
-    } finally {
-      clearInterval(trickle);
-    }
-  },
-});
+          setProgress(100);
+        } finally {
+          clearInterval(trickle);
+        }
+      }
+    }, options));
+  };
+})();
+
+_flutter.loader.load()
