@@ -670,9 +670,140 @@ void main() {
 
         // Assert - dialog should be open with checkboxes
         expect(find.text('Select documents'), findsOneWidget);
+        expect(find.text('0 selected'), findsOneWidget);
         expect(find.text('Document 1.pdf'), findsOneWidget);
         expect(find.text('Document 2.pdf'), findsOneWidget);
         expect(find.byType(CheckboxListTile), findsNWidgets(2));
+      });
+
+      testWidgets('selection counter updates when documents are toggled', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        expect(find.text('0 selected'), findsOneWidget);
+
+        // Select first document
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+        expect(find.text('1 selected'), findsOneWidget);
+
+        // Select second document
+        await tester.tap(find.text('Document 2.pdf'));
+        await tester.pump();
+        expect(find.text('2 selected'), findsOneWidget);
+      });
+
+      testWidgets('clear button deselects all documents', (tester) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+          TestData.createDocument(id: 'doc-2', title: 'Document 2.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Select both documents
+        await tester.tap(find.text('Document 1.pdf'));
+        await tester.pump();
+        await tester.tap(find.text('Document 2.pdf'));
+        await tester.pump();
+        expect(find.text('2 selected'), findsOneWidget);
+
+        // Tap Clear
+        await tester.tap(find.text('Clear'));
+        await tester.pump();
+
+        expect(find.text('0 selected'), findsOneWidget);
+      });
+
+      testWidgets('clear button is disabled when nothing selected', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Document 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+
+        await tester.tap(find.widgetWithIcon(IconButton, Icons.filter_alt));
+        await tester.pumpAndSettle();
+
+        // Clear button should be disabled
+        final clearButton = tester.widget<TextButton>(
+          find.widgetWithText(TextButton, 'Clear'),
+        );
+        expect(clearButton.onPressed, isNull);
       });
 
       testWidgets('selects document when checkbox tapped and Done pressed', (
