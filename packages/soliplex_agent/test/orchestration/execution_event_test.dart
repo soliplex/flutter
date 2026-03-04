@@ -163,6 +163,59 @@ void main() {
         expect(a.hashCode, equals(b.hashCode));
         expect(a, isNot(equals(c)));
       });
+
+      test('StateUpdated deep equality with nested maps', () {
+        const a = StateUpdated(
+          aguiState: {
+            'nested': {'inner': 1},
+            'list': [1, 2, 3],
+          },
+        );
+        const b = StateUpdated(
+          aguiState: {
+            'nested': {'inner': 1},
+            'list': [1, 2, 3],
+          },
+        );
+        const c = StateUpdated(
+          aguiState: {
+            'nested': {'inner': 2},
+            'list': [1, 2, 3],
+          },
+        );
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(a, isNot(equals(c)));
+      });
+
+      test('CustomExecutionEvent deep equality with nested payload', () {
+        const a = CustomExecutionEvent(
+          type: 'test',
+          payload: {
+            'data': [1, 2],
+            'meta': {'key': 'val'},
+          },
+        );
+        const b = CustomExecutionEvent(
+          type: 'test',
+          payload: {
+            'data': [1, 2],
+            'meta': {'key': 'val'},
+          },
+        );
+        const c = CustomExecutionEvent(
+          type: 'test',
+          payload: {
+            'data': [1, 2],
+            'meta': {'key': 'different'},
+          },
+        );
+
+        expect(a, equals(b));
+        expect(a.hashCode, equals(b.hashCode));
+        expect(a, isNot(equals(c)));
+      });
     });
 
     group('sealed class exhaustiveness', () {

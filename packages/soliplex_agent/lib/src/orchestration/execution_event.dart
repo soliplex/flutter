@@ -1,5 +1,8 @@
+import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+
+const _deepEq = DeepCollectionEquality();
 
 /// Granular execution events for UI observability.
 ///
@@ -188,21 +191,10 @@ class StateUpdated extends ExecutionEvent {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is StateUpdated && _mapEquals(aguiState, other.aguiState);
+      other is StateUpdated && _deepEq.equals(aguiState, other.aguiState);
 
   @override
-  int get hashCode => Object.hashAll([
-        for (final key in aguiState.keys.toList()..sort())
-          Object.hash(key, aguiState[key]),
-      ]);
-}
-
-bool _mapEquals(Map<String, dynamic> a, Map<String, dynamic> b) {
-  if (a.length != b.length) return false;
-  for (final key in a.keys) {
-    if (a[key] != b[key]) return false;
-  }
-  return true;
+  int get hashCode => _deepEq.hash(aguiState);
 }
 
 /// Step progress event for multi-step pipelines.
@@ -242,14 +234,8 @@ class CustomExecutionEvent extends ExecutionEvent {
       identical(this, other) ||
       other is CustomExecutionEvent &&
           type == other.type &&
-          _mapEquals(payload, other.payload);
+          _deepEq.equals(payload, other.payload);
 
   @override
-  int get hashCode => Object.hash(
-        type,
-        Object.hashAll([
-          for (final key in payload.keys.toList()..sort())
-            Object.hash(key, payload[key]),
-        ]),
-      );
+  int get hashCode => Object.hash(type, _deepEq.hash(payload));
 }
