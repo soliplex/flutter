@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
+import 'package:signals_core/signals_core.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/models/failure_reason.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
@@ -63,6 +64,9 @@ class AgentSession {
   StreamSubscription<RunState>? _subscription;
   AgentSessionState _state = AgentSessionState.spawning;
   bool _disposed = false;
+  final Signal<RunState> _runStateSignal = signal(const IdleState());
+  final Signal<AgentSessionState> _sessionStateSignal =
+      signal(AgentSessionState.spawning);
 
   /// Child sessions spawned by this session.
   List<AgentSession> get children => List.unmodifiable(_children);
@@ -74,6 +78,8 @@ class AgentSession {
   Future<AgentResult> get result => _resultCompleter.future;
 
   /// Broadcast stream of [RunState] changes from the underlying orchestrator.
+  ///
+  /// **Deprecated.** Use [runState] signal instead.
   ///
   /// Use this to observe live token streaming, tool calls, and other
   /// intermediate events. The stream completes when the orchestrator is
@@ -89,6 +95,13 @@ class AgentSession {
   /// });
   /// ```
   Stream<RunState> get stateChanges => _orchestrator.stateChanges;
+
+  /// Reactive signal tracking the latest [RunState] from the orchestrator.
+  ReadonlySignal<RunState> get runState => _runStateSignal.readonly();
+
+  /// Reactive signal tracking the [AgentSessionState] lifecycle.
+  ReadonlySignal<AgentSessionState> get sessionState =>
+      _sessionStateSignal.readonly();
 
   /// Waits for the session result with an optional timeout.
   Future<AgentResult> awaitResult({Duration? timeout}) {
@@ -176,6 +189,8 @@ class AgentSession {
     _subscription = null;
     _orchestrator.dispose();
     _completeIfPending();
+    _runStateSignal.dispose();
+    _sessionStateSignal.dispose();
   }
 
   // ---------------------------------------------------------------------------
@@ -184,9 +199,11 @@ class AgentSession {
 
   void _onStateChange(RunState runState) {
     if (_disposed) return;
+    _runStateSignal.value = runState;
     switch (runState) {
       case RunningState():
         _state = AgentSessionState.running;
+        _sessionStateSignal.value = _state;
       case ToolYieldingState():
         unawaited(_executeToolsAndResume(runState));
       case CompletedState():
@@ -299,6 +316,7 @@ class AgentSession {
       case AgentTimedOut():
         _state = AgentSessionState.failed;
     }
+    _sessionStateSignal.value = _state;
     if (!_resultCompleter.isCompleted) {
       _resultCompleter.complete(agentResult);
     }
@@ -307,6 +325,7 @@ class AgentSession {
   void _completeIfPending() {
     if (_resultCompleter.isCompleted) return;
     _state = AgentSessionState.failed;
+    _sessionStateSignal.value = _state;
     _resultCompleter.complete(
       AgentFailure(
         threadKey: threadKey,

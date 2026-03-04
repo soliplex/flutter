@@ -12,6 +12,7 @@ dependencies:
       url: https://github.com/soliplex/ag-ui.git
       path: sdks/community/dart
   meta: ^1.9.0
+  signals_core: ^6.2.0
   soliplex_client:
     path: ../soliplex_client
   soliplex_logging:

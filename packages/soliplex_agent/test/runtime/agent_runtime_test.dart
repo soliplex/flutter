@@ -259,6 +259,24 @@ void main() {
       // At least one emission from spawn
       expect(emissions, isNotEmpty);
     });
+
+    test('sessions signal stays in sync with stream', () async {
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      final controller = StreamController<BaseEvent>();
+      stubRunAgent(stream: controller.stream);
+
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
+
+      // Signal and getter agree after spawn
+      expect(runtime.sessions.value, contains(session));
+      expect(runtime.sessions.value, equals(runtime.activeSessions));
+
+      controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
+      await controller.close();
+      await session.result;
+    });
   });
 
   group('waitAll', () {

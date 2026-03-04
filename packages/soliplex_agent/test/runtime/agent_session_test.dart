@@ -184,6 +184,8 @@ void main() {
       addTearDown(session.dispose);
 
       expect(session.state, equals(AgentSessionState.spawning));
+      expect(session.sessionState.value, equals(AgentSessionState.spawning));
+      expect(session.runState.value, isA<IdleState>());
 
       await session.start(userMessage: 'Hi');
       controller.add(
@@ -191,12 +193,16 @@ void main() {
       );
       await Future<void>.delayed(Duration.zero);
       expect(session.state, equals(AgentSessionState.running));
+      expect(session.sessionState.value, equals(AgentSessionState.running));
+      expect(session.runState.value, isA<RunningState>());
 
       _happyPathEvents().skip(1).forEach(controller.add);
       await controller.close();
       await Future<void>.delayed(Duration.zero);
 
       expect(session.state, equals(AgentSessionState.completed));
+      expect(session.sessionState.value, equals(AgentSessionState.completed));
+      expect(session.runState.value, isA<CompletedState>());
     });
   });
 

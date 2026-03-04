@@ -5,6 +5,9 @@
 /// `soliplex_logging` — no Flutter imports allowed.
 library;
 
+// Re-export signal types for consumers.
+export 'package:signals_core/signals_core.dart' show ReadonlySignal, Signal;
+
 // Re-export client types so consumers only depend on soliplex_agent.
 // Hide HTTP/auth/util internals — consumers use createClientBundle() instead.
 export 'package:soliplex_client/soliplex_client.dart'

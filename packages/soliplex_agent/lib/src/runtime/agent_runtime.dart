@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:signals_core/signals_core.dart';
 import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
@@ -81,6 +82,7 @@ class AgentRuntime {
   final Set<String> _deletedThreadIds = {};
   final StreamController<List<AgentSession>> _sessionController =
       StreamController<List<AgentSession>>.broadcast();
+  final Signal<List<AgentSession>> _sessionsSignal = signal([]);
   bool _disposed = false;
 
   /// Currently tracked (non-disposed) sessions.
@@ -88,7 +90,14 @@ class AgentRuntime {
       List.unmodifiable(_sessions.values.toList());
 
   /// Emits whenever the active session list changes.
+  ///
+  /// **Deprecated.** Use [sessions] signal instead.
   Stream<List<AgentSession>> get sessionChanges => _sessionController.stream;
+
+  /// Reactive signal of currently tracked sessions.
+  ///
+  /// Updates synchronously when sessions are spawned or completed.
+  ReadonlySignal<List<AgentSession>> get sessions => _sessionsSignal.readonly();
 
   /// Looks up a session by its [ThreadKey]. Returns `null` if not found.
   AgentSession? getSession(ThreadKey key) {
@@ -163,6 +172,7 @@ class AgentRuntime {
       session.dispose();
     }
     _sessions.clear();
+    _sessionsSignal.dispose();
     unawaited(_sessionController.close());
   }
 
@@ -264,8 +274,11 @@ class AgentRuntime {
   }
 
   void _emitSessions() {
+    if (_disposed) return;
+    final current = activeSessions;
+    _sessionsSignal.value = current;
     if (!_sessionController.isClosed) {
-      _sessionController.add(activeSessions);
+      _sessionController.add(current);
     }
   }
 
