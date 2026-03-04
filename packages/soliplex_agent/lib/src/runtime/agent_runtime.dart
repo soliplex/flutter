@@ -93,12 +93,17 @@ class AgentRuntime {
   ///
   /// Creates a thread (or reuses [threadId]), resolves tools for [roomId],
   /// builds an [AgentSession], and starts the run.
+  ///
+  /// When [parent] is provided, the new session is registered as a child
+  /// of that parent. Cancelling or disposing the parent will cascade to
+  /// all children.
   Future<AgentSession> spawn({
     required String roomId,
     required String prompt,
     String? threadId,
     Duration? timeout,
     bool ephemeral = true,
+    AgentSession? parent,
   }) async {
     _guardNotDisposed();
     _guardWasmReentrancy();
@@ -110,6 +115,7 @@ class AgentRuntime {
       ephemeral: ephemeral,
     );
     _trackSession(session);
+    parent?.addChild(session);
     await session.start(userMessage: prompt, existingRunId: existingRunId);
     _scheduleCompletion(session, timeout);
     return session;
@@ -220,6 +226,7 @@ class AgentRuntime {
     return AgentSession(
       threadKey: key,
       ephemeral: ephemeral,
+      runtime: this,
       orchestrator: orchestrator,
       toolRegistry: toolRegistry,
       logger: _logger,
@@ -266,6 +273,7 @@ class AgentRuntime {
     if (session.ephemeral) {
       await _deleteThreadSafe(session.threadKey);
     }
+    session.dispose();
     _removeSession(session);
   }
 

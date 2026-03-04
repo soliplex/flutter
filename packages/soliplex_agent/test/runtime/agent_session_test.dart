@@ -15,6 +15,8 @@ class MockAgUiClient extends Mock implements AgUiClient {}
 
 class MockLogger extends Mock implements Logger {}
 
+class MockAgentRuntime extends Mock implements AgentRuntime {}
+
 class _FakeSimpleRunAgentInput extends Fake implements SimpleRunAgentInput {}
 
 class _FakeCancelToken extends Fake implements CancelToken {}
@@ -79,6 +81,7 @@ AgentSession createSession({
   required MockSoliplexApi api,
   required MockAgUiClient agUiClient,
   required MockLogger logger,
+  AgentRuntime? runtime,
   ToolRegistry? toolRegistry,
   bool ephemeral = false,
 }) {
@@ -92,6 +95,7 @@ AgentSession createSession({
   return AgentSession(
     threadKey: _key,
     ephemeral: ephemeral,
+    runtime: runtime ?? MockAgentRuntime(),
     orchestrator: orchestrator,
     toolRegistry: registry,
     logger: logger,

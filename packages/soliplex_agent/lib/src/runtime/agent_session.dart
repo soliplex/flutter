@@ -6,6 +6,7 @@ import 'package:soliplex_agent/src/models/failure_reason.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
 import 'package:soliplex_agent/src/orchestration/run_orchestrator.dart';
 import 'package:soliplex_agent/src/orchestration/run_state.dart';
+import 'package:soliplex_agent/src/runtime/agent_runtime.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
 import 'package:soliplex_agent/src/tools/tool_registry.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -17,16 +18,23 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// calls when the orchestrator yields. Callers receive a single
 /// [AgentResult] when the session reaches a terminal state.
 ///
+/// Sessions form a parent-child tree: when a parent is cancelled or
+/// disposed, all children are cancelled/disposed first. Child sessions
+/// are created via [spawnChild], which delegates to the owning
+/// [AgentRuntime].
+///
 /// Created exclusively by `AgentRuntime.spawn()`.
 class AgentSession {
   @internal
   AgentSession({
     required this.threadKey,
     required this.ephemeral,
+    required AgentRuntime runtime,
     required RunOrchestrator orchestrator,
     required ToolRegistry toolRegistry,
     required Logger logger,
-  })  : _orchestrator = orchestrator,
+  })  : _runtime = runtime,
+        _orchestrator = orchestrator,
         _toolRegistry = toolRegistry,
         _logger = logger,
         id = '${threadKey.threadId}-'
@@ -41,14 +49,19 @@ class AgentSession {
   /// Whether the thread should be deleted on completion.
   final bool ephemeral;
 
+  final AgentRuntime _runtime;
   final RunOrchestrator _orchestrator;
   final ToolRegistry _toolRegistry;
   final Logger _logger;
 
+  final List<AgentSession> _children = [];
   final Completer<AgentResult> _resultCompleter = Completer<AgentResult>();
   StreamSubscription<RunState>? _subscription;
   AgentSessionState _state = AgentSessionState.spawning;
   bool _disposed = false;
+
+  /// Child sessions spawned by this session.
+  List<AgentSession> get children => List.unmodifiable(_children);
 
   /// Current session lifecycle state.
   AgentSessionState get state => _state;
@@ -86,9 +99,45 @@ class AgentSession {
     );
   }
 
-  /// Cancels the session. No-op if already terminal.
+  /// Spawns a child session owned by this session.
+  ///
+  /// The child is automatically cancelled when this session is cancelled,
+  /// and disposed when this session is disposed.
+  Future<AgentSession> spawnChild({
+    required String roomId,
+    required String prompt,
+    String? threadId,
+    Duration? timeout,
+    bool ephemeral = true,
+  }) {
+    return _runtime.spawn(
+      roomId: roomId,
+      prompt: prompt,
+      threadId: threadId,
+      timeout: timeout,
+      ephemeral: ephemeral,
+      parent: this,
+    );
+  }
+
+  /// Registers a child session. Called by [AgentRuntime.spawn].
+  @internal
+  void addChild(AgentSession child) {
+    _children.add(child);
+  }
+
+  /// Removes a child session. Called when a child completes or is disposed.
+  @internal
+  void removeChild(AgentSession child) {
+    _children.remove(child);
+  }
+
+  /// Cancels the session and all children. No-op if already terminal.
   void cancel() {
     if (_isTerminal) return;
+    for (final child in _children.toList()) {
+      child.cancel();
+    }
     _orchestrator.cancelRun();
   }
 
@@ -107,10 +156,17 @@ class AgentSession {
     );
   }
 
-  /// Releases all resources. Called by `AgentRuntime`.
+  /// Releases all resources, cascading to children first.
+  ///
+  /// Called by [AgentRuntime] when the session completes or the runtime
+  /// is disposed.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    for (final child in _children.toList()) {
+      child.dispose();
+    }
+    _children.clear();
     unawaited(_subscription?.cancel());
     _subscription = null;
     _orchestrator.dispose();
