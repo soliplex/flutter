@@ -8,15 +8,40 @@ import 'package:soliplex_agent/src/tools/tool_registry.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
+/// Callback invoked when the model yields client-side tool calls.
+///
+/// Returns executed tools with status and result populated.
+typedef ToolExecutorCallback = Future<List<ToolCallInfo>> Function(
+  List<ToolCallInfo> pendingToolCalls,
+);
+
 /// Orchestrates a single AG-UI run lifecycle.
 ///
 /// State machine: Idle -> Running -> Completed/ToolYielding/Failed/Cancelled.
-/// Only one run at a time; concurrent `startRun()` throws [StateError].
+/// Only one run at a time; concurrent calls throw [StateError].
+///
+/// ## Recommended: `runToCompletion()`
+///
+/// The recommended entry point is [runToCompletion], which drives the full
+/// tool-yield/resume cycle internally and returns the terminal [RunState].
+///
+/// ```dart
+/// final result = await orchestrator.runToCompletion(
+///   key: key,
+///   userMessage: 'Hello',
+///   toolExecutor: (pending) async {
+///     return pending.map((tc) => tc.copyWith(
+///       status: ToolCallStatus.completed,
+///       result: await executeMyTool(tc),
+///     )).toList();
+///   },
+/// );
+/// ```
 ///
 /// ## Backend flow
 ///
 /// The caller is responsible for creating the thread before calling
-/// [startRun]. Typical sequence:
+/// [runToCompletion] or [startRun]. Typical sequence:
 ///
 /// ```dart
 /// // 1. Create thread (POST /rooms/{roomId}/agui)
@@ -25,50 +50,13 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// // 2. Build ThreadKey from server-assigned thread ID
 /// final key = (serverId: 'default', roomId: roomId, threadId: threadInfo.id);
 ///
-/// // 3. Start orchestrator — creates a run (POST /rooms/{roomId}/agui/{threadId})
-/// //    or reuses initialRunId from createThread.
-/// await orchestrator.startRun(
+/// // 3. Run to completion
+/// final result = await orchestrator.runToCompletion(
 ///   key: key,
 ///   userMessage: 'Hello',
+///   toolExecutor: myToolExecutor,
 ///   existingRunId: threadInfo.hasInitialRun ? threadInfo.initialRunId : null,
 /// );
-/// ```
-///
-/// If `existingRunId` is provided, the orchestrator skips `createRun` and
-/// connects directly to the AG-UI SSE stream for that run.
-///
-/// ## Tool yielding
-///
-/// When a `RunFinishedEvent` arrives with pending client-side tool calls
-/// (tools registered in the [ToolRegistry]), the orchestrator transitions
-/// to [ToolYieldingState] instead of [CompletedState]. Server-side tool
-/// calls (not in the registry) are ignored — they are executed by the
-/// backend and appear in the event stream for display only.
-///
-/// The caller executes the pending tools, then calls [submitToolOutputs]
-/// with results. This creates a **new backend run** (the backend rejects
-/// re-posting to an existing run ID) and reconnects the AG-UI stream.
-/// The cycle repeats until no pending client tools remain or the depth
-/// limit (10) is hit.
-///
-/// ```dart
-/// orchestrator.stateChanges.listen((state) {
-///   switch (state) {
-///     case ToolYieldingState(:final pendingToolCalls):
-///       // Execute each tool via ToolRegistry.execute(), then:
-///       final executed = pendingToolCalls.map((tc) => tc.copyWith(
-///         status: ToolCallStatus.completed,
-///         result: toolResult,
-///       )).toList();
-///       orchestrator.submitToolOutputs(executed);
-///     case CompletedState(:final conversation):
-///       // Done — display final response
-///     case FailedState(:final reason, :final error):
-///       // Handle error
-///     case _:
-///       break;
-///   }
-/// });
 /// ```
 ///
 /// **Important:** Each [Tool] definition must include a `parameters` field
@@ -103,15 +91,67 @@ class RunOrchestrator {
   bool _receivedTerminalEvent = false;
   int _toolDepth = 0;
 
+  // runToCompletion infrastructure
+  Completer<RunState>? _terminalCompleter;
+  int _subscriptionEpoch = 0;
+  bool _runToCompletionActive = false;
+
   /// The current state of the orchestrator.
   RunState get currentState => _currentState;
 
   /// Broadcast stream of state transitions.
   Stream<RunState> get stateChanges => _controller.stream;
 
-  /// Starts a new agent run.
+  /// The current cancellation token for the active run.
   ///
-  /// Throws [StateError] if already running or disposed.
+  /// Returns a fresh (uncancelled) token if no run is active.
+  CancelToken get cancelToken {
+    _guardNotDisposed();
+    return _cancelToken ?? CancelToken();
+  }
+
+  /// Runs a complete agent interaction including all tool yield/resume cycles.
+  ///
+  /// State emissions continue on [stateChanges] for UI observers.
+  /// Returns the terminal [RunState] (Completed, Failed, or Cancelled).
+  ///
+  /// While active, [startRun] and [submitToolOutputs] throw [StateError].
+  Future<RunState> runToCompletion({
+    required ThreadKey key,
+    required String userMessage,
+    required ToolExecutorCallback toolExecutor,
+    String? existingRunId,
+    ThreadHistory? cachedHistory,
+  }) async {
+    _guardRunToCompletion();
+    _runToCompletionActive = true;
+    _toolDepth = 0;
+    try {
+      try {
+        await _initializeStream(
+          key,
+          userMessage,
+          existingRunId,
+          cachedHistory,
+        );
+      } on Object catch (error, stackTrace) {
+        _handleStartError(key, error, stackTrace);
+        return _currentState;
+      }
+      if (_disposed) return CancelledState(threadKey: key);
+      return await _driveToolLoop(key, toolExecutor);
+    } finally {
+      _runToCompletionActive = false;
+    }
+  }
+
+  /// **Deprecated.** Use [runToCompletion] instead.
+  ///
+  /// Starts a new agent run. The caller must observe [stateChanges] and
+  /// handle [ToolYieldingState] by calling [submitToolOutputs] manually.
+  ///
+  /// Throws [StateError] if already running, disposed, or
+  /// [runToCompletion] is active.
   Future<void> startRun({
     required ThreadKey key,
     required String userMessage,
@@ -180,14 +220,13 @@ class RunOrchestrator {
     _setState(const IdleState());
   }
 
-  /// Submits executed tool results and resumes the agent.
+  /// **Deprecated.** Use [runToCompletion] instead.
   ///
-  /// Creates a **new backend run** for the continuation — the backend
-  /// rejects re-posting to an existing run ID. The full conversation
-  /// (including a [ToolCallMessage] with results) is sent so the model
-  /// sees the tool output and can respond.
+  /// Submits executed tool results and resumes the agent. Creates a **new
+  /// backend run** for the continuation.
   ///
-  /// Throws [StateError] if not in [ToolYieldingState] or disposed.
+  /// Throws [StateError] if not in [ToolYieldingState], disposed, or
+  /// [runToCompletion] is active.
   Future<void> submitToolOutputs(List<ToolCallInfo> executedTools) async {
     _guardSubmitToolOutputs();
     final yielding = _currentState as ToolYieldingState;
@@ -231,6 +270,7 @@ class RunOrchestrator {
     _disposed = true;
     _cancelToken?.cancel();
     _cancelToken = null;
+    _completeTerminalOnDispose();
     unawaited(_subscription?.cancel());
     _subscription = null;
     if (!_controller.isClosed) {
@@ -243,8 +283,163 @@ class RunOrchestrator {
   // Private helpers — each <=40 LOC, <=4 params
   // ---------------------------------------------------------------------------
 
+  /// Sets up the initial SSE subscription for [runToCompletion].
+  Future<void> _initializeStream(
+    ThreadKey key,
+    String userMessage,
+    String? existingRunId,
+    ThreadHistory? cachedHistory,
+  ) async {
+    final runId = await _createOrUseRun(key, existingRunId);
+    if (_disposed) return;
+    final conversation = _buildConversation(key, userMessage, cachedHistory);
+    final input = _buildInput(key, runId, conversation);
+    final endpoint = _buildEndpoint(key, runId);
+    _subscribeToStream(
+      endpoint,
+      input,
+      RunningState(
+        threadKey: key,
+        runId: runId,
+        conversation: conversation,
+        streaming: const AwaitingText(),
+      ),
+    );
+  }
+
+  /// Drives the tool yield/resume loop for [runToCompletion].
+  ///
+  /// **R4:** Every operation inside the loop is wrapped in try/catch
+  /// that returns a terminal [RunState].
+  Future<RunState> _driveToolLoop(
+    ThreadKey key,
+    ToolExecutorCallback toolExecutor,
+  ) async {
+    while (true) {
+      final state = await _terminalCompleter!.future;
+      if (state is! ToolYieldingState) return state;
+      if (_disposed) return _cancelledFromYielding(key, state);
+      List<ToolCallInfo> results;
+      try {
+        results = await toolExecutor(state.pendingToolCalls);
+      } on Object catch (e) {
+        return _failFromYielding(key, state, e);
+      }
+      if (_disposed) return _cancelledFromYielding(key, state);
+      if (_currentState is CancelledState) return _currentState;
+      try {
+        _toolDepth++;
+        if (_toolDepth > _maxToolDepth) {
+          return _failDepthExceeded(key, state);
+        }
+        await _resumeStream(state, results);
+      } on Object catch (e) {
+        return _failFromYielding(key, state, e);
+      }
+    }
+  }
+
+  /// Resumes the SSE stream after tool execution.
+  ///
+  /// Creates a new backend run and subscribes to the continuation stream.
+  Future<void> _resumeStream(
+    ToolYieldingState yielding,
+    List<ToolCallInfo> executedTools,
+  ) async {
+    final conversation = _buildResumeConversation(yielding, executedTools);
+    final newRunId = await _createOrUseRun(yielding.threadKey, null);
+    if (_disposed) return;
+    final input = _buildInput(yielding.threadKey, newRunId, conversation);
+    final endpoint = _buildEndpoint(yielding.threadKey, newRunId);
+    _subscribeToStream(
+      endpoint,
+      input,
+      RunningState(
+        threadKey: yielding.threadKey,
+        runId: newRunId,
+        conversation: conversation,
+        streaming: const AwaitingText(),
+      ),
+    );
+  }
+
+  /// Returns a [CancelledState] from a tool-yielding context.
+  CancelledState _cancelledFromYielding(
+    ThreadKey key,
+    ToolYieldingState state,
+  ) {
+    return CancelledState(threadKey: key, conversation: state.conversation);
+  }
+
+  /// Returns a [FailedState] for a tool execution error during the loop.
+  RunState _failFromYielding(
+    ThreadKey key,
+    ToolYieldingState state,
+    Object error,
+  ) {
+    final failed = FailedState(
+      threadKey: key,
+      reason: FailureReason.toolExecutionFailed,
+      error: error.toString(),
+      conversation: state.conversation,
+    );
+    _setState(failed);
+    return failed;
+  }
+
+  /// Returns a [FailedState] when the tool depth limit is exceeded.
+  RunState _failDepthExceeded(ThreadKey key, ToolYieldingState state) {
+    final failed = FailedState(
+      threadKey: key,
+      reason: FailureReason.toolExecutionFailed,
+      error: 'Tool depth limit exceeded ($_maxToolDepth)',
+      conversation: state.conversation,
+    );
+    _setState(failed);
+    return failed;
+  }
+
+  /// Whether [state] is terminal for the SSE subscription completer.
+  ///
+  /// **R1:** Exhaustive switch expression — adding a new [RunState]
+  /// variant without updating this method causes a compile error.
+  bool _isTerminal(RunState state) => switch (state) {
+        CompletedState() => true,
+        FailedState() => true,
+        CancelledState() => true,
+        ToolYieldingState() => true,
+        RunningState() => false,
+        IdleState() => false,
+      };
+
+  /// Defensively completes [_terminalCompleter] during [dispose] (R4).
+  void _completeTerminalOnDispose() {
+    if (_terminalCompleter?.isCompleted ?? true) return;
+    final key = switch (_currentState) {
+      RunningState(:final threadKey) => threadKey,
+      ToolYieldingState(:final threadKey) => threadKey,
+      _ => const (serverId: '', roomId: '', threadId: ''),
+    };
+    _terminalCompleter!.complete(CancelledState(threadKey: key));
+  }
+
+  void _guardRunToCompletion() {
+    _guardNotDisposed();
+    if (_runToCompletionActive) {
+      throw StateError('runToCompletion is already active');
+    }
+    if (_currentState is RunningState || _currentState is ToolYieldingState) {
+      throw StateError('A run is already active');
+    }
+  }
+
   void _guardNotRunning() {
     _guardNotDisposed();
+    if (_runToCompletionActive) {
+      throw StateError(
+        'Cannot call startRun while runToCompletion is active',
+      );
+    }
     if (_currentState is RunningState || _currentState is ToolYieldingState) {
       throw StateError('A run is already active');
     }
@@ -258,6 +453,11 @@ class RunOrchestrator {
 
   void _guardSubmitToolOutputs() {
     _guardNotDisposed();
+    if (_runToCompletionActive) {
+      throw StateError(
+        'Cannot call submitToolOutputs while runToCompletion is active',
+      );
+    }
     if (_currentState is! ToolYieldingState) {
       throw StateError('Not in ToolYieldingState');
     }
@@ -355,14 +555,14 @@ class RunOrchestrator {
     SimpleRunAgentInput input,
     RunningState initialState,
   ) {
-    // Cancel stale subscription from the previous run. The old stream already
-    // emitted RunFinishedEvent so cancelling it won't trigger a backend
-    // CancelledError. Without this, the old stream's onDone races with the
-    // new subscription and can fire a spurious FailedState.
+    // Cancel stale subscription from the previous run.
     unawaited(_subscription?.cancel());
     _subscription = null;
     _cancelToken = CancelToken();
     _receivedTerminalEvent = false;
+    _terminalCompleter = Completer<RunState>();
+    _subscriptionEpoch++;
+    final epoch = _subscriptionEpoch;
     final stream = _agUiClient.runAgent(
       endpoint,
       input,
@@ -372,7 +572,10 @@ class RunOrchestrator {
     _subscription = stream.listen(
       _onEvent,
       onError: _onStreamError,
-      onDone: _onStreamDone,
+      onDone: () {
+        if (epoch != _subscriptionEpoch) return;
+        _onStreamDone();
+      },
     );
   }
 
@@ -416,8 +619,6 @@ class RunOrchestrator {
   void _handleRunFinished(RunningState previous, Conversation conversation) {
     _receivedTerminalEvent = true;
     // Don't cancel the subscription — let the SSE stream drain naturally.
-    // Cancelling it sends a client disconnect to the backend, which can
-    // trigger CancelledError in the backend's async DB session cleanup.
     _cancelToken = null;
     final pendingTools = _extractPendingTools(conversation);
     if (pendingTools.isNotEmpty) {
@@ -442,7 +643,6 @@ class RunOrchestrator {
   }
 
   void _onStreamDone() {
-    // Always clean up the subscription reference when the stream ends.
     _subscription = null;
     if (_disposing || _disposed) return;
     if (_receivedTerminalEvent) return;
@@ -499,6 +699,9 @@ class RunOrchestrator {
     _currentState = newState;
     if (!_controller.isClosed) {
       _controller.add(newState);
+    }
+    if (_isTerminal(newState) && !(_terminalCompleter?.isCompleted ?? true)) {
+      _terminalCompleter!.complete(newState);
     }
   }
 
