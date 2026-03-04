@@ -8,6 +8,7 @@ import 'package:soliplex_agent/src/orchestration/run_orchestrator.dart';
 import 'package:soliplex_agent/src/orchestration/run_state.dart';
 import 'package:soliplex_agent/src/runtime/agent_runtime.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
+import 'package:soliplex_agent/src/scripting/script_environment.dart';
 import 'package:soliplex_agent/src/tools/tool_registry.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
@@ -33,9 +34,11 @@ class AgentSession {
     required RunOrchestrator orchestrator,
     required ToolRegistry toolRegistry,
     required Logger logger,
+    ScriptEnvironment? scriptEnvironment,
   })  : _runtime = runtime,
         _orchestrator = orchestrator,
         _toolRegistry = toolRegistry,
+        _scriptEnvironment = scriptEnvironment,
         _logger = logger,
         id = '${threadKey.threadId}-'
             '${DateTime.now().microsecondsSinceEpoch}';
@@ -52,6 +55,7 @@ class AgentSession {
   final AgentRuntime _runtime;
   final RunOrchestrator _orchestrator;
   final ToolRegistry _toolRegistry;
+  final ScriptEnvironment? _scriptEnvironment;
   final Logger _logger;
 
   final List<AgentSession> _children = [];
@@ -167,6 +171,7 @@ class AgentSession {
       child.dispose();
     }
     _children.clear();
+    _scriptEnvironment?.dispose();
     unawaited(_subscription?.cancel());
     _subscription = null;
     _orchestrator.dispose();

@@ -20,6 +20,23 @@ class _FakeSimpleRunAgentInput extends Fake implements SimpleRunAgentInput {}
 class _FakeCancelToken extends Fake implements CancelToken {}
 
 // ---------------------------------------------------------------------------
+// Test doubles
+// ---------------------------------------------------------------------------
+
+class _TestScriptEnvironment implements ScriptEnvironment {
+  _TestScriptEnvironment({this.toolList = const []});
+
+  final List<ClientTool> toolList;
+  int disposeCount = 0;
+
+  @override
+  List<ClientTool> get tools => toolList;
+
+  @override
+  void dispose() => disposeCount++;
+}
+
+// ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
 
@@ -488,6 +505,134 @@ void main() {
       final success = result as AgentSuccess;
       expect(success.output, equals('Sunny'));
       expect(callCount, equals(2));
+    });
+  });
+
+  group('scriptEnvironmentFactory', () {
+    test('factory tools appear in session tool registry', () async {
+      final tool = ClientTool(
+        definition: const Tool(
+          name: 'execute_python',
+          description: 'Run Python',
+        ),
+        executor: (_) async => 'python result',
+      );
+
+      runtime = AgentRuntime(
+        api: api,
+        agUiClient: agUiClient,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+        scriptEnvironmentFactory: () async => _TestScriptEnvironment(
+          toolList: [tool],
+        ),
+      );
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+
+      var callCount = 0;
+      when(
+        () => agUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        callCount++;
+        // First call: tool yield; second call: resume with text
+        return callCount == 1
+            ? Stream.fromIterable([
+                const RunStartedEvent(threadId: _threadId, runId: _runId),
+                const ToolCallStartEvent(
+                  toolCallId: 'tc-py',
+                  toolCallName: 'execute_python',
+                ),
+                const ToolCallArgsEvent(
+                  toolCallId: 'tc-py',
+                  delta: '{"code":"print(1)"}',
+                ),
+                const ToolCallEndEvent(toolCallId: 'tc-py'),
+                const RunFinishedEvent(threadId: _threadId, runId: _runId),
+              ])
+            : Stream.fromIterable(_resumeTextEvents());
+      });
+
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Run code');
+      final result = await session.result;
+
+      expect(result, isA<AgentSuccess>());
+      expect(callCount, equals(2));
+    });
+
+    test('null factory works (backward compat)', () async {
+      runtime = createRuntime();
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
+      final result = await session.result;
+
+      expect(result, isA<AgentSuccess>());
+    });
+
+    test('factory error propagates from spawn', () async {
+      runtime = AgentRuntime(
+        api: api,
+        agUiClient: agUiClient,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+        scriptEnvironmentFactory: () async =>
+            throw StateError('WASM init failed'),
+      );
+
+      stubCreateThread();
+
+      expect(
+        () => runtime.spawn(roomId: _roomId, prompt: 'Hello'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('WASM init failed'),
+          ),
+        ),
+      );
+    });
+
+    test('fromConnection threads factory through', () async {
+      final connection = ServerConnection(
+        serverId: 'prod',
+        api: api,
+        agUiClient: agUiClient,
+      );
+
+      var factoryCalled = false;
+      runtime = AgentRuntime.fromConnection(
+        connection: connection,
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+        scriptEnvironmentFactory: () async {
+          factoryCalled = true;
+          return _TestScriptEnvironment();
+        },
+      );
+
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      await runtime.spawn(roomId: _roomId, prompt: 'Hello');
+
+      expect(factoryCalled, isTrue);
     });
   });
 

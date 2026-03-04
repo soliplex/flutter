@@ -12,6 +12,9 @@ import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 /// The WASM guard throws [StateError] when all bridges are executing
 /// and the limit is reached — preventing deadlock on single-threaded
 /// platforms.
+///
+/// **Deprecated.** Use `MontyScriptEnvironment` instead. Will be removed
+/// in V8.
 class BridgeCache {
   /// Creates a cache with the given concurrency [limit] and optional
   /// [bridgeFactory] for creating new bridges.

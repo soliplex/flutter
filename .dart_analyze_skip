@@ -1,2 +1,3 @@
 # Packages to skip during pre-commit dart analysis.
-# All packages currently pass analysis. Keep this file for future use.
+# Flutter packages require `flutter analyze`, not `dart analyze`.
+soliplex_client_native

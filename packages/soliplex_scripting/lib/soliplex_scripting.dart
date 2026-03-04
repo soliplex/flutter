@@ -16,6 +16,8 @@ export 'src/bridge_cache.dart';
 export 'src/df_functions.dart';
 export 'src/host_function_wiring.dart';
 export 'src/host_schema_ag_ui.dart';
+export 'src/monty_script_environment.dart';
+export 'src/monty_script_environment_factory.dart';
 export 'src/monty_tool_executor.dart';
 export 'src/python_executor_tool.dart';
 export 'src/scripting_tool_registry_resolver.dart';

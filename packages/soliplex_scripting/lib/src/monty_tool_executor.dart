@@ -18,6 +18,9 @@ import 'package:soliplex_scripting/src/host_function_wiring.dart';
 /// 3. Register host functions via [HostFunctionWiring].
 /// 4. Execute the code and collect text output.
 /// 5. Release the bridge back to the cache (even on error).
+///
+/// **Deprecated.** Use `MontyScriptEnvironment` instead. Will be removed
+/// in V8.
 class MontyToolExecutor {
   MontyToolExecutor({
     required this.threadKey,

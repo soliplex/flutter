@@ -8,6 +8,9 @@ import 'package:soliplex_scripting/src/python_executor_tool.dart';
 ///
 /// This allows the scripting layer to be composed transparently with the
 /// existing tool resolution pipeline.
+///
+/// **Deprecated.** Use `ScriptEnvironmentFactory` with `AgentRuntime`
+/// instead. Will be removed in V8.
 class ScriptingToolRegistryResolver {
   ScriptingToolRegistryResolver({
     required ToolRegistryResolver inner,

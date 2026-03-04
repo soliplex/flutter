@@ -73,6 +73,20 @@ ToolRegistry _registryWith({
 }
 
 // ---------------------------------------------------------------------------
+// Test doubles
+// ---------------------------------------------------------------------------
+
+class _TestScriptEnvironment implements ScriptEnvironment {
+  int disposeCount = 0;
+
+  @override
+  List<ClientTool> get tools => const [];
+
+  @override
+  void dispose() => disposeCount++;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -83,6 +97,7 @@ AgentSession createSession({
   required MockLogger logger,
   AgentRuntime? runtime,
   ToolRegistry? toolRegistry,
+  ScriptEnvironment? scriptEnvironment,
   bool ephemeral = false,
 }) {
   final registry = toolRegistry ?? const ToolRegistry();
@@ -98,6 +113,7 @@ AgentSession createSession({
     runtime: runtime ?? MockAgentRuntime(),
     orchestrator: orchestrator,
     toolRegistry: registry,
+    scriptEnvironment: scriptEnvironment,
     logger: logger,
   );
 }
@@ -517,6 +533,68 @@ void main() {
       await session.result;
 
       expect(streamingTexts, contains('Hello world'));
+    });
+  });
+
+  group('scriptEnvironment', () {
+    test('dispose calls ScriptEnvironment.dispose', () {
+      final env = _TestScriptEnvironment();
+      createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        scriptEnvironment: env,
+      ).dispose();
+
+      expect(env.disposeCount, equals(1));
+    });
+
+    test('null environment works (backward compat)', () {
+      // Should not throw
+      createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+      ).dispose();
+    });
+
+    test('double dispose does not double-dispose environment', () {
+      final env = _TestScriptEnvironment();
+      createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        scriptEnvironment: env,
+      )
+        ..dispose()
+        ..dispose();
+
+      // Session is idempotent, so env.dispose called once
+      expect(env.disposeCount, equals(1));
+    });
+
+    test('environment disposed after children', () async {
+      final env = _TestScriptEnvironment();
+      final childEnv = _TestScriptEnvironment();
+      createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        scriptEnvironment: env,
+      )
+        ..addChild(
+          createSession(
+            api: api,
+            agUiClient: agUiClient,
+            logger: logger,
+            scriptEnvironment: childEnv,
+          ),
+        )
+        ..dispose();
+
+      // Both environments should be disposed
+      expect(childEnv.disposeCount, equals(1));
+      expect(env.disposeCount, equals(1));
     });
   });
 }

@@ -58,6 +58,9 @@ export 'src/runtime/multi_server_runtime.dart';
 export 'src/runtime/server_connection.dart';
 export 'src/runtime/server_registry.dart';
 
+// ── Scripting ──
+export 'src/scripting/script_environment.dart';
+
 // ── Tools ──
 export 'src/tools/tool_registry.dart';
 export 'src/tools/tool_registry_resolver.dart';
