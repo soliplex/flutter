@@ -119,6 +119,13 @@ class CupertinoHttpClient implements SoliplexHttpClient {
         originalError: e,
         stackTrace: stackTrace,
       );
+    } on Exception catch (e, stackTrace) {
+      // Generic fallback for platform-specific exceptions
+      throw NetworkException(
+        message: 'Network error: $e',
+        originalError: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
@@ -156,17 +163,14 @@ class CupertinoHttpClient implements SoliplexHttpClient {
           subscription = streamedResponse.stream.listen(
             controller.add,
             onError: (Object error, StackTrace stackTrace) {
-              if (error is http.ClientException) {
-                controller.addError(
-                  NetworkException(
-                    message: 'Connection error: ${error.message}',
-                    originalError: error,
-                    stackTrace: stackTrace,
-                  ),
-                );
-              } else {
-                controller.addError(error, stackTrace);
-              }
+              // Wrap all stream errors as NetworkException
+              controller.addError(
+                NetworkException(
+                  message: 'Stream error: $error',
+                  originalError: error,
+                  stackTrace: stackTrace,
+                ),
+              );
             },
             onDone: controller.close,
             cancelOnError: true,
@@ -175,6 +179,16 @@ class CupertinoHttpClient implements SoliplexHttpClient {
           controller.addError(
             NetworkException(
               message: 'Client error: ${e.message}',
+              originalError: e,
+              stackTrace: stackTrace,
+            ),
+          );
+          await controller.close();
+        } on Exception catch (e, stackTrace) {
+          // Generic fallback for platform-specific exceptions
+          controller.addError(
+            NetworkException(
+              message: 'Connection failed: $e',
               originalError: e,
               stackTrace: stackTrace,
             ),

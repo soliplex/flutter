@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -229,6 +230,42 @@ void main() {
             body: DateTime.now(),
           ),
           throwsA(isA<ArgumentError>()),
+        );
+      });
+
+      test('throws NetworkException on generic Exception', () async {
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(Exception('platform error'));
+
+        await expectLater(
+          client.request('GET', Uri.parse('https://example.com/api')),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.message,
+              'message',
+              contains('platform error'),
+            ),
+          ),
+        );
+      });
+
+      test('wraps SocketException as NetworkException', () async {
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(
+          const SocketException('Connection refused'),
+        );
+
+        await expectLater(
+          client.request('GET', Uri.parse('https://example.com/api')),
+          throwsA(
+            isA<NetworkException>().having(
+              (e) => e.message,
+              'message',
+              contains('Connection refused'),
+            ),
+          ),
         );
       });
 
@@ -584,7 +621,7 @@ void main() {
       );
 
       test(
-        'passes through non-ClientException errors during streaming',
+        'wraps non-ClientException errors during streaming as NetworkException',
         () async {
           final controller = StreamController<List<int>>();
           final streamedResponse = http.StreamedResponse(
@@ -624,9 +661,11 @@ void main() {
           await completer.future;
 
           expect(errors, hasLength(1));
-          // Non-ClientException errors should be passed through as-is
-          expect(errors.first, isA<Exception>());
-          expect(errors.first, isNot(isA<NetworkException>()));
+          expect(errors.first, isA<NetworkException>());
+          expect(
+            (errors.first as NetworkException).message,
+            contains('Some other error'),
+          );
 
           await controller.close();
         },
@@ -675,6 +714,80 @@ void main() {
           ]),
         );
       });
+
+      test('emits NetworkException on generic connection exception', () async {
+        when(
+          () => mockClient.send(any()),
+        ).thenThrow(Exception('platform error'));
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/stream'),
+        );
+
+        await expectLater(
+          stream,
+          emitsError(
+            isA<NetworkException>().having(
+              (e) => e.message,
+              'message',
+              contains('platform error'),
+            ),
+          ),
+        );
+      });
+
+      test(
+        'wraps SocketException during streaming as NetworkException',
+        () async {
+          final controller = StreamController<List<int>>();
+          final streamedResponse = http.StreamedResponse(
+            controller.stream,
+            200,
+            reasonPhrase: 'OK',
+          );
+
+          when(
+            () => mockClient.send(any()),
+          ).thenAnswer((_) async => streamedResponse);
+
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/stream'),
+          );
+
+          final errors = <Object>[];
+          final completer = Completer<void>();
+
+          stream.listen(
+            (_) {},
+            onError: (Object e) {
+              errors.add(e);
+              completer.complete();
+            },
+            onDone: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          );
+
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+
+          controller.addError(
+            const SocketException('Connection reset by peer'),
+          );
+
+          await completer.future;
+
+          expect(errors, hasLength(1));
+          expect(errors.first, isA<NetworkException>());
+          expect(
+            (errors.first as NetworkException).message,
+            contains('Connection reset by peer'),
+          );
+
+          await controller.close();
+        },
+      );
     });
 
     group('close', () {
