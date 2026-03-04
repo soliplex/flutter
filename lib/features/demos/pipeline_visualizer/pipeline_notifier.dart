@@ -140,8 +140,11 @@ class PipelineNotifier extends Notifier<PipelineState> {
     var nodeCounter = 0;
 
     final runtime = AgentRuntime(
-      api: ref.read(apiProvider),
-      agUiClient: ref.read(agUiClientProvider),
+      bundle: (
+        api: ref.read(apiProvider),
+        agUiClient: ref.read(agUiClientProvider),
+        close: () async {},
+      ),
       toolRegistryResolver: (roomId) async {
         final base = ref.read(toolRegistryProvider);
         final threadKey = (

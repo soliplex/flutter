@@ -23,8 +23,7 @@ Future<void> main() async {
 
   // Create the agent runtime.
   final runtime = AgentRuntime(
-    api: bundle.api,
-    agUiClient: bundle.agUiClient,
+    bundle: bundle,
     toolRegistryResolver: (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),
     logger: logger,

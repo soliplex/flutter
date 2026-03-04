@@ -23,8 +23,7 @@ Future<void> main() async {
 
   final toolRegistry = buildDemoToolRegistry();
   final runtime = AgentRuntime(
-    api: bundle.api,
-    agUiClient: bundle.agUiClient,
+    bundle: bundle,
     toolRegistryResolver: (_) async => toolRegistry,
     platform: const NativePlatformConstraints(),
     logger: logger,

@@ -93,6 +93,22 @@ class ToolRegistry {
     return ToolRegistry._(_tools, {..._aliases, aliasName: canonicalName});
   }
 
+  /// Returns a new registry without the tool named [name].
+  ///
+  /// If [name] is an alias, only the alias is removed; the canonical
+  /// tool remains. If [name] is a canonical name, the tool and any
+  /// aliases pointing to it are removed.
+  ToolRegistry unregister(String name) {
+    if (_aliases.containsKey(name)) {
+      return ToolRegistry._(_tools, {..._aliases}..remove(name));
+    }
+    final newAliases = {
+      for (final e in _aliases.entries)
+        if (e.value != name) e.key: e.value,
+    };
+    return ToolRegistry._({..._tools}..remove(name), newAliases);
+  }
+
   /// Returns the [ClientTool] registered under [name].
   ///
   /// Throws [StateError] if no tool with that name is registered.

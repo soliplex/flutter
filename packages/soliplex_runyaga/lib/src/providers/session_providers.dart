@@ -67,7 +67,10 @@ final activeSessionProvider = Provider<AgentSession?>((ref) {
 final activeRunStateProvider = StreamProvider<RunState>((ref) {
   final session = ref.watch(activeSessionProvider);
   if (session == null) return Stream.value(const IdleState());
-  return session.runState.toStream();
+  return session.runState.toStream().map((state) {
+    _log.info('runState: ${state.runtimeType}');
+    return state;
+  });
 });
 
 /// Session lifecycle state stream for the current room.
@@ -139,8 +142,8 @@ Future<void> sendMessage(
   ref.read(threadSelectionProvider.notifier).select(roomId, newThreadId);
 
   // Wait for completion (success or failure), then refresh.
-  session.result.whenComplete(() {
-    _log.info('session complete for room=$roomId');
+  session.result.then((result) {
+    _log.info('session complete for room=$roomId result=$result');
     ref.invalidate(messagesProvider);
     ref.invalidate(threadsProvider(roomId));
     ref.read(roomSessionsProvider.notifier).remove(roomId);

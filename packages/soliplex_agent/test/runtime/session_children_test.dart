@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart'
+    show AgUiClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -55,8 +57,7 @@ void main() {
 
   AgentRuntime createRuntime({PlatformConstraints? platform}) {
     return AgentRuntime(
-      api: api,
-      agUiClient: agUiClient,
+      bundle: (api: api, agUiClient: agUiClient, close: () async {}),
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: platform ?? const NativePlatformConstraints(),
       logger: logger,

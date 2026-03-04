@@ -86,6 +86,61 @@ void main() {
       expect(definitions.map((t) => t.name), containsAll(['tool_a', 'tool_b']));
     });
 
+    group('unregister', () {
+      test('removes canonical tool', () {
+        final registry = const ToolRegistry()
+            .register(_testTool(name: 'a'))
+            .register(_testTool(name: 'b'));
+
+        final updated = registry.unregister('a');
+
+        expect(updated.contains('a'), isFalse);
+        expect(updated.contains('b'), isTrue);
+        expect(updated.length, 1);
+      });
+
+      test('removes alias without removing canonical tool', () {
+        final registry = const ToolRegistry()
+            .register(_testTool(name: 'canonical'))
+            .alias('short', 'canonical');
+
+        final updated = registry.unregister('short');
+
+        expect(updated.contains('short'), isFalse);
+        expect(updated.contains('canonical'), isTrue);
+      });
+
+      test('removes canonical tool and its aliases', () {
+        final registry = const ToolRegistry()
+            .register(_testTool(name: 'canonical'))
+            .alias('short', 'canonical');
+
+        final updated = registry.unregister('canonical');
+
+        expect(updated.contains('canonical'), isFalse);
+        expect(updated.contains('short'), isFalse);
+        expect(updated.isEmpty, isTrue);
+      });
+
+      test('returns new registry (immutable)', () {
+        final registry = const ToolRegistry().register(_testTool(name: 'a'));
+
+        final updated = registry.unregister('a');
+
+        expect(registry.contains('a'), isTrue);
+        expect(updated.contains('a'), isFalse);
+      });
+
+      test('no-op for unknown name', () {
+        final registry = const ToolRegistry().register(_testTool(name: 'a'));
+
+        final updated = registry.unregister('nonexistent');
+
+        expect(updated.length, 1);
+        expect(updated.contains('a'), isTrue);
+      });
+    });
+
     test('execute passes context to executor', () async {
       ToolExecutionContext? receivedCtx;
       final registry = const ToolRegistry().register(

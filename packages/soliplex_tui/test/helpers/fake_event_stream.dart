@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart'
+    show AgUiClient, AgUiClientConfig;
 
 /// Builds a mock AG-UI event stream from a list of events.
 ///

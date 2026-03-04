@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:nocterm_bloc/nocterm_bloc.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart' show SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 import 'package:soliplex_tui/src/components/chat_page.dart';
@@ -110,8 +111,11 @@ Future<void> runHeadless({
     Loggers.app.info('Using room: $resolvedRoomId');
 
     runtime = AgentRuntime(
-      api: stack.api,
-      agUiClient: stack.agUiClient,
+      bundle: (
+        api: stack.api,
+        agUiClient: stack.agUiClient,
+        close: () async {},
+      ),
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: const NativePlatformConstraints(),
       logger: Loggers.agui,

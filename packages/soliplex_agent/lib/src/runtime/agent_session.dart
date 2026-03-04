@@ -280,12 +280,8 @@ class AgentSession implements ToolExecutionContext {
 
   Future<List<ToolCallInfo>> _executeAll(
     List<ToolCallInfo> pendingTools,
-  ) async {
-    final results = <ToolCallInfo>[];
-    for (final tc in pendingTools) {
-      results.add(await _executeSingle(tc));
-    }
-    return results;
+  ) {
+    return Future.wait(pendingTools.map(_executeSingle));
   }
 
   Future<ToolCallInfo> _executeSingle(ToolCallInfo toolCall) async {

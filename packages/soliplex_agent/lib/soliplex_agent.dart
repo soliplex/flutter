@@ -8,22 +8,39 @@ library;
 // Re-export signal types for consumers.
 export 'package:signals_core/signals_core.dart' show ReadonlySignal, Signal;
 
-// Re-export client types so consumers only depend on soliplex_agent.
-// Hide auth/observation internals. HTTP wiring types are kept visible
-// because ServerConnection.create() requires SoliplexHttpClient/DartHttpClient.
+// Re-export domain types and AG-UI events. Consumers who need HTTP plumbing
+// (SoliplexApi, AgUiClient, DartHttpClient, etc.) import soliplex_client
+// directly.
 export 'package:soliplex_client/soliplex_client.dart'
     hide
+        AgUiClient,
+        AgUiClientConfig,
         AuthenticatedHttpClient,
+        DartHttpClient,
+        HttpClientAdapter,
+        HttpErrorEvent,
+        HttpEvent,
         HttpObserver,
+        HttpRequestEvent,
         HttpResponse,
+        HttpResponseEvent,
+        HttpStreamEndEvent,
+        HttpStreamStartEvent,
+        HttpTransport,
         ObservableHttpClient,
         OidcDiscoveryDocument,
         RefreshingHttpClient,
+        SoliplexApi,
+        SoliplexHttpClient,
         TokenRefreshFailure,
         TokenRefreshResult,
         TokenRefreshService,
         TokenRefreshSuccess,
-        TokenRefresher;
+        TokenRefresher,
+        UrlBuilder,
+        convertToAgui,
+        defaultHttpTimeout,
+        fetchAuthProviders;
 
 // ── Client Wiring ──
 export 'src/client_bundle.dart';

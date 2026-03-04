@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart'
+    show AgUiClient, SoliplexApi, SoliplexHttpClient;
 import 'package:soliplex_client_native/soliplex_client_native.dart';
 
 /// Base URL for the backend, set on connect.

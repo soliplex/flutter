@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:signals_core/signals_core.dart';
+import 'package:soliplex_agent/src/client_bundle.dart';
 import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
@@ -21,8 +22,7 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 ///
 /// ```dart
 /// final runtime = AgentRuntime(
-///   api: api,
-///   agUiClient: agUiClient,
+///   bundle: bundle,
 ///   toolRegistryResolver: resolver,
 ///   platform: NativePlatformConstraints(),
 ///   logger: logger,
@@ -35,20 +35,23 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// final result = await session.result;
 /// ```
 class AgentRuntime {
+  /// Creates a runtime from a pre-wired [ClientBundle].
   AgentRuntime({
-    required SoliplexApi api,
-    required AgUiClient agUiClient,
+    required ClientBundle bundle,
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
     SessionExtensionFactory? extensionFactory,
-    this.serverId = 'default',
-  })  : _api = api,
-        _agUiClient = agUiClient,
-        _toolRegistryResolver = toolRegistryResolver,
-        _extensionFactory = extensionFactory,
-        _platform = platform,
-        _logger = logger;
+    String serverId = 'default',
+  }) : this._(
+          api: bundle.api,
+          agUiClient: bundle.agUiClient,
+          toolRegistryResolver: toolRegistryResolver,
+          extensionFactory: extensionFactory,
+          platform: platform,
+          logger: logger,
+          serverId: serverId,
+        );
 
   /// Creates a runtime from a [ServerConnection], extracting the API
   /// clients and server identity.
@@ -58,7 +61,7 @@ class AgentRuntime {
     required PlatformConstraints platform,
     required Logger logger,
     SessionExtensionFactory? extensionFactory,
-  }) : this(
+  }) : this._(
           api: connection.api,
           agUiClient: connection.agUiClient,
           toolRegistryResolver: toolRegistryResolver,
@@ -67,6 +70,21 @@ class AgentRuntime {
           logger: logger,
           serverId: connection.serverId,
         );
+
+  AgentRuntime._({
+    required SoliplexApi api,
+    required AgUiClient agUiClient,
+    required ToolRegistryResolver toolRegistryResolver,
+    required PlatformConstraints platform,
+    required Logger logger,
+    required this.serverId,
+    SessionExtensionFactory? extensionFactory,
+  })  : _api = api,
+        _agUiClient = agUiClient,
+        _toolRegistryResolver = toolRegistryResolver,
+        _extensionFactory = extensionFactory,
+        _platform = platform,
+        _logger = logger;
 
   final SoliplexApi _api;
   final AgUiClient _agUiClient;
@@ -131,7 +149,17 @@ class AgentRuntime {
     );
     _trackSession(session);
     parent?.addChild(session);
-    await session.start(userMessage: prompt, existingRunId: existingRunId);
+    try {
+      await session.start(userMessage: prompt, existingRunId: existingRunId);
+    } on Object {
+      parent?.removeChild(session);
+      _removeSession(session);
+      if (ephemeral) {
+        await _deleteThreadSafe(key);
+      }
+      session.dispose();
+      rethrow;
+    }
     _scheduleCompletion(session, timeout);
     return session;
   }

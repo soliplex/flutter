@@ -42,10 +42,10 @@ dependencies:
     path: packages/soliplex_client_native
   soliplex_dataframe:
     path: packages/soliplex_dataframe
-  soliplex_logging:
-    path: packages/soliplex_logging
   soliplex_interpreter_monty:
     path: packages/soliplex_interpreter_monty
+  soliplex_logging:
+    path: packages/soliplex_logging
   soliplex_schema:
     path: packages/soliplex_schema
   soliplex_scripting:

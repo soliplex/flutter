@@ -1,6 +1,15 @@
 import 'dart:io';
 
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart'
+    show
+        AgUiClient,
+        AgUiClientConfig,
+        DartHttpClient,
+        HttpClientAdapter,
+        HttpTransport,
+        SoliplexApi,
+        UrlBuilder;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -77,8 +86,7 @@ class IntegrationHarness {
     PlatformConstraints platform = const NativePlatformConstraints(),
   }) {
     return AgentRuntime(
-      api: api,
-      agUiClient: agUiClient,
+      bundle: (api: api, agUiClient: agUiClient, close: () async {}),
       toolRegistryResolver:
           toolRegistryResolver ?? (_) async => const ToolRegistry(),
       platform: platform,

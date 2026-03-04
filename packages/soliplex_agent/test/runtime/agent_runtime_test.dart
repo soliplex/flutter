@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart'
+    show AgUiClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -38,6 +40,18 @@ class _TestExtension implements SessionExtension {
 
   @override
   void onDispose() => disposeCount++;
+}
+
+class _ThrowingExtension implements SessionExtension {
+  @override
+  Future<void> onAttach(AgentSession session) async =>
+      throw StateError('onAttach boom');
+
+  @override
+  List<ClientTool> get tools => const [];
+
+  @override
+  void onDispose() {}
 }
 
 // ---------------------------------------------------------------------------
@@ -105,13 +119,15 @@ void main() {
   late MockLogger logger;
   late AgentRuntime runtime;
 
+  ClientBundle mockBundle() =>
+      (api: api, agUiClient: agUiClient, close: () async {});
+
   AgentRuntime createRuntime({
     PlatformConstraints? platform,
     ToolRegistryResolver? resolver,
   }) {
     return AgentRuntime(
-      api: api,
-      agUiClient: agUiClient,
+      bundle: mockBundle(),
       toolRegistryResolver: resolver ?? (_) async => const ToolRegistry(),
       platform: platform ?? const NativePlatformConstraints(),
       logger: logger,
@@ -497,6 +513,69 @@ void main() {
     });
   });
 
+  group('spawn cleanup on start failure', () {
+    test('cleans up session when extension onAttach throws', () async {
+      runtime = AgentRuntime(
+        bundle: mockBundle(),
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(),
+        logger: logger,
+        extensionFactory: () async => [_ThrowingExtension()],
+      );
+
+      stubCreateThread();
+      stubDeleteThread();
+
+      await expectLater(
+        () => runtime.spawn(roomId: _roomId, prompt: 'Hello'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('onAttach boom'),
+          ),
+        ),
+      );
+
+      expect(runtime.activeSessions, isEmpty);
+      expect(runtime.sessions.value, isEmpty);
+      verify(() => api.deleteThread(_roomId, _threadId)).called(1);
+    });
+
+    test('concurrency count resets after start failure', () async {
+      runtime = AgentRuntime(
+        bundle: mockBundle(),
+        toolRegistryResolver: (_) async => const ToolRegistry(),
+        platform: const NativePlatformConstraints(maxConcurrentBridges: 1),
+        logger: logger,
+        extensionFactory: () async => [_ThrowingExtension()],
+      );
+
+      stubCreateThread();
+      stubDeleteThread();
+
+      // First spawn fails
+      await expectLater(
+        () => runtime.spawn(roomId: _roomId, prompt: 'A'),
+        throwsA(isA<StateError>()),
+      );
+
+      // Second spawn should NOT hit concurrency limit — slot was freed.
+      // It will still fail from the throwing extension, but the error
+      // must be the extension error, not a concurrency guard error.
+      await expectLater(
+        () => runtime.spawn(roomId: _roomId, prompt: 'B'),
+        throwsA(
+          isA<StateError>().having(
+            (e) => e.message,
+            'message',
+            contains('onAttach boom'),
+          ),
+        ),
+      );
+    });
+  });
+
   group('end-to-end', () {
     test('spawn → tool yield → auto-execute → resume → AgentSuccess', () async {
       final registry = _weatherRegistry();
@@ -541,8 +620,7 @@ void main() {
       );
 
       runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
+        bundle: mockBundle(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -605,8 +683,7 @@ void main() {
 
     test('factory error propagates from spawn', () async {
       runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
+        bundle: mockBundle(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -664,8 +741,7 @@ void main() {
 
     test('custom serverId appears in ThreadKey', () async {
       runtime = AgentRuntime(
-        api: api,
-        agUiClient: agUiClient,
+        bundle: mockBundle(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,

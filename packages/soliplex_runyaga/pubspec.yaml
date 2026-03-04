@@ -14,6 +14,8 @@ dependencies:
   google_fonts: ^6.2.1
   soliplex_agent:
     path: ../soliplex_agent
+  soliplex_client:
+    path: ../soliplex_client
   soliplex_client_native:
     path: ../soliplex_client_native
   soliplex_logging:

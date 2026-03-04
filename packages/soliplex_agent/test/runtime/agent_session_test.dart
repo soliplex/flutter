@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart'
+    show AgUiClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 

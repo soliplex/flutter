@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:args/args.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_cli/src/client_factory.dart';
 import 'package:soliplex_cli/src/result_printer.dart';
 import 'package:soliplex_cli/src/tool_definitions.dart';
+import 'package:soliplex_client/soliplex_client.dart' show SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 Future<void> runCli(List<String> args) async {
@@ -22,7 +24,23 @@ Future<void> runCli(List<String> args) async {
       help: 'Default room ID.',
       defaultsTo: Platform.environment['SOLIPLEX_ROOM_ID'] ?? 'plain',
     )
-    ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage.');
+    ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage.')
+    ..addFlag(
+      'verbose',
+      abbr: 'v',
+      negatable: false,
+      help: 'Log all HTTP traffic to stderr.',
+    )
+    ..addFlag(
+      'no-tools',
+      negatable: false,
+      help: 'Do not advertise client tools (for rooms with server-side tools).',
+    )
+    ..addOption(
+      'tools',
+      abbr: 't',
+      help: 'Comma-separated tool names to advertise (default: all).',
+    );
 
   final parsed = parser.parse(args);
 
@@ -33,19 +51,51 @@ Future<void> runCli(List<String> args) async {
     return;
   }
 
+  // Wrap entire session in a guarded zone so async SSE stream errors
+  // (e.g. "Connection closed while receiving data") don't crash the CLI.
+  await runZonedGuarded(
+    () => _runSession(parsed),
+    (e, _) {
+      if (e.toString().contains('Connection closed')) {
+        stderr.writeln('[cleanup] SSE stream disconnect (ignored)');
+      } else {
+        stderr.writeln('[async error] $e');
+      }
+    },
+  );
+}
+
+Future<void> _runSession(ArgResults parsed) async {
   final host = parsed.option('host')!;
   final room = parsed.option('room')!;
+  final verbose = parsed.flag('verbose');
 
-  final bundle = createClientBundle(host);
+  final bundle = verbose ? createVerboseBundle(host) : createClientBundle(host);
   final logManager = LogManager.instance
     ..minimumLevel = LogLevel.debug
     ..addSink(StdoutSink(useColors: true));
   final logger = logManager.getLogger('cli');
 
-  final toolRegistry = buildDemoToolRegistry();
+  final noTools = parsed.flag('no-tools');
+  final toolsOption = parsed.option('tools');
+  final enabledTools = toolsOption?.split(',').map((s) => s.trim()).toSet();
+
+  if (enabledTools != null) {
+    final unknown = enabledTools.difference(availableDemoToolNames);
+    if (unknown.isNotEmpty) {
+      stderr.writeln(
+        'Unknown tool(s): ${unknown.join(', ')}. '
+        'Available: ${availableDemoToolNames.join(', ')}',
+      );
+      return;
+    }
+  }
+
+  final toolRegistry = noTools
+      ? const ToolRegistry()
+      : buildDemoToolRegistry(enabledTools: enabledTools);
   final runtime = AgentRuntime(
-    api: bundle.api,
-    agUiClient: bundle.agUiClient,
+    bundle: bundle,
     toolRegistryResolver: (_) async => toolRegistry,
     platform: const NativePlatformConstraints(),
     logger: logger,
@@ -55,11 +105,19 @@ Future<void> runCli(List<String> args) async {
     runtime: runtime,
     api: bundle.api,
     defaultRoom: room,
+    verbose: verbose,
   );
 
+  if (verbose) stderr.writeln('[verbose mode]');
   stdout
     ..writeln('soliplex-cli connected to $host (room: $room)')
-    ..writeln('tools: [secret_number, echo]')
+    ..writeln(
+      toolRegistry.isEmpty
+          ? 'tools: (none)'
+          : 'tools: [${toolRegistry.toolDefinitions.map(
+                (t) => t.name,
+              ).join(', ')}]',
+    )
     ..writeln();
   _printHelp();
 
@@ -83,11 +141,13 @@ class _CliContext {
     required this.runtime,
     required this.api,
     required this.defaultRoom,
+    required this.verbose,
   });
 
   final AgentRuntime runtime;
   final SoliplexApi api;
   final String defaultRoom;
+  final bool verbose;
   final List<AgentSession> tracked = [];
 
   /// Active thread per room: roomId → threadId.
@@ -244,9 +304,18 @@ Future<void> _sendAndWait(
       ephemeral: false,
     );
     ctx.setThread(room, session.threadKey.threadId);
+
+    StreamSubscription<RunState>? traceSub;
+    if (ctx.verbose) {
+      traceSub = session.stateChanges.listen(
+        _traceState,
+      );
+    }
+
     final result = await session.awaitResult(
       timeout: const Duration(seconds: 120),
     );
+    await traceSub?.cancel();
     stdout.writeln(formatResult(result));
   } on Object catch (e) {
     stdout.writeln('Error: $e');
@@ -367,6 +436,64 @@ void _printThread(_CliContext ctx) {
   }
   for (final entry in ctx.threads.entries) {
     stdout.writeln('  ${entry.key} → ${_short(entry.value)}');
+  }
+}
+
+void _traceState(RunState state) {
+  switch (state) {
+    case RunningState(:final runId, :final conversation, :final streaming):
+      final msgCount = conversation.messages.length;
+      final toolCount = conversation.toolCalls.length;
+      stderr.writeln(
+        '[AGUI] Running  run=$runId  '
+        'msgs=$msgCount  tools=$toolCount  streaming=$streaming',
+      );
+    case ToolYieldingState(
+        :final pendingToolCalls,
+        :final toolDepth,
+        :final conversation,
+      ):
+      stderr.writeln(
+        '[AGUI] ToolYielding  depth=$toolDepth  '
+        'pending=${pendingToolCalls.length}',
+      );
+      for (final tc in pendingToolCalls) {
+        stderr.writeln(
+          '[AGUI]   tool=${tc.name}  id=${tc.id}  '
+          'args=${tc.arguments}',
+        );
+      }
+      // Also show all tool calls in conversation (including server-side).
+      for (final tc in conversation.toolCalls) {
+        if (!pendingToolCalls.any((p) => p.id == tc.id)) {
+          stderr.writeln(
+            '[AGUI]   (server) tool=${tc.name}  id=${tc.id}  '
+            'status=${tc.status}',
+          );
+        }
+      }
+    case CompletedState(:final runId, :final conversation):
+      final lastMsg = conversation.messages.lastOrNull;
+      final preview = lastMsg != null
+          ? lastMsg.toString().replaceAll('\n', ' ')
+          : '(no messages)';
+      stderr.writeln(
+        '[AGUI] Completed  run=$runId  '
+        'msgs=${conversation.messages.length}  '
+        'tools=${conversation.toolCalls.length}',
+      );
+      stderr.writeln(
+        '[AGUI]   last: '
+        '${preview.substring(0, preview.length.clamp(0, 120))}',
+      );
+    case FailedState(:final reason, :final error):
+      stderr
+        ..writeln('[AGUI] FAILED  reason=$reason')
+        ..writeln('[AGUI]   error: $error');
+    case CancelledState():
+      stderr.writeln('[AGUI] Cancelled');
+    case IdleState():
+      break;
   }
 }
 

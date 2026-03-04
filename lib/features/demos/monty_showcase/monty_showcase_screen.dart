@@ -88,8 +88,11 @@ class _MontyShowcaseScreenState extends ConsumerState<MontyShowcaseScreen> {
 
     // Create AgentRuntime for ask_llm support.
     final runtime = AgentRuntime(
-      api: ref.read(apiProvider),
-      agUiClient: ref.read(agUiClientProvider),
+      bundle: (
+        api: ref.read(apiProvider),
+        agUiClient: ref.read(agUiClientProvider),
+        close: () async {},
+      ),
       toolRegistryResolver: (roomId) async => ref.read(toolRegistryProvider),
       platform: ref.read(platformConstraintsProvider),
       logger: LogManager.instance.getLogger('MontyShowcase'),
