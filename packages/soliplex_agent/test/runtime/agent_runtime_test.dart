@@ -23,17 +23,21 @@ class _FakeCancelToken extends Fake implements CancelToken {}
 // Test doubles
 // ---------------------------------------------------------------------------
 
-class _TestScriptEnvironment implements ScriptEnvironment {
-  _TestScriptEnvironment({this.toolList = const []});
+class _TestExtension implements SessionExtension {
+  _TestExtension({this.toolList = const []});
 
   final List<ClientTool> toolList;
+  int attachCount = 0;
   int disposeCount = 0;
+
+  @override
+  Future<void> onAttach(AgentSession session) async => attachCount++;
 
   @override
   List<ClientTool> get tools => toolList;
 
   @override
-  void dispose() => disposeCount++;
+  void onDispose() => disposeCount++;
 }
 
 // ---------------------------------------------------------------------------
@@ -526,7 +530,7 @@ void main() {
     });
   });
 
-  group('scriptEnvironmentFactory', () {
+  group('extensionFactory', () {
     test('factory tools appear in session tool registry', () async {
       final tool = ClientTool(
         definition: const Tool(
@@ -542,9 +546,9 @@ void main() {
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
-        scriptEnvironmentFactory: () async => _TestScriptEnvironment(
-          toolList: [tool],
-        ),
+        extensionFactory: () async => [
+          _TestExtension(toolList: [tool]),
+        ],
       );
 
       stubCreateThread();
@@ -606,8 +610,7 @@ void main() {
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
-        scriptEnvironmentFactory: () async =>
-            throw StateError('WASM init failed'),
+        extensionFactory: () async => throw StateError('WASM init failed'),
       );
 
       stubCreateThread();
@@ -637,9 +640,9 @@ void main() {
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
-        scriptEnvironmentFactory: () async {
+        extensionFactory: () async {
           factoryCalled = true;
-          return _TestScriptEnvironment();
+          return [_TestExtension()];
         },
       );
 

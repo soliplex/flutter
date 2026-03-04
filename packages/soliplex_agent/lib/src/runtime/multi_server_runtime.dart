@@ -6,7 +6,7 @@ import 'package:soliplex_agent/src/models/thread_key.dart';
 import 'package:soliplex_agent/src/runtime/agent_runtime.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/server_registry.dart';
-import 'package:soliplex_agent/src/scripting/script_environment.dart';
+import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
@@ -21,16 +21,16 @@ class MultiServerRuntime {
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
-    ScriptEnvironmentFactory? scriptEnvironmentFactory,
+    SessionExtensionFactory? extensionFactory,
   })  : _registry = registry,
         _toolRegistryResolver = toolRegistryResolver,
-        _scriptEnvironmentFactory = scriptEnvironmentFactory,
+        _extensionFactory = extensionFactory,
         _platform = platform,
         _logger = logger;
 
   final ServerRegistry _registry;
   final ToolRegistryResolver _toolRegistryResolver;
-  final ScriptEnvironmentFactory? _scriptEnvironmentFactory;
+  final SessionExtensionFactory? _extensionFactory;
   final PlatformConstraints _platform;
   final Logger _logger;
 
@@ -48,7 +48,7 @@ class MultiServerRuntime {
       return AgentRuntime.fromConnection(
         connection: connection,
         toolRegistryResolver: _toolRegistryResolver,
-        scriptEnvironmentFactory: _scriptEnvironmentFactory,
+        extensionFactory: _extensionFactory,
         platform: _platform,
         logger: _logger,
       );

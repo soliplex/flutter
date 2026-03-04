@@ -11,7 +11,6 @@ import 'package:soliplex_agent/src/orchestration/run_state.dart';
 import 'package:soliplex_agent/src/runtime/agent_runtime.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
-import 'package:soliplex_agent/src/scripting/script_environment.dart';
 import 'package:soliplex_agent/src/tools/tool_execution_context.dart';
 import 'package:soliplex_agent/src/tools/tool_registry.dart';
 import 'package:soliplex_client/soliplex_client.dart';
@@ -20,8 +19,11 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// A single autonomous agent session.
 ///
 /// Wraps a [RunOrchestrator] and automatically executes client-side tool
-/// calls when the orchestrator yields. Callers receive a single
+/// calls via [RunOrchestrator.runToCompletion]. Callers receive a single
 /// [AgentResult] when the session reaches a terminal state.
+///
+/// Implements [ToolExecutionContext] so tools can access cancellation,
+/// child spawning, event emission, and session-scoped extensions.
 ///
 /// Sessions form a parent-child tree: when a parent is cancelled or
 /// disposed, all children are cancelled/disposed first. Child sessions
@@ -29,7 +31,7 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// [AgentRuntime].
 ///
 /// Created exclusively by `AgentRuntime.spawn()`.
-class AgentSession {
+class AgentSession implements ToolExecutionContext {
   @internal
   AgentSession({
     required this.threadKey,
@@ -38,11 +40,11 @@ class AgentSession {
     required RunOrchestrator orchestrator,
     required ToolRegistry toolRegistry,
     required Logger logger,
-    ScriptEnvironment? scriptEnvironment,
+    List<SessionExtension> extensions = const [],
   })  : _runtime = runtime,
         _orchestrator = orchestrator,
         _toolRegistry = toolRegistry,
-        _scriptEnvironment = scriptEnvironment,
+        _extensions = extensions,
         _logger = logger,
         id = '${threadKey.threadId}-'
             '${DateTime.now().microsecondsSinceEpoch}';
@@ -59,14 +61,10 @@ class AgentSession {
   final AgentRuntime _runtime;
   final RunOrchestrator _orchestrator;
   final ToolRegistry _toolRegistry;
-  final ScriptEnvironment? _scriptEnvironment;
+  final List<SessionExtension> _extensions;
   final Logger _logger;
 
-  /// Temporary stub context passed to tool executors.
-  ///
-  /// **Replaced in V7** when `AgentSession implements ToolExecutionContext`.
-  /// Currently no tool uses the context (all pass `_`), so this is safe.
-  final ToolExecutionContext _stubContext = _StubExecutionContext();
+  static const _toolTimeout = Duration(seconds: 60);
 
   final List<AgentSession> _children = [];
   final Completer<AgentResult> _resultCompleter = Completer<AgentResult>();
@@ -76,6 +74,7 @@ class AgentSession {
   final Signal<RunState> _runStateSignal = signal(const IdleState());
   final Signal<AgentSessionState> _sessionStateSignal =
       signal(AgentSessionState.spawning);
+  final Signal<ExecutionEvent?> _executionEventSignal = signal(null);
 
   /// Child sessions spawned by this session.
   List<AgentSession> get children => List.unmodifiable(_children);
@@ -112,6 +111,10 @@ class AgentSession {
   ReadonlySignal<AgentSessionState> get sessionState =>
       _sessionStateSignal.readonly();
 
+  /// Reactive signal tracking the most recent [ExecutionEvent].
+  ReadonlySignal<ExecutionEvent?> get lastExecutionEvent =>
+      _executionEventSignal.readonly();
+
   /// Waits for the session result with an optional timeout.
   Future<AgentResult> awaitResult({Duration? timeout}) {
     if (timeout == null) return result;
@@ -125,10 +128,14 @@ class AgentSession {
     );
   }
 
-  /// Spawns a child session owned by this session.
-  ///
-  /// The child is automatically cancelled when this session is cancelled,
-  /// and disposed when this session is disposed.
+  // ---------------------------------------------------------------------------
+  // ToolExecutionContext implementation
+  // ---------------------------------------------------------------------------
+
+  @override
+  CancelToken get cancelToken => _orchestrator.cancelToken;
+
+  @override
   Future<AgentSession> spawnChild({
     required String roomId,
     required String prompt,
@@ -145,6 +152,24 @@ class AgentSession {
       parent: this,
     );
   }
+
+  @override
+  void emitEvent(ExecutionEvent event) {
+    if (_disposed) return;
+    _executionEventSignal.value = event;
+  }
+
+  @override
+  T? getExtension<T extends SessionExtension>() {
+    for (final ext in _extensions) {
+      if (ext is T) return ext;
+    }
+    return null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Child management
+  // ---------------------------------------------------------------------------
 
   /// Registers a child session. Called by [AgentRuntime.spawn].
   @internal
@@ -169,16 +194,22 @@ class AgentSession {
 
   /// Starts the orchestrator run and subscribes to state changes.
   ///
-  /// Called internally by `AgentRuntime`.
+  /// Called internally by `AgentRuntime`. Extensions are attached before
+  /// the run starts. The run is fire-and-forget — terminal states flow
+  /// through [_onStateChange] into [_completeWith].
   Future<void> start({
     required String userMessage,
     String? existingRunId,
   }) async {
+    await _attachExtensions();
     _subscription = _orchestrator.stateChanges.listen(_onStateChange);
-    await _orchestrator.startRun(
-      key: threadKey,
-      userMessage: userMessage,
-      existingRunId: existingRunId,
+    unawaited(
+      _orchestrator.runToCompletion(
+        key: threadKey,
+        userMessage: userMessage,
+        toolExecutor: _executeAll,
+        existingRunId: existingRunId,
+      ),
     );
   }
 
@@ -193,13 +224,30 @@ class AgentSession {
       child.dispose();
     }
     _children.clear();
-    _scriptEnvironment?.dispose();
+    _disposeExtensions();
     unawaited(_subscription?.cancel());
     _subscription = null;
     _orchestrator.dispose();
     _completeIfPending();
     _runStateSignal.dispose();
     _sessionStateSignal.dispose();
+    _executionEventSignal.dispose();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Extension lifecycle
+  // ---------------------------------------------------------------------------
+
+  Future<void> _attachExtensions() async {
+    for (final ext in _extensions) {
+      await ext.onAttach(this);
+    }
+  }
+
+  void _disposeExtensions() {
+    for (final ext in _extensions) {
+      ext.onDispose();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -214,7 +262,7 @@ class AgentSession {
         _state = AgentSessionState.running;
         _sessionStateSignal.value = _state;
       case ToolYieldingState():
-        unawaited(_executeToolsAndResume(runState));
+        break;
       case CompletedState():
         _completeWith(_mapCompleted(runState));
       case FailedState():
@@ -227,22 +275,8 @@ class AgentSession {
   }
 
   // ---------------------------------------------------------------------------
-  // Auto-execute loop
+  // Tool execution (callback for runToCompletion)
   // ---------------------------------------------------------------------------
-
-  Future<void> _executeToolsAndResume(ToolYieldingState yielding) async {
-    try {
-      final executed = await _executeAll(yielding.pendingToolCalls);
-      if (_disposed || _isTerminal) return;
-      await _orchestrator.submitToolOutputs(executed);
-    } on Object catch (error, stackTrace) {
-      _logger.warning(
-        'Tool execute/resume failed',
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
-  }
 
   Future<List<ToolCallInfo>> _executeAll(
     List<ToolCallInfo> pendingTools,
@@ -255,23 +289,55 @@ class AgentSession {
   }
 
   Future<ToolCallInfo> _executeSingle(ToolCallInfo toolCall) async {
+    emitEvent(
+      ClientToolExecuting(
+        toolName: toolCall.name,
+        toolCallId: toolCall.id,
+      ),
+    );
     try {
-      final result = await _toolRegistry.execute(toolCall, _stubContext);
+      final result =
+          await _toolRegistry.execute(toolCall, this).timeout(_toolTimeout);
+      emitEvent(
+        ClientToolCompleted(
+          toolCallId: toolCall.id,
+          result: result,
+          status: ToolCallStatus.completed,
+        ),
+      );
       return toolCall.copyWith(
         status: ToolCallStatus.completed,
         result: result,
       );
     } on Object catch (error, stackTrace) {
-      _logger.warning(
-        'Tool "${toolCall.name}" failed',
-        error: error,
-        stackTrace: stackTrace,
-      );
-      return toolCall.copyWith(
-        status: ToolCallStatus.failed,
-        result: error.toString(),
-      );
+      return _handleToolError(toolCall, error, stackTrace);
     }
+  }
+
+  ToolCallInfo _handleToolError(
+    ToolCallInfo toolCall,
+    Object error,
+    StackTrace stackTrace,
+  ) {
+    _logger.warning(
+      'Tool "${toolCall.name}" failed',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    final errorStr = error is TimeoutException
+        ? 'Tool "${toolCall.name}" timed out after ${_toolTimeout.inSeconds}s'
+        : error.toString();
+    emitEvent(
+      ClientToolCompleted(
+        toolCallId: toolCall.id,
+        result: errorStr,
+        status: ToolCallStatus.failed,
+      ),
+    );
+    return toolCall.copyWith(
+      status: ToolCallStatus.failed,
+      result: errorStr,
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -348,28 +414,4 @@ class AgentSession {
       _state == AgentSessionState.completed ||
       _state == AgentSessionState.failed ||
       _state == AgentSessionState.cancelled;
-}
-
-/// Temporary no-op context for V5 compatibility.
-///
-/// All tool executors currently ignore the context parameter (`_`), so
-/// these methods are never called. Replaced in V7 when [AgentSession]
-/// implements [ToolExecutionContext] directly.
-class _StubExecutionContext implements ToolExecutionContext {
-  @override
-  CancelToken get cancelToken => throw UnimplementedError('V7');
-
-  @override
-  Future<AgentSession> spawnChild({
-    required String roomId,
-    required String prompt,
-  }) =>
-      throw UnimplementedError('V7');
-
-  @override
-  void emitEvent(ExecutionEvent event) => throw UnimplementedError('V7');
-
-  @override
-  T? getExtension<T extends SessionExtension>() =>
-      throw UnimplementedError('V7');
 }

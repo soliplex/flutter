@@ -22,3 +22,6 @@ abstract interface class SessionExtension {
   /// Called when the session is disposed. Must be idempotent.
   void onDispose();
 }
+
+/// Factory that creates extensions for each new session.
+typedef SessionExtensionFactory = Future<List<SessionExtension>> Function();

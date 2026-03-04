@@ -1,3 +1,5 @@
+import 'package:soliplex_agent/src/runtime/agent_session.dart';
+import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry.dart';
 
 /// Session-scoped scripting environment providing client-side tools.
@@ -23,3 +25,36 @@ abstract interface class ScriptEnvironment {
 /// The closure captures app-level dependencies (HostApi, AgentApi,
 /// MontyLimits, etc.) so callers only need to invoke it.
 typedef ScriptEnvironmentFactory = Future<ScriptEnvironment> Function();
+
+/// Adapter that wraps a [ScriptEnvironment] as a [SessionExtension].
+///
+/// Bridges existing [ScriptEnvironmentFactory] callers to the new
+/// extension-based lifecycle without breaking downstream code.
+class ScriptEnvironmentExtension implements SessionExtension {
+  /// Creates an extension that wraps the given [ScriptEnvironment].
+  ScriptEnvironmentExtension(this._environment);
+
+  final ScriptEnvironment _environment;
+
+  @override
+  Future<void> onAttach(AgentSession session) async {}
+
+  @override
+  List<ClientTool> get tools => _environment.tools;
+
+  @override
+  void onDispose() => _environment.dispose();
+}
+
+/// Converts a [ScriptEnvironmentFactory] into a [SessionExtensionFactory].
+///
+/// Each invocation creates a single [ScriptEnvironmentExtension] wrapping
+/// the environment produced by [factory].
+SessionExtensionFactory wrapScriptEnvironmentFactory(
+  ScriptEnvironmentFactory factory,
+) {
+  return () async {
+    final env = await factory();
+    return [ScriptEnvironmentExtension(env)];
+  };
+}

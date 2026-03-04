@@ -8,7 +8,7 @@ import 'package:soliplex_agent/src/orchestration/run_orchestrator.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
 import 'package:soliplex_agent/src/runtime/server_connection.dart';
-import 'package:soliplex_agent/src/scripting/script_environment.dart';
+import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
@@ -41,12 +41,12 @@ class AgentRuntime {
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
-    ScriptEnvironmentFactory? scriptEnvironmentFactory,
+    SessionExtensionFactory? extensionFactory,
     this.serverId = 'default',
   })  : _api = api,
         _agUiClient = agUiClient,
         _toolRegistryResolver = toolRegistryResolver,
-        _scriptEnvironmentFactory = scriptEnvironmentFactory,
+        _extensionFactory = extensionFactory,
         _platform = platform,
         _logger = logger;
 
@@ -57,12 +57,12 @@ class AgentRuntime {
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
-    ScriptEnvironmentFactory? scriptEnvironmentFactory,
+    SessionExtensionFactory? extensionFactory,
   }) : this(
           api: connection.api,
           agUiClient: connection.agUiClient,
           toolRegistryResolver: toolRegistryResolver,
-          scriptEnvironmentFactory: scriptEnvironmentFactory,
+          extensionFactory: extensionFactory,
           platform: platform,
           logger: logger,
           serverId: connection.serverId,
@@ -71,7 +71,7 @@ class AgentRuntime {
   final SoliplexApi _api;
   final AgUiClient _agUiClient;
   final ToolRegistryResolver _toolRegistryResolver;
-  final ScriptEnvironmentFactory? _scriptEnvironmentFactory;
+  final SessionExtensionFactory? _extensionFactory;
   final PlatformConstraints _platform;
   final Logger _logger;
 
@@ -233,15 +233,12 @@ class AgentRuntime {
     required bool ephemeral,
   }) async {
     var toolRegistry = await _toolRegistryResolver(roomId);
-
-    ScriptEnvironment? scriptEnv;
-    if (_scriptEnvironmentFactory != null) {
-      scriptEnv = await _scriptEnvironmentFactory();
-      for (final tool in scriptEnv.tools) {
+    final extensions = await _createExtensions();
+    for (final ext in extensions) {
+      for (final tool in ext.tools) {
         toolRegistry = toolRegistry.register(tool);
       }
     }
-
     final orchestrator = RunOrchestrator(
       api: _api,
       agUiClient: _agUiClient,
@@ -254,9 +251,14 @@ class AgentRuntime {
       runtime: this,
       orchestrator: orchestrator,
       toolRegistry: toolRegistry,
-      scriptEnvironment: scriptEnv,
+      extensions: extensions,
       logger: _logger,
     );
+  }
+
+  Future<List<SessionExtension>> _createExtensions() async {
+    if (_extensionFactory == null) return const [];
+    return _extensionFactory();
   }
 
   // ---------------------------------------------------------------------------

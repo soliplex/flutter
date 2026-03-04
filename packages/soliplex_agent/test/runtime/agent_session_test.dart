@@ -86,6 +86,41 @@ class _TestScriptEnvironment implements ScriptEnvironment {
   void dispose() => disposeCount++;
 }
 
+class _TestExtension implements SessionExtension {
+  int attachCount = 0;
+  int disposeCount = 0;
+  AgentSession? attachedSession;
+
+  @override
+  Future<void> onAttach(AgentSession session) async {
+    attachCount++;
+    attachedSession = session;
+  }
+
+  @override
+  List<ClientTool> get tools => const [];
+
+  @override
+  void onDispose() => disposeCount++;
+}
+
+class _TestExtensionWithTool implements SessionExtension {
+  _TestExtensionWithTool(this._tool);
+
+  final ClientTool _tool;
+  int attachCount = 0;
+  int disposeCount = 0;
+
+  @override
+  Future<void> onAttach(AgentSession session) async => attachCount++;
+
+  @override
+  List<ClientTool> get tools => [_tool];
+
+  @override
+  void onDispose() => disposeCount++;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -97,7 +132,7 @@ AgentSession createSession({
   required MockLogger logger,
   AgentRuntime? runtime,
   ToolRegistry? toolRegistry,
-  ScriptEnvironment? scriptEnvironment,
+  List<SessionExtension> extensions = const [],
   bool ephemeral = false,
 }) {
   final registry = toolRegistry ?? const ToolRegistry();
@@ -113,7 +148,7 @@ AgentSession createSession({
     runtime: runtime ?? MockAgentRuntime(),
     orchestrator: orchestrator,
     toolRegistry: registry,
-    scriptEnvironment: scriptEnvironment,
+    extensions: extensions,
     logger: logger,
   );
 }
@@ -437,7 +472,10 @@ void main() {
       final failure = result as AgentFailure;
       expect(failure.reason, equals(FailureReason.internalError));
 
-      await controller.close();
+      // Controller may never be subscribed to (runToCompletion is
+      // unawaited and dispose fires before the SSE stream subscribes),
+      // so close without awaiting to avoid hanging.
+      unawaited(controller.close());
     });
   });
 
@@ -542,65 +580,285 @@ void main() {
     });
   });
 
-  group('scriptEnvironment', () {
-    test('dispose calls ScriptEnvironment.dispose', () {
-      final env = _TestScriptEnvironment();
+  group('extensions', () {
+    test('onAttach called before run starts', () async {
+      stubCreateRun();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final ext = _TestExtension();
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        extensions: [ext],
+      );
+      addTearDown(session.dispose);
+
+      await session.start(userMessage: 'Hi');
+      await session.result;
+
+      expect(ext.attachCount, equals(1));
+      expect(ext.attachedSession, same(session));
+    });
+
+    test('extension tools merged into registry', () async {
+      final tool = ClientTool(
+        definition: const Tool(
+          name: 'ext_tool',
+          description: 'Extension tool',
+        ),
+        executor: (_, __) async => 'ext result',
+      );
+      final ext = _TestExtensionWithTool(tool);
+
+      stubCreateRun();
+      var callCount = 0;
+      when(
+        () => agUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        callCount++;
+        return callCount == 1
+            ? Stream.fromIterable([
+                const RunStartedEvent(threadId: 'thread-1', runId: _runId),
+                const ToolCallStartEvent(
+                  toolCallId: 'tc-ext',
+                  toolCallName: 'ext_tool',
+                ),
+                const ToolCallArgsEvent(toolCallId: 'tc-ext', delta: '{}'),
+                const ToolCallEndEvent(toolCallId: 'tc-ext'),
+                const RunFinishedEvent(threadId: 'thread-1', runId: _runId),
+              ])
+            : Stream.fromIterable(_resumeTextEvents());
+      });
+
+      // Build session with extension tool merged into registry.
+      final baseRegistry = const ToolRegistry().register(tool);
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        toolRegistry: baseRegistry,
+        extensions: [ext],
+      );
+      addTearDown(session.dispose);
+
+      await session.start(userMessage: 'Run ext tool');
+      final result = await session.result;
+
+      expect(result, isA<AgentSuccess>());
+      expect(callCount, equals(2));
+    });
+
+    test('onDispose called on session dispose', () {
+      final ext = _TestExtension();
       createSession(
         api: api,
         agUiClient: agUiClient,
         logger: logger,
-        scriptEnvironment: env,
+        extensions: [ext],
       ).dispose();
 
-      expect(env.disposeCount, equals(1));
+      expect(ext.disposeCount, equals(1));
     });
 
-    test('null environment works (backward compat)', () {
-      // Should not throw
+    test('dispose order: children before extensions', () {
+      final parentExt = _TestExtension();
+      final childExt = _TestExtension();
       createSession(
         api: api,
         agUiClient: agUiClient,
         logger: logger,
-      ).dispose();
-    });
-
-    test('double dispose does not double-dispose environment', () {
-      final env = _TestScriptEnvironment();
-      createSession(
-        api: api,
-        agUiClient: agUiClient,
-        logger: logger,
-        scriptEnvironment: env,
-      )
-        ..dispose()
-        ..dispose();
-
-      // Session is idempotent, so env.dispose called once
-      expect(env.disposeCount, equals(1));
-    });
-
-    test('environment disposed after children', () async {
-      final env = _TestScriptEnvironment();
-      final childEnv = _TestScriptEnvironment();
-      createSession(
-        api: api,
-        agUiClient: agUiClient,
-        logger: logger,
-        scriptEnvironment: env,
+        extensions: [parentExt],
       )
         ..addChild(
           createSession(
             api: api,
             agUiClient: agUiClient,
             logger: logger,
-            scriptEnvironment: childEnv,
+            extensions: [childExt],
           ),
         )
         ..dispose();
 
-      // Both environments should be disposed
-      expect(childEnv.disposeCount, equals(1));
+      expect(childExt.disposeCount, equals(1));
+      expect(parentExt.disposeCount, equals(1));
+    });
+
+    test('getExtension returns matching extension', () {
+      final ext = _TestExtension();
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        extensions: [ext],
+      );
+      addTearDown(session.dispose);
+
+      expect(session.getExtension<_TestExtension>(), same(ext));
+    });
+
+    test('getExtension returns null for unregistered type', () {
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+      );
+      addTearDown(session.dispose);
+
+      expect(session.getExtension<_TestExtension>(), isNull);
+    });
+
+    test('empty extensions list works', () {
+      createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+      ).dispose();
+    });
+
+    test('double dispose does not double-dispose extensions', () {
+      final ext = _TestExtension();
+      createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        extensions: [ext],
+      )
+        ..dispose()
+        ..dispose();
+
+      expect(ext.disposeCount, equals(1));
+    });
+
+    test('ScriptEnvironmentExtension adapter lifecycle', () {
+      final env = _TestScriptEnvironment();
+      final ext = ScriptEnvironmentExtension(env);
+
+      expect(ext.tools, isEmpty);
+      ext.onDispose();
       expect(env.disposeCount, equals(1));
+    });
+  });
+
+  group('execution events', () {
+    test('emitEvent updates lastExecutionEvent signal', () {
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+      );
+      addTearDown(session.dispose);
+
+      expect(session.lastExecutionEvent.value, isNull);
+
+      const event = TextDelta(delta: 'hello');
+      session.emitEvent(event);
+
+      expect(session.lastExecutionEvent.value, equals(event));
+    });
+
+    test('executeSingle emits ClientToolExecuting then ClientToolCompleted',
+        () async {
+      final registry = _registryWith();
+      stubCreateRun();
+
+      final events = <ExecutionEvent>[];
+      var callCount = 0;
+      when(
+        () => agUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        callCount++;
+        return callCount == 1
+            ? Stream.fromIterable(_toolCallEvents())
+            : Stream.fromIterable(_resumeTextEvents());
+      });
+
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        toolRegistry: registry,
+      );
+      addTearDown(session.dispose);
+
+      // Collect execution events
+      session.lastExecutionEvent.subscribe((_) {
+        final val = session.lastExecutionEvent.value;
+        if (val != null) events.add(val);
+      });
+
+      await session.start(userMessage: 'Weather?');
+      await session.result;
+
+      final executing = events.whereType<ClientToolExecuting>().toList();
+      final completed = events.whereType<ClientToolCompleted>().toList();
+      expect(executing, hasLength(1));
+      expect(executing.first.toolName, equals('weather'));
+      expect(completed, hasLength(1));
+      expect(completed.first.status, equals(ToolCallStatus.completed));
+    });
+
+    test('executeSingle failure emits ClientToolCompleted(failed)', () async {
+      final registry = _registryWith(
+        executor: (_, __) async => throw Exception('oops'),
+      );
+      stubCreateRun();
+
+      final events = <ExecutionEvent>[];
+      var callCount = 0;
+      when(
+        () => agUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        callCount++;
+        return callCount == 1
+            ? Stream.fromIterable(_toolCallEvents())
+            : Stream.fromIterable(_resumeTextEvents());
+      });
+
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        toolRegistry: registry,
+      );
+      addTearDown(session.dispose);
+
+      session.lastExecutionEvent.subscribe((_) {
+        final val = session.lastExecutionEvent.value;
+        if (val != null) events.add(val);
+      });
+
+      await session.start(userMessage: 'Weather?');
+      await session.result;
+
+      final completed = events.whereType<ClientToolCompleted>().toList();
+      expect(completed, hasLength(1));
+      expect(completed.first.status, equals(ToolCallStatus.failed));
+    });
+
+    test('cancelToken delegates to orchestrator', () {
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+      );
+      addTearDown(session.dispose);
+
+      // cancelToken returns a fresh token when no run is active.
+      final token = session.cancelToken;
+      expect(token, isA<CancelToken>());
     });
   });
 }
