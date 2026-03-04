@@ -190,62 +190,68 @@ class ObservableHttpClient implements SoliplexHttpClient {
       body: body,
     );
 
-    // Transform stream to intercept data, errors, and completion
-    return sourceStream.transform(
-      StreamTransformer<List<int>, List<int>>.fromHandlers(
-        handleData: (data, sink) {
-          bytesReceived += data.length;
-          streamBuffer.add(data);
-          sink.add(data);
-        },
-        handleError: (error, stackTrace, sink) {
-          final endTime = DateTime.now();
-          final duration = endTime.difference(startTime);
+    // Use StreamController (not StreamTransformer) so that onCancel emits
+    // a successful HttpStreamEndEvent when the consumer cancels early
+    // (e.g. RunOrchestrator cancels after RunFinishedEvent).
+    late StreamController<List<int>> controller;
+    StreamSubscription<List<int>>? subscription;
+    var emittedEnd = false;
 
-          // Only notify with SoliplexException errors
-          final soliplexError = error is SoliplexException
+    void emitEnd({Object? error, StackTrace? stackTrace}) {
+      if (emittedEnd) return;
+      emittedEnd = true;
+      final endTime = DateTime.now();
+      final duration = endTime.difference(startTime);
+      final soliplexError = error == null
+          ? null
+          : (error is SoliplexException
               ? error
               : NetworkException(
                   message: error.toString(),
                   originalError: error,
                   stackTrace: stackTrace,
-                );
+                ));
+      _notifyObservers((observer) {
+        observer.onStreamEnd(
+          HttpStreamEndEvent(
+            requestId: requestId,
+            timestamp: endTime,
+            bytesReceived: bytesReceived,
+            duration: duration,
+            error: soliplexError,
+            body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
+          ),
+        );
+      });
+    }
 
-          _notifyObservers((observer) {
-            observer.onStreamEnd(
-              HttpStreamEndEvent(
-                requestId: requestId,
-                timestamp: endTime,
-                bytesReceived: bytesReceived,
-                duration: duration,
-                error: soliplexError,
-                body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
-              ),
-            );
-          });
-
-          sink.addError(error, stackTrace);
-        },
-        handleDone: (sink) {
-          final endTime = DateTime.now();
-          final duration = endTime.difference(startTime);
-
-          _notifyObservers((observer) {
-            observer.onStreamEnd(
-              HttpStreamEndEvent(
-                requestId: requestId,
-                timestamp: endTime,
-                bytesReceived: bytesReceived,
-                duration: duration,
-                body: HttpRedactor.redactSseContent(streamBuffer.content, uri),
-              ),
-            );
-          });
-
-          sink.close();
-        },
-      ),
+    controller = StreamController<List<int>>(
+      onListen: () {
+        subscription = sourceStream.listen(
+          (data) {
+            bytesReceived += data.length;
+            streamBuffer.add(data);
+            controller.add(data);
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            emitEnd(error: error, stackTrace: stackTrace);
+            controller.addError(error, stackTrace);
+          },
+          onDone: () {
+            emitEnd();
+            controller.close();
+          },
+        );
+      },
+      onPause: () => subscription?.pause(),
+      onResume: () => subscription?.resume(),
+      onCancel: () {
+        emitEnd();
+        return subscription?.cancel();
+      },
     );
+
+    return controller.stream;
   }
 
   @override

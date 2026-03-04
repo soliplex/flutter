@@ -51,16 +51,10 @@ Future<void> runCli(List<String> args) async {
     return;
   }
 
-  // Wrap entire session in a guarded zone so async SSE stream errors
-  // (e.g. "Connection closed while receiving data") don't crash the CLI.
   await runZonedGuarded(
     () => _runSession(parsed),
     (e, _) {
-      if (e.toString().contains('Connection closed')) {
-        stderr.writeln('[cleanup] SSE stream disconnect (ignored)');
-      } else {
-        stderr.writeln('[async error] $e');
-      }
+      stderr.writeln('[async error] $e');
     },
   );
 }

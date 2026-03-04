@@ -464,6 +464,91 @@ void main() {
 
         await controller.close();
       });
+
+      test('emits only one onStreamEnd when error and done both fire',
+          () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/stream'),
+        );
+
+        final completer = Completer<void>();
+
+        stream.listen(
+          (_) {},
+          onError: (_) {},
+          onDone: () {
+            if (!completer.isCompleted) completer.complete();
+          },
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        controller
+          ..add('data: hello\n\n'.codeUnits)
+          ..addError(const NetworkException(message: 'Connection closed'));
+        await controller.close();
+
+        await completer.future;
+
+        final endEvents = recorder.eventsOfType<HttpStreamEndEvent>();
+        expect(
+          endEvents,
+          hasLength(1),
+          reason: 'Should emit exactly one onStreamEnd, not two',
+        );
+      });
+
+      test('canceling stream emits successful onStreamEnd', () async {
+        final controller = StreamController<List<int>>();
+
+        when(
+          () => mockClient.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer((_) => controller.stream);
+
+        final stream = observableClient.requestStream(
+          'GET',
+          Uri.parse('https://example.com/stream'),
+        );
+
+        final subscription = stream.listen((_) {});
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        // Add some data first.
+        controller.add('data: hello\n\n'.codeUnits);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        // Consumer cancels (simulates RunOrchestrator._cleanup()).
+        await subscription.cancel();
+
+        final endEvents = recorder.eventsOfType<HttpStreamEndEvent>();
+        expect(endEvents, hasLength(1));
+        expect(
+          endEvents.first.isSuccess,
+          isTrue,
+          reason: 'Cancel should emit successful end, not error',
+        );
+        expect(endEvents.first.bytesReceived, greaterThan(0));
+
+        await controller.close();
+      });
     });
 
     group('multiple observers', () {

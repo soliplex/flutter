@@ -150,6 +150,40 @@ void main() {
       expect(completed.runId, equals(_runId));
     });
 
+    test('stream error after RunFinished does not change result', () async {
+      orchestrator = RunOrchestrator(
+        api: api,
+        agUiClient: agUiClient,
+        toolRegistry: const ToolRegistry(),
+        logger: logger,
+      );
+      stubCreateRun();
+
+      final controller = StreamController<BaseEvent>();
+      stubRunAgent(stream: controller.stream);
+
+      final resultFuture = orchestrator.runToCompletion(
+        key: _key,
+        userMessage: 'Hi',
+        toolExecutor: _defaultToolExecutor,
+      );
+
+      controller
+        ..add(const RunStartedEvent(threadId: 'thread-1', runId: _runId))
+        ..add(const TextMessageStartEvent(messageId: 'msg-1'))
+        ..add(
+          const TextMessageContentEvent(messageId: 'msg-1', delta: 'Done'),
+        )
+        ..add(const TextMessageEndEvent(messageId: 'msg-1'))
+        ..add(const RunFinishedEvent(threadId: 'thread-1', runId: _runId))
+        // TCP close error arrives after terminal event.
+        ..addError(const NetworkException(message: 'Connection closed'));
+      await controller.close();
+
+      final result = await resultFuture;
+      expect(result, isA<CompletedState>());
+    });
+
     test('tool yield: SSE → ToolYielding → resume → Completed', () async {
       orchestrator = RunOrchestrator(
         api: api,

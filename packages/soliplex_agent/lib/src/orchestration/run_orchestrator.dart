@@ -618,8 +618,7 @@ class RunOrchestrator {
 
   void _handleRunFinished(RunningState previous, Conversation conversation) {
     _receivedTerminalEvent = true;
-    // Don't cancel the subscription — let the SSE stream drain naturally.
-    _cancelToken = null;
+    _cleanup();
     final pendingTools = _extractPendingTools(conversation);
     if (pendingTools.isNotEmpty) {
       _setState(

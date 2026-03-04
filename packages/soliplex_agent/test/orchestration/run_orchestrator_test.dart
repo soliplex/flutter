@@ -266,6 +266,39 @@ void main() {
       final failed = orchestrator.currentState as FailedState;
       expect(failed.reason, equals(FailureReason.authExpired));
     });
+
+    test(
+      'stream error after RunFinishedEvent does not change CompletedState',
+      () async {
+        stubCreateRun();
+        final controller = StreamController<BaseEvent>();
+        stubRunAgent(stream: controller.stream);
+
+        await orchestrator.startRun(key: _key, userMessage: 'Hi');
+
+        controller
+          ..add(const RunStartedEvent(threadId: 'thread-1', runId: _runId))
+          ..add(const TextMessageStartEvent(messageId: 'msg-1'))
+          ..add(
+            const TextMessageContentEvent(messageId: 'msg-1', delta: 'Hi'),
+          )
+          ..add(const TextMessageEndEvent(messageId: 'msg-1'))
+          ..add(const RunFinishedEvent(threadId: 'thread-1', runId: _runId));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(orchestrator.currentState, isA<CompletedState>());
+
+        // Simulate server TCP close — should NOT cause FailedState.
+        controller.addError(
+          const NetworkException(message: 'Connection closed'),
+        );
+        await Future<void>.delayed(Duration.zero);
+
+        expect(orchestrator.currentState, isA<CompletedState>());
+
+        await controller.close();
+      },
+    );
   });
 
   group('cancel', () {
