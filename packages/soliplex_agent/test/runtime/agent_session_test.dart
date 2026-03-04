@@ -848,6 +848,50 @@ void main() {
       expect(completed.first.status, equals(ToolCallStatus.failed));
     });
 
+    test('tool timeout emits failed with timeout message (R2)', () async {
+      final registry = _registryWith(
+        executor: (_, __) async =>
+            throw TimeoutException('timed out', const Duration(seconds: 60)),
+      );
+      stubCreateRun();
+
+      final events = <ExecutionEvent>[];
+      var callCount = 0;
+      when(
+        () => agUiClient.runAgent(
+          any(),
+          any(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).thenAnswer((_) {
+        callCount++;
+        return callCount == 1
+            ? Stream.fromIterable(_toolCallEvents())
+            : Stream.fromIterable(_resumeTextEvents());
+      });
+
+      final session = createSession(
+        api: api,
+        agUiClient: agUiClient,
+        logger: logger,
+        toolRegistry: registry,
+      );
+      addTearDown(session.dispose);
+
+      session.lastExecutionEvent.subscribe((_) {
+        final val = session.lastExecutionEvent.value;
+        if (val != null) events.add(val);
+      });
+
+      await session.start(userMessage: 'Weather?');
+      await session.result;
+
+      final completed = events.whereType<ClientToolCompleted>().toList();
+      expect(completed, hasLength(1));
+      expect(completed.first.status, equals(ToolCallStatus.failed));
+      expect(completed.first.result, contains('timed out after'));
+    });
+
     test('cancelToken delegates to orchestrator', () {
       final session = createSession(
         api: api,
