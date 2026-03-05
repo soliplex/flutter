@@ -119,15 +119,19 @@ void main() {
   late MockLogger logger;
   late AgentRuntime runtime;
 
-  ClientBundle mockBundle() =>
-      (api: api, agUiClient: agUiClient, close: () async {});
+  ServerConnection mockConnection({String serverId = 'default'}) =>
+      ServerConnection(
+        serverId: serverId,
+        api: api,
+        agUiClient: agUiClient,
+      );
 
   AgentRuntime createRuntime({
     PlatformConstraints? platform,
     ToolRegistryResolver? resolver,
   }) {
     return AgentRuntime(
-      bundle: mockBundle(),
+      connection: mockConnection(),
       toolRegistryResolver: resolver ?? (_) async => const ToolRegistry(),
       platform: platform ?? const NativePlatformConstraints(),
       logger: logger,
@@ -516,7 +520,7 @@ void main() {
   group('spawn cleanup on start failure', () {
     test('cleans up session when extension onAttach throws', () async {
       runtime = AgentRuntime(
-        bundle: mockBundle(),
+        connection: mockConnection(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -544,7 +548,7 @@ void main() {
 
     test('concurrency count resets after start failure', () async {
       runtime = AgentRuntime(
-        bundle: mockBundle(),
+        connection: mockConnection(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(maxConcurrentBridges: 1),
         logger: logger,
@@ -620,7 +624,7 @@ void main() {
       );
 
       runtime = AgentRuntime(
-        bundle: mockBundle(),
+        connection: mockConnection(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -683,7 +687,7 @@ void main() {
 
     test('factory error propagates from spawn', () async {
       runtime = AgentRuntime(
-        bundle: mockBundle(),
+        connection: mockConnection(),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -704,16 +708,10 @@ void main() {
       );
     });
 
-    test('fromConnection threads factory through', () async {
-      final connection = ServerConnection(
-        serverId: 'prod',
-        api: api,
-        agUiClient: agUiClient,
-      );
-
+    test('constructor threads factory through', () async {
       var factoryCalled = false;
-      runtime = AgentRuntime.fromConnection(
-        connection: connection,
+      runtime = AgentRuntime(
+        connection: mockConnection(serverId: 'prod'),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -741,11 +739,10 @@ void main() {
 
     test('custom serverId appears in ThreadKey', () async {
       runtime = AgentRuntime(
-        bundle: mockBundle(),
+        connection: mockConnection(serverId: 'staging.soliplex.io'),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
-        serverId: 'staging.soliplex.io',
       );
 
       stubCreateThread();
@@ -760,16 +757,10 @@ void main() {
     });
   });
 
-  group('fromConnection', () {
+  group('ServerConnection constructor', () {
     test('produces runtime with correct serverId', () {
-      final connection = ServerConnection(
-        serverId: 'prod',
-        api: api,
-        agUiClient: agUiClient,
-      );
-
-      runtime = AgentRuntime.fromConnection(
-        connection: connection,
+      runtime = AgentRuntime(
+        connection: mockConnection(serverId: 'prod'),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -779,14 +770,8 @@ void main() {
     });
 
     test('spawn creates session with matching ThreadKey.serverId', () async {
-      final connection = ServerConnection(
-        serverId: 'prod',
-        api: api,
-        agUiClient: agUiClient,
-      );
-
-      runtime = AgentRuntime.fromConnection(
-        connection: connection,
+      runtime = AgentRuntime(
+        connection: mockConnection(serverId: 'prod'),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -824,7 +809,7 @@ void main() {
         ..add(prodConn)
         ..add(stagingConn);
 
-      runtime = AgentRuntime.fromConnection(
+      runtime = AgentRuntime(
         connection: reg.require('prod'),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),

@@ -99,10 +99,10 @@ class DebateNotifier extends Notifier<DebateState> {
     var agentCounter = 0;
 
     final runtime = AgentRuntime(
-      bundle: (
+      connection: ServerConnection(
+        serverId: 'debate',
         api: ref.read(apiProvider),
         agUiClient: ref.read(agUiClientProvider),
-        close: () async {},
       ),
       toolRegistryResolver: (roomId) async {
         final base = ref.read(toolRegistryProvider);

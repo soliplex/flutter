@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:soliplex_agent/soliplex_agent.dart'
-    show AgentRuntime, FormApi, RuntimeAgentApi;
+    show AgentRuntime, FormApi, RuntimeAgentApi, ServerConnection;
 import 'package:soliplex_client/soliplex_client.dart' show ToolCallInfo;
 import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_frontend/core/providers/api_provider.dart';
@@ -88,10 +88,10 @@ class _MontyShowcaseScreenState extends ConsumerState<MontyShowcaseScreen> {
 
     // Create AgentRuntime for ask_llm support.
     final runtime = AgentRuntime(
-      bundle: (
+      connection: ServerConnection(
+        serverId: 'monty-showcase',
         api: ref.read(apiProvider),
         agUiClient: ref.read(agUiClientProvider),
-        close: () async {},
       ),
       toolRegistryResolver: (roomId) async => ref.read(toolRegistryProvider),
       platform: ref.read(platformConstraintsProvider),

@@ -45,7 +45,7 @@ class MultiServerRuntime {
     _guardNotDisposed();
     return _runtimes.putIfAbsent(serverId, () {
       final connection = _registry.require(serverId);
-      return AgentRuntime.fromConnection(
+      return AgentRuntime(
         connection: connection,
         toolRegistryResolver: _toolRegistryResolver,
         extensionFactory: _extensionFactory,

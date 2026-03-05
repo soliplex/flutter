@@ -1,16 +1,14 @@
-import 'package:soliplex_agent/soliplex_agent.dart' show ClientBundle;
+import 'package:soliplex_agent/soliplex_agent.dart' show ServerConnection;
 import 'package:soliplex_cli/src/debug_observer.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 
-// Re-export the canonical bundle for non-verbose callers.
-export 'package:soliplex_agent/soliplex_agent.dart'
-    show ClientBundle, createClientBundle;
+export 'package:soliplex_agent/soliplex_agent.dart' show ServerConnection;
 
-/// Creates a [ClientBundle] with verbose HTTP logging.
+/// Creates a [ServerConnection] with verbose HTTP logging.
 ///
 /// Both API and SSE clients are wrapped with [ObservableHttpClient] so
 /// every request/response/stream event is printed to stderr.
-ClientBundle createVerboseBundle(String serverUrl) {
+ServerConnection createVerboseConnection(String serverUrl) {
   final baseUrl = '$serverUrl/api/v1';
   final observer = DebugHttpObserver();
 
@@ -32,12 +30,11 @@ ClientBundle createVerboseBundle(String serverUrl) {
     httpClient: HttpClientAdapter(client: sseHttpClient),
   );
 
-  return (
+  return ServerConnection(
+    serverId: 'default',
     api: api,
     agUiClient: agUiClient,
-    close: () async {
-      await agUiClient.close();
-      api.close();
+    onClose: () async {
       apiHttpClient.close();
       sseHttpClient.close();
     },

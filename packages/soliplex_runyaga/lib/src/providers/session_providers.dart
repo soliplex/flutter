@@ -21,7 +21,7 @@ final _secretCodeTool = ClientTool.simple(
 /// Shared [AgentRuntime] — one per server connection lifetime.
 final runtimeProvider = Provider<AgentRuntime>((ref) {
   final connection = ref.watch(connectionProvider);
-  final runtime = AgentRuntime.fromConnection(
+  final runtime = AgentRuntime(
     connection: connection,
     toolRegistryResolver: (_) async =>
         const ToolRegistry().register(_secretCodeTool),

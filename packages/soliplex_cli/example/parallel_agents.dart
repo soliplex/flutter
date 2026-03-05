@@ -15,7 +15,9 @@ import 'package:soliplex_cli/soliplex_cli.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 Future<void> main() async {
-  final bundle = createClientBundle('http://localhost:8000');
+  final connection = ServerConnection.fromUrl(
+    serverUrl: 'http://localhost:8000',
+  );
   final logManager = LogManager.instance
     ..minimumLevel = LogLevel.info
     ..addSink(StdoutSink(useColors: true));
@@ -23,7 +25,7 @@ Future<void> main() async {
 
   final toolRegistry = buildDemoToolRegistry();
   final runtime = AgentRuntime(
-    bundle: bundle,
+    connection: connection,
     toolRegistryResolver: (_) async => toolRegistry,
     platform: const NativePlatformConstraints(),
     logger: logger,
@@ -48,6 +50,6 @@ Future<void> main() async {
     }
   } finally {
     await runtime.dispose();
-    await bundle.close();
+    await connection.close();
   }
 }

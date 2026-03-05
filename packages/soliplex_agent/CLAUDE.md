@@ -19,9 +19,8 @@ lib/src/
   host/           # Platform callbacks (HostApi, PlatformConstraints)
   models/         # AgentResult, FailureReason, ThreadKey
   orchestration/  # RunOrchestrator, RunState, ErrorClassifier
-  runtime/        # AgentRuntime, AgentSession
+  runtime/        # AgentRuntime, AgentSession, ServerConnection, ServerRegistry
   tools/          # ToolRegistry, ToolRegistryResolver
-  client_bundle.dart
 ```
 
 ## Architecture

@@ -42,9 +42,6 @@ export 'package:soliplex_client/soliplex_client.dart'
         defaultHttpTimeout,
         fetchAuthProviders;
 
-// ── Client Wiring ──
-export 'src/client_bundle.dart';
-
 // ── Host API ──
 export 'src/host/agent_api.dart';
 export 'src/host/fake_agent_api.dart';

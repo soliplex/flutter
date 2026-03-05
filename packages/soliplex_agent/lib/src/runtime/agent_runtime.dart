@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:signals_core/signals_core.dart';
-import 'package:soliplex_agent/src/client_bundle.dart';
 import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
@@ -22,7 +21,7 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 ///
 /// ```dart
 /// final runtime = AgentRuntime(
-///   bundle: bundle,
+///   connection: connection,
 ///   toolRegistryResolver: resolver,
 ///   platform: NativePlatformConstraints(),
 ///   logger: logger,
@@ -35,52 +34,16 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// final result = await session.result;
 /// ```
 class AgentRuntime {
-  /// Creates a runtime from a pre-wired [ClientBundle].
+  /// Creates a runtime bound to a single [ServerConnection].
   AgentRuntime({
-    required ClientBundle bundle,
-    required ToolRegistryResolver toolRegistryResolver,
-    required PlatformConstraints platform,
-    required Logger logger,
-    SessionExtensionFactory? extensionFactory,
-    String serverId = 'default',
-  }) : this._(
-          api: bundle.api,
-          agUiClient: bundle.agUiClient,
-          toolRegistryResolver: toolRegistryResolver,
-          extensionFactory: extensionFactory,
-          platform: platform,
-          logger: logger,
-          serverId: serverId,
-        );
-
-  /// Creates a runtime from a [ServerConnection], extracting the API
-  /// clients and server identity.
-  AgentRuntime.fromConnection({
     required ServerConnection connection,
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
     SessionExtensionFactory? extensionFactory,
-  }) : this._(
-          api: connection.api,
-          agUiClient: connection.agUiClient,
-          toolRegistryResolver: toolRegistryResolver,
-          extensionFactory: extensionFactory,
-          platform: platform,
-          logger: logger,
-          serverId: connection.serverId,
-        );
-
-  AgentRuntime._({
-    required SoliplexApi api,
-    required AgUiClient agUiClient,
-    required ToolRegistryResolver toolRegistryResolver,
-    required PlatformConstraints platform,
-    required Logger logger,
-    required this.serverId,
-    SessionExtensionFactory? extensionFactory,
-  })  : _api = api,
-        _agUiClient = agUiClient,
+  })  : serverId = connection.serverId,
+        _api = connection.api,
+        _agUiClient = connection.agUiClient,
         _toolRegistryResolver = toolRegistryResolver,
         _extensionFactory = extensionFactory,
         _platform = platform,

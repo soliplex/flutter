@@ -30,24 +30,24 @@ Future<void> launchTui({
 
   Loggers.app.info('Starting TUI, server=$serverUrl, logFile=$logFile');
 
-  final stack = createClientBundle(serverUrl);
+  final connection = ServerConnection.fromUrl(serverUrl: serverUrl);
 
   try {
     // Resolve room.
-    final resolvedRoomId = await _resolveRoom(stack.api, roomId);
+    final resolvedRoomId = await _resolveRoom(connection.api, roomId);
     Loggers.app.info('Resolved room: $resolvedRoomId');
 
     // Resolve thread (use provided or create new).
     final resolvedThreadId = await _resolveThread(
-      stack.api,
+      connection.api,
       resolvedRoomId,
       threadId,
     );
     Loggers.app.info('Resolved thread: $resolvedThreadId');
 
     final orchestrator = RunOrchestrator(
-      api: stack.api,
-      agUiClient: stack.agUiClient,
+      api: connection.api,
+      agUiClient: connection.agUiClient,
       toolRegistry: const ToolRegistry(),
       logger: Loggers.agui,
     );
@@ -77,7 +77,7 @@ Future<void> launchTui({
   } finally {
     await LogManager.instance.flush();
     await LogManager.instance.close();
-    await stack.close();
+    await connection.close();
   }
 }
 
@@ -103,19 +103,15 @@ Future<void> runHeadless({
     'Starting headless mode, server=$serverUrl, logFile=$logFile',
   );
 
-  final stack = createClientBundle(serverUrl);
+  final connection = ServerConnection.fromUrl(serverUrl: serverUrl);
   AgentRuntime? runtime;
 
   try {
-    final resolvedRoomId = roomId ?? (await _resolveRoom(stack.api, null));
+    final resolvedRoomId = roomId ?? (await _resolveRoom(connection.api, null));
     Loggers.app.info('Using room: $resolvedRoomId');
 
     runtime = AgentRuntime(
-      bundle: (
-        api: stack.api,
-        agUiClient: stack.agUiClient,
-        close: () async {},
-      ),
+      connection: connection,
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: const NativePlatformConstraints(),
       logger: Loggers.agui,
@@ -153,7 +149,7 @@ Future<void> runHeadless({
     await runtime?.dispose();
     await LogManager.instance.flush();
     await LogManager.instance.close();
-    await stack.close();
+    await connection.close();
   }
 }
 
@@ -161,14 +157,14 @@ Future<void> runHeadless({
 Future<void> listRooms({
   required String serverUrl,
 }) async {
-  final stack = createClientBundle(serverUrl);
+  final connection = ServerConnection.fromUrl(serverUrl: serverUrl);
   try {
-    final rooms = await stack.api.getRooms();
+    final rooms = await connection.api.getRooms();
     for (final room in rooms) {
       stdout.writeln('${room.id}\t${room.name}');
     }
   } finally {
-    await stack.close();
+    await connection.close();
   }
 }
 

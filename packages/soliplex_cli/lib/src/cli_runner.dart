@@ -64,7 +64,9 @@ Future<void> _runSession(ArgResults parsed) async {
   final room = parsed.option('room')!;
   final verbose = parsed.flag('verbose');
 
-  final bundle = verbose ? createVerboseBundle(host) : createClientBundle(host);
+  final connection = verbose
+      ? createVerboseConnection(host)
+      : ServerConnection.fromUrl(serverUrl: host);
   final logManager = LogManager.instance
     ..minimumLevel = LogLevel.debug
     ..addSink(StdoutSink(useColors: true));
@@ -89,7 +91,7 @@ Future<void> _runSession(ArgResults parsed) async {
       ? const ToolRegistry()
       : buildDemoToolRegistry(enabledTools: enabledTools);
   final runtime = AgentRuntime(
-    bundle: bundle,
+    connection: connection,
     toolRegistryResolver: (_) async => toolRegistry,
     platform: const NativePlatformConstraints(),
     logger: logger,
@@ -97,7 +99,7 @@ Future<void> _runSession(ArgResults parsed) async {
 
   final ctx = _CliContext(
     runtime: runtime,
-    api: bundle.api,
+    api: connection.api,
     defaultRoom: room,
     verbose: verbose,
   );
@@ -127,7 +129,7 @@ Future<void> _runSession(ArgResults parsed) async {
   await _readLoop(ctx);
 
   await runtime.dispose();
-  await bundle.close();
+  await connection.close();
 }
 
 class _CliContext {

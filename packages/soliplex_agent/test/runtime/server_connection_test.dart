@@ -6,7 +6,10 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiClient extends Mock implements AgUiClient {
+  @override
+  Future<void> close() async {}
+}
 
 class MockSoliplexHttpClient extends Mock implements SoliplexHttpClient {}
 
@@ -32,7 +35,7 @@ void main() {
       expect(conn.agUiClient, same(agUiClient));
     });
 
-    test('equality by serverId only', () {
+    test('uses identity equality (not serverId)', () {
       final conn1 = ServerConnection(
         serverId: 'prod',
         api: api,
@@ -42,39 +45,10 @@ void main() {
         serverId: 'prod',
         api: MockSoliplexApi(),
         agUiClient: MockAgUiClient(),
-      );
-
-      expect(conn1, equals(conn2));
-    });
-
-    test('inequality on different serverId', () {
-      final conn1 = ServerConnection(
-        serverId: 'prod',
-        api: api,
-        agUiClient: agUiClient,
-      );
-      final conn2 = ServerConnection(
-        serverId: 'staging',
-        api: api,
-        agUiClient: agUiClient,
       );
 
       expect(conn1, isNot(equals(conn2)));
-    });
-
-    test('hashCode consistent with equality', () {
-      final conn1 = ServerConnection(
-        serverId: 'prod',
-        api: api,
-        agUiClient: agUiClient,
-      );
-      final conn2 = ServerConnection(
-        serverId: 'prod',
-        api: MockSoliplexApi(),
-        agUiClient: MockAgUiClient(),
-      );
-
-      expect(conn1.hashCode, equals(conn2.hashCode));
+      expect(conn1, equals(conn1));
     });
 
     test('toString contains serverId', () {
@@ -85,6 +59,66 @@ void main() {
       );
 
       expect(conn.toString(), contains('prod'));
+    });
+
+    group('close()', () {
+      test('invokes onClose callback', () async {
+        var callbackInvoked = false;
+
+        final conn = ServerConnection(
+          serverId: 'test',
+          api: api,
+          agUiClient: agUiClient,
+          onClose: () async {
+            callbackInvoked = true;
+          },
+        );
+
+        await conn.close();
+
+        expect(callbackInvoked, isTrue);
+      });
+
+      test('works without onClose', () async {
+        final conn = ServerConnection(
+          serverId: 'test',
+          api: api,
+          agUiClient: agUiClient,
+        );
+
+        // Should not throw.
+        await conn.close();
+      });
+    });
+
+    group('.fromUrl()', () {
+      test('wires SoliplexApi and AgUiClient from server URL', () {
+        final conn = ServerConnection.fromUrl(
+          serverUrl: 'http://localhost:8000',
+        );
+
+        expect(conn.serverId, 'default');
+        expect(conn.api, isA<SoliplexApi>());
+        expect(conn.agUiClient, isA<AgUiClient>());
+      });
+
+      test('accepts custom serverId', () {
+        final conn = ServerConnection.fromUrl(
+          serverUrl: 'http://localhost:8000',
+          serverId: 'custom',
+        );
+
+        expect(conn.serverId, 'custom');
+      });
+
+      test('asserts on URL with /api/v1 suffix', () {
+        expect(
+          () => ServerConnection.fromUrl(
+            serverUrl: 'http://localhost:8000/api/v1',
+          ),
+          throwsA(isA<AssertionError>()),
+        );
+      });
     });
 
     group('.create()', () {
@@ -113,21 +147,21 @@ void main() {
         );
       });
 
-      test('equality still based on serverId', () {
-        final http1 = MockSoliplexHttpClient();
-        final http2 = MockSoliplexHttpClient();
-        final conn1 = ServerConnection.create(
-          serverId: 'same',
-          serverUrl: 'http://a.com',
-          httpClient: http1,
-        );
-        final conn2 = ServerConnection.create(
-          serverId: 'same',
-          serverUrl: 'http://b.com',
-          httpClient: http2,
+      test('passes onClose through', () async {
+        final httpClient = MockSoliplexHttpClient();
+        var callbackInvoked = false;
+        final conn = ServerConnection.create(
+          serverId: 'test',
+          serverUrl: 'http://localhost:8000',
+          httpClient: httpClient,
+          onClose: () async {
+            callbackInvoked = true;
+          },
         );
 
-        expect(conn1, equals(conn2));
+        await conn.close();
+
+        expect(callbackInvoked, isTrue);
       });
     });
   });

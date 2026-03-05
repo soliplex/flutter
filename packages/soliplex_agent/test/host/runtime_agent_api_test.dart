@@ -57,7 +57,11 @@ void main() {
     agUiClient = MockAgUiClient();
     logger = MockLogger();
     runtime = AgentRuntime(
-      bundle: (api: api, agUiClient: agUiClient, close: () async {}),
+      connection: ServerConnection(
+        serverId: 'default',
+        api: api,
+        agUiClient: agUiClient,
+      ),
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: const NativePlatformConstraints(),
       logger: logger,

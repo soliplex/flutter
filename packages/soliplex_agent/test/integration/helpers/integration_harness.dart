@@ -86,7 +86,11 @@ class IntegrationHarness {
     PlatformConstraints platform = const NativePlatformConstraints(),
   }) {
     return AgentRuntime(
-      bundle: (api: api, agUiClient: agUiClient, close: () async {}),
+      connection: ServerConnection(
+        serverId: 'default',
+        api: api,
+        agUiClient: agUiClient,
+      ),
       toolRegistryResolver:
           toolRegistryResolver ?? (_) async => const ToolRegistry(),
       platform: platform,

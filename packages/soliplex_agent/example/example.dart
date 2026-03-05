@@ -18,12 +18,14 @@ Future<void> main() async {
     ..addSink(StdoutSink(useColors: true));
   final logger = logManager.getLogger('example');
 
-  // Build clients from server URL — createClientBundle handles /api/v1.
-  final bundle = createClientBundle('http://localhost:8000');
+  // Build connection from server URL — fromUrl handles /api/v1.
+  final connection = ServerConnection.fromUrl(
+    serverUrl: 'http://localhost:8000',
+  );
 
   // Create the agent runtime.
   final runtime = AgentRuntime(
-    bundle: bundle,
+    connection: connection,
     toolRegistryResolver: (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),
     logger: logger,
@@ -51,6 +53,6 @@ Future<void> main() async {
     }
   } finally {
     await runtime.dispose();
-    await bundle.close();
+    await connection.close();
   }
 }

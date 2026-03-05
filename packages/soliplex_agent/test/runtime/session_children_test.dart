@@ -57,7 +57,11 @@ void main() {
 
   AgentRuntime createRuntime({PlatformConstraints? platform}) {
     return AgentRuntime(
-      bundle: (api: api, agUiClient: agUiClient, close: () async {}),
+      connection: ServerConnection(
+        serverId: 'default',
+        api: api,
+        agUiClient: agUiClient,
+      ),
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: platform ?? const NativePlatformConstraints(),
       logger: logger,

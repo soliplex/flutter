@@ -4,48 +4,52 @@ import 'package:soliplex_client/soliplex_client.dart'
 import 'package:test/test.dart';
 
 void main() {
-  group('createClientBundle', () {
+  group('ServerConnection.fromUrl', () {
     test('returns non-null api and agUiClient', () async {
-      final bundle = createClientBundle('http://localhost:8000');
+      final conn = ServerConnection.fromUrl(
+        serverUrl: 'http://localhost:8000',
+      );
 
-      expect(bundle.api, isA<SoliplexApi>());
-      expect(bundle.agUiClient, isA<AgUiClient>());
+      expect(conn.api, isA<SoliplexApi>());
+      expect(conn.agUiClient, isA<AgUiClient>());
 
-      await bundle.close();
+      await conn.close();
     });
 
     test('close can be called multiple times', () async {
-      final bundle = createClientBundle('http://localhost:8000');
+      final conn = ServerConnection.fromUrl(
+        serverUrl: 'http://localhost:8000',
+      );
 
-      await bundle.close();
-      // Second call should not throw.
-      await bundle.close();
+      await conn.close();
+      await conn.close();
     });
 
     test('rejects serverUrl with /api/v1 suffix', () {
       expect(
-        () => createClientBundle('http://localhost:8000/api/v1'),
+        () => ServerConnection.fromUrl(
+          serverUrl: 'http://localhost:8000/api/v1',
+        ),
         throwsA(isA<AssertionError>()),
       );
     });
   });
 
-  group('createVerboseBundle', () {
+  group('createVerboseConnection', () {
     test('returns non-null api and agUiClient', () async {
-      final bundle = createVerboseBundle('http://localhost:8000');
+      final conn = createVerboseConnection('http://localhost:8000');
 
-      expect(bundle.api, isA<SoliplexApi>());
-      expect(bundle.agUiClient, isA<AgUiClient>());
+      expect(conn.api, isA<SoliplexApi>());
+      expect(conn.agUiClient, isA<AgUiClient>());
 
-      await bundle.close();
+      await conn.close();
     });
 
     test('close can be called multiple times', () async {
-      final bundle = createVerboseBundle('http://localhost:8000');
+      final conn = createVerboseConnection('http://localhost:8000');
 
-      await bundle.close();
-      // Second call should not throw.
-      await bundle.close();
+      await conn.close();
+      await conn.close();
     });
   });
 }
