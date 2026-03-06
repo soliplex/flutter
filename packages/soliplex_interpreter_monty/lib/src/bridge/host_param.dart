@@ -34,10 +34,7 @@ class HostParam {
   Object? validate(Object? value) {
     if (value == null) {
       if (isRequired) {
-        throw FormatException(
-          'Required parameter "$name" is null',
-          value,
-        );
+        throw FormatException('Required parameter "$name" is null', value);
       }
 
       return defaultValue;

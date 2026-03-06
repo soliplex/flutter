@@ -50,9 +50,7 @@ void main() {
           );
 
         final events = await bridge
-            .execute(
-              't = get_current_time()\nprint(f"The time is {t}")',
-            )
+            .execute('t = get_current_time()\nprint(f"The time is {t}")')
             .toList();
 
         // Tool call sequence
@@ -93,9 +91,7 @@ void main() {
               schema: const HostFunctionSchema(
                 name: 'get_temperature',
                 description: 'Get temperature for a city.',
-                params: [
-                  HostParam(name: 'city', type: HostParamType.string),
-                ],
+                params: [HostParam(name: 'city', type: HostParamType.string)],
               ),
               handler: (args) async => 72,
             ),
@@ -183,10 +179,7 @@ void main() {
               name: 'get_exchange_rate',
               description: 'Get exchange rate between currencies.',
               params: [
-                HostParam(
-                  name: 'from_currency',
-                  type: HostParamType.string,
-                ),
+                HostParam(name: 'from_currency', type: HostParamType.string),
                 HostParam(name: 'to_currency', type: HostParamType.string),
               ],
             ),
@@ -350,10 +343,7 @@ void main() {
 
         // Bridge should have called resumeWithError
         expect(mock.resumeErrorMessages, hasLength(1));
-        expect(
-          mock.resumeErrorMessages.first,
-          contains('service unavailable'),
-        );
+        expect(mock.resumeErrorMessages.first, contains('service unavailable'));
 
         // Execution still completes (Python sees the error)
         expect(events.last, isA<BridgeRunFinished>());
@@ -377,9 +367,7 @@ void main() {
             schema: const HostFunctionSchema(
               name: 'search',
               description: 'Search for information.',
-              params: [
-                HostParam(name: 'query', type: HostParamType.string),
-              ],
+              params: [HostParam(name: 'query', type: HostParamType.string)],
             ),
             handler: (args) async => 'result',
           ),
@@ -459,10 +447,7 @@ void main() {
 
         // Bridge called resumeWithError for the unknown function
         expect(mock.resumeErrorMessages, hasLength(1));
-        expect(
-          mock.resumeErrorMessages.first,
-          contains('Unknown function'),
-        );
+        expect(mock.resumeErrorMessages.first, contains('Unknown function'));
 
         // No tool call events emitted for unknown function
         expect(events.whereType<BridgeToolCallStart>(), isEmpty);

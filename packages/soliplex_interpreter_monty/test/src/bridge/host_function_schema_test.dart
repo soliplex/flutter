@@ -78,10 +78,7 @@ void main() {
         callId: 1,
       );
 
-      expect(
-        () => schema.mapAndValidate(pending),
-        throwsFormatException,
-      );
+      expect(() => schema.mapAndValidate(pending), throwsFormatException);
     });
 
     test('throws on type mismatch', () {
@@ -91,10 +88,7 @@ void main() {
         callId: 1,
       );
 
-      expect(
-        () => schema.mapAndValidate(pending),
-        throwsFormatException,
-      );
+      expect(() => schema.mapAndValidate(pending), throwsFormatException);
     });
   });
 

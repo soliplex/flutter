@@ -96,11 +96,7 @@ List<ToolNameMapping> roomToolDefsToMappings(
     if (schema == null) continue;
 
     mappings.add(
-      ToolNameMapping(
-        pythonName: kind,
-        registryName: toolName,
-        schema: schema,
-      ),
+      ToolNameMapping(pythonName: kind, registryName: toolName, schema: schema),
     );
   }
 

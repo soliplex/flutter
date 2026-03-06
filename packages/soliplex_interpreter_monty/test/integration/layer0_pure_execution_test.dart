@@ -7,25 +7,25 @@ import 'room_fixture.dart';
 void main() {
   group('Layer 0 — Pure Python Execution', () {
     group('Room: calculator', () {
-      test('executes arithmetic and returns RunStarted → RunFinished',
-          () async {
-        const room = RoomFixture(
-          name: 'calculator',
-          layer: 0,
-          functions: [],
-          progressQueue: [
-            MontyComplete(
-              result: MontyResult(value: 5050, usage: stubUsage),
-            ),
-          ],
-          pythonCode: 'result = sum(range(1, 101))',
-          expectedEventTypes: [BridgeRunStarted, BridgeRunFinished],
-        );
+      test(
+        'executes arithmetic and returns RunStarted → RunFinished',
+        () async {
+          const room = RoomFixture(
+            name: 'calculator',
+            layer: 0,
+            functions: [],
+            progressQueue: [
+              MontyComplete(result: MontyResult(value: 5050, usage: stubUsage)),
+            ],
+            pythonCode: 'result = sum(range(1, 101))',
+            expectedEventTypes: [BridgeRunStarted, BridgeRunFinished],
+          );
 
-        final events = await runRoom(room);
+          final events = await runRoom(room);
 
-        assertEventSequence(events, room.expectedEventTypes);
-      });
+          assertEventSequence(events, room.expectedEventTypes);
+        },
+      );
 
       test('produces no text message events (no print)', () async {
         const room = RoomFixture(
@@ -33,9 +33,7 @@ void main() {
           layer: 0,
           functions: [],
           progressQueue: [
-            MontyComplete(
-              result: MontyResult(value: 5050, usage: stubUsage),
-            ),
+            MontyComplete(result: MontyResult(value: 5050, usage: stubUsage)),
           ],
           pythonCode: 'result = sum(range(1, 101))',
           expectedEventTypes: [BridgeRunStarted, BridgeRunFinished],
@@ -59,9 +57,7 @@ void main() {
               functionName: '__console_write__',
               arguments: ['Total: \$45.36\n'],
             ),
-            MontyComplete(
-              result: MontyResult(usage: stubUsage),
-            ),
+            MontyComplete(result: MontyResult(usage: stubUsage)),
           ],
           pythonCode: r'print(f"Total: ${42 * 1.08:.2f}")',
           expectedEventTypes: [

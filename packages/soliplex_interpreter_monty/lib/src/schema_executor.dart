@@ -50,10 +50,7 @@ class SchemaExecutor {
 
     final code = 'raw = __input__\n$schemaCode\nvalidate_$schemaName(raw)';
 
-    final result = await _platform.run(
-      code,
-      inputs: {'__input__': rawJson},
-    );
+    final result = await _platform.run(code, inputs: {'__input__': rawJson});
 
     if (result.isError) {
       throw result.error!;

@@ -336,9 +336,7 @@ class DefaultMontyBridge implements MontyBridge {
     final messageId = _nextId;
     controller
       ..add(BridgeTextStart(messageId: messageId))
-      ..add(
-        BridgeTextContent(messageId: messageId, delta: buffer.toString()),
-      )
+      ..add(BridgeTextContent(messageId: messageId, delta: buffer.toString()))
       ..add(BridgeTextEnd(messageId: messageId));
   }
 }

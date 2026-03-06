@@ -126,9 +126,7 @@ void main() {
           );
 
         final events = await bridge
-            .execute(
-              'funcs = list_functions()\ninfo = help("get_price")',
-            )
+            .execute('funcs = list_functions()\ninfo = help("get_price")')
             .toList();
 
         // Two tool call sequences

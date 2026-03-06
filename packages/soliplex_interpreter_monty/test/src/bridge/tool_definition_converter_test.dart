@@ -73,30 +73,12 @@ void main() {
         'extra_parameters': {
           'type': 'object',
           'properties': {
-            'query': {
-              'type': 'string',
-              'description': 'Search query',
-            },
-            'limit': {
-              'type': 'integer',
-              'description': 'Max results',
-            },
-            'threshold': {
-              'type': 'number',
-              'description': 'Score threshold',
-            },
-            'verbose': {
-              'type': 'boolean',
-              'description': 'Verbose output',
-            },
-            'tags': {
-              'type': 'array',
-              'description': 'Filter tags',
-            },
-            'options': {
-              'type': 'object',
-              'description': 'Extra options',
-            },
+            'query': {'type': 'string', 'description': 'Search query'},
+            'limit': {'type': 'integer', 'description': 'Max results'},
+            'threshold': {'type': 'number', 'description': 'Score threshold'},
+            'verbose': {'type': 'boolean', 'description': 'Verbose output'},
+            'tags': {'type': 'array', 'description': 'Filter tags'},
+            'options': {'type': 'object', 'description': 'Extra options'},
           },
           'required': ['query'],
         },
@@ -248,9 +230,7 @@ void main() {
           'tool_name': 'soliplex.tools.valid',
           'tool_description': 'Valid',
         },
-        <String, dynamic>{
-          'tool_name': 'soliplex.tools.invalid',
-        },
+        <String, dynamic>{'tool_name': 'soliplex.tools.invalid'},
         <String, dynamic>{
           'kind': 'also_valid',
           'tool_name': 'soliplex.tools.also_valid',

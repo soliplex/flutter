@@ -5,10 +5,7 @@ import 'package:test/test.dart';
 void main() {
   group('HostParam.validate', () {
     group('string', () {
-      const param = HostParam(
-        name: 'query',
-        type: HostParamType.string,
-      );
+      const param = HostParam(name: 'query', type: HostParamType.string);
 
       test('accepts String', () {
         expect(param.validate('hello'), 'hello');
@@ -24,29 +21,27 @@ void main() {
     });
 
     group('integer', () {
-      const param = HostParam(
-        name: 'count',
-        type: HostParamType.integer,
-      );
+      const param = HostParam(name: 'count', type: HostParamType.integer);
 
       test('accepts int', () {
         expect(param.validate(42), 42);
       });
 
-      test('rejects double', () {
-        expect(() => param.validate(3.14), throwsFormatException);
+      test('coerces double to int', () {
+        expect(param.validate(3.14), 3);
       });
 
-      test('rejects String', () {
-        expect(() => param.validate('42'), throwsFormatException);
+      test('coerces numeric String to int', () {
+        expect(param.validate('42'), 42);
+      });
+
+      test('rejects non-numeric String', () {
+        expect(() => param.validate('abc'), throwsFormatException);
       });
     });
 
     group('number', () {
-      const param = HostParam(
-        name: 'score',
-        type: HostParamType.number,
-      );
+      const param = HostParam(name: 'score', type: HostParamType.number);
 
       test('accepts int', () {
         expect(param.validate(42), 42);
@@ -56,16 +51,17 @@ void main() {
         expect(param.validate(3.14), 3.14);
       });
 
-      test('rejects String', () {
-        expect(() => param.validate('3.14'), throwsFormatException);
+      test('coerces numeric String to num', () {
+        expect(param.validate('3.14'), 3.14);
+      });
+
+      test('rejects non-numeric String', () {
+        expect(() => param.validate('abc'), throwsFormatException);
       });
     });
 
     group('boolean', () {
-      const param = HostParam(
-        name: 'verbose',
-        type: HostParamType.boolean,
-      );
+      const param = HostParam(name: 'verbose', type: HostParamType.boolean);
 
       test('accepts bool', () {
         expect(param.validate(true), true);
@@ -78,10 +74,7 @@ void main() {
     });
 
     group('list', () {
-      const param = HostParam(
-        name: 'tags',
-        type: HostParamType.list,
-      );
+      const param = HostParam(name: 'tags', type: HostParamType.list);
 
       test('accepts List', () {
         expect(param.validate(<Object?>['a', 'b']), ['a', 'b']);
@@ -93,23 +86,14 @@ void main() {
     });
 
     group('map', () {
-      const param = HostParam(
-        name: 'metadata',
-        type: HostParamType.map,
-      );
+      const param = HostParam(name: 'metadata', type: HostParamType.map);
 
       test('accepts Map<String, Object?>', () {
-        expect(
-          param.validate(<String, Object?>{'key': 'val'}),
-          {'key': 'val'},
-        );
+        expect(param.validate(<String, Object?>{'key': 'val'}), {'key': 'val'});
       });
 
       test('rejects List', () {
-        expect(
-          () => param.validate(<Object?>[1, 2]),
-          throwsFormatException,
-        );
+        expect(() => param.validate(<Object?>[1, 2]), throwsFormatException);
       });
     });
 

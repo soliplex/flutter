@@ -84,9 +84,7 @@ void main() {
             schema: const HostFunctionSchema(
               name: 'search',
               description: 'Search',
-              params: [
-                HostParam(name: 'q', type: HostParamType.string),
-              ],
+              params: [HostParam(name: 'q', type: HostParamType.string)],
             ),
             handler: (args) async => 'found',
           ),

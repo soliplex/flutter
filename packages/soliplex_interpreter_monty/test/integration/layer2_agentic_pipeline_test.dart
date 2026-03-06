@@ -60,10 +60,7 @@ void main() {
           ..enqueueProgress(
             const MontyPending(
               functionName: 'summarize',
-              arguments: [
-                'Quantum computing achieved 99.9% fidelity.',
-                50,
-              ],
+              arguments: ['Quantum computing achieved 99.9% fidelity.', 50],
               callId: 2,
             ),
           )

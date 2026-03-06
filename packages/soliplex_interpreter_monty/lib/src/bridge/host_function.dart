@@ -9,10 +9,7 @@ typedef HostFunctionHandler = Future<Object?> Function(
 /// A host function: schema + handler.
 @immutable
 class HostFunction {
-  const HostFunction({
-    required this.schema,
-    required this.handler,
-  });
+  const HostFunction({required this.schema, required this.handler});
 
   /// Describes name, parameters, and types.
   final HostFunctionSchema schema;

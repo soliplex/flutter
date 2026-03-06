@@ -44,9 +44,7 @@ void main() {
           schema: const HostFunctionSchema(
             name: 'search',
             description: 'Search docs',
-            params: [
-              HostParam(name: 'query', type: HostParamType.string),
-            ],
+            params: [HostParam(name: 'query', type: HostParamType.string)],
           ),
           handler: (args) async => 'result for ${args['query']}',
         ),
@@ -60,9 +58,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -112,25 +108,13 @@ void main() {
 
       mock
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'add',
-            arguments: [1, 2],
-            callId: 1,
-          ),
+          const MontyPending(functionName: 'add', arguments: [1, 2], callId: 1),
         )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
+          const MontyPending(functionName: 'add', arguments: [3, 4], callId: 2),
         )
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: 'add',
-            arguments: [3, 4],
-            callId: 2,
-          ),
-        )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [2]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [2]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(value: 10, usage: _usage)),
         );
@@ -232,10 +216,7 @@ void main() {
 
       // Should have called resumeWithError
       expect(mock.resumeErrorMessages, hasLength(1));
-      expect(
-        mock.resumeErrorMessages.first,
-        'Unknown function: unknown_fn',
-      );
+      expect(mock.resumeErrorMessages.first, 'Unknown function: unknown_fn');
     });
 
     test('emits ToolCallResult with error when handler throws', () async {
@@ -251,19 +232,11 @@ void main() {
 
       mock
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fail',
-            arguments: [],
-            callId: 1,
-          ),
+          const MontyPending(functionName: 'fail', arguments: [], callId: 1),
         )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(usage: _usage),
-          ),
+          const MontyComplete(result: MontyResult(usage: _usage)),
         );
 
       final events = await bridge.execute('fail()').toList();
@@ -299,10 +272,7 @@ void main() {
       expect(
         () => bridge.register(
           HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'x',
-              description: 'x',
-            ),
+            schema: const HostFunctionSchema(name: 'x', description: 'x'),
             handler: (args) async => null,
           ),
         ),
@@ -321,19 +291,13 @@ void main() {
       bridge
         ..register(
           HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'a',
-              description: 'A',
-            ),
+            schema: const HostFunctionSchema(name: 'a', description: 'A'),
             handler: (args) async => null,
           ),
         )
         ..register(
           HostFunction(
-            schema: const HostFunctionSchema(
-              name: 'b',
-              description: 'B',
-            ),
+            schema: const HostFunctionSchema(name: 'b', description: 'B'),
             handler: (args) async => null,
           ),
         );
@@ -388,9 +352,7 @@ void main() {
           schema: const HostFunctionSchema(
             name: 'fetch',
             description: 'Fetch data',
-            params: [
-              HostParam(name: 'url', type: HostParamType.string),
-            ],
+            params: [HostParam(name: 'url', type: HostParamType.string)],
           ),
           handler: (args) async => 'data from ${args['url']}',
         ),
@@ -404,9 +366,7 @@ void main() {
             callId: 1,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -428,9 +388,7 @@ void main() {
           schema: const HostFunctionSchema(
             name: 'fetch',
             description: 'Fetch data',
-            params: [
-              HostParam(name: 'url', type: HostParamType.string),
-            ],
+            params: [HostParam(name: 'url', type: HostParamType.string)],
           ),
           handler: (args) async => 'data from ${args['url']}',
         ),
@@ -458,9 +416,7 @@ void main() {
             callId: 3,
           ),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1, 2, 3]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1, 2, 3]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -491,15 +447,9 @@ void main() {
 
       mock
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fail',
-            arguments: [],
-            callId: 1,
-          ),
+          const MontyPending(functionName: 'fail', arguments: [], callId: 1),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -537,22 +487,12 @@ void main() {
 
       mock
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'succeed',
-            arguments: [],
-            callId: 1,
-          ),
+          const MontyPending(functionName: 'succeed', arguments: [], callId: 1),
         )
         ..enqueueProgress(
-          const MontyPending(
-            functionName: 'fail',
-            arguments: [],
-            callId: 2,
-          ),
+          const MontyPending(functionName: 'fail', arguments: [], callId: 2),
         )
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1, 2]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1, 2]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );
@@ -591,9 +531,7 @@ void main() {
           schema: const HostFunctionSchema(
             name: 'search',
             description: 'Search',
-            params: [
-              HostParam(name: 'query', type: HostParamType.string),
-            ],
+            params: [HostParam(name: 'query', type: HostParamType.string)],
           ),
           handler: (args) async => 'found ${args['query']}',
         ),
@@ -626,9 +564,7 @@ void main() {
       addTearDown(syncBridge.dispose);
 
       syncMock
-        ..enqueueProgress(
-          const MontyResolveFutures(pendingCallIds: [1]),
-        )
+        ..enqueueProgress(const MontyResolveFutures(pendingCallIds: [1]))
         ..enqueueProgress(
           const MontyComplete(result: MontyResult(usage: _usage)),
         );

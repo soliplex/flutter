@@ -24,9 +24,4 @@ class InputVariable {
 }
 
 /// Supported Python variable types for form validation.
-enum InputVariableType {
-  string,
-  int,
-  float,
-  bool,
-}
+enum InputVariableType { string, int, float, bool }

@@ -11,9 +11,7 @@ void main() {
         schema: const HostFunctionSchema(
           name: 'greet',
           description: 'Greet by name',
-          params: [
-            HostParam(name: 'name', type: HostParamType.string),
-          ],
+          params: [HostParam(name: 'name', type: HostParamType.string)],
         ),
         handler: (args) async => 'Hello, ${args['name']}!',
       );
@@ -29,9 +27,7 @@ void main() {
         schema: const HostFunctionSchema(
           name: 'log',
           description: 'Log a message',
-          params: [
-            HostParam(name: 'msg', type: HostParamType.string),
-          ],
+          params: [HostParam(name: 'msg', type: HostParamType.string)],
         ),
         handler: (args) async => null,
       );

@@ -23,37 +23,37 @@ void main() {
   });
 
   group('MontyExecutionService', () {
-    test('emits ConsoleOutput then ConsoleComplete for print + return',
-        () async {
-      mock
-        ..enqueueProgress(
-          const MontyPending(
-            functionName: '__console_write__',
-            arguments: ['hello\n'],
-          ),
-        )
-        ..enqueueProgress(
-          const MontyComplete(
-            result: MontyResult(value: 42, usage: _usage),
-          ),
-        );
+    test(
+      'emits ConsoleOutput then ConsoleComplete for print + return',
+      () async {
+        mock
+          ..enqueueProgress(
+            const MontyPending(
+              functionName: '__console_write__',
+              arguments: ['hello\n'],
+            ),
+          )
+          ..enqueueProgress(
+            const MontyComplete(result: MontyResult(value: 42, usage: _usage)),
+          );
 
-      final events = await service.execute(r'print("hello")\n42').toList();
+        final events = await service.execute(r'print("hello")\n42').toList();
 
-      expect(events, hasLength(2));
+        expect(events, hasLength(2));
 
-      final output = events.first;
-      expect(output, isA<ConsoleOutput>());
-      expect((output as ConsoleOutput).text, 'hello\n');
+        final output = events.first;
+        expect(output, isA<ConsoleOutput>());
+        expect((output as ConsoleOutput).text, 'hello\n');
 
-      final complete = events.last;
-      expect(complete, isA<ConsoleComplete>());
+        final complete = events.last;
+        expect(complete, isA<ConsoleComplete>());
 
-      final result = (complete as ConsoleComplete).result;
-      expect(result.value, '42');
-      expect(result.output, 'hello\n');
-      expect(result.usage, _usage);
-    });
+        final result = (complete as ConsoleComplete).result;
+        expect(result.value, '42');
+        expect(result.output, 'hello\n');
+        expect(result.usage, _usage);
+      },
+    );
 
     test('emits ConsoleError on MontyComplete with error', () async {
       mock.enqueueProgress(
@@ -120,10 +120,7 @@ void main() {
 
       final complete = events.last;
       expect(complete, isA<ConsoleComplete>());
-      expect(
-        (complete as ConsoleComplete).result.output,
-        'line 1\nline 2\n',
-      );
+      expect((complete as ConsoleComplete).result.output, 'line 1\nline 2\n');
     });
 
     test('throws StateError if already executing', () async {
@@ -135,10 +132,7 @@ void main() {
       final stream = service.execute('code');
 
       // Second call should throw
-      expect(
-        () => service.execute('more code'),
-        throwsStateError,
-      );
+      expect(() => service.execute('more code'), throwsStateError);
 
       // Drain first stream to clean up
       await stream.toList();
@@ -147,10 +141,7 @@ void main() {
     test('throws StateError after dispose', () {
       service.dispose();
 
-      expect(
-        () => service.execute('code'),
-        throwsStateError,
-      );
+      expect(() => service.execute('code'), throwsStateError);
     });
 
     test('sets isExecuting during execution', () async {
@@ -185,10 +176,7 @@ void main() {
 
       await service.execute('pass').toList();
 
-      expect(
-        mock.lastStartExternalFunctions,
-        contains('__console_write__'),
-      );
+      expect(mock.lastStartExternalFunctions, contains('__console_write__'));
     });
 
     test('ignores pending calls for unknown functions', () async {
@@ -223,10 +211,7 @@ void main() {
       final events = await service.execute('second').toList();
 
       expect(events, hasLength(1));
-      expect(
-        (events.first as ConsoleComplete).result.value,
-        'second',
-      );
+      expect((events.first as ConsoleComplete).result.value, 'second');
     });
   });
 }

@@ -88,8 +88,10 @@ void main() {
         );
         addTearDown(env.dispose);
 
-        final result =
-            await env.tools.first.executor(_toolCall('print("hi")'), _ctx);
+        final result = await env.tools.first.executor(
+          _toolCall('print("hi")'),
+          _ctx,
+        );
 
         expect(result, equals('Hello World'));
       });

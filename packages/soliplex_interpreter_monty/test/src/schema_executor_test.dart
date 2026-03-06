@@ -98,10 +98,7 @@ void main() {
       final input = <String, Object?>{'kind': 'test'};
       await executor.validate('tool', input);
 
-      expect(
-        mock.lastRunInputs,
-        containsPair('__input__', input),
-      );
+      expect(mock.lastRunInputs, containsPair('__input__', input));
     });
 
     test('throws ArgumentError for unknown schema', () async {
