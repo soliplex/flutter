@@ -6,7 +6,8 @@ import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_cli/src/client_factory.dart';
 import 'package:soliplex_cli/src/result_printer.dart';
 import 'package:soliplex_cli/src/tool_definitions.dart';
-import 'package:soliplex_client/soliplex_client.dart' show SoliplexApi;
+import 'package:soliplex_client/soliplex_client.dart'
+    show DartHttpClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 Future<void> runCli(List<String> args) async {
@@ -66,7 +67,11 @@ Future<void> _runSession(ArgResults parsed) async {
 
   final connection = verbose
       ? createVerboseConnection(host)
-      : ServerConnection.fromUrl(serverUrl: host);
+      : ServerConnection.create(
+          serverId: 'default',
+          serverUrl: host,
+          httpClient: DartHttpClient(),
+        );
   final logManager = LogManager.instance
     ..minimumLevel = LogLevel.debug
     ..addSink(StdoutSink(useColors: true));

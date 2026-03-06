@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockLogger extends Mock implements Logger {}
 
@@ -99,13 +99,13 @@ void main() {
   });
 
   late MockSoliplexApi api;
-  late MockAgUiClient agUiClient;
+  late MockAgUiStreamClient agUiStreamClient;
   late MockLogger logger;
   late RunOrchestrator orchestrator;
 
   setUp(() {
     api = MockSoliplexApi();
-    agUiClient = MockAgUiClient();
+    agUiStreamClient = MockAgUiStreamClient();
     logger = MockLogger();
   });
 
@@ -119,7 +119,7 @@ void main() {
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
     when(
-      () => agUiClient.runAgent(
+      () => agUiStreamClient.runAgent(
         any(),
         any(),
         cancelToken: any(named: 'cancelToken'),
@@ -131,7 +131,7 @@ void main() {
     test('happy path: SSE → CompletedState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -153,7 +153,7 @@ void main() {
     test('stream error after RunFinished does not change result', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -187,14 +187,14 @@ void main() {
     test('tool yield: SSE → ToolYielding → resume → Completed', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
       stubCreateRun();
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -218,14 +218,14 @@ void main() {
     test('multiple tool cycles (depth 3)', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
       stubCreateRun();
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -252,14 +252,14 @@ void main() {
     test('tool depth exceeded → FailedState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
       stubCreateRun();
       // Always yield tools — will hit depth limit.
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -281,7 +281,7 @@ void main() {
     test('cancel during SSE → CancelledState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -313,7 +313,7 @@ void main() {
     test('cancel during tool execution → CancelledState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -345,7 +345,7 @@ void main() {
     test('dispose during tool execution → CancelledState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -376,7 +376,7 @@ void main() {
     test('tool executor throws → FailedState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -398,7 +398,7 @@ void main() {
     test('resume API throws → FailedState (R4)', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -426,7 +426,7 @@ void main() {
     test('startRun throws during active runToCompletion', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -465,7 +465,7 @@ void main() {
     test('submitToolOutputs throws during active runToCompletion', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -505,7 +505,7 @@ void main() {
     test('stale onDone from old subscription ignored', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -516,7 +516,7 @@ void main() {
       var callCount = 0;
       final firstController = StreamController<BaseEvent>();
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -553,7 +553,7 @@ void main() {
     test('completer resolves for CompletedState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -572,7 +572,7 @@ void main() {
     test('completer resolves for FailedState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -596,7 +596,7 @@ void main() {
     test('completer resolves for CancelledState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -617,14 +617,14 @@ void main() {
     test('completer resolves for ToolYieldingState (loop continues)', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
       stubCreateRun();
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -655,7 +655,7 @@ void main() {
     test('cancelToken getter returns active token during run', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );

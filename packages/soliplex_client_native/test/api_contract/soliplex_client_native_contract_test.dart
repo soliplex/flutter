@@ -88,17 +88,6 @@ void main() {
         api.close();
       });
 
-      test('setup with HttpClientAdapter for third-party libraries', () {
-        // Simulates using our client with libraries that expect http.Client
-        final platformClient = createPlatformClient();
-        final adapter = HttpClientAdapter(client: platformClient);
-
-        // adapter can now be passed to libraries expecting http.Client
-        expect(adapter.client, isA<SoliplexHttpClient>());
-
-        adapter.close();
-      });
-
       test('multiple clients can be created independently', () {
         final client1 = createPlatformClient(
           defaultTimeout: const Duration(seconds: 30),

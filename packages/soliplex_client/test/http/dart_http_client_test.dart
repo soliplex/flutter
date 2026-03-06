@@ -807,6 +807,69 @@ void main() {
       );
 
       test(
+        'drains response body stream when cancelled after send',
+        () async {
+          final token = CancelToken();
+          final bodyController = StreamController<List<int>>();
+          var streamListened = false;
+          var streamCancelled = false;
+
+          final trackedStream = bodyController.stream.transform(
+            StreamTransformer<List<int>, List<int>>.fromHandlers(
+              handleData: (data, sink) => sink.add(data),
+            ),
+          );
+
+          final streamedResponse = http.StreamedResponse(
+            Stream.multi((controller) {
+              streamListened = true;
+              final sub = trackedStream.listen(
+                controller.add,
+                onError: controller.addError,
+                onDone: controller.close,
+              );
+              controller.onCancel = () {
+                streamCancelled = true;
+                return sub.cancel();
+              };
+            }),
+            200,
+            reasonPhrase: 'OK',
+          );
+
+          when(() => mockClient.send(any())).thenAnswer((_) async {
+            token.cancel('Cancelled after connect');
+            return streamedResponse;
+          });
+
+          await expectLater(
+            client.requestStream(
+              'GET',
+              Uri.parse('https://example.com/stream'),
+              cancelToken: token,
+            ),
+            throwsA(isA<CancelledException>()),
+          );
+
+          // Give the microtask queue time to process the drain
+          await Future<void>.delayed(Duration.zero);
+
+          expect(
+            streamListened,
+            isTrue,
+            reason: 'Body stream should be listened to for drain',
+          );
+          expect(
+            streamCancelled,
+            isTrue,
+            reason: 'Body stream subscription should be cancelled',
+          );
+
+          await bodyController.close();
+        },
+      );
+
+      test(
         'does not wrap CancelledException in NetworkException',
         () async {
           final token = CancelToken()..cancel('Already cancelled');

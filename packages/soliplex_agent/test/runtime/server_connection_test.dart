@@ -1,50 +1,47 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi, SoliplexHttpClient;
+    show AgUiStreamClient, SoliplexApi, SoliplexHttpClient;
 import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {
-  @override
-  Future<void> close() async {}
-}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockSoliplexHttpClient extends Mock implements SoliplexHttpClient {}
 
 void main() {
   group('ServerConnection', () {
     late MockSoliplexApi api;
-    late MockAgUiClient agUiClient;
+    late MockAgUiStreamClient agUiStreamClient;
 
     setUp(() {
       api = MockSoliplexApi();
-      agUiClient = MockAgUiClient();
+      agUiStreamClient = MockAgUiStreamClient();
     });
 
     test('construction exposes all fields', () {
       final conn = ServerConnection(
         serverId: 'prod',
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
       );
 
       expect(conn.serverId, 'prod');
       expect(conn.api, same(api));
-      expect(conn.agUiClient, same(agUiClient));
+      expect(conn.agUiStreamClient, same(agUiStreamClient));
     });
 
     test('uses identity equality (not serverId)', () {
       final conn1 = ServerConnection(
         serverId: 'prod',
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
       );
       final conn2 = ServerConnection(
         serverId: 'prod',
         api: MockSoliplexApi(),
-        agUiClient: MockAgUiClient(),
+        agUiStreamClient: MockAgUiStreamClient(),
       );
 
       expect(conn1, isNot(equals(conn2)));
@@ -55,7 +52,7 @@ void main() {
       final conn = ServerConnection(
         serverId: 'prod',
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
       );
 
       expect(conn.toString(), contains('prod'));
@@ -68,7 +65,7 @@ void main() {
         final conn = ServerConnection(
           serverId: 'test',
           api: api,
-          agUiClient: agUiClient,
+          agUiStreamClient: agUiStreamClient,
           onClose: () async {
             callbackInvoked = true;
           },
@@ -83,7 +80,7 @@ void main() {
         final conn = ServerConnection(
           serverId: 'test',
           api: api,
-          agUiClient: agUiClient,
+          agUiStreamClient: agUiStreamClient,
         );
 
         // Should not throw.
@@ -91,38 +88,8 @@ void main() {
       });
     });
 
-    group('.fromUrl()', () {
-      test('wires SoliplexApi and AgUiClient from server URL', () {
-        final conn = ServerConnection.fromUrl(
-          serverUrl: 'http://localhost:8000',
-        );
-
-        expect(conn.serverId, 'default');
-        expect(conn.api, isA<SoliplexApi>());
-        expect(conn.agUiClient, isA<AgUiClient>());
-      });
-
-      test('accepts custom serverId', () {
-        final conn = ServerConnection.fromUrl(
-          serverUrl: 'http://localhost:8000',
-          serverId: 'custom',
-        );
-
-        expect(conn.serverId, 'custom');
-      });
-
-      test('asserts on URL with /api/v1 suffix', () {
-        expect(
-          () => ServerConnection.fromUrl(
-            serverUrl: 'http://localhost:8000/api/v1',
-          ),
-          throwsA(isA<AssertionError>()),
-        );
-      });
-    });
-
     group('.create()', () {
-      test('wires SoliplexApi and AgUiClient from server URL', () {
+      test('wires SoliplexApi and AgUiStreamClient from server URL', () {
         final httpClient = MockSoliplexHttpClient();
         final conn = ServerConnection.create(
           serverId: 'test-server',
@@ -132,7 +99,7 @@ void main() {
 
         expect(conn.serverId, 'test-server');
         expect(conn.api, isA<SoliplexApi>());
-        expect(conn.agUiClient, isA<AgUiClient>());
+        expect(conn.agUiStreamClient, isA<AgUiStreamClient>());
       });
 
       test('asserts on URL with /api/v1 suffix', () {

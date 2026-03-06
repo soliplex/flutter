@@ -142,17 +142,16 @@ Future<StreamedHttpResponse> requestStream(...) async {
 
 ### Import pattern for cross-package CancelToken
 
-If your platform client is in `soliplex_client_native`, import CancelToken
-from the public export:
+The barrel `soliplex_client.dart` hides ag_ui's `CancelToken` and exports
+ours directly. For most code, a plain import is sufficient:
 
 ```dart
-import 'package:soliplex_client/cancel_token.dart';
-import 'package:soliplex_client/soliplex_client.dart' hide CancelToken;
+import 'package:soliplex_client/soliplex_client.dart';
+// CancelToken is our type — ag_ui's is hidden at the barrel level.
 ```
 
-The barrel `soliplex_client.dart` hides our `CancelToken` to avoid collision
-with `ag_ui`'s identically-named class. The `cancel_token.dart` export
-provides direct access.
+Cross-package code (e.g., `soliplex_client_native`) can also use the
+dedicated export `package:soliplex_client/cancel_token.dart`.
 
 ## Adding a New Protocol (WebSocket, A2A)
 

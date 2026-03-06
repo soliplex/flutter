@@ -16,7 +16,7 @@ dart run bin/soliplex_cli.dart --host http://localhost:8000 --room plain
 ## Architecture
 
 - `CliRunner` -- REPL loop, command dispatch, `_CliContext` state management
-- `ClientFactory` (`createClients`) -- creates `SoliplexApi` + `AgUiClient` from host URL
+- `ClientFactory` (`createClients`) -- creates `ServerConnection` from host URL
 - `ToolDefinitions` (`buildDemoToolRegistry`) -- demo tool registry (secret_number, echo)
 - `ResultPrinter` (`formatResult`) -- formats `AgentResult` for terminal output
 
@@ -24,7 +24,7 @@ dart run bin/soliplex_cli.dart --host http://localhost:8000 --room plain
 
 - `args` -- command-line argument parsing
 - `soliplex_agent` -- `AgentRuntime`, `AgentSession`, `AgentResult`
-- `soliplex_client` -- `SoliplexApi`, `AgUiClient`, `ToolRegistry`
+- `soliplex_client` -- `SoliplexApi`, `AgUiStreamClient`, `ToolRegistry`
 - `soliplex_logging` -- structured logging
 
 ## Rules

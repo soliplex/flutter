@@ -1,8 +1,4 @@
-import 'dart:async';
-
 import 'package:soliplex_agent/soliplex_agent.dart';
-import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, AgUiClientConfig;
 
 /// Builds a mock AG-UI event stream from a list of events.
 ///
@@ -18,35 +14,6 @@ Stream<BaseEvent> buildMockEventStream(
     await Future<void>.delayed(interEventDelay);
     return event;
   });
-}
-
-/// Fake AG-UI client for deterministic testing.
-///
-/// Only overrides [runAgent] and [close]. Tests set [onRunAgent] to return
-/// different streams per call for multi-run sequencing.
-class FakeAgUiClient extends AgUiClient {
-  FakeAgUiClient() : super(config: AgUiClientConfig(baseUrl: 'http://fake'));
-
-  /// Callback invoked for each [runAgent] call.
-  Stream<BaseEvent> Function(String endpoint, SimpleRunAgentInput input)?
-      onRunAgent;
-
-  /// Number of times [runAgent] has been called.
-  int runAgentCallCount = 0;
-
-  @override
-  Stream<BaseEvent> runAgent(
-    String endpoint,
-    SimpleRunAgentInput input, {
-    CancelToken? cancelToken,
-  }) {
-    runAgentCallCount++;
-    if (onRunAgent != null) return onRunAgent!(endpoint, input);
-    return const Stream.empty();
-  }
-
-  @override
-  Future<void> close() async {}
 }
 
 /// Builds a standard text response event sequence.

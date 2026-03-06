@@ -12,11 +12,14 @@ import 'dart:io';
 
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_cli/soliplex_cli.dart';
+import 'package:soliplex_client/soliplex_client.dart' show DartHttpClient;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 Future<void> main() async {
-  final connection = ServerConnection.fromUrl(
+  final connection = ServerConnection.create(
+    serverId: 'default',
     serverUrl: 'http://localhost:8000',
+    httpClient: DartHttpClient(),
   );
   final logManager = LogManager.instance
     ..minimumLevel = LogLevel.info

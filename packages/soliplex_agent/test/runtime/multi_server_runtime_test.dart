@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockLogger extends Mock implements Logger {}
 
@@ -29,15 +29,15 @@ const _roomId = 'room-1';
 const _runId = 'run-abc';
 
 /// Creates a [ServerConnection] with fresh mocks.
-({ServerConnection connection, MockSoliplexApi api, MockAgUiClient agUi})
+({ServerConnection connection, MockSoliplexApi api, MockAgUiStreamClient agUi})
     _serverFixture(String serverId) {
   final api = MockSoliplexApi();
-  final agUi = MockAgUiClient();
+  final agUi = MockAgUiStreamClient();
   return (
     connection: ServerConnection(
       serverId: serverId,
       api: api,
-      agUiClient: agUi,
+      agUiStreamClient: agUi,
     ),
     api: api,
     agUi: agUi,
@@ -64,10 +64,10 @@ List<BaseEvent> _happyPathEvents(String threadId) => [
       RunFinishedEvent(threadId: threadId, runId: _runId),
     ];
 
-/// Stubs a mock API + AgUiClient to support a single happy-path spawn.
+/// Stubs a mock API + AgUiStreamClient to support a single happy-path spawn.
 void _stubHappyPath(
   MockSoliplexApi api,
-  MockAgUiClient agUi, {
+  MockAgUiStreamClient agUi, {
   required String threadId,
   Stream<BaseEvent>? stream,
 }) {
@@ -103,12 +103,12 @@ void main() {
   late ({
     ServerConnection connection,
     MockSoliplexApi api,
-    MockAgUiClient agUi,
+    MockAgUiStreamClient agUi,
   }) prod;
   late ({
     ServerConnection connection,
     MockSoliplexApi api,
-    MockAgUiClient agUi,
+    MockAgUiStreamClient agUi,
   }) staging;
 
   setUp(() {

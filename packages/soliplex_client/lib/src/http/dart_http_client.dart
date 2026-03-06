@@ -128,7 +128,13 @@ class DartHttpClient implements SoliplexHttpClient {
     try {
       final streamedResponse = await _client.send(request);
 
-      cancelToken?.throwIfCancelled();
+      try {
+        cancelToken?.throwIfCancelled();
+      } on CancelledException {
+        // Drain the stream to release the underlying TCP socket.
+        unawaited(streamedResponse.stream.listen((_) {}).cancel());
+        rethrow;
+      }
 
       return StreamedHttpResponse(
         statusCode: streamedResponse.statusCode,

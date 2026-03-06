@@ -146,21 +146,28 @@ class CupertinoHttpClient implements SoliplexHttpClient {
     try {
       final streamedResponse = await _client.send(request);
 
-      cancelToken?.throwIfCancelled();
+      try {
+        cancelToken?.throwIfCancelled();
+      } on CancelledException {
+        // Drain the stream to release the underlying TCP socket.
+        unawaited(streamedResponse.stream.listen((_) {}).cancel());
+        rethrow;
+      }
 
       return StreamedHttpResponse(
         statusCode: streamedResponse.statusCode,
         headers: _normalizeHeaders(streamedResponse.headers),
         reasonPhrase: streamedResponse.reasonPhrase,
-        body: streamedResponse.stream.handleError(
-          (Object error, StackTrace stackTrace) {
-            throw NetworkException(
-              message: 'Stream error: $error',
-              originalError: error,
-              stackTrace: stackTrace,
-            );
-          },
-        ),
+        body: streamedResponse.stream.handleError((
+          Object error,
+          StackTrace stackTrace,
+        ) {
+          throw NetworkException(
+            message: 'Stream error: $error',
+            originalError: error,
+            stackTrace: stackTrace,
+          );
+        }),
       );
     } on CancelledException {
       rethrow;

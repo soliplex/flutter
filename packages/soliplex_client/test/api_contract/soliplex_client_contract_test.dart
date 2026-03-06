@@ -466,18 +466,6 @@ void main() {
       });
     });
 
-    group('HttpClientAdapter', () {
-      test('constructor signature', () {
-        final inner = DartHttpClient();
-        final adapter = HttpClientAdapter(client: inner);
-
-        expect(adapter, isA<HttpClientAdapter>());
-        expect(adapter.client, isA<SoliplexHttpClient>());
-
-        adapter.close();
-      });
-    });
-
     group('ObservableHttpClient', () {
       test('constructor with all parameters', () {
         final inner = DartHttpClient();

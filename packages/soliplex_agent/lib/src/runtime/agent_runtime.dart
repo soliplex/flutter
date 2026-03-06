@@ -43,14 +43,14 @@ class AgentRuntime {
     SessionExtensionFactory? extensionFactory,
   })  : serverId = connection.serverId,
         _api = connection.api,
-        _agUiClient = connection.agUiClient,
+        _agUiStreamClient = connection.agUiStreamClient,
         _toolRegistryResolver = toolRegistryResolver,
         _extensionFactory = extensionFactory,
         _platform = platform,
         _logger = logger;
 
   final SoliplexApi _api;
-  final AgUiClient _agUiClient;
+  final AgUiStreamClient _agUiStreamClient;
   final ToolRegistryResolver _toolRegistryResolver;
   final SessionExtensionFactory? _extensionFactory;
   final PlatformConstraints _platform;
@@ -232,7 +232,7 @@ class AgentRuntime {
     }
     final orchestrator = RunOrchestrator(
       api: _api,
-      agUiClient: _agUiClient,
+      agUiStreamClient: _agUiStreamClient,
       toolRegistry: toolRegistry,
       logger: _logger,
     );

@@ -69,16 +69,17 @@ lib/src/
 
 ## CancelToken Import Pattern
 
-The barrel `lib/soliplex_client.dart` hides our `CancelToken` to avoid
-collision with `ag_ui`'s type. When you need our CancelToken:
+The barrel `lib/soliplex_client.dart` hides ag_ui's `CancelToken` and
+exports ours directly. Consumers get `CancelToken` from the barrel with
+no extra imports needed:
 
 ```dart
-import 'package:soliplex_client/soliplex_client.dart' hide CancelToken;
-import 'package:soliplex_client/cancel_token.dart';
+import 'package:soliplex_client/soliplex_client.dart';
+// CancelToken is our type — ag_ui's is hidden at the barrel level.
 ```
 
-Cross-package code (e.g., `soliplex_client_native`) must use the public
-export `package:soliplex_client/cancel_token.dart`, not `src/` paths.
+Cross-package code (e.g., `soliplex_client_native`) can also use the
+dedicated export `package:soliplex_client/cancel_token.dart`.
 
 ## What NOT to Touch
 

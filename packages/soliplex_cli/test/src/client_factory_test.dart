@@ -1,24 +1,28 @@
 import 'package:soliplex_cli/src/client_factory.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, DartHttpClient, SoliplexApi;
 import 'package:test/test.dart';
 
 void main() {
-  group('ServerConnection.fromUrl', () {
-    test('returns non-null api and agUiClient', () async {
-      final conn = ServerConnection.fromUrl(
+  group('ServerConnection.create', () {
+    test('returns non-null api and agUiStreamClient', () async {
+      final conn = ServerConnection.create(
+        serverId: 'default',
         serverUrl: 'http://localhost:8000',
+        httpClient: DartHttpClient(),
       );
 
       expect(conn.api, isA<SoliplexApi>());
-      expect(conn.agUiClient, isA<AgUiClient>());
+      expect(conn.agUiStreamClient, isA<AgUiStreamClient>());
 
       await conn.close();
     });
 
     test('close can be called multiple times', () async {
-      final conn = ServerConnection.fromUrl(
+      final conn = ServerConnection.create(
+        serverId: 'default',
         serverUrl: 'http://localhost:8000',
+        httpClient: DartHttpClient(),
       );
 
       await conn.close();
@@ -27,8 +31,10 @@ void main() {
 
     test('rejects serverUrl with /api/v1 suffix', () {
       expect(
-        () => ServerConnection.fromUrl(
+        () => ServerConnection.create(
+          serverId: 'default',
           serverUrl: 'http://localhost:8000/api/v1',
+          httpClient: DartHttpClient(),
         ),
         throwsA(isA<AssertionError>()),
       );
@@ -36,11 +42,11 @@ void main() {
   });
 
   group('createVerboseConnection', () {
-    test('returns non-null api and agUiClient', () async {
+    test('returns non-null api and agUiStreamClient', () async {
       final conn = createVerboseConnection('http://localhost:8000');
 
       expect(conn.api, isA<SoliplexApi>());
-      expect(conn.agUiClient, isA<AgUiClient>());
+      expect(conn.agUiStreamClient, isA<AgUiStreamClient>());
 
       await conn.close();
     });

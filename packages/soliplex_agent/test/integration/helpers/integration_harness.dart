@@ -3,10 +3,8 @@ import 'dart:io';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
     show
-        AgUiClient,
-        AgUiClientConfig,
+        AgUiStreamClient,
         DartHttpClient,
-        HttpClientAdapter,
         HttpTransport,
         SoliplexApi,
         UrlBuilder;
@@ -25,7 +23,7 @@ String env(String name, [String? fallback]) {
 
 /// Shared lifecycle for all integration tiers.
 ///
-/// Manages HTTP clients, [SoliplexApi], and [AgUiClient] with the same
+/// Manages HTTP clients, [SoliplexApi], and [AgUiStreamClient] with the same
 /// wiring as the Flutter app. Call [setUp] in `setUpAll` and [tearDown]
 /// in `tearDownAll`.
 class IntegrationHarness {
@@ -33,7 +31,7 @@ class IntegrationHarness {
   late final DartHttpClient restClient;
   late final DartHttpClient sseClient;
   late final SoliplexApi api;
-  late final AgUiClient agUiClient;
+  late final AgUiStreamClient agUiStreamClient;
 
   /// Initialise clients. Backend must be reachable.
   Future<void> setUp() async {
@@ -47,9 +45,9 @@ class IntegrationHarness {
       urlBuilder: UrlBuilder('$baseUrl/api/v1'),
     );
 
-    agUiClient = AgUiClient(
-      config: AgUiClientConfig(baseUrl: '$baseUrl/api/v1'),
-      httpClient: HttpClientAdapter(client: sseClient),
+    agUiStreamClient = AgUiStreamClient(
+      httpClient: sseClient,
+      urlBuilder: UrlBuilder('$baseUrl/api/v1'),
     );
   }
 
@@ -73,7 +71,7 @@ class IntegrationHarness {
   }) {
     return RunOrchestrator(
       api: api,
-      agUiClient: agUiClient,
+      agUiStreamClient: agUiStreamClient,
       toolRegistry: toolRegistry,
       logger: createTestLogger(loggerName),
     );
@@ -89,7 +87,7 @@ class IntegrationHarness {
       connection: ServerConnection(
         serverId: 'default',
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
       ),
       toolRegistryResolver:
           toolRegistryResolver ?? (_) async => const ToolRegistry(),

@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockLogger extends Mock implements Logger {}
 
@@ -52,7 +52,7 @@ List<BaseEvent> _happyPathEvents() => [
 
 AgentSession createSession({
   required MockSoliplexApi api,
-  required MockAgUiClient agUiClient,
+  required MockAgUiStreamClient agUiStreamClient,
   required MockLogger logger,
   AgentRuntime? runtime,
   ToolRegistry? toolRegistry,
@@ -60,7 +60,7 @@ AgentSession createSession({
   final registry = toolRegistry ?? const ToolRegistry();
   final orchestrator = RunOrchestrator(
     api: api,
-    agUiClient: agUiClient,
+    agUiStreamClient: agUiStreamClient,
     toolRegistry: registry,
     logger: logger,
   );
@@ -81,12 +81,12 @@ void main() {
   });
 
   late MockSoliplexApi api;
-  late MockAgUiClient agUiClient;
+  late MockAgUiStreamClient agUiStreamClient;
   late MockLogger logger;
 
   setUp(() {
     api = MockSoliplexApi();
-    agUiClient = MockAgUiClient();
+    agUiStreamClient = MockAgUiStreamClient();
     logger = MockLogger();
   });
 
@@ -96,7 +96,7 @@ void main() {
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
     when(
-      () => agUiClient.runAgent(
+      () => agUiStreamClient.runAgent(
         any(),
         any(),
         cancelToken: any(named: 'cancelToken'),
@@ -108,7 +108,7 @@ void main() {
     test('initial value is IdleState', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -122,7 +122,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -144,7 +144,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -162,7 +162,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -186,7 +186,7 @@ void main() {
     test('initial value is spawning', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -202,7 +202,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -234,7 +234,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -252,7 +252,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -278,7 +278,7 @@ void main() {
       // Verified by this not throwing.
       createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       ).dispose();
     });
@@ -286,7 +286,7 @@ void main() {
     test('double dispose is safe', () {
       createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       )
         ..dispose()

@@ -39,7 +39,7 @@ soliplex_client/lib/src/
 │   └── exceptions.dart
 ├── http/                 # HTTP transport layer
 │   ├── dart_http_client.dart
-│   ├── http_client_adapter.dart
+│   ├── agui_stream_client.dart
 │   ├── http_observer.dart
 │   ├── http_response.dart
 │   ├── http_transport.dart

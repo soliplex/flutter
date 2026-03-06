@@ -4,7 +4,8 @@ import 'dart:io';
 import 'package:nocterm/nocterm.dart';
 import 'package:nocterm_bloc/nocterm_bloc.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
-import 'package:soliplex_client/soliplex_client.dart' show SoliplexApi;
+import 'package:soliplex_client/soliplex_client.dart'
+    show DartHttpClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 import 'package:soliplex_tui/src/components/chat_page.dart';
@@ -30,7 +31,11 @@ Future<void> launchTui({
 
   Loggers.app.info('Starting TUI, server=$serverUrl, logFile=$logFile');
 
-  final connection = ServerConnection.fromUrl(serverUrl: serverUrl);
+  final connection = ServerConnection.create(
+    serverId: 'default',
+    serverUrl: serverUrl,
+    httpClient: DartHttpClient(),
+  );
 
   try {
     // Resolve room.
@@ -47,7 +52,7 @@ Future<void> launchTui({
 
     final orchestrator = RunOrchestrator(
       api: connection.api,
-      agUiClient: connection.agUiClient,
+      agUiStreamClient: connection.agUiStreamClient,
       toolRegistry: const ToolRegistry(),
       logger: Loggers.agui,
     );
@@ -103,7 +108,11 @@ Future<void> runHeadless({
     'Starting headless mode, server=$serverUrl, logFile=$logFile',
   );
 
-  final connection = ServerConnection.fromUrl(serverUrl: serverUrl);
+  final connection = ServerConnection.create(
+    serverId: 'default',
+    serverUrl: serverUrl,
+    httpClient: DartHttpClient(),
+  );
   AgentRuntime? runtime;
 
   try {
@@ -157,7 +166,11 @@ Future<void> runHeadless({
 Future<void> listRooms({
   required String serverUrl,
 }) async {
-  final connection = ServerConnection.fromUrl(serverUrl: serverUrl);
+  final connection = ServerConnection.create(
+    serverId: 'default',
+    serverUrl: serverUrl,
+    httpClient: DartHttpClient(),
+  );
   try {
     final rooms = await connection.api.getRooms();
     for (final room in rooms) {

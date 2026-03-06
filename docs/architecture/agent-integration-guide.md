@@ -14,7 +14,7 @@ Four consumer types exist today:
 | Consumer | Framework | Depth | Status |
 |----------|-----------|-------|--------|
 | Flutter (demos) | Riverpod | `AgentRuntime` | Working |
-| Flutter (chat) | Riverpod | `AgUiClient` direct | Legacy |
+| Flutter (chat) | Riverpod | `AgUiStreamClient` direct | Legacy |
 | CLI | Pure Dart | `AgentRuntime` | Working |
 | TUI | BLoC | `RunOrchestrator` direct | Legacy |
 
@@ -60,25 +60,15 @@ override this to inject custom tools.
 
 ### Creating AgentRuntime
 
-Construct `AgentRuntime` from a `ClientBundle` or `ServerConnection`:
+Construct `AgentRuntime` from a `ServerConnection`:
 
 ```dart
-// From ClientBundle (simplest)
-final bundle = createClientBundle('https://api.example.com');
-final runtime = AgentRuntime(
-  bundle: bundle,
-  toolRegistryResolver: (roomId) async => toolRegistry,
-  platform: const NativePlatformConstraints(),
-  logger: Loggers.agent,
-);
-
-// From ServerConnection (multi-server)
 final connection = ServerConnection.create(
   serverId: 'prod',
   serverUrl: 'https://api.example.com',
   httpClient: httpClient,
 );
-final runtime = AgentRuntime.fromConnection(
+final runtime = AgentRuntime(
   connection: connection,
   toolRegistryResolver: (roomId) async => toolRegistry,
   platform: const NativePlatformConstraints(),
@@ -95,10 +85,10 @@ class MyAgentNotifier extends Notifier<MyState> {
 
   @override
   MyState build() {
-    final bundle = ref.watch(clientBundleProvider);
+    final connection = ref.watch(serverConnectionProvider);
     final platform = ref.watch(platformConstraintsProvider);
     _runtime = AgentRuntime(
-      bundle: bundle,
+      connection: connection,
       toolRegistryResolver: (roomId) async =>
           ref.read(toolRegistryProvider),
       platform: platform,
@@ -114,8 +104,7 @@ class MyAgentNotifier extends Notifier<MyState> {
 
 | Parameter | Type | Required | Default |
 |-----------|------|----------|---------|
-| `bundle` | `ClientBundle` | Yes (default) | -- |
-| `connection` | `ServerConnection` | Yes (fromConnection) | -- |
+| `connection` | `ServerConnection` | Yes | -- |
 | `toolRegistryResolver` | `ToolRegistryResolver` | Yes | -- |
 | `platform` | `PlatformConstraints` | Yes | -- |
 | `logger` | `Logger` | Yes | -- |
@@ -735,9 +724,9 @@ This enables real-time streaming UI without manual SSE subscription.
 The signal updates synchronously as events arrive from the
 orchestrator.
 
-> **Note:** No Flutter consumer currently reads these signals. The
-> production chat UI (`ActiveRunNotifier`) uses `AgUiClient` streams
-> directly. The pattern above is the intended migration target.
+> **Note:** No consumer currently reads these signals. CLI uses
+> `awaitResult()` (Future). TUI uses `stateChanges` (Stream). The signal
+> pattern above is the intended path for new consumers.
 
 ### Deprecated Stream APIs
 
@@ -750,54 +739,19 @@ same underlying data. New code should use signals.
 These are known gaps between the agent layer's capabilities and how
 consumers actually use it today.
 
-### ActiveRunNotifier Reimplements AgentSession
-
-`ActiveRunNotifier` (935 lines) manually subscribes to `AgUiClient`
-SSE streams, drives its own tool execution loop with depth tracking,
-and maintains a parallel `ActiveRunState` sealed hierarchy. This
-duplicates what `AgentSession` provides automatically.
-
-### Three Copies of _StubExecutionContext
-
-| Location | Line | Used By |
-|----------|------|---------|
-| `active_run_notifier.dart` | 932 | Production tool execution |
-| `agent_run_provider.dart` | 180 | Debug agent tool execution |
-| `thread_bridge_cache.dart` | 128 | Bridge host function dispatch |
-
-All three use `noSuchMethod => throw UnimplementedError()`. They exist
-because tools receive `ToolExecutionContext` but the callers do not use
-`AgentSession` (which is the real implementation). Migration to
-`AgentSession` as the sole tool execution path eliminates all three.
-
-### SessionExtensionFactory Unused in Flutter
-
-The `extensionFactory` parameter exists on `AgentRuntime` but no
-Flutter code passes it. Demo notifiers (`PipelineNotifier`,
-`DebateNotifier`) construct `MontyToolExecutor` directly per session
-instead of using the extension lifecycle. Wiring scripting through
-`extensionFactory` would centralize bridge management and eliminate
-per-notifier duplication.
-
 ### Signals Unused by Any Consumer
 
 All four signals (`runState`, `sessionState`, `lastExecutionEvent`,
-`sessions`) are built and tested but no Flutter widget, CLI command,
-or TUI cubit reads them. CLI uses `awaitResult()` (Future). TUI uses
-`stateChanges` (Stream). Flutter demos use `awaitResult()`.
-
-### HostApi.invoke() Unimplemented
-
-`FlutterHostApi` implements DataFrame and chart registration but
-`invoke()` throws `UnimplementedError` for all namespaces. Platform
-services (location, clipboard, file picker) are not wired.
+`sessions`) are built and tested but no CLI command or TUI cubit reads
+them. CLI uses `awaitResult()` (Future). TUI uses `stateChanges`
+(Stream).
 
 ## Reference Consumers
 
 ### CLI (`soliplex_cli`)
 
 The cleanest consumer. Demonstrates:
-- `AgentRuntime` construction with `ClientBundle`
+- `AgentRuntime` construction with `ServerConnection`
 - Interactive prompt loop with thread persistence per room
 - Background session spawning (`/spawn`)
 - `waitAll` / `waitAny` for multi-session coordination

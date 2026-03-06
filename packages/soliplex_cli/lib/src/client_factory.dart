@@ -25,15 +25,15 @@ ServerConnection createVerboseConnection(String serverUrl) {
   final urlBuilder = UrlBuilder(baseUrl);
 
   final api = SoliplexApi(transport: transport, urlBuilder: urlBuilder);
-  final agUiClient = AgUiClient(
-    config: AgUiClientConfig(baseUrl: baseUrl),
-    httpClient: HttpClientAdapter(client: sseHttpClient),
+  final agUiStreamClient = AgUiStreamClient(
+    httpClient: sseHttpClient,
+    urlBuilder: urlBuilder,
   );
 
   return ServerConnection(
     serverId: 'default',
     api: api,
-    agUiClient: agUiClient,
+    agUiStreamClient: agUiStreamClient,
     onClose: () async {
       apiHttpClient.close();
       sseHttpClient.close();

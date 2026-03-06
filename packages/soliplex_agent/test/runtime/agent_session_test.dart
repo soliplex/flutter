@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockLogger extends Mock implements Logger {}
 
@@ -130,7 +130,7 @@ class _TestExtensionWithTool implements SessionExtension {
 /// Creates a session wired to real RunOrchestrator with given deps.
 AgentSession createSession({
   required MockSoliplexApi api,
-  required MockAgUiClient agUiClient,
+  required MockAgUiStreamClient agUiStreamClient,
   required MockLogger logger,
   AgentRuntime? runtime,
   ToolRegistry? toolRegistry,
@@ -140,7 +140,7 @@ AgentSession createSession({
   final registry = toolRegistry ?? const ToolRegistry();
   final orchestrator = RunOrchestrator(
     api: api,
-    agUiClient: agUiClient,
+    agUiStreamClient: agUiStreamClient,
     toolRegistry: registry,
     logger: logger,
   );
@@ -162,12 +162,12 @@ void main() {
   });
 
   late MockSoliplexApi api;
-  late MockAgUiClient agUiClient;
+  late MockAgUiStreamClient agUiStreamClient;
   late MockLogger logger;
 
   setUp(() {
     api = MockSoliplexApi();
-    agUiClient = MockAgUiClient();
+    agUiStreamClient = MockAgUiStreamClient();
     logger = MockLogger();
   });
 
@@ -177,7 +177,7 @@ void main() {
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
     when(
-      () => agUiClient.runAgent(
+      () => agUiStreamClient.runAgent(
         any(),
         any(),
         cancelToken: any(named: 'cancelToken'),
@@ -192,7 +192,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -215,7 +215,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -250,7 +250,7 @@ void main() {
 
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -264,7 +264,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: registry,
       );
@@ -284,7 +284,7 @@ void main() {
 
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -299,7 +299,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: registry,
       );
@@ -320,7 +320,7 @@ void main() {
 
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -334,7 +334,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: registry,
       );
@@ -355,7 +355,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -383,7 +383,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -409,7 +409,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -432,7 +432,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(() async {
@@ -462,7 +462,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
 
@@ -485,7 +485,7 @@ void main() {
     test('id contains threadId', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -498,7 +498,7 @@ void main() {
     test('ephemeral flag is preserved', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         ephemeral: true,
       );
@@ -515,7 +515,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -537,7 +537,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -561,7 +561,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -590,7 +590,7 @@ void main() {
       final ext = _TestExtension();
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         extensions: [ext],
       );
@@ -616,7 +616,7 @@ void main() {
       stubCreateRun();
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -641,7 +641,7 @@ void main() {
       final baseRegistry = const ToolRegistry().register(tool);
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: baseRegistry,
         extensions: [ext],
@@ -659,7 +659,7 @@ void main() {
       final ext = _TestExtension();
       createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         extensions: [ext],
       ).dispose();
@@ -672,14 +672,14 @@ void main() {
       final childExt = _TestExtension();
       createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         extensions: [parentExt],
       )
         ..addChild(
           createSession(
             api: api,
-            agUiClient: agUiClient,
+            agUiStreamClient: agUiStreamClient,
             logger: logger,
             extensions: [childExt],
           ),
@@ -694,7 +694,7 @@ void main() {
       final ext = _TestExtension();
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         extensions: [ext],
       );
@@ -706,7 +706,7 @@ void main() {
     test('getExtension returns null for unregistered type', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -717,7 +717,7 @@ void main() {
     test('empty extensions list works', () {
       createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       ).dispose();
     });
@@ -726,7 +726,7 @@ void main() {
       final ext = _TestExtension();
       createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         extensions: [ext],
       )
@@ -750,7 +750,7 @@ void main() {
     test('emitEvent updates lastExecutionEvent signal', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);
@@ -771,7 +771,7 @@ void main() {
       final events = <ExecutionEvent>[];
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -785,7 +785,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: registry,
       );
@@ -817,7 +817,7 @@ void main() {
       final events = <ExecutionEvent>[];
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -831,7 +831,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: registry,
       );
@@ -860,7 +860,7 @@ void main() {
       final events = <ExecutionEvent>[];
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -874,7 +874,7 @@ void main() {
 
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
         toolRegistry: registry,
       );
@@ -897,7 +897,7 @@ void main() {
     test('cancelToken delegates to orchestrator', () {
       final session = createSession(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         logger: logger,
       );
       addTearDown(session.dispose);

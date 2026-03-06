@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockLogger extends Mock implements Logger {}
 
@@ -85,17 +85,17 @@ void main() {
     registerFallbackValue(_FakeCancelToken());
   });
   late MockSoliplexApi api;
-  late MockAgUiClient agUiClient;
+  late MockAgUiStreamClient agUiStreamClient;
   late MockLogger logger;
   late RunOrchestrator orchestrator;
 
   setUp(() {
     api = MockSoliplexApi();
-    agUiClient = MockAgUiClient();
+    agUiStreamClient = MockAgUiStreamClient();
     logger = MockLogger();
     orchestrator = RunOrchestrator(
       api: api,
-      agUiClient: agUiClient,
+      agUiStreamClient: agUiStreamClient,
       toolRegistry: const ToolRegistry(),
       logger: logger,
     );
@@ -111,7 +111,7 @@ void main() {
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
     when(
-      () => agUiClient.runAgent(
+      () => agUiStreamClient.runAgent(
         any(),
         any(),
         cancelToken: any(named: 'cancelToken'),
@@ -379,7 +379,7 @@ void main() {
     test('pending client tools → ToolYieldingState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -409,7 +409,7 @@ void main() {
     test('server-side tools (not in registry) → CompletedState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(toolName: 'other_tool'),
         logger: logger,
       );
@@ -436,7 +436,7 @@ void main() {
     }) {
       callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -450,7 +450,7 @@ void main() {
     test('resume → Running → Completed', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -502,14 +502,14 @@ void main() {
     test('2 rounds of yield/submit/resume', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
       stubCreateRun();
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -544,13 +544,13 @@ void main() {
     test('exceed max → FailedState(toolExecutionFailed)', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
       stubCreateRun();
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -580,7 +580,7 @@ void main() {
     test('cancelRun → CancelledState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -601,7 +601,7 @@ void main() {
     test('startRun blocked during ToolYieldingState', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -646,7 +646,7 @@ void main() {
 
       // Should not have subscribed to stream.
       verifyNever(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -657,7 +657,7 @@ void main() {
     test('cancelRun during submitToolOutputs await aborts', () async {
       orchestrator = RunOrchestrator(
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
         toolRegistry: _registryWith(),
         logger: logger,
       );

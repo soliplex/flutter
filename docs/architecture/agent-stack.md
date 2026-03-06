@@ -25,7 +25,7 @@ RunOrchestrator
     |
 soliplex_client (transport)
     * SoliplexApi (REST)
-    * AgUiClient (SSE)
+    * AgUiStreamClient (SSE)
 ```
 
 Data flows downward as commands (spawn, cancel, submit tools) and upward
@@ -43,12 +43,12 @@ event emission, and session-scoped extensions. Sessions form a
 parent-child tree for cascading cancellation and disposal.
 
 **RunOrchestrator** drives a single AG-UI run lifecycle. It subscribes
-to the SSE stream from `AgUiClient`, processes events into a `RunState`
+to the SSE stream from `AgUiStreamClient`, processes events into a `RunState`
 sealed hierarchy, and manages the tool yield/resume loop with a depth
 limit of 10.
 
 **soliplex_client** provides the transport layer: `SoliplexApi` for REST
-(thread/run creation, deletion) and `AgUiClient` for SSE streaming.
+(thread/run creation, deletion) and `AgUiStreamClient` for SSE streaming.
 See `docs/architecture/http-stack.md` for transport details.
 
 ## Key Types Quick Reference
@@ -74,8 +74,7 @@ See `docs/architecture/http-stack.md` for transport details.
 | `HostApi` | Interface: platform boundary (DataFrames, charts, invoke) | `host/host_api.dart` |
 | `AgentApi` | Interface: sub-agent spawning from scripting (integer handles) | `host/agent_api.dart` |
 | `FormApi` | Interface: dynamic form creation from scripting | `host/form_api.dart` |
-| `ClientBundle` | Typedef record: `({SoliplexApi api, AgUiClient agUiClient, close})` | `client_bundle.dart` |
-| `ServerConnection` | Immutable value object: serverId + api + agUiClient | `runtime/server_connection.dart` |
+| `ServerConnection` | Immutable value object: serverId + api + agUiStreamClient | `runtime/server_connection.dart` |
 | `ServerRegistry` | Mutable registry of ServerConnection instances | `runtime/server_registry.dart` |
 | `MultiServerRuntime` | Coordinator wrapping per-server AgentRuntime instances | `runtime/multi_server_runtime.dart` |
 
@@ -86,15 +85,6 @@ All paths above are relative to `packages/soliplex_agent/lib/src/`.
 ```dart
 class AgentRuntime {
   AgentRuntime({
-    required ClientBundle bundle,
-    required ToolRegistryResolver toolRegistryResolver,
-    required PlatformConstraints platform,
-    required Logger logger,
-    SessionExtensionFactory? extensionFactory,
-    String serverId = 'default',
-  });
-
-  AgentRuntime.fromConnection({
     required ServerConnection connection,
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
@@ -272,10 +262,9 @@ the same underlying data.
 `signals_core` so consumers do not need a direct dependency on
 `package:signals_core`.
 
-> **Note:** No Flutter consumer currently reads these signals. The
-> production app uses `ActiveRunNotifier` (stream-based path), and demo
-> notifiers use `awaitResult()` (future-based). The integration guide
-> describes the intended signal-based patterns.
+> **Note:** No consumer currently reads these signals. CLI uses
+> `awaitResult()` (Future). TUI uses `stateChanges` (Stream). The
+> integration guide describes the intended signal-based patterns.
 
 ## ExecutionEvent System
 
@@ -710,9 +699,10 @@ instances. `add()` throws on duplicate `serverId`. `require()` throws
 if the server is not registered.
 
 **`ServerConnection`** is an immutable value object grouping `serverId`,
-`SoliplexApi`, and `AgUiClient`. The convenience factory
-`ServerConnection.create` wires up clients from a server URL (appending
-`/api/v1` automatically). Equality is by `serverId` only.
+`SoliplexApi`, and `AgUiStreamClient`. The convenience factory
+`ServerConnection.create` wires up clients from a server URL and a single
+shared `SoliplexHttpClient` (appending `/api/v1` automatically). AG-UI
+streams are request-scoped, so REST and SSE safely share one client.
 
 **Lazy runtime creation** -- `runtimeFor` creates `AgentRuntime`
 instances on first access using `AgentRuntime.fromConnection`.
@@ -766,7 +756,6 @@ All paths relative to `packages/soliplex_agent/lib/src/`.
 
 | File | Role |
 |------|------|
-| `client_bundle.dart` | `ClientBundle` typedef and `createClientBundle` factory |
 | `host/agent_api.dart` | `AgentApi` interface for sub-agent spawning |
 | `host/fake_agent_api.dart` | `FakeAgentApi` test double |
 | `host/fake_host_api.dart` | `FakeHostApi` test double |

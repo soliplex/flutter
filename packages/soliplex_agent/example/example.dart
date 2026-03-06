@@ -9,6 +9,7 @@
 library;
 
 import 'package:soliplex_agent/soliplex_agent.dart';
+import 'package:soliplex_client/soliplex_client.dart' show DartHttpClient;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 Future<void> main() async {
@@ -18,9 +19,11 @@ Future<void> main() async {
     ..addSink(StdoutSink(useColors: true));
   final logger = logManager.getLogger('example');
 
-  // Build connection from server URL — fromUrl handles /api/v1.
-  final connection = ServerConnection.fromUrl(
+  // Build connection from server URL — create handles /api/v1.
+  final connection = ServerConnection.create(
+    serverId: 'default',
     serverUrl: 'http://localhost:8000',
+    httpClient: DartHttpClient(),
   );
 
   // Create the agent runtime.

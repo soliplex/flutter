@@ -132,20 +132,27 @@ out early. After connection, the body stream is wrapped: when the token
 fires, a `CancelledException` is injected into the stream and the
 underlying subscription is cancelled.
 
-### HttpClientAdapter bridge
+### AgUiStreamClient
 
-`HttpClientAdapter` (`http_client_adapter.dart`) bridges `SoliplexHttpClient`
-to `package:http`'s `BaseClient` for use with `ag_ui`'s `AgUiClient`. It
-exposes a mutable `activeStreamToken` field:
+`AgUiStreamClient` (`agui_stream_client.dart`) routes AG-UI SSE streams
+directly through `SoliplexHttpClient`. It calls `requestStream()` with
+the `CancelToken` as a method argument — no shared mutable state.
 
 ```dart
-adapter.activeStreamToken = myCancelToken;
-// Next SSE request consumes the token (set to null after use)
-await agUiClient.runAgent(...);
+final client = AgUiStreamClient(
+  httpClient: soliplexHttpClient,
+  urlBuilder: UrlBuilder(baseUrl),
+);
+
+await for (final event in client.runAgent(endpoint, input, cancelToken: token)) {
+  // typed BaseEvent instances
+}
 ```
 
-The token is consumed (nulled) after each SSE request so stale tokens do
-not affect subsequent requests. Regular (non-SSE) requests ignore the field.
+The response body is parsed via ag_ui's `SseParser` (WHATWG SSE byte
+parser) and `EventDecoder` (JSON → typed `BaseEvent`). Status codes are
+checked before parsing — non-2xx responses drain the body and throw
+`ApiException`.
 
 ## Stream Lifecycle
 
@@ -231,10 +238,10 @@ mid-stream setup, the SSE path throws `AuthException` immediately. See
 Slice G in the roadmap for planned improvements.
 
 **CancelToken not stopping the stream**
-Verify the token reaches the platform client. The adapter's
-`activeStreamToken` is consumed after use -- set it immediately before the
-SSE request. Check that `_NonClosingHttpClient` in `api_provider.dart` is
-not hiding the adapter reference.
+Verify the token reaches the platform client. `AgUiStreamClient` passes
+`cancelToken` directly to `requestStream()`, which threads it through
+every decorator to the platform client. Check the decorator chain
+composition in `api_provider.dart`.
 
 **Observer not seeing events**
 `ObservableHttpClient` must be explicitly composed into the chain. It is
@@ -251,7 +258,7 @@ not automatic. Verify the decorator order in `api_provider.dart`.
 | `authenticated_http_client.dart` | Bearer token injection decorator |
 | `observable_http_client.dart` | Observer notification decorator |
 | `dart_http_client.dart` | Pure Dart platform client |
-| `http_client_adapter.dart` | Bridge to `package:http` BaseClient |
+| `agui_stream_client.dart` | AG-UI SSE streaming via SoliplexHttpClient |
 | `http_observer.dart` | Observer interface and event types |
 | `http_redactor.dart` | Sensitive data redaction |
 | `token_refresher.dart` | Token refresh interface |

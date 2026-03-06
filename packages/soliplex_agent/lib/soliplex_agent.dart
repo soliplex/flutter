@@ -9,15 +9,12 @@ library;
 export 'package:signals_core/signals_core.dart' show ReadonlySignal, Signal;
 
 // Re-export domain types and AG-UI events. Consumers who need HTTP plumbing
-// (SoliplexApi, AgUiClient, DartHttpClient, etc.) import soliplex_client
+// (SoliplexApi, AgUiStreamClient, DartHttpClient, etc.) import soliplex_client
 // directly.
 export 'package:soliplex_client/soliplex_client.dart'
     hide
-        AgUiClient,
-        AgUiClientConfig,
         AuthenticatedHttpClient,
         DartHttpClient,
-        HttpClientAdapter,
         HttpErrorEvent,
         HttpEvent,
         HttpObserver,

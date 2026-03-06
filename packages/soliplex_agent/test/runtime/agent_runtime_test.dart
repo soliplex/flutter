@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:test/test.dart';
 
@@ -13,7 +13,7 @@ import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 class MockLogger extends Mock implements Logger {}
 
@@ -115,7 +115,7 @@ void main() {
   });
 
   late MockSoliplexApi api;
-  late MockAgUiClient agUiClient;
+  late MockAgUiStreamClient agUiStreamClient;
   late MockLogger logger;
   late AgentRuntime runtime;
 
@@ -123,7 +123,7 @@ void main() {
       ServerConnection(
         serverId: serverId,
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
       );
 
   AgentRuntime createRuntime({
@@ -140,7 +140,7 @@ void main() {
 
   setUp(() {
     api = MockSoliplexApi();
-    agUiClient = MockAgUiClient();
+    agUiStreamClient = MockAgUiStreamClient();
     logger = MockLogger();
     runtime = createRuntime();
   });
@@ -165,7 +165,7 @@ void main() {
 
   void stubRunAgent({required Stream<BaseEvent> stream}) {
     when(
-      () => agUiClient.runAgent(
+      () => agUiStreamClient.runAgent(
         any(),
         any(),
         cancelToken: any(named: 'cancelToken'),
@@ -591,7 +591,7 @@ void main() {
 
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -639,7 +639,7 @@ void main() {
 
       var callCount = 0;
       when(
-        () => agUiClient.runAgent(
+        () => agUiStreamClient.runAgent(
           any(),
           any(),
           cancelToken: any(named: 'cancelToken'),
@@ -797,12 +797,12 @@ void main() {
       final prodConn = ServerConnection(
         serverId: 'prod',
         api: api,
-        agUiClient: agUiClient,
+        agUiStreamClient: agUiStreamClient,
       );
       final stagingConn = ServerConnection(
         serverId: 'staging',
         api: MockSoliplexApi(),
-        agUiClient: MockAgUiClient(),
+        agUiStreamClient: MockAgUiStreamClient(),
       );
 
       final reg = ServerRegistry()

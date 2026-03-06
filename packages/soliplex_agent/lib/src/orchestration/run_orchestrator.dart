@@ -65,16 +65,16 @@ class RunOrchestrator {
   /// Creates a [RunOrchestrator] with the given dependencies.
   RunOrchestrator({
     required SoliplexApi api,
-    required AgUiClient agUiClient,
+    required AgUiStreamClient agUiStreamClient,
     required ToolRegistry toolRegistry,
     required Logger logger,
   })  : _api = api,
-        _agUiClient = agUiClient,
+        _agUiStreamClient = agUiStreamClient,
         _toolRegistry = toolRegistry,
         _logger = logger;
 
   final SoliplexApi _api;
-  final AgUiClient _agUiClient;
+  final AgUiStreamClient _agUiStreamClient;
   final ToolRegistry _toolRegistry;
   final Logger _logger;
 
@@ -563,7 +563,7 @@ class RunOrchestrator {
     _terminalCompleter = Completer<RunState>();
     _subscriptionEpoch++;
     final epoch = _subscriptionEpoch;
-    final stream = _agUiClient.runAgent(
+    final stream = _agUiStreamClient.runAgent(
       endpoint,
       input,
       cancelToken: _cancelToken,

@@ -1,17 +1,17 @@
 import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show AgUiClient, SoliplexApi;
+    show AgUiStreamClient, SoliplexApi;
 import 'package:test/test.dart';
 
 class MockSoliplexApi extends Mock implements SoliplexApi {}
 
-class MockAgUiClient extends Mock implements AgUiClient {}
+class MockAgUiStreamClient extends Mock implements AgUiStreamClient {}
 
 ServerConnection _fakeConnection(String serverId) => ServerConnection(
       serverId: serverId,
       api: MockSoliplexApi(),
-      agUiClient: MockAgUiClient(),
+      agUiStreamClient: MockAgUiStreamClient(),
     );
 
 void main() {
