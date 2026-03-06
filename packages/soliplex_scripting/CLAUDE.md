@@ -17,12 +17,11 @@ dart test --coverage
 ### Tool Definition
 
 - `PythonExecutorTool` -- static `toolName` and AG-UI `Tool` definition for `execute_python`
-- `ScriptingToolRegistryResolver` -- decorator wrapping an inner resolver to inject `execute_python`
 
 ### Execution
 
-- `MontyToolExecutor` -- acquires bridge from cache, configures host functions, runs code, returns text; default 30s execution timeout with evict-on-timeout (not release) to prevent cache poisoning
-- `BridgeCache` -- LRU pool of `MontyBridge` instances keyed by `ThreadKey`; passes `defaultLimits` (default: `MontyLimitsDefaults.tool` = 5s/16MB) to bridges it creates
+- `MontyScriptEnvironment` -- session-scoped `ScriptEnvironment` backed by a `MontyBridge`; owns bridge, `DfRegistry`, `StreamRegistry`; disposed by `AgentSession`
+- `createMontyScriptEnvironmentFactory()` -- creates a `ScriptEnvironmentFactory` that produces fresh `MontyScriptEnvironment` per session
 
 ### Event Bridging
 
@@ -36,7 +35,7 @@ dart test --coverage
 ## Dependencies
 
 - `ag_ui` -- AG-UI protocol types
-- `soliplex_agent` -- `ThreadKey`, `ToolRegistryResolver`, `ToolRegistry`
+- `soliplex_agent` -- `ScriptEnvironment`, `ScriptEnvironmentFactory`, `ClientTool`
 - `soliplex_client` -- `ToolCallInfo`, `ClientTool`
 - `soliplex_interpreter_monty` -- `MontyBridge`, `BridgeEvent`, `HostFunctionRegistry`
 - `dart_monty_platform_interface` -- `MontyLimits` type for bridge resource limits

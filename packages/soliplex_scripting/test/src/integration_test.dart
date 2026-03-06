@@ -2,14 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:soliplex_agent/soliplex_agent.dart'
-    show FakeAgentApi, HostApi, ToolExecutionContext, ToolRegistry;
+    show FakeAgentApi, HostApi, ToolExecutionContext;
 import 'package:soliplex_client/soliplex_client.dart' show ToolCallInfo;
 import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 import 'package:test/test.dart';
-
-const ThreadKey _key = (serverId: 's', roomId: 'r', threadId: 't');
 
 /// Stub [ToolExecutionContext] — tools in these tests ignore the context.
 class _FakeContext implements ToolExecutionContext {
@@ -21,7 +19,7 @@ final _ctx = _FakeContext();
 
 /// Records calls and returns canned values.
 class _FakeHostApi implements HostApi {
-  final calls = <String, List<Object?>>{}; // method -> args
+  final calls = <String, List<Object?>>{};
 
   @override
   int registerDataFrame(Map<String, List<Object?>> columns) {
@@ -124,20 +122,36 @@ class _ScriptableBridge implements MontyBridge {
   void dispose() {}
 }
 
+MontyScriptEnvironment _createEnvironment({
+  required HostApi hostApi,
+  FakeAgentApi? agentApi,
+  DfRegistry? dfRegistry,
+}) {
+  final df = dfRegistry ?? DfRegistry();
+  final streamRegistry = StreamRegistry();
+  final bridge = _ScriptableBridge();
+  HostFunctionWiring(
+    hostApi: hostApi,
+    agentApi: agentApi,
+    dfRegistry: df,
+    streamRegistry: streamRegistry,
+  ).registerOnto(bridge);
+  return MontyScriptEnvironment(
+    bridge: bridge,
+    dfRegistry: df,
+    streamRegistry: streamRegistry,
+  );
+}
+
 void main() {
   group('Integration', () {
-    test('executor → bridge → host function → result', () async {
+    test('environment → bridge → host function → result', () async {
       final hostApi = _FakeHostApi();
-      final wiring = HostFunctionWiring(
-        hostApi: hostApi,
-        dfRegistry: DfRegistry(),
-      );
-      final cache = BridgeCache(limit: 2, bridgeFactory: _ScriptableBridge.new);
-      final executor = MontyToolExecutor(
-        threadKey: _key,
-        bridgeCache: cache,
-        hostWiring: wiring,
-      );
+      final env = _createEnvironment(hostApi: hostApi);
+
+      final tools = env.tools;
+      expect(tools, hasLength(1));
+      expect(tools.first.definition.name, PythonExecutorTool.toolName);
 
       final toolCall = ToolCallInfo(
         id: 'tc-integration',
@@ -148,41 +162,15 @@ void main() {
         }),
       );
 
-      final result = await executor.execute(toolCall);
-
-      // df_create now uses DfRegistry, not HostApi.registerDataFrame.
-      // Verify it returned a handle (integer) via the bridge output.
+      final result = await tools.first.executor(toolCall, _ctx);
       expect(result, 'done');
-      expect(cache.isExecuting(_key), isFalse);
 
-      cache.disposeAll();
+      env.dispose();
     });
 
-    test('resolver + executor end-to-end', () async {
+    test('environment tools registered in tool registry', () async {
       final hostApi = _FakeHostApi();
-      final wiring = HostFunctionWiring(
-        hostApi: hostApi,
-        dfRegistry: DfRegistry(),
-      );
-      final cache = BridgeCache(limit: 2, bridgeFactory: _ScriptableBridge.new);
-      final executor = MontyToolExecutor(
-        threadKey: _key,
-        bridgeCache: cache,
-        hostWiring: wiring,
-      );
-
-      Future<ToolRegistry> inner(String roomId) async {
-        return const ToolRegistry();
-      }
-
-      final resolver = ScriptingToolRegistryResolver(
-        inner: inner,
-        executor: executor,
-      );
-
-      final registry = await resolver.call('room-1');
-
-      expect(registry.contains(PythonExecutorTool.toolName), isTrue);
+      final env = _createEnvironment(hostApi: hostApi);
 
       final toolCall = ToolCallInfo(
         id: 'tc-e2e',
@@ -192,28 +180,22 @@ void main() {
         }),
       );
 
-      final result = await registry.execute(toolCall, _ctx);
+      final result = await env.tools.first.executor(toolCall, _ctx);
       expect(result, 'done');
       expect(hostApi.calls, contains('registerChart'));
 
-      cache.disposeAll();
+      env.dispose();
     });
   });
 
   group('Integration: agent host functions', () {
-    test('spawn_agent via executor → bridge → AgentApi', () async {
+    test('spawn_agent via environment → bridge → AgentApi', () async {
       final hostApi = _FakeHostApi();
       final agentApi = FakeAgentApi(
         spawnResult: 42,
         getResultResult: 'agent says hello',
       );
-      final wiring = HostFunctionWiring(hostApi: hostApi, agentApi: agentApi);
-      final cache = BridgeCache(limit: 2, bridgeFactory: _ScriptableBridge.new);
-      final executor = MontyToolExecutor(
-        threadKey: _key,
-        bridgeCache: cache,
-        hostWiring: wiring,
-      );
+      final env = _createEnvironment(hostApi: hostApi, agentApi: agentApi);
 
       final toolCall = ToolCallInfo(
         id: 'tc-agent-spawn',
@@ -223,28 +205,22 @@ void main() {
         }),
       );
 
-      final result = await executor.execute(toolCall);
+      final result = await env.tools.first.executor(toolCall, _ctx);
       expect(result, 'done');
       expect(agentApi.calls, contains('spawnAgent'));
       expect(agentApi.calls['spawnAgent']![0], 'echo');
       expect(agentApi.calls['spawnAgent']![1], 'hi');
 
-      cache.disposeAll();
+      env.dispose();
     });
 
-    test('ask_llm via executor → bridge → spawn + getResult', () async {
+    test('ask_llm via environment → bridge → spawn + getResult', () async {
       final hostApi = _FakeHostApi();
       final agentApi = FakeAgentApi(
         spawnResult: 7,
         getResultResult: 'the answer is 42',
       );
-      final wiring = HostFunctionWiring(hostApi: hostApi, agentApi: agentApi);
-      final cache = BridgeCache(limit: 2, bridgeFactory: _ScriptableBridge.new);
-      final executor = MontyToolExecutor(
-        threadKey: _key,
-        bridgeCache: cache,
-        hostWiring: wiring,
-      );
+      final env = _createEnvironment(hostApi: hostApi, agentApi: agentApi);
 
       final toolCall = ToolCallInfo(
         id: 'tc-agent-ask',
@@ -254,28 +230,21 @@ void main() {
         }),
       );
 
-      final result = await executor.execute(toolCall);
+      final result = await env.tools.first.executor(toolCall, _ctx);
       expect(result, 'done');
-      // ask_llm should have called spawnAgent then getResult.
       expect(agentApi.calls, contains('spawnAgent'));
       expect(agentApi.calls['spawnAgent']![0], 'math');
       expect(agentApi.calls['spawnAgent']![1], 'what is 6*7?');
       expect(agentApi.calls, contains('getResult'));
       expect(agentApi.calls['getResult']![0], 7);
 
-      cache.disposeAll();
+      env.dispose();
     });
 
-    test('wait_all via executor → bridge → AgentApi', () async {
+    test('wait_all via environment → bridge → AgentApi', () async {
       final hostApi = _FakeHostApi();
       final agentApi = FakeAgentApi(waitAllResult: ['result-a', 'result-b']);
-      final wiring = HostFunctionWiring(hostApi: hostApi, agentApi: agentApi);
-      final cache = BridgeCache(limit: 2, bridgeFactory: _ScriptableBridge.new);
-      final executor = MontyToolExecutor(
-        threadKey: _key,
-        bridgeCache: cache,
-        hostWiring: wiring,
-      );
+      final env = _createEnvironment(hostApi: hostApi, agentApi: agentApi);
 
       final toolCall = ToolCallInfo(
         id: 'tc-agent-wait',
@@ -283,12 +252,12 @@ void main() {
         arguments: jsonEncode({'code': 'wait_all({"handles": [1, 2]})'}),
       );
 
-      final result = await executor.execute(toolCall);
+      final result = await env.tools.first.executor(toolCall, _ctx);
       expect(result, 'done');
       expect(agentApi.calls, contains('waitAll'));
       expect(agentApi.calls['waitAll']![0], [1, 2]);
 
-      cache.disposeAll();
+      env.dispose();
     });
 
     test('agent functions absent when no agentApi', () async {

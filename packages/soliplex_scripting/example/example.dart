@@ -1,35 +1,28 @@
-/// Illustrates how `ScriptingToolRegistryResolver` injects the
-/// `execute_python` tool into an agent's tool registry.
+/// Illustrates how `MontyScriptEnvironment` provides `execute_python`
+/// as a session-scoped tool via `ScriptEnvironmentFactory`.
 ///
 /// This example is illustrative -- it shows the wiring pattern without
 /// requiring a running backend or Monty WASM runtime.
 library;
 
-// ignore_for_file: unused_local_variable — example is illustrative only
-
-import 'package:soliplex_scripting/soliplex_scripting.dart';
-
 void main() {
-  // 1. Create a bridge cache with a concurrency limit.
-  final cache = BridgeCache(limit: 4);
-
-  // 2. Wire host functions so Python can call back into Dart.
-  //    (Requires a HostApi implementation from soliplex_agent.)
-  // final wiring = HostFunctionWiring(hostApi: myHostApi);
-
-  // 3. Create a tool executor for a specific thread.
-  // final executor = MontyToolExecutor(
-  //   threadKey: (serverId: 'default', roomId: 'r1', threadId: 't1'),
-  //   bridgeCache: cache,
-  //   hostWiring: wiring,
+  // 1. Create a ScriptEnvironmentFactory that produces session-scoped
+  //    environments. Each invocation creates a fresh bridge + registries.
+  //
+  // final factory = createMontyScriptEnvironmentFactory(
+  //   hostApi: myHostApi,
+  //   agentApi: myAgentApi,  // optional, enables spawn_agent/ask_llm
   // );
 
-  // 4. Wrap the base tool resolver to transparently add execute_python.
-  // final resolver = ScriptingToolRegistryResolver(
-  //   inner: baseToolResolver,
-  //   executor: executor,
+  // 2. Pass the factory to AgentRuntime via wrapScriptEnvironmentFactory().
+  //    Each session gets its own MontyScriptEnvironment with an isolated
+  //    bridge. When the session ends, the environment is disposed.
+  //
+  // final runtime = AgentRuntime(
+  //   connection: connection,
+  //   toolRegistryResolver: resolver,
+  //   extensionFactory: wrapScriptEnvironmentFactory(factory),
+  //   platform: NativePlatformConstraints(),
+  //   logger: logger,
   // );
-
-  // The resolver can now be passed to AgentRuntime. When the LLM calls
-  // execute_python, the MontyToolExecutor handles it automatically.
 }

@@ -15,8 +15,8 @@ import 'package:soliplex_scripting/src/stream_registry.dart';
 /// registered once at construction (via factory). The [dispose] method
 /// releases all resources — called automatically by `AgentSession.dispose()`.
 ///
-/// Unlike `MontyToolExecutor` + `BridgeCache`, there is no acquire/release
-/// cycle or LRU eviction. The bridge lives for exactly one session.
+/// The bridge lives for exactly one session — no acquire/release cycle or
+/// LRU eviction.
 class MontyScriptEnvironment implements ScriptEnvironment {
   /// Creates an environment with pre-configured resources.
   ///
