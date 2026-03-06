@@ -11,14 +11,14 @@ package.
 | DataFrame | 37 | soliplex\_scripting |
 | Chart | 2 | soliplex\_scripting |
 | Form | 2 | soliplex\_scripting |
-| Platform | 2 | soliplex\_scripting |
+| Platform | 4 | soliplex\_scripting |
 | Streams | 3 | soliplex\_scripting |
 | Blackboard | 3 | soliplex\_scripting |
 | Agent | 7 | soliplex\_scripting |
 | Isolate | 5 | dart\_monty\_bridge |
 | Event Loop | 2 | dart\_monty\_bridge |
 | Introspection | 2 | dart\_monty\_bridge |
-| **Total** | **65** | |
+| **Total** | **67** | |
 
 ## DataFrame (`df_*`)
 
@@ -27,7 +27,7 @@ integer handles returned by `df_create`.
 
 | Function | Params | Description |
 |----------|--------|-------------|
-| `df_create` | `columns: map` | Create a DataFrame from column data |
+| `df_create` | `data: list`, `columns?: list` | Create a DataFrame from row maps or list-of-lists with column names |
 | `df_from_csv` | `csv: string` | Parse CSV text into a DataFrame |
 | `df_from_json` | `json: string` | Parse JSON text into a DataFrame |
 | `df_shape` | `handle: int` | Return `[rows, cols]` |
@@ -42,11 +42,11 @@ integer handles returned by `df_create`.
 | `df_select` | `handle: int`, `columns: list` | Select columns, return new handle |
 | `df_filter` | `handle: int`, `column: string`, `op: string`, `value` | Filter rows, return new handle |
 | `df_sort` | `handle: int`, `column: string`, `ascending?: bool` | Sort rows, return new handle |
-| `df_group_agg` | `handle: int`, `by: string`, `column: string`, `agg: string` | Group-by aggregation, return new handle |
+| `df_group_agg` | `handle: int`, `group_cols: list`, `agg_map: map` | Multi-column group-by with aggregation map, return new handle |
 | `df_add_column` | `handle: int`, `name: string`, `values: list` | Add column, return new handle |
 | `df_drop` | `handle: int`, `columns: list` | Drop columns, return new handle |
 | `df_rename` | `handle: int`, `mapping: map` | Rename columns, return new handle |
-| `df_merge` | `left: int`, `right: int`, `on: string`, `how?: string` | Join two DataFrames, return new handle |
+| `df_merge` | `handle: int`, `other_handle: int`, `on: list`, `how?: string` | Join two DataFrames on columns, return new handle |
 | `df_concat` | `handles: list`, `axis?: int` | Concatenate DataFrames, return new handle |
 | `df_fillna` | `handle: int`, `value` | Fill missing values, return new handle |
 | `df_dropna` | `handle: int` | Drop rows with missing values, return new handle |
@@ -91,6 +91,8 @@ General platform bridge functions.
 |----------|--------|-------------|
 | `host_invoke` | `name: string`, `args: map` | Invoke an arbitrary platform callback |
 | `sleep` | `ms: int` | Pause execution for N milliseconds |
+| `fetch` | `url: string`, `method?: string`, `headers?: map`, `body?: string` | HTTP request. Returns `{status, body, headers}` |
+| `log` | `message: string`, `level?: string` | Log a message. Levels: debug, info, warning, error |
 
 ## Streams (`stream_*`)
 
@@ -121,7 +123,7 @@ Agent supervision and orchestration. Requires `AgentApi` to be wired.
 | `spawn_agent` | `room: string`, `prompt: string`, `thread_id?: string` | Spawn an L2 sub-agent, return handle |
 | `wait_all` | `handles: list` | Wait for all agents to complete |
 | `get_result` | `handle: int` | Get the result of a completed agent |
-| `agent_watch` | `handle: int`, `timeout_seconds?: int` | Watch an agent until completion |
+| `agent_watch` | `handle: int`, `timeout_seconds?: number` | Watch an agent until completion |
 | `cancel_agent` | `handle: int` | Cancel a spawned agent |
 | `agent_status` | `handle: int` | Poll agent lifecycle state |
 | `ask_llm` | `prompt: string`, `room?: string`, `thread_id?: string` | Spawn + await in one call (convenience) |
@@ -159,7 +161,7 @@ Built-in self-documentation functions (always available).
 
 ## Internal
 
-Not callable by user code — injected by the bridge infrastructure.
+Not callable by user code -- injected by the bridge infrastructure.
 
 | Function | Description |
 |----------|-------------|

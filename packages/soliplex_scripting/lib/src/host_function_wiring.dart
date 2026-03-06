@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:http/http.dart' as http;
 import 'package:soliplex_agent/soliplex_agent.dart'
     show
         AgentApi,
@@ -176,6 +177,96 @@ class HostFunctionWiring {
             final ms = (args['ms']! as num).toInt();
             await Future<void>.delayed(Duration(milliseconds: ms));
             return null;
+          },
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'fetch',
+            description: 'Make an HTTP request and return the response. '
+                'Returns a dict with status, body, and headers.',
+            params: [
+              HostParam(
+                name: 'url',
+                type: HostParamType.string,
+                description: 'Request URL.',
+              ),
+              HostParam(
+                name: 'method',
+                type: HostParamType.string,
+                isRequired: false,
+                defaultValue: 'GET',
+                description: 'HTTP method (GET, POST, PUT, DELETE).',
+              ),
+              HostParam(
+                name: 'headers',
+                type: HostParamType.map,
+                isRequired: false,
+                description: 'Request headers.',
+              ),
+              HostParam(
+                name: 'body',
+                type: HostParamType.string,
+                isRequired: false,
+                description: 'Request body (for POST/PUT).',
+              ),
+            ],
+          ),
+          handler: (args) async {
+            final url = Uri.parse(args['url']! as String);
+            final method = (args['method']! as String).toUpperCase();
+            final rawHeaders = args['headers'] as Map?;
+            final headers = rawHeaders != null
+                ? Map<String, String>.from(rawHeaders)
+                : <String, String>{};
+            final body = args['body'] as String?;
+
+            final http.Response response;
+            switch (method) {
+              case 'POST':
+                response = await http.post(url, headers: headers, body: body);
+              case 'PUT':
+                response = await http.put(url, headers: headers, body: body);
+              case 'DELETE':
+                response = await http.delete(url, headers: headers);
+              default:
+                response = await http.get(url, headers: headers);
+            }
+
+            return <String, Object?>{
+              'status': response.statusCode,
+              'body': response.body,
+              'headers': response.headers,
+            };
+          },
+        ),
+        HostFunction(
+          schema: const HostFunctionSchema(
+            name: 'log',
+            description: 'Log a message at the specified level. '
+                'Visible in host debug output.',
+            params: [
+              HostParam(
+                name: 'message',
+                type: HostParamType.string,
+                description: 'Log message.',
+              ),
+              HostParam(
+                name: 'level',
+                type: HostParamType.string,
+                isRequired: false,
+                defaultValue: 'info',
+                description:
+                    "Log level: 'debug', 'info', 'warning', or 'error'.",
+              ),
+            ],
+          ),
+          handler: (args) async {
+            final level = args['level']! as String;
+            final message = args['message']! as String;
+            return _hostApi.invoke(
+              'log',
+              <String, Object?>{'level': level, 'message': message},
+            );
           },
         ),
       ];

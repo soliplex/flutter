@@ -91,8 +91,8 @@ void main() {
       wiring.registerOnto(bridge);
 
       final names = bridge.registered.map((f) => f.schema.name).toSet();
-      // 37 df + 2 chart + 2 platform + 2 introspection = 43
-      expect(bridge.registered, hasLength(43));
+      // 37 df + 2 chart + 4 platform + 2 introspection = 45
+      expect(bridge.registered, hasLength(45));
       expect(names, contains('df_create'));
       expect(names, contains('df_head'));
       expect(names, contains('df_filter'));
@@ -100,6 +100,8 @@ void main() {
       expect(names, contains('chart_update'));
       expect(names, contains('host_invoke'));
       expect(names, contains('sleep'));
+      expect(names, contains('fetch'));
+      expect(names, contains('log'));
       expect(names, contains('list_functions'));
       expect(names, contains('help'));
     });
@@ -164,6 +166,40 @@ void main() {
           {'action': 'read'},
         ]);
       });
+
+      test('log delegates to HostApi.invoke with log namespace', () async {
+        final result = await byName['log']!.handler({
+          'message': 'hello world',
+          'level': 'info',
+        });
+
+        expect(result, 'invoked');
+        expect(hostApi.calls['invoke']![0], 'log');
+        final logArgs = hostApi.calls['invoke']![1]! as Map<String, Object?>;
+        expect(logArgs['message'], 'hello world');
+        expect(logArgs['level'], 'info');
+      });
+
+      test('log defaults level to info', () {
+        final schema = byName['log']!.schema;
+        expect(schema.params, hasLength(2));
+        expect(schema.params[0].name, 'message');
+        expect(schema.params[1].name, 'level');
+        expect(schema.params[1].defaultValue, 'info');
+      });
+
+      test('fetch schema has url, method, headers, body', () {
+        final schema = byName['fetch']!.schema;
+        expect(schema.params, hasLength(4));
+        expect(schema.params[0].name, 'url');
+        expect(schema.params[0].isRequired, isTrue);
+        expect(schema.params[1].name, 'method');
+        expect(schema.params[1].defaultValue, 'GET');
+        expect(schema.params[2].name, 'headers');
+        expect(schema.params[2].isRequired, isFalse);
+        expect(schema.params[3].name, 'body');
+        expect(schema.params[3].isRequired, isFalse);
+      });
     });
 
     group('agent category absent when agentApi is null', () {
@@ -178,8 +214,8 @@ void main() {
         expect(names, isNot(contains('ask_llm')));
         expect(
           b.registered,
-          hasLength(43),
-        ); // 37 df + 2 chart + 2 platform + 2 introspection
+          hasLength(45),
+        ); // 37 df + 2 chart + 4 platform + 2 introspection
       });
     });
   });
@@ -217,8 +253,8 @@ void main() {
           'ask_llm',
         ]),
       );
-      // 37 df + 2 chart + 2 platform + 7 agent + 2 introspection = 50
-      expect(bridge.registered, hasLength(50));
+      // 37 df + 2 chart + 4 platform + 7 agent + 2 introspection = 52
+      expect(bridge.registered, hasLength(52));
     });
 
     group('agent handler delegation', () {
@@ -475,8 +511,8 @@ void main() {
         names,
         containsAll(['blackboard_write', 'blackboard_read', 'blackboard_keys']),
       );
-      // 37 df + 2 chart + 2 platform + 3 blackboard + 2 introspection = 46
-      expect(bridge.registered, hasLength(46));
+      // 37 df + 2 chart + 4 platform + 3 blackboard + 2 introspection = 48
+      expect(bridge.registered, hasLength(48));
     });
 
     test('blackboard category absent when blackboardApi is null', () {
