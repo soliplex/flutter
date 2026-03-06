@@ -36,6 +36,41 @@ Three layers: UI (features/) -> Core (providers, auth, logging) -> soliplex_clie
 State management: Riverpod (manual providers, no codegen).
 Navigation: GoRouter. Logging: soliplex_logging via `Loggers.*` accessors.
 
+### Clean Architecture (Dependency Rule)
+
+Source code dependencies point inward only. See `PLANS/0006-clean-architecture/`
+for the full target architecture and rationale.
+
+**Domain** (`soliplex_client` + `lib/core/domain/`): Rich objects that own
+their behavior — state machines, composition rules, validation, invariants.
+Pure Dart. No Flutter, no Riverpod, no I/O. `lib/core/models/` contains
+legacy types (config, run state) that predate `domain/`. Domain types in
+`models/` migrate to `domain/` during reworks; new domain types go directly
+in `lib/core/domain/`.
+
+**Use Cases** (`lib/core/usecases/`): Plain Dart classes that orchestrate
+domain objects and I/O. Named by user intent: `SubmitQuizAnswer`,
+`ResumeThreadWithMessage`, `SelectAndPersistThread`. Use cases do NOT
+contain business rules — they call domain methods and handle side effects.
+
+**Providers** (`lib/core/providers/`): Thin glue for dependency injection
+and reactive rebuilds. Nothing more. Rules:
+
+- Provider files contain only provider declarations and thin Notifiers that
+  delegate to domain objects and use cases. If a provider file defines sealed
+  classes, encodes business rules, or manages state transitions, extract that
+  logic to `lib/core/domain/` or `lib/core/usecases/`.
+- Do NOT put sealed classes in provider files — they belong in `lib/core/domain/`.
+- Do NOT put state machines in Notifiers — add methods to domain objects.
+  Notifiers are Humble Objects: push all testable logic out, leave only
+  trivial delegation.
+- If a Notifier makes API calls or performs any I/O, extract a use case in
+  `lib/core/usecases/`. The dependency rule has no size threshold — "it's
+  just one API call" is not a reason to skip extraction.
+- Do NOT create convenience providers wrapping `.select()` — use `.select()` at call sites.
+- When adding a feature that needs state, create or extend a domain class first,
+  then expose it via a provider.
+
 ## Development Rules
 
 - KISS, YAGNI, SOLID - simple solutions over clever ones
