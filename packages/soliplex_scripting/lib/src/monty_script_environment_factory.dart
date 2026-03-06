@@ -34,6 +34,7 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
   String? Function()? getAuthToken,
   FormApi? formApi,
   List<HostFunction>? extraFunctions,
+  MontyPlatformFactory? platformFactory,
   MontyLimits? limits,
   Duration executionTimeout = const Duration(seconds: 30),
 }) {
@@ -44,6 +45,14 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       useFutures: false,
       limits: limits ?? MontyLimitsDefaults.tool,
     );
+
+    // Register IsolatePlugin if a platform factory is provided.
+    IsolatePlugin? isolatePlugin;
+    if (platformFactory != null) {
+      isolatePlugin = IsolatePlugin(platformFactory: platformFactory);
+      isolatePlugin.functions.forEach(bridge.register);
+    }
+
     HostFunctionWiring(
       hostApi: hostApi,
       agentApi: agentApi,
@@ -60,6 +69,7 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       dfRegistry: dfRegistry,
       streamRegistry: streamRegistry,
       executionTimeout: executionTimeout,
+      isolatePlugin: isolatePlugin,
     );
   };
 }

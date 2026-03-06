@@ -18,4 +18,5 @@ export 'src/execution_result.dart';
 export 'src/input_variable.dart';
 export 'src/monty_execution_service.dart';
 export 'src/monty_limits_defaults.dart';
+export 'src/plugins/isolate_plugin.dart';
 export 'src/schema_executor.dart';

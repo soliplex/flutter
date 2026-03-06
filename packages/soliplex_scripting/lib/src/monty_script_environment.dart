@@ -27,15 +27,18 @@ class MontyScriptEnvironment implements ScriptEnvironment {
     required DfRegistry dfRegistry,
     required StreamRegistry streamRegistry,
     Duration executionTimeout = const Duration(seconds: 30),
+    IsolatePlugin? isolatePlugin,
   })  : _bridge = bridge,
         _dfRegistry = dfRegistry,
         _streamRegistry = streamRegistry,
-        _executionTimeout = executionTimeout;
+        _executionTimeout = executionTimeout,
+        _isolatePlugin = isolatePlugin;
 
   final MontyBridge _bridge;
   final DfRegistry _dfRegistry;
   final StreamRegistry _streamRegistry;
   final Duration _executionTimeout;
+  final IsolatePlugin? _isolatePlugin;
   bool _disposed = false;
 
   @override
@@ -57,6 +60,7 @@ class MontyScriptEnvironment implements ScriptEnvironment {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    if (_isolatePlugin != null) unawaited(_isolatePlugin.onDispose());
     _bridge.dispose();
     _dfRegistry.disposeAll();
     unawaited(_streamRegistry.dispose());
