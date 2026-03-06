@@ -46,7 +46,7 @@ class IntegrationHarness {
     );
 
     agUiStreamClient = AgUiStreamClient(
-      httpClient: sseClient,
+      httpTransport: HttpTransport(client: sseClient),
       urlBuilder: UrlBuilder('$baseUrl/api/v1'),
     );
   }

@@ -1,30 +1,27 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart' hide CancelToken;
 // ignore: implementation_imports
 import 'package:ag_ui/src/sse/sse_parser.dart';
-import 'package:soliplex_client/src/errors/exceptions.dart';
-import 'package:soliplex_client/src/http/http_response.dart';
-import 'package:soliplex_client/src/http/soliplex_http_client.dart';
+import 'package:soliplex_client/src/http/http_transport.dart';
 import 'package:soliplex_client/src/utils/cancel_token.dart';
 import 'package:soliplex_client/src/utils/url_builder.dart';
 
 /// Streams AG-UI events using the Soliplex HTTP stack directly.
 ///
 /// Replaces [AgUiClient] usage in pure Dart packages. Routes SSE through
-/// [SoliplexHttpClient] so auth, observability, and platform clients
-/// apply automatically. No retry, no reconnection, no duplicate
-/// CancelToken.
+/// [HttpTransport] so status code mapping, auth, observability, cancel
+/// wrapping, and platform clients apply automatically. No retry, no
+/// reconnection, no duplicate CancelToken.
 class AgUiStreamClient {
-  /// Creates a client that streams AG-UI events via [httpClient].
+  /// Creates a client that streams AG-UI events via [httpTransport].
   AgUiStreamClient({
-    required SoliplexHttpClient httpClient,
+    required HttpTransport httpTransport,
     required UrlBuilder urlBuilder,
-  })  : _httpClient = httpClient,
+  })  : _httpTransport = httpTransport,
         _urlBuilder = urlBuilder;
 
-  final SoliplexHttpClient _httpClient;
+  final HttpTransport _httpTransport;
   final UrlBuilder _urlBuilder;
 
   /// Streams AG-UI events for a run.
@@ -37,7 +34,7 @@ class AgUiStreamClient {
     SimpleRunAgentInput input, {
     CancelToken? cancelToken,
   }) async* {
-    final response = await _httpClient.requestStream(
+    final response = await _httpTransport.requestStream(
       'POST',
       _urlBuilder.build(path: endpoint),
       headers: {
@@ -47,8 +44,6 @@ class AgUiStreamClient {
       body: input.toJson(),
       cancelToken: cancelToken,
     );
-
-    _checkStatusCode(response);
 
     final sseMessages = SseParser().parseBytes(response.body);
     const decoder = EventDecoder();
@@ -68,23 +63,6 @@ class AgUiStreamClient {
     }
   }
 
-  /// Checks the HTTP status code and throws on non-2xx responses.
-  ///
-  /// Drains the response body to release the TCP socket before throwing.
-  void _checkStatusCode(StreamedHttpResponse response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-
-    // Drain the stream to release the underlying TCP socket.
-    unawaited(response.body.listen((_) {}).cancel());
-
-    final reason = response.reasonPhrase;
-    throw ApiException(
-      message: 'SSE connection failed: HTTP ${response.statusCode}'
-          '${reason != null ? ' ($reason)' : ''}',
-      statusCode: response.statusCode,
-    );
-  }
-
-  /// Closes the underlying HTTP client.
-  void close() => _httpClient.close();
+  /// Closes the underlying transport.
+  void close() => _httpTransport.close();
 }

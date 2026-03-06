@@ -21,19 +21,17 @@ ServerConnection createVerboseConnection(String serverUrl) {
     observers: [observer],
   );
 
-  final transport = HttpTransport(client: apiHttpClient);
   final urlBuilder = UrlBuilder(baseUrl);
-
-  final api = SoliplexApi(transport: transport, urlBuilder: urlBuilder);
-  final agUiStreamClient = AgUiStreamClient(
-    httpClient: sseHttpClient,
-    urlBuilder: urlBuilder,
-  );
+  final apiTransport = HttpTransport(client: apiHttpClient);
+  final sseTransport = HttpTransport(client: sseHttpClient);
 
   return ServerConnection(
     serverId: 'default',
-    api: api,
-    agUiStreamClient: agUiStreamClient,
+    api: SoliplexApi(transport: apiTransport, urlBuilder: urlBuilder),
+    agUiStreamClient: AgUiStreamClient(
+      httpTransport: sseTransport,
+      urlBuilder: urlBuilder,
+    ),
     onClose: () async {
       apiHttpClient.close();
       sseHttpClient.close();

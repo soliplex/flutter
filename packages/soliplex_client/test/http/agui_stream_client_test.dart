@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:ag_ui/ag_ui.dart' hide CancelToken;
@@ -6,12 +5,12 @@ import 'package:mocktail/mocktail.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/agui_stream_client.dart';
 import 'package:soliplex_client/src/http/http_response.dart';
-import 'package:soliplex_client/src/http/soliplex_http_client.dart';
+import 'package:soliplex_client/src/http/http_transport.dart';
 import 'package:soliplex_client/src/utils/cancel_token.dart';
 import 'package:soliplex_client/src/utils/url_builder.dart';
 import 'package:test/test.dart';
 
-class MockSoliplexHttpClient extends Mock implements SoliplexHttpClient {}
+class MockHttpTransport extends Mock implements HttpTransport {}
 
 /// Encodes a list of SSE events into a byte stream.
 ///
@@ -27,7 +26,7 @@ Stream<List<int>> sseByteStream(List<Map<String, dynamic>> events) {
 }
 
 void main() {
-  late MockSoliplexHttpClient mockClient;
+  late MockHttpTransport mockTransport;
   late AgUiStreamClient client;
 
   const baseUrl = 'https://api.test/v1';
@@ -38,17 +37,17 @@ void main() {
   });
 
   setUp(() {
-    mockClient = MockSoliplexHttpClient();
+    mockTransport = MockHttpTransport();
     client = AgUiStreamClient(
-      httpClient: mockClient,
+      httpTransport: mockTransport,
       urlBuilder: UrlBuilder(baseUrl),
     );
-    when(() => mockClient.close()).thenReturn(null);
+    when(() => mockTransport.close()).thenReturn(null);
   });
 
   tearDown(() {
     client.close();
-    reset(mockClient);
+    reset(mockTransport);
   });
 
   group('AgUiStreamClient', () {
@@ -60,7 +59,7 @@ void main() {
         final token = CancelToken();
 
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -77,7 +76,7 @@ void main() {
         await client.runAgent(endpoint, input, cancelToken: token).toList();
 
         final captured = verify(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -91,7 +90,7 @@ void main() {
 
       test('builds correct URI from endpoint', () async {
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -108,7 +107,7 @@ void main() {
         await client.runAgent(endpoint, input).toList();
 
         final captured = verify(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             'POST',
             captureAny(),
             headers: any(named: 'headers'),
@@ -126,7 +125,7 @@ void main() {
 
       test('sends correct headers', () async {
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -143,7 +142,7 @@ void main() {
         await client.runAgent(endpoint, input).toList();
 
         final captured = verify(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: captureAny(named: 'headers'),
@@ -186,7 +185,7 @@ void main() {
         ];
 
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -234,7 +233,7 @@ void main() {
           ..writeln();
 
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -268,7 +267,7 @@ void main() {
           ..writeln();
 
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
@@ -290,127 +289,72 @@ void main() {
     });
 
     group('error handling', () {
-      test('throws ApiException on non-2xx status code', () async {
+      test('propagates AuthException from transport on 401', () async {
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
             body: any(named: 'body'),
             cancelToken: any(named: 'cancelToken'),
           ),
-        ).thenAnswer(
-          (_) async => StreamedHttpResponse(
+        ).thenThrow(
+          const AuthException(message: 'Unauthorized', statusCode: 401),
+        );
+
+        expect(
+          () => client.runAgent(endpoint, input).toList(),
+          throwsA(isA<AuthException>()),
+        );
+      });
+
+      test('propagates ApiException from transport on 500', () async {
+        when(
+          () => mockTransport.requestStream(
+            any(),
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenThrow(
+          const ApiException(
+            message: 'Internal Server Error',
             statusCode: 500,
-            body: Stream.value(
-              utf8.encode('Internal Server Error'),
-            ),
-            reasonPhrase: 'Internal Server Error',
           ),
         );
 
         expect(
           () => client.runAgent(endpoint, input).toList(),
           throwsA(
-            isA<ApiException>()
-                .having((e) => e.statusCode, 'statusCode', 500)
-                .having(
-                  (e) => e.message,
-                  'message',
-                  contains('Internal Server Error'),
-                ),
+            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 500),
           ),
         );
       });
 
-      test('throws ApiException on 401 status code', () async {
+      test('propagates CancelledException from transport', () async {
         when(
-          () => mockClient.requestStream(
+          () => mockTransport.requestStream(
             any(),
             any(),
             headers: any(named: 'headers'),
             body: any(named: 'body'),
             cancelToken: any(named: 'cancelToken'),
           ),
-        ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 401,
-            body: Stream.value(utf8.encode('Unauthorized')),
-            reasonPhrase: 'Unauthorized',
-          ),
-        );
+        ).thenThrow(const CancelledException());
 
         expect(
           () => client.runAgent(endpoint, input).toList(),
-          throwsA(
-            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 401),
-          ),
-        );
-      });
-
-      test('includes reason phrase in error when present', () async {
-        when(
-          () => mockClient.requestStream(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            cancelToken: any(named: 'cancelToken'),
-          ),
-        ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 503,
-            body: Stream.value(utf8.encode('')),
-            reasonPhrase: 'Service Unavailable',
-          ),
-        );
-
-        expect(
-          () => client.runAgent(endpoint, input).toList(),
-          throwsA(
-            isA<ApiException>().having(
-              (e) => e.message,
-              'message',
-              'SSE connection failed: HTTP 503 (Service Unavailable)',
-            ),
-          ),
-        );
-      });
-
-      test('omits reason phrase from error when null', () async {
-        when(
-          () => mockClient.requestStream(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            cancelToken: any(named: 'cancelToken'),
-          ),
-        ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 502,
-            body: Stream.value(utf8.encode('')),
-          ),
-        );
-
-        expect(
-          () => client.runAgent(endpoint, input).toList(),
-          throwsA(
-            isA<ApiException>().having(
-              (e) => e.message,
-              'message',
-              'SSE connection failed: HTTP 502',
-            ),
-          ),
+          throwsA(isA<CancelledException>()),
         );
       });
     });
 
     group('close', () {
-      test('delegates to httpClient.close()', () {
+      test('delegates to httpTransport.close()', () {
         client.close();
 
-        verify(() => mockClient.close()).called(1);
+        verify(() => mockTransport.close()).called(1);
       });
     });
   });

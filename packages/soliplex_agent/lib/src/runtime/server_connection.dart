@@ -36,15 +36,14 @@ class ServerConnection {
       'Got: $serverUrl',
     );
     final baseUrl = '$serverUrl/api/v1';
+    final transport = HttpTransport(client: httpClient);
+    final urlBuilder = UrlBuilder(baseUrl);
     return ServerConnection(
       serverId: serverId,
-      api: SoliplexApi(
-        transport: HttpTransport(client: httpClient),
-        urlBuilder: UrlBuilder(baseUrl),
-      ),
+      api: SoliplexApi(transport: transport, urlBuilder: urlBuilder),
       agUiStreamClient: AgUiStreamClient(
-        httpClient: httpClient,
-        urlBuilder: UrlBuilder(baseUrl),
+        httpTransport: transport,
+        urlBuilder: urlBuilder,
       ),
       onClose: onClose,
     );
@@ -62,9 +61,9 @@ class ServerConnection {
 
   final Future<void> Function()? _onClose;
 
-  /// Closes the API and AG-UI clients, then invokes any injected teardown.
+  /// Closes the API client (and its shared transport), then invokes any
+  /// injected teardown.
   Future<void> close() async {
-    agUiStreamClient.close();
     api.close();
     await _onClose?.call();
   }
