@@ -120,14 +120,23 @@ Future<void> _runSession(ArgResults parsed) async {
   final wasmMode = parsed.flag('wasm-mode');
 
   SessionExtensionFactory? extensionFactory;
+  // Deferred: set after runtime creation so the closure captures the live
+  // reference when sessions are spawned (not at construction time).
+  AgentApi? agentApi;
   if (montyEnabled) {
     MontyPlatform.instance = MontyFfi(bindings: NativeBindingsFfi());
     final hostApi = FakeHostApi();
-    final envFactory = createMontyScriptEnvironmentFactory(
-      hostApi: hostApi,
-      limits: MontyLimitsDefaults.tool,
-    );
-    extensionFactory = wrapScriptEnvironmentFactory(envFactory);
+    final blackboardApi = DirectBlackboardApi();
+    extensionFactory = () async {
+      final factory = createMontyScriptEnvironmentFactory(
+        hostApi: hostApi,
+        agentApi: agentApi,
+        blackboardApi: blackboardApi,
+        limits: MontyLimitsDefaults.tool,
+      );
+      final env = await factory();
+      return [ScriptEnvironmentExtension(env)];
+    };
   }
 
   final runtime = AgentRuntime(
@@ -139,6 +148,10 @@ Future<void> _runSession(ArgResults parsed) async {
     logger: logger,
     extensionFactory: extensionFactory,
   );
+
+  if (montyEnabled) {
+    agentApi = RuntimeAgentApi(runtime: runtime);
+  }
 
   final ctx = _CliContext(
     runtime: runtime,
