@@ -9,15 +9,29 @@ permissions:
   contents: read
   issues: write
 
+env:
+  # Pin openai package version to avoid supply-chain risk
+  OPENAI_PKG_VERSION: "1.82.0"
+
 jobs:
   audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Only run on the default branch — never on forks or PRs
+    if: github.repository == 'runyaga/flutter' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     steps:
       - uses: actions/checkout@v6
 
+      - name: Verify secret is available
+        run: |
+          if [ -z "${{ secrets.OPENAI_API_KEY }}" ]; then
+            echo "::error::OPENAI_API_KEY secret is not set"
+            exit 1
+          fi
+          echo "Secret is configured (not printing value)"
+
       - name: Install dependencies
-        run: pip install openai
+        run: pip install "openai==$OPENAI_PKG_VERSION"
 
       - name: "Stage 1: Deterministic assertions"
         run: |

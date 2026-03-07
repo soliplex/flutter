@@ -59,7 +59,15 @@ Return a JSON array of findings. Each finding is an object:
   "suggested_fix": "concrete action to resolve (for FAIL only)"
 }
 
-Return ONLY the JSON array, no markdown fences, no preamble.
+## CRITICAL: Output Requirements
+
+- Return EXACTLY ONE finding object per document you are given
+- If given 5 documents, return exactly 5 findings
+- Do NOT merge documents into a single finding
+- Do NOT skip documents
+- Return a JSON object with key "findings" containing the array
+
+Return ONLY valid JSON, no markdown fences, no preamble.
 """
 
 
@@ -104,57 +112,24 @@ def build_user_prompt(report: dict, docs: list[tuple[str, str]]) -> str:
 
 
 def run_evaluation(report: dict, docs: list[tuple[str, str]]) -> list[dict]:
-    """Send docs to OpenAI for evaluation."""
+    """Send docs to OpenAI for evaluation. Always batches for reliable per-doc verdicts."""
     api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
         print("ERROR: OPENAI_API_KEY not set", file=sys.stderr)
         sys.exit(1)
 
     client = OpenAI(api_key=api_key)
-    user_prompt = build_user_prompt(report, docs)
 
-    # Estimate tokens — bail if too large
-    estimated_chars = len(SYSTEM_PROMPT) + len(user_prompt)
-    if estimated_chars > 500_000:
-        print(
-            f"WARNING: Input is ~{estimated_chars // 1000}K chars. "
-            "Splitting into batches.",
-            file=sys.stderr,
-        )
-        return run_batched_evaluation(client, report, docs)
-
-    print(f"Sending {len(docs)} docs to OpenAI for evaluation...", file=sys.stderr)
-
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        temperature=0.1,
-        response_format={"type": "json_object"},
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
-
-    content = response.choices[0].message.content
-    try:
-        result = json.loads(content)
-        # Handle both {"findings": [...]} and bare [...]
-        if isinstance(result, list):
-            return result
-        if isinstance(result, dict) and "findings" in result:
-            return result["findings"]
-        return [result]
-    except json.JSONDecodeError as e:
-        print(f"ERROR: Failed to parse LLM response as JSON: {e}", file=sys.stderr)
-        print(f"Raw response: {content[:500]}", file=sys.stderr)
-        sys.exit(1)
+    # Always batch — sending all docs at once causes the LLM to return a
+    # single summary verdict instead of per-doc findings
+    return run_batched_evaluation(client, report, docs)
 
 
 def run_batched_evaluation(
     client: OpenAI, report: dict, docs: list[tuple[str, str]]
 ) -> list[dict]:
     """Split docs into batches and evaluate each separately."""
-    BATCH_SIZE = 5
+    BATCH_SIZE = 3  # Small batches for reliable per-doc verdicts
     all_findings = []
 
     for i in range(0, len(docs), BATCH_SIZE):
