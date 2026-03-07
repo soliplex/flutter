@@ -1,0 +1,53 @@
+name: Documentation Audit
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'  # Every Monday 9am UTC
+  workflow_dispatch:  # Manual trigger for testing
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install dependencies
+        run: pip install openai
+
+      - name: "Stage 1: Deterministic assertions"
+        run: |
+          chmod +x scripts/doc-audit-deterministic.sh
+          scripts/doc-audit-deterministic.sh . > report.json
+          echo "### Stage 1 Summary" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"- Pass: \(.summary.pass)\n- Fail: \(.summary.fail)\n- Stale: \(.summary.stale_freshness)\n- Broken links: \(.summary.broken_links)"' report.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "Stage 2: LLM evaluation"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          chmod +x scripts/doc-audit-llm.py
+          python3 scripts/doc-audit-llm.py report.json . > findings.json
+          echo "### Stage 2 Summary" >> "$GITHUB_STEP_SUMMARY"
+          jq -r '"- Total evaluated: \(.summary.total)\n- Pass: \(.summary.pass)\n- Fail: \(.summary.fail)"' findings.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: "Stage 3: File issues for failures"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          chmod +x scripts/doc-audit-file-issues.sh
+          scripts/doc-audit-file-issues.sh findings.json
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: doc-audit-report-${{ github.run_number }}
+          path: |
+            report.json
+            findings.json
+          retention-days: 90
