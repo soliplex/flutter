@@ -124,14 +124,23 @@ class DartHttpClient implements SoliplexHttpClient {
 
     late StreamController<List<int>> controller;
     StreamSubscription<List<int>>? subscription;
+    var isCancelled = false;
 
     controller = StreamController<List<int>>(
       onListen: () async {
         try {
           final streamedResponse = await _client.send(request);
 
+          // If cancelled while awaiting headers, drain to release socket.
+          if (isCancelled) {
+            unawaited(streamedResponse.stream.listen((_) {}).cancel());
+            return;
+          }
+
           // Check for HTTP errors before streaming
           if (streamedResponse.statusCode >= 400) {
+            // Drain the body stream to release the underlying socket.
+            unawaited(streamedResponse.stream.listen((_) {}).cancel());
             controller.addError(
               NetworkException(
                 message: 'HTTP ${streamedResponse.statusCode}: '
@@ -178,8 +187,27 @@ class DartHttpClient implements SoliplexHttpClient {
           await controller.close();
         }
       },
-      onCancel: () async {
-        await subscription?.cancel();
+      onCancel: () {
+        isCancelled = true;
+
+        if (subscription == null) return;
+
+        // Graceful drain: mute callbacks to prevent pumping data/errors
+        // into a closed controller, then give the server a brief window
+        // to send TCP FIN before force-cancelling.
+        subscription!.onData((_) {});
+        subscription!.onError((_) {});
+
+        // Fire-and-forget so the caller's cancel() resolves immediately.
+        unawaited(() async {
+          try {
+            await subscription!.asFuture<void>().timeout(
+                  const Duration(seconds: 2),
+                );
+          } catch (_) {
+            await subscription!.cancel();
+          }
+        }());
       },
     );
 
