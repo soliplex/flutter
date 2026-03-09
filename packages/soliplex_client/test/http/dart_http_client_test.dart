@@ -755,6 +755,139 @@ void main() {
       });
     });
 
+    group('requestStream graceful close', () {
+      test('drains socket when cancelled during connection phase', () async {
+        // Simulate slow connection: send() completes after cancel
+        final sendCompleter = Completer<http.StreamedResponse>();
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) => sendCompleter.future);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final subscription = stream.listen((_) {});
+
+        // Cancel before send() resolves — this is the race condition
+        await subscription.cancel();
+
+        // Track whether the body stream was listened to (drained)
+        var wasDrained = false;
+        final bodyController = StreamController<List<int>>(
+          onListen: () => wasDrained = true,
+        );
+        sendCompleter.complete(
+          http.StreamedResponse(bodyController.stream, 200),
+        );
+
+        // Give onListen a chance to drain
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        // The body stream should have been listened to for draining
+        expect(wasDrained, isTrue);
+
+        await bodyController.close();
+      });
+
+      test('drains socket on HTTP error status', () async {
+        var wasDrained = false;
+        final bodyController = StreamController<List<int>>(
+          onListen: () => wasDrained = true,
+        );
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          500,
+          reasonPhrase: 'Internal Server Error',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        await expectLater(stream, emitsError(isA<NetworkException>()));
+
+        // Body stream should have been drained
+        expect(wasDrained, isTrue);
+
+        await bodyController.close();
+      });
+
+      test('allows server to close gracefully on cancel after data', () async {
+        final bodyController = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final chunks = <List<int>>[];
+        final subscription = stream.listen(chunks.add);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        bodyController.add([1, 2, 3]);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        // Cancel the subscription (simulates app receiving terminal event)
+        await subscription.cancel();
+
+        // Server closes gracefully within the 2s window
+        await bodyController.close();
+
+        // Verify we received data before cancel
+        expect(
+          chunks,
+          equals([
+            [1, 2, 3],
+          ]),
+        );
+      });
+
+      test('force-cancels after timeout if server does not close', () async {
+        final bodyController = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final subscription = stream.listen((_) {});
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        // Cancel — server will NOT close, so the 2s timeout should fire
+        await subscription.cancel();
+
+        // Wait for the 2s grace period + margin
+        await Future<void>.delayed(const Duration(seconds: 3));
+
+        // The body stream should have been force-cancelled
+        expect(bodyController.hasListener, isFalse);
+
+        await bodyController.close();
+      });
+    });
+
     group('HTTP methods', () {
       test('supports PUT request', () async {
         final streamedResponse = _createStreamedResponse(
