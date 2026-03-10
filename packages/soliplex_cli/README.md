@@ -11,14 +11,14 @@ dart pub get
 dart run bin/soliplex_cli.dart
 
 # With options:
-dart run bin/soliplex_cli.dart --host http://localhost:8000 --room plain
+dart run bin/soliplex_cli.dart --soliplex http://localhost:8000 --room plain
 ```
 
 ## Options
 
 | Flag | Env var | Default |
 |------|---------|---------|
-| `--host`, `-H` | `SOLIPLEX_BASE_URL` | `http://localhost:8000` |
+| `--soliplex`, `-s` | `SOLIPLEX_BASE_URL` | `http://localhost:8000` |
 | `--room`, `-r` | `SOLIPLEX_ROOM_ID` | `plain` |
 | `--help`, `-h` | | |
 

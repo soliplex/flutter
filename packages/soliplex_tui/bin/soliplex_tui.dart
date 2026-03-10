@@ -6,7 +6,7 @@ import 'package:soliplex_tui/soliplex_tui.dart';
 Future<void> main(List<String> arguments) async {
   final parser = ArgParser()
     ..addOption(
-      'server',
+      'soliplex',
       abbr: 's',
       help: 'Soliplex backend URL',
       defaultsTo: 'http://localhost:8000',
@@ -129,7 +129,7 @@ Future<void> main(List<String> arguments) async {
   }
 
   if (results.flag('list-rooms')) {
-    await listRooms(serverUrl: results.option('server')!);
+    await listRooms(serverUrl: results.option('soliplex')!);
     return;
   }
 
@@ -156,7 +156,7 @@ Future<void> main(List<String> arguments) async {
   final prompts = results.multiOption('prompt');
   if (prompts.isNotEmpty) {
     await runHeadless(
-      serverUrl: results.option('server')!,
+      serverUrl: results.option('soliplex')!,
       logFile: results.option('log-file')!,
       messages: prompts,
       roomId: results.option('room'),
@@ -190,7 +190,7 @@ Future<void> main(List<String> arguments) async {
     }
 
     await runHeadless(
-      serverUrl: results.option('server')!,
+      serverUrl: results.option('soliplex')!,
       logFile: results.option('log-file')!,
       messages: [message],
       roomId: results.option('room'),
@@ -214,7 +214,7 @@ Future<void> main(List<String> arguments) async {
   }
 
   await launchTui(
-    serverUrl: results.option('server')!,
+    serverUrl: results.option('soliplex')!,
     roomId: results.option('room'),
     logFile: results.option('log-file')!,
     montyEnabled: montyEnabled,

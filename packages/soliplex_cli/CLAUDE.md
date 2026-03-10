@@ -10,7 +10,7 @@ dart format . --set-exit-if-changed
 dart analyze --fatal-infos
 dart test
 dart run bin/soliplex_cli.dart
-dart run bin/soliplex_cli.dart --host http://localhost:8000 --room plain
+dart run bin/soliplex_cli.dart --soliplex http://localhost:8000 --room plain
 dart run bin/soliplex_cli.dart --monty --room spike-20b
 dart run bin/soliplex_cli.dart --monty --wasm-mode --room spike-20b
 

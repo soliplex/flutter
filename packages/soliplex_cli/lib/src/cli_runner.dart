@@ -77,9 +77,9 @@ class FileSink implements LogSink {
 Future<void> runCli(List<String> args) async {
   final parser = ArgParser()
     ..addOption(
-      'host',
-      abbr: 'H',
-      help: 'Backend base URL.',
+      'soliplex',
+      abbr: 's',
+      help: 'Soliplex backend URL.',
       defaultsTo:
           Platform.environment['SOLIPLEX_BASE_URL'] ?? 'http://localhost:8000',
     )
@@ -177,7 +177,7 @@ Future<void> runCli(List<String> args) async {
 }
 
 Future<void> _runSession(ArgResults parsed) async {
-  final host = parsed.option('host')!;
+  final host = parsed.option('soliplex')!;
   final room = parsed.option('room')!;
   final verbose = parsed.flag('verbose');
   final llmProviderName = parsed.option('llm-provider');
@@ -263,6 +263,7 @@ Future<void> _runSession(ArgResults parsed) async {
     llmProvider = ChatFnLlmProvider(
       chatFn: completionsProvider.chat,
       systemPrompt: llmSystemPrompt,
+      logger: logManager.getLogger('llm_provider'),
     );
   } else {
     llmProvider = AgUiLlmProvider(
