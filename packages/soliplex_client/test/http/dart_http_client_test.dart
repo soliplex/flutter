@@ -962,6 +962,77 @@ void main() {
 
         await bodyController.close();
       });
+
+      test(
+        'force-cancels after timeout during connection phase',
+        () async {
+          client = DartHttpClient(
+            client: mockClient,
+            drainGracePeriod: const Duration(milliseconds: 50),
+          );
+
+          final sendCompleter = Completer<http.StreamedResponse>();
+          when(() => mockClient.send(any()))
+              .thenAnswer((_) => sendCompleter.future);
+
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/sse'),
+          );
+
+          final subscription = stream.listen((_) {});
+          await subscription.cancel();
+
+          // Server responds with an infinite stream after cancel
+          final bodyController = StreamController<List<int>>();
+          sendCompleter.complete(
+            http.StreamedResponse(bodyController.stream, 200),
+          );
+
+          // Wait for the grace period + margin
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+
+          // The body stream should have been force-cancelled
+          expect(bodyController.hasListener, isFalse);
+
+          await bodyController.close();
+        },
+      );
+
+      test(
+        'force-cancels after timeout on HTTP error with slow body',
+        () async {
+          client = DartHttpClient(
+            client: mockClient,
+            drainGracePeriod: const Duration(milliseconds: 50),
+          );
+
+          final bodyController = StreamController<List<int>>();
+          final streamedResponse = http.StreamedResponse(
+            bodyController.stream,
+            500,
+            reasonPhrase: 'Internal Server Error',
+          );
+
+          when(() => mockClient.send(any()))
+              .thenAnswer((_) async => streamedResponse);
+
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/sse'),
+          );
+
+          await expectLater(stream, emitsError(isA<NetworkException>()));
+
+          // Wait for the grace period + margin
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+
+          // The body stream should have been force-cancelled
+          expect(bodyController.hasListener, isFalse);
+
+          await bodyController.close();
+        },
+      );
     });
 
     group('HTTP methods', () {
