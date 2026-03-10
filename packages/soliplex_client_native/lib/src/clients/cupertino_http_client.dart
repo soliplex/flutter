@@ -193,15 +193,12 @@ class CupertinoHttpClient implements SoliplexHttpClient {
       },
       onCancel: () {
         isCancelled = true;
-
         if (subscription == null) return;
 
-        // Graceful drain: mute callbacks to prevent pumping data/errors
-        // into a closed controller, then give the server a brief window
-        // to send TCP FIN before force-cancelling.
+        // Mute data callbacks to avoid pumping into a closed controller,
+        // then wait briefly for the server to close the connection.
+        // This avoids TCP RST which can poison server connection pools.
         subscription!.onData((_) {});
-
-        // Fire-and-forget so the caller's cancel() resolves immediately.
         unawaited(() async {
           try {
             await subscription!.asFuture<void>().timeout(
