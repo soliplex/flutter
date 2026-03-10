@@ -39,7 +39,9 @@ Future<void> launchTui({
   String? llmModel,
   String? llmUrl,
   String? llmApiKey,
+  String? llmSystemPrompt,
   List<String> mcpServers = const [],
+  int executionTimeoutSeconds = 30,
 }) async {
   final fileSink = FileSink(filePath: logFile);
   LogManager.instance
@@ -76,7 +78,9 @@ Future<void> launchTui({
       llmModel: llmModel,
       llmUrl: llmUrl,
       llmApiKey: llmApiKey,
+      llmSystemPrompt: llmSystemPrompt,
       mcpServers: mcpServers,
+      executionTimeoutSeconds: executionTimeoutSeconds,
     );
     mcpManager = wiring.mcpManager;
 
@@ -150,7 +154,9 @@ Future<void> runHeadless({
   String? llmModel,
   String? llmUrl,
   String? llmApiKey,
+  String? llmSystemPrompt,
   List<String> mcpServers = const [],
+  int executionTimeoutSeconds = 30,
 }) async {
   final fileSink = FileSink(filePath: logFile);
   LogManager.instance
@@ -196,7 +202,9 @@ Future<void> runHeadless({
       llmModel: llmModel,
       llmUrl: llmUrl,
       llmApiKey: llmApiKey,
+      llmSystemPrompt: llmSystemPrompt,
       mcpServers: mcpServers,
+      executionTimeoutSeconds: executionTimeoutSeconds,
     );
     mcpManager = wiring.mcpManager;
 
@@ -440,7 +448,9 @@ Future<void> listRooms({required String serverUrl}) async {
   String? llmModel,
   String? llmUrl,
   String? llmApiKey,
+  String? llmSystemPrompt,
   List<String> mcpServers = const [],
+  int executionTimeoutSeconds = 30,
 }) {
   // Build the direct LLM provider regardless of Monty — it drives agent
   // runs whenever --llm-provider is set.
@@ -450,8 +460,12 @@ Future<void> listRooms({required String serverUrl}) async {
     url: llmUrl,
     apiKey: llmApiKey,
   );
-  final agentLlmProvider =
-      provider != null ? ChatFnLlmProvider(chatFn: provider.chat) : null;
+  final agentLlmProvider = provider != null
+      ? ChatFnLlmProvider(
+          chatFn: provider.chat,
+          systemPrompt: llmSystemPrompt,
+        )
+      : null;
 
   // MCP servers are also independent of Monty.
   final mcpConfigs = _parseMcpServers(mcpServers);
@@ -475,11 +489,20 @@ Future<void> listRooms({required String serverUrl}) async {
   return (
     extensionFactory: () async {
       final hostApi = TuiHostApi(); // implements HostApi + SessionExtension
+      final timeout = Duration(seconds: executionTimeoutSeconds);
+      final limits = MontyLimits(
+        timeoutMs: executionTimeoutSeconds * 1000,
+        memoryBytes: MontyLimitsDefaults.tool.memoryBytes,
+        stackDepth: MontyLimitsDefaults.tool.stackDepth,
+      );
       final factory = createMontyScriptEnvironmentFactory(
         hostApi: hostApi,
         agentApi: agentApi,
         blackboardApi: blackboardApi,
-        limits: MontyLimitsDefaults.tool,
+        limits: limits,
+        executionTimeout: timeout,
+        agentTimeout: timeout,
+        platformFactory: () async => MontyFfi(bindings: NativeBindingsFfi()),
         llmCompleter: provider?.complete,
         llmChatCompleter: provider != null
             ? (messages, {systemPrompt, maxTokens}) => provider.chat(
@@ -494,6 +517,11 @@ Future<void> listRooms({required String serverUrl}) async {
         mcpExecutor: mcpManager?.executeTool,
         mcpToolLister: mcpManager?.listTools,
         mcpServerLister: mcpManager?.listServers,
+        streamFactories: {
+          'counter': () => Stream.fromIterable([1, 2, 3, 4, 5]),
+          'words': () =>
+              Stream.fromIterable(['hello', 'world', 'from', 'stream']),
+        },
       );
       final env = await factory();
       return [

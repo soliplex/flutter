@@ -86,9 +86,19 @@ Future<void> main(List<String> arguments) async {
       'llm-api-key',
       help: 'LLM API key (or set ANTHROPIC_API_KEY / OPENAI_API_KEY).',
     )
+    ..addOption(
+      'llm-system-prompt',
+      help: 'Custom system prompt prepended to tool instructions.',
+    )
     ..addMultiOption(
       'mcp',
       help: 'MCP server: name=command args... (repeatable, requires --monty).',
+    )
+    ..addOption(
+      'execution-timeout',
+      help: 'Monty execution timeout in seconds (default: 30). '
+          'Increase for slow LLM backends used via llm_complete().',
+      defaultsTo: '30',
     )
     ..addFlag('help', abbr: 'h', negatable: false, help: 'Show usage');
 
@@ -130,7 +140,9 @@ Future<void> main(List<String> arguments) async {
   final llmModel = results.option('llm-model');
   final llmUrl = results.option('llm-url');
   final llmApiKey = results.option('llm-api-key');
+  final llmSystemPrompt = results.option('llm-system-prompt');
   final mcpServers = results.multiOption('mcp');
+  final executionTimeout = int.parse(results.option('execution-timeout')!);
 
   final prompts = results.multiOption('prompt');
   if (prompts.isNotEmpty) {
@@ -150,7 +162,9 @@ Future<void> main(List<String> arguments) async {
       llmModel: llmModel,
       llmUrl: llmUrl,
       llmApiKey: llmApiKey,
+      llmSystemPrompt: llmSystemPrompt,
       mcpServers: mcpServers,
+      executionTimeoutSeconds: executionTimeout,
     );
     return;
   }
@@ -181,7 +195,9 @@ Future<void> main(List<String> arguments) async {
       llmModel: llmModel,
       llmUrl: llmUrl,
       llmApiKey: llmApiKey,
+      llmSystemPrompt: llmSystemPrompt,
       mcpServers: mcpServers,
+      executionTimeoutSeconds: executionTimeout,
     );
     return;
   }
@@ -197,6 +213,8 @@ Future<void> main(List<String> arguments) async {
     llmModel: llmModel,
     llmUrl: llmUrl,
     llmApiKey: llmApiKey,
+    llmSystemPrompt: llmSystemPrompt,
     mcpServers: mcpServers,
+    executionTimeoutSeconds: executionTimeout,
   );
 }

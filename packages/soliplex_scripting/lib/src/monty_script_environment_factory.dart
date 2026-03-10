@@ -63,10 +63,17 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
   MontyPlatformFactory? platformFactory,
   MontyLimits? limits,
   Duration executionTimeout = const Duration(seconds: 30),
+  Duration? agentTimeout,
+  Map<String, Stream<Object?> Function()>? streamFactories,
 }) {
   return () async {
     final dfRegistry = DfRegistry();
     final streamRegistry = StreamRegistry();
+    if (streamFactories != null) {
+      for (final entry in streamFactories.entries) {
+        streamRegistry.registerFactory(entry.key, entry.value);
+      }
+    }
     final platform = platformFactory != null ? await platformFactory() : null;
     final bridge = DefaultMontyBridge(
       platform: platform,
@@ -81,8 +88,9 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       isolatePlugin.functions.forEach(bridge.register);
     }
 
+    final registry = PluginRegistry();
     try {
-      final registry = PluginRegistry()
+      registry
         ..register(DfPlugin(dfRegistry: dfRegistry))
         ..register(ChartPlugin(hostApi: hostApi))
         ..register(
@@ -97,7 +105,12 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
         registry.register(FormPlugin(formApi: formApi));
       }
       if (agentApi != null) {
-        registry.register(AgentPlugin(agentApi: agentApi));
+        registry.register(
+          AgentPlugin(
+            agentApi: agentApi,
+            agentTimeout: agentTimeout ?? const Duration(seconds: 30),
+          ),
+        );
       }
       if (llmCompleter != null && llmChatCompleter != null) {
         registry.register(
@@ -107,7 +120,12 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
           ),
         );
       } else if (agentApi != null) {
-        registry.register(LlmPlugin(agentApi: agentApi));
+        registry.register(
+          LlmPlugin(
+            agentApi: agentApi,
+            agentTimeout: agentTimeout ?? const Duration(seconds: 30),
+          ),
+        );
       }
       if (mcpExecutor != null) {
         registry.register(
@@ -130,6 +148,16 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       if (platform != null) unawaited(platform.dispose());
       rethrow;
     }
+
+    // Collect all host function schemas so the execute_python tool
+    // description can tell the LLM what functions are available.
+    final hostSchemas = <HostFunctionSchema>[
+      for (final plugin in registry.plugins)
+        for (final fn in plugin.functions) fn.schema,
+      if (extraFunctions != null)
+        for (final fn in extraFunctions) fn.schema,
+    ];
+
     return MontyScriptEnvironment(
       bridge: bridge,
       ownedPlatform: platform,
@@ -137,6 +165,7 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       streamRegistry: streamRegistry,
       executionTimeout: executionTimeout,
       isolatePlugin: isolatePlugin,
+      hostFunctionSchemas: hostSchemas,
     );
   };
 }

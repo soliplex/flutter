@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:ag_ui/ag_ui.dart' show Tool;
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart'
     show MontyPlatform;
 import 'package:soliplex_agent/soliplex_agent.dart'
@@ -24,6 +25,10 @@ class MontyScriptEnvironment implements ScriptEnvironment {
   ///
   /// Host functions should already be registered onto [bridge] before
   /// constructing this environment (done by the factory function).
+  ///
+  /// When [hostFunctionSchemas] is provided, the `execute_python` tool
+  /// description includes a listing of all available host functions and
+  /// their signatures so the LLM knows what it can call.
   MontyScriptEnvironment({
     required MontyBridge bridge,
     required DfRegistry dfRegistry,
@@ -31,12 +36,14 @@ class MontyScriptEnvironment implements ScriptEnvironment {
     MontyPlatform? ownedPlatform,
     Duration executionTimeout = const Duration(seconds: 30),
     IsolatePlugin? isolatePlugin,
+    List<HostFunctionSchema>? hostFunctionSchemas,
   })  : _bridge = bridge,
         _ownedPlatform = ownedPlatform,
         _dfRegistry = dfRegistry,
         _streamRegistry = streamRegistry,
         _executionTimeout = executionTimeout,
-        _isolatePlugin = isolatePlugin;
+        _isolatePlugin = isolatePlugin,
+        _hostFunctionSchemas = hostFunctionSchemas;
 
   final MontyBridge _bridge;
   final MontyPlatform? _ownedPlatform;
@@ -44,15 +51,44 @@ class MontyScriptEnvironment implements ScriptEnvironment {
   final StreamRegistry _streamRegistry;
   final Duration _executionTimeout;
   final IsolatePlugin? _isolatePlugin;
+  final List<HostFunctionSchema>? _hostFunctionSchemas;
   bool _disposed = false;
 
   @override
   List<ClientTool> get tools => [
         ClientTool(
-          definition: PythonExecutorTool.definition,
+          definition: _buildToolDefinition(),
           executor: _executePython,
         ),
       ];
+
+  Tool _buildToolDefinition() {
+    final schemas = _hostFunctionSchemas;
+    if (schemas == null || schemas.isEmpty) {
+      return PythonExecutorTool.definition;
+    }
+
+    final buffer = StringBuffer(
+      'Execute Python code in a sandboxed interpreter. '
+      'No imports available. All functions are pre-loaded globals '
+      'using keyword arguments. Fresh scope per call.\n\n'
+      'Functions:\n',
+    );
+    for (final schema in schemas) {
+      final params = schema.params.map((p) {
+        final typeName = p.type.jsonSchemaType;
+        final req = p.isRequired ? '' : '?';
+        return '${p.name}: $typeName$req';
+      }).join(', ');
+      buffer.writeln('- ${schema.name}($params)');
+    }
+
+    return Tool(
+      name: PythonExecutorTool.toolName,
+      description: buffer.toString(),
+      parameters: PythonExecutorTool.definition.parameters,
+    );
+  }
 
   Future<String> _executePython(ToolCallInfo toolCall, _) async {
     final code = extractCode(toolCall);

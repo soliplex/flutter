@@ -78,6 +78,14 @@ Future<void> runCli(List<String> args) async {
     ..addOption(
       'llm-system-prompt',
       help: 'System prompt for the local LLM provider.',
+    )
+    ..addOption(
+      'llm-url',
+      help: 'LLM API base URL (e.g. http://bizon:11434/api for remote Ollama).',
+    )
+    ..addOption(
+      'llm-api-key',
+      help: 'LLM API key (or use ANTHROPIC_API_KEY / OPENAI_API_KEY env vars).',
     );
 
   final parsed = parser.parse(args);
@@ -101,6 +109,8 @@ Future<void> _runSession(ArgResults parsed) async {
   final llmProviderName = parsed.option('llm-provider');
   final llmModel = parsed.option('llm-model');
   final llmSystemPrompt = parsed.option('llm-system-prompt');
+  final llmUrl = parsed.option('llm-url');
+  final llmApiKey = parsed.option('llm-api-key');
   final localMode = llmProviderName != null;
 
   final connection = verbose
@@ -143,6 +153,8 @@ Future<void> _runSession(ArgResults parsed) async {
     final completionsProvider = _createLlmProvider(
       providerName: llmProviderName,
       model: llmModel,
+      baseUrl: llmUrl,
+      apiKey: llmApiKey,
     );
     if (completionsProvider == null) return; // Error already printed.
     llmProvider = ChatFnLlmProvider(
@@ -681,13 +693,21 @@ String _short(String id) => id.length > 12 ? '${id.substring(0, 12)}...' : id;
 ///
 /// Returns `null` and prints an error if configuration is invalid
 /// (e.g. missing API key for Anthropic/OpenAI).
-LlmProvider? _createLlmProvider({required String providerName, String? model}) {
+LlmProvider? _createLlmProvider({
+  required String providerName,
+  String? model,
+  String? baseUrl,
+  String? apiKey,
+}) {
   switch (providerName) {
     case 'ollama':
-      return OllamaLlmProvider(model: model ?? 'qwen3:8b');
+      return OllamaLlmProvider(
+        model: model ?? 'qwen3:8b',
+        baseUrl: baseUrl ?? 'http://localhost:11434/api',
+      );
     case 'anthropic':
-      final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
+      final key = apiKey ?? Platform.environment['ANTHROPIC_API_KEY'];
+      if (key == null || key.isEmpty) {
         stderr.writeln(
           'Error: ANTHROPIC_API_KEY environment variable required '
           'for --llm-provider anthropic',
@@ -695,19 +715,19 @@ LlmProvider? _createLlmProvider({required String providerName, String? model}) {
         return null;
       }
       return AnthropicLlmProvider(
-        apiKey: apiKey,
+        apiKey: key,
         model: model ?? 'claude-sonnet-4-20250514',
       );
     case 'openai':
-      final apiKey = Platform.environment['OPENAI_API_KEY'];
-      if (apiKey == null || apiKey.isEmpty) {
+      final key = apiKey ?? Platform.environment['OPENAI_API_KEY'];
+      if (key == null || key.isEmpty) {
         stderr.writeln(
           'Error: OPENAI_API_KEY environment variable required '
           'for --llm-provider openai',
         );
         return null;
       }
-      return OpenAiLlmProvider(apiKey: apiKey, model: model ?? 'gpt-4o');
+      return OpenAiLlmProvider(apiKey: key, model: model ?? 'gpt-4o');
     default:
       stderr.writeln('Unknown LLM provider: $providerName');
       return null;
