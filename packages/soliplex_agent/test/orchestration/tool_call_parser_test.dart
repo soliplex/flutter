@@ -134,5 +134,23 @@ Let me check that for you.
       final result = parseToolCallResponse(response);
       expect(result, isA<TextResponse>());
     });
+
+    test('closing backticks on same line as JSON', () {
+      const response = '```tool_call\n{"name": "execute_python", "arguments": '
+          '{"code": "x = 1"}}```';
+      final result = parseToolCallResponse(response);
+      expect(result, isA<ToolCallResponse>());
+      final tc = result as ToolCallResponse;
+      expect(tc.name, 'execute_python');
+      expect(tc.arguments, {'code': 'x = 1'});
+    });
+
+    test('closing backticks on same line with trailing newline', () {
+      const response =
+          '```tool_call\n{"name": "echo", "arguments": {"text": "hi"}}```\n';
+      final result = parseToolCallResponse(response);
+      expect(result, isA<ToolCallResponse>());
+      expect((result as ToolCallResponse).name, 'echo');
+    });
   });
 }

@@ -5,6 +5,7 @@ import 'package:soliplex_agent/src/models/thread_key.dart';
 import 'package:soliplex_agent/src/orchestration/agent_llm_provider.dart';
 import 'package:soliplex_agent/src/orchestration/tool_call_parser.dart';
 import 'package:soliplex_client/soliplex_client.dart';
+import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Callback type for LLM chat.
 ///
@@ -39,13 +40,19 @@ class ChatFnLlmProvider implements AgentLlmProvider {
   /// [chatFn] is the LLM chat callback.
   /// [systemPrompt] is an optional base system prompt prepended to
   /// the tool instructions.
-  ChatFnLlmProvider({required ChatFn chatFn, this.systemPrompt})
-      : _chatFn = chatFn;
+  ChatFnLlmProvider({
+    required ChatFn chatFn,
+    this.systemPrompt,
+    Logger? logger,
+  })  : _chatFn = chatFn,
+        _logger = logger;
 
   final ChatFn _chatFn;
 
   /// Optional base system prompt.
   final String? systemPrompt;
+
+  final Logger? _logger;
 
   @override
   Future<LlmRunHandle> startRun({
@@ -74,22 +81,58 @@ class ChatFnLlmProvider implements AgentLlmProvider {
       final messages = _convertMessages(input);
       final fullSystemPrompt = _buildSystemPrompt(input.tools);
 
+      _logger?.debug(
+        'LLM request',
+        attributes: {
+          'message_count': messages.length,
+          'system_prompt_length': fullSystemPrompt.length,
+          'tool_count': input.tools?.length ?? 0,
+        },
+      );
+
       if (cancelToken?.isCancelled ?? false) return;
 
       final response = await _chatFn(messages, systemPrompt: fullSystemPrompt);
 
       if (cancelToken?.isCancelled ?? false) return;
 
+      _logger?.debug(
+        'LLM response',
+        attributes: {
+          'response_length': response.length,
+          'response_preview': response.length > 200
+              ? '${response.substring(0, 200)}...'
+              : response,
+        },
+      );
+
       final parsed = parseToolCallResponse(response);
 
       switch (parsed) {
         case TextResponse(:final text):
+          _logger?.info(
+            'Response classified as TEXT (no tool call detected)',
+            attributes: {
+              'text_length': text.length,
+              'contains_tool_call_marker':
+                  text.contains('tool_call') || text.contains('execute_python'),
+              'contains_code_fence': text.contains('```'),
+            },
+          );
           final msgId = 'msg-${DateTime.now().microsecondsSinceEpoch}';
           yield TextMessageStartEvent(messageId: msgId);
           yield TextMessageContentEvent(messageId: msgId, delta: text);
           yield TextMessageEndEvent(messageId: msgId);
 
         case ToolCallResponse(:final prefixText, :final name, :final arguments):
+          _logger?.info(
+            'Response classified as TOOL CALL',
+            attributes: {
+              'tool_name': name,
+              'args_length': jsonEncode(arguments).length,
+              'has_prefix_text': prefixText.isNotEmpty,
+            },
+          );
           if (prefixText.isNotEmpty) {
             final textMsgId =
                 'msg-text-${DateTime.now().microsecondsSinceEpoch}';

@@ -31,8 +31,12 @@ class ToolCallResponse extends ToolCallParseResult {
   final Map<String, dynamic> arguments;
 }
 
-/// Fenced code block pattern: ```tool_call\n...\n```
-final _toolCallPattern = RegExp(r'```tool_call\s*\n([\s\S]*?)\n\s*```');
+/// Fenced code block pattern: ```tool_call\n...\n``` or ```tool_call\n...```
+///
+/// Some models (e.g. qwen3.5) emit the closing triple-backticks on the same
+/// line as the JSON content, without an intervening newline. The pattern
+/// handles both cases.
+final _toolCallPattern = RegExp(r'```tool_call\s*\n([\s\S]*?)(?:\n\s*)?```');
 
 /// Parses an LLM text response for tool call blocks.
 ///
