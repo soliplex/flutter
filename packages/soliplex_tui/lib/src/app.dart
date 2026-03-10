@@ -9,7 +9,7 @@ import 'package:nocterm/nocterm.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show DartHttpClient, SoliplexApi, ToolCallInfo;
+    show DartHttpClient, SoliplexApi, ThreadHistory, ToolCallInfo;
 import 'package:soliplex_completions/soliplex_completions.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:soliplex_mcp/soliplex_mcp.dart';
@@ -274,6 +274,7 @@ Future<void> _runHeadlessPlain({
   required List<String> messages,
   required bool verbose,
 }) async {
+  ThreadHistory? history;
   for (final message in messages) {
     if (verbose) stderr.writeln('[prompt] $message');
 
@@ -281,16 +282,31 @@ Future<void> _runHeadlessPlain({
       roomId: roomId,
       prompt: message,
       threadId: threadId,
+      cachedHistory: history,
     );
 
-    if (verbose) {
-      effect(() {
-        final state = session.runState.value;
+    CompletedState? completedState;
+    final cleanup = effect(() {
+      final state = session.runState.value;
+      if (verbose) {
         stderr.writeln('[state] ${_describeRunState(state)}');
-      });
-    }
+      }
+      if (state is CompletedState) {
+        completedState = state;
+      }
+    });
 
     final result = await session.result;
+    cleanup();
+
+    // Thread conversation history to next turn.
+    if (completedState != null) {
+      history = ThreadHistory(
+        messages: completedState!.conversation.messages,
+        aguiState: completedState!.conversation.aguiState,
+        messageStates: completedState!.conversation.messageStates,
+      );
+    }
 
     switch (result) {
       case AgentSuccess(:final output):
@@ -320,6 +336,7 @@ Future<void> _runHeadlessJson({
   var turns = 0;
   String? agentOutput;
 
+  ThreadHistory? history;
   for (final message in messages) {
     if (verbose) stderr.writeln('[prompt] $message');
     turns++;
@@ -328,10 +345,11 @@ Future<void> _runHeadlessJson({
       roomId: roomId,
       prompt: message,
       threadId: threadId,
+      cachedHistory: history,
     );
 
-    // Collect tool calls as they flow through ToolYieldingState.
-    // Deduplicate by tool call ID since effect() may re-fire.
+    // Collect tool calls and capture final conversation as state flows.
+    CompletedState? completedState;
     final cleanup = effect(() {
       final state = session.runState.value;
       if (verbose) {
@@ -344,10 +362,22 @@ Future<void> _runHeadlessJson({
           }
         }
       }
+      if (state is CompletedState) {
+        completedState = state;
+      }
     });
 
     final result = await session.result;
     cleanup();
+
+    // Thread conversation history to next turn.
+    if (completedState != null) {
+      history = ThreadHistory(
+        messages: completedState!.conversation.messages,
+        aguiState: completedState!.conversation.aguiState,
+        messageStates: completedState!.conversation.messageStates,
+      );
+    }
 
     switch (result) {
       case AgentSuccess(:final output):
