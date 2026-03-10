@@ -143,6 +143,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
     late StreamController<List<int>> controller;
     StreamSubscription<List<int>>? subscription;
     var isCancelled = false;
+    var upstreamTerminated = false;
 
     controller = StreamController<List<int>>(
       onListen: () async {
@@ -188,6 +189,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
           subscription = streamedResponse.stream.listen(
             controller.add,
             onError: (Object error, StackTrace stackTrace) {
+              upstreamTerminated = true;
               if (error is http.ClientException) {
                 controller.addError(
                   NetworkException(
@@ -200,7 +202,10 @@ class CupertinoHttpClient implements SoliplexHttpClient {
                 controller.addError(error, stackTrace);
               }
             },
-            onDone: controller.close,
+            onDone: () {
+              upstreamTerminated = true;
+              controller.close();
+            },
             cancelOnError: true,
           );
         } on http.ClientException catch (e, stackTrace) {
@@ -216,7 +221,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
       },
       onCancel: () {
         isCancelled = true;
-        if (subscription == null) return;
+        if (subscription == null || upstreamTerminated) return;
 
         // Mute data callbacks to avoid pumping into a closed controller,
         // then wait briefly for the server to close the connection.

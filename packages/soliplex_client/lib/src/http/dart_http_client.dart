@@ -132,6 +132,7 @@ class DartHttpClient implements SoliplexHttpClient {
     late StreamController<List<int>> controller;
     StreamSubscription<List<int>>? subscription;
     var isCancelled = false;
+    var upstreamTerminated = false;
 
     controller = StreamController<List<int>>(
       onListen: () async {
@@ -177,6 +178,7 @@ class DartHttpClient implements SoliplexHttpClient {
           subscription = streamedResponse.stream.listen(
             controller.add,
             onError: (Object error, StackTrace stackTrace) {
+              upstreamTerminated = true;
               // Wrap all stream errors as NetworkException
               controller.addError(
                 NetworkException(
@@ -186,7 +188,10 @@ class DartHttpClient implements SoliplexHttpClient {
                 ),
               );
             },
-            onDone: controller.close,
+            onDone: () {
+              upstreamTerminated = true;
+              controller.close();
+            },
             cancelOnError: true,
           );
         } on http.ClientException catch (e, stackTrace) {
@@ -212,7 +217,7 @@ class DartHttpClient implements SoliplexHttpClient {
       },
       onCancel: () {
         isCancelled = true;
-        if (subscription == null) return;
+        if (subscription == null || upstreamTerminated) return;
 
         // Mute data callbacks to avoid pumping into a closed controller,
         // then wait briefly for the server to close the connection.
