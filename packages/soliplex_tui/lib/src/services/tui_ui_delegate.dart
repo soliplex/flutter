@@ -68,8 +68,9 @@ class TuiUiDelegate implements AgentUiDelegate {
 
   /// Resolve an approval: [approved] = true/false, [always] = remember.
   void resolve({required bool approved, bool always = false}) {
-    final sig =
-        _sessionSignals.values.where((s) => s.value != null).firstOrNull;
+    final sig = _sessionSignals.values
+        .where((s) => s.value != null)
+        .firstOrNull;
     if (sig == null) return;
 
     final request = sig.value!;

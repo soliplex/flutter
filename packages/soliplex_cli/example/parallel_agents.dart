@@ -29,6 +29,10 @@ Future<void> main() async {
   final toolRegistry = buildDemoToolRegistry();
   final runtime = AgentRuntime(
     connection: connection,
+    llmProvider: AgUiLlmProvider(
+      api: connection.api,
+      agUiStreamClient: connection.agUiStreamClient,
+    ),
     toolRegistryResolver: (_) async => toolRegistry,
     platform: const NativePlatformConstraints(),
     logger: logger,
@@ -43,11 +47,14 @@ Future<void> main() async {
     stdout.writeln('Spawned 3 sessions, waiting for all...\n');
 
     // Wait for all to complete.
-    final results = await runtime.waitAll([
-      s1,
-      s2,
-      s3,
-    ], timeout: const Duration(seconds: 60));
+    final results = await runtime.waitAll(
+      [
+        s1,
+        s2,
+        s3,
+      ],
+      timeout: const Duration(seconds: 60),
+    );
 
     for (final result in results) {
       stdout.writeln(formatResult(result));

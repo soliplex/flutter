@@ -61,10 +61,7 @@ class _TabChip extends StatelessComponent {
     final theme = TuiTheme.of(context);
 
     if (isActive) {
-      return Text(
-        '[$label]',
-        style: TextStyle(color: theme.primary),
-      );
+      return Text('[$label]', style: TextStyle(color: theme.primary));
     }
 
     return GestureDetector(

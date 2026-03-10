@@ -50,8 +50,8 @@ class _ChatPageState extends State<ChatPage> {
 
   ChatSessionView? get _activeTab =>
       _activeIndex >= 0 && _activeIndex < _tabs.length
-          ? _tabs[_activeIndex]
-          : null;
+      ? _tabs[_activeIndex]
+      : null;
 
   @override
   void initState() {
@@ -74,9 +74,7 @@ class _ChatPageState extends State<ChatPage> {
         prompt: prompt,
         autoDispose: false,
       );
-      Loggers.app.info(
-        'Session spawned: thread=${session.threadKey.threadId}',
-      );
+      Loggers.app.info('Session spawned: thread=${session.threadKey.threadId}');
       final view = ChatSessionView(
         roomId: component.roomId,
         threadId: session.threadKey.threadId,
@@ -122,20 +120,14 @@ class _ChatPageState extends State<ChatPage> {
         threadId: tab.threadId,
         autoDispose: false,
       );
-      Loggers.app.info(
-        'Follow-up session spawned: id=${session.id}',
-      );
+      Loggers.app.info('Follow-up session spawned: id=${session.id}');
       // Reuse the same view — attachSession wires new signals.
       tab.attachSession(session);
       setState(() {
         _lastReasoningText = '';
       });
     } on Exception catch (e, s) {
-      Loggers.app.error(
-        'Failed to spawn follow-up',
-        error: e,
-        stackTrace: s,
-      );
+      Loggers.app.error('Failed to spawn follow-up', error: e, stackTrace: s);
     }
   }
 
@@ -255,7 +247,8 @@ class _ChatPageState extends State<ChatPage> {
           _lastReasoningText = reasoning;
         }
 
-        final showReasoning = _activePanel == _ActivePanel.reasoning &&
+        final showReasoning =
+            _activePanel == _ActivePanel.reasoning &&
             _lastReasoningText.isNotEmpty;
 
         final approvalSignal = tab.approvalRequest;
@@ -360,9 +353,7 @@ class _ChatPageState extends State<ChatPage> {
           return Row(
             children: [
               Expanded(child: chatBody),
-              VerticalDivider(
-                color: TuiTheme.of(context).outlineVariant,
-              ),
+              VerticalDivider(color: TuiTheme.of(context).outlineVariant),
               SizedBox(
                 width: (constraints.maxWidth / 3).floor().toDouble(),
                 child: sidePane,

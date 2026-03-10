@@ -65,9 +65,7 @@ class ToolApprovalModal extends StatelessComponent {
                 ),
                 Text(
                   request.rationale,
-                  style: TextStyle(
-                    color: theme.onSurface.withOpacity(0.8),
-                  ),
+                  style: TextStyle(color: theme.onSurface.withOpacity(0.8)),
                 ),
                 const SizedBox(height: 1),
                 Text(

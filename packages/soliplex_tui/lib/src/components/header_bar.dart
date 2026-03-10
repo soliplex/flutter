@@ -24,15 +24,9 @@ class HeaderBar extends StatelessComponent {
         padding: const EdgeInsets.symmetric(horizontal: 1),
         child: Row(
           children: [
-            Text(
-              'Room: $roomId',
-              style: TextStyle(color: theme.onSurface),
-            ),
+            Text('Room: $roomId', style: TextStyle(color: theme.onSurface)),
             const Text('  '),
-            Text(
-              'Thread: $threadId',
-              style: TextStyle(color: theme.onSurface),
-            ),
+            Text('Thread: $threadId', style: TextStyle(color: theme.onSurface)),
             Expanded(child: const SizedBox()),
             Text(
               dot,

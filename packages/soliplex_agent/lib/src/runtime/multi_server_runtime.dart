@@ -3,12 +3,23 @@ import 'dart:async';
 import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
+import 'package:soliplex_agent/src/orchestration/ag_ui_llm_provider.dart';
+import 'package:soliplex_agent/src/orchestration/agent_llm_provider.dart';
 import 'package:soliplex_agent/src/runtime/agent_runtime.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
+import 'package:soliplex_agent/src/runtime/server_connection.dart';
 import 'package:soliplex_agent/src/runtime/server_registry.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
+
+/// Creates an [AgentLlmProvider] from a [ServerConnection].
+///
+/// Defaults to [AgUiLlmProvider] when not specified in
+/// [MultiServerRuntime].
+typedef LlmProviderFactory = AgentLlmProvider Function(
+  ServerConnection connection,
+);
 
 /// Coordinator wrapping per-server [AgentRuntime] instances.
 ///
@@ -21,18 +32,29 @@ class MultiServerRuntime {
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
+    LlmProviderFactory? llmProviderFactory,
     SessionExtensionFactory? extensionFactory,
   })  : _registry = registry,
         _toolRegistryResolver = toolRegistryResolver,
+        _llmProviderFactory = llmProviderFactory ?? _defaultLlmProviderFactory,
         _extensionFactory = extensionFactory,
         _platform = platform,
         _logger = logger;
 
   final ServerRegistry _registry;
   final ToolRegistryResolver _toolRegistryResolver;
+  final LlmProviderFactory _llmProviderFactory;
   final SessionExtensionFactory? _extensionFactory;
   final PlatformConstraints _platform;
   final Logger _logger;
+
+  static AgentLlmProvider _defaultLlmProviderFactory(
+    ServerConnection connection,
+  ) =>
+      AgUiLlmProvider(
+        api: connection.api,
+        agUiStreamClient: connection.agUiStreamClient,
+      );
 
   final Map<String, AgentRuntime> _runtimes = {};
   bool _disposed = false;
@@ -47,6 +69,7 @@ class MultiServerRuntime {
       final connection = _registry.require(serverId);
       return AgentRuntime(
         connection: connection,
+        llmProvider: _llmProviderFactory(connection),
         toolRegistryResolver: _toolRegistryResolver,
         extensionFactory: _extensionFactory,
         platform: _platform,

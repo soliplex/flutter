@@ -5,7 +5,7 @@ import 'package:soliplex_logging/soliplex_logging.dart';
 /// Log sink that appends records to a file on disk.
 class FileSink implements LogSink {
   FileSink({required String filePath})
-      : _sink = File(filePath).openWrite(mode: FileMode.append);
+    : _sink = File(filePath).openWrite(mode: FileMode.append);
 
   final IOSink _sink;
 

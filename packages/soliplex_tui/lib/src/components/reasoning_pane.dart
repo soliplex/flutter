@@ -17,17 +17,12 @@ class ReasoningPane extends StatelessComponent {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 1),
-            child: Text(
-              'Reasoning',
-              style: TextStyle(color: theme.warning),
-            ),
+            child: Text('Reasoning', style: TextStyle(color: theme.warning)),
           ),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 1),
-              child: SingleChildScrollView(
-                child: MarkdownText(reasoningText),
-              ),
+              child: SingleChildScrollView(child: MarkdownText(reasoningText)),
             ),
           ),
         ],

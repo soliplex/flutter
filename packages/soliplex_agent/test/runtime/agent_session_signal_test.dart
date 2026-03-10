@@ -59,8 +59,10 @@ AgentSession createSession({
 }) {
   final registry = toolRegistry ?? const ToolRegistry();
   final orchestrator = RunOrchestrator(
-    api: api,
-    agUiStreamClient: agUiStreamClient,
+    llmProvider: AgUiLlmProvider(
+      api: api,
+      agUiStreamClient: agUiStreamClient,
+    ),
     toolRegistry: registry,
     logger: logger,
   );

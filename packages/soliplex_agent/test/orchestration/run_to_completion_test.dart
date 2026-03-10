@@ -130,8 +130,10 @@ void main() {
   group('runToCompletion', () {
     test('happy path: SSE → CompletedState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -152,8 +154,10 @@ void main() {
 
     test('stream error after RunFinished does not change result', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -186,8 +190,10 @@ void main() {
 
     test('tool yield: SSE → ToolYielding → resume → Completed', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -217,8 +223,10 @@ void main() {
 
     test('multiple tool cycles (depth 3)', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -251,8 +259,10 @@ void main() {
 
     test('tool depth exceeded → FailedState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -280,8 +290,10 @@ void main() {
 
     test('cancel during SSE → CancelledState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -312,8 +324,10 @@ void main() {
 
     test('cancel during tool execution → CancelledState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -344,8 +358,10 @@ void main() {
 
     test('dispose during tool execution → CancelledState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -375,8 +391,10 @@ void main() {
 
     test('tool executor throws → FailedState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -397,8 +415,10 @@ void main() {
 
     test('resume API throws → FailedState (R4)', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -425,8 +445,10 @@ void main() {
   group('runToCompletion mutual exclusion (R3)', () {
     test('startRun throws during active runToCompletion', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -464,8 +486,10 @@ void main() {
 
     test('submitToolOutputs throws during active runToCompletion', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -504,8 +528,10 @@ void main() {
   group('runToCompletion epoch guard', () {
     test('stale onDone from old subscription ignored', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -552,8 +578,10 @@ void main() {
   group('runToCompletion completer resolution (R1)', () {
     test('completer resolves for CompletedState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -571,8 +599,10 @@ void main() {
 
     test('completer resolves for FailedState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -595,8 +625,10 @@ void main() {
 
     test('completer resolves for CancelledState', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: const ToolRegistry(),
         logger: logger,
       );
@@ -616,8 +648,10 @@ void main() {
 
     test('completer resolves for ToolYieldingState (loop continues)', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );
@@ -654,8 +688,10 @@ void main() {
   group('runToCompletion cancelToken', () {
     test('cancelToken getter returns active token during run', () async {
       orchestrator = RunOrchestrator(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistry: _registryWith(),
         logger: logger,
       );

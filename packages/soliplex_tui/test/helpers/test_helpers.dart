@@ -18,42 +18,27 @@ class TestData {
     String id = 'run_1',
     String threadId = 'thread_1',
   }) {
-    return RunInfo(
-      id: id,
-      threadId: threadId,
-      createdAt: DateTime(2025),
-    );
+    return RunInfo(id: id, threadId: threadId, createdAt: DateTime(2025));
   }
 
   static TextMessage createUserMessage({
     String id = 'msg_user_1',
     String text = 'Hello',
   }) {
-    return TextMessage.create(
-      id: id,
-      user: ChatUser.user,
-      text: text,
-    );
+    return TextMessage.create(id: id, user: ChatUser.user, text: text);
   }
 
   static TextMessage createAssistantMessage({
     String id = 'msg_assistant_1',
     String text = 'Hi there!',
   }) {
-    return TextMessage.create(
-      id: id,
-      user: ChatUser.assistant,
-      text: text,
-    );
+    return TextMessage.create(id: id, user: ChatUser.assistant, text: text);
   }
 
   static Conversation createConversation({
     String threadId = 'thread_1',
     List<ChatMessage>? messages,
   }) {
-    return Conversation(
-      threadId: threadId,
-      messages: messages ?? const [],
-    );
+    return Conversation(threadId: threadId, messages: messages ?? const []);
   }
 }

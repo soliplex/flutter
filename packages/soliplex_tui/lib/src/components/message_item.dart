@@ -13,31 +13,24 @@ class MessageItem extends StatelessComponent {
 
     return switch (message) {
       TextMessage(:final user, :final text) => _buildTextMessage(
-          theme,
-          user,
-          text,
-        ),
+        theme,
+        user,
+        text,
+      ),
       ToolCallMessage(:final toolCalls) => _buildToolCallMessage(
-          theme,
-          toolCalls,
-        ),
+        theme,
+        toolCalls,
+      ),
       ErrorMessage(:final errorText) => _buildErrorMessage(theme, errorText),
       GenUiMessage(:final widgetName) => Text(
-          '[$widgetName]',
-          style: TextStyle(color: theme.onSurface),
-        ),
-      LoadingMessage() => Text(
-          '...',
-          style: TextStyle(color: theme.onSurface),
-        ),
+        '[$widgetName]',
+        style: TextStyle(color: theme.onSurface),
+      ),
+      LoadingMessage() => Text('...', style: TextStyle(color: theme.onSurface)),
     };
   }
 
-  Component _buildTextMessage(
-    TuiThemeData theme,
-    ChatUser user,
-    String text,
-  ) {
+  Component _buildTextMessage(TuiThemeData theme, ChatUser user, String text) {
     final (label, labelColor) = switch (user) {
       ChatUser.user => ('You', theme.primary),
       ChatUser.assistant => ('Assistant', theme.secondary),
@@ -58,9 +51,8 @@ class MessageItem extends StatelessComponent {
     List<ToolCallInfo> toolCalls,
   ) {
     final names = toolCalls.map((tc) => tc.name).join(', ');
-    final statusIcon = toolCalls.every(
-      (tc) => tc.status == ToolCallStatus.completed,
-    )
+    final statusIcon =
+        toolCalls.every((tc) => tc.status == ToolCallStatus.completed)
         ? '+'
         : '!';
 
@@ -71,10 +63,7 @@ class MessageItem extends StatelessComponent {
   }
 
   Component _buildErrorMessage(TuiThemeData theme, String errorText) {
-    return Text(
-      'Error: $errorText',
-      style: TextStyle(color: theme.error),
-    );
+    return Text('Error: $errorText', style: TextStyle(color: theme.error));
   }
 }
 
@@ -90,16 +79,16 @@ class StreamingMessageItem extends StatelessComponent {
 
     return switch (streaming) {
       TextStreaming(:final text) when text.isNotEmpty => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Assistant', style: TextStyle(color: theme.secondary)),
-            MarkdownText('$text▌'),
-          ],
-        ),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Assistant', style: TextStyle(color: theme.secondary)),
+          MarkdownText('$text▌'),
+        ],
+      ),
       AwaitingText(hasThinkingContent: true) => Text(
-          'Thinking...',
-          style: TextStyle(color: theme.onSurface.withOpacity(0.6)),
-        ),
+        'Thinking...',
+        style: TextStyle(color: theme.onSurface.withOpacity(0.6)),
+      ),
       _ => const SizedBox(),
     };
   }

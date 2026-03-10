@@ -29,6 +29,10 @@ Future<void> main() async {
   // Create the agent runtime.
   final runtime = AgentRuntime(
     connection: connection,
+    llmProvider: AgUiLlmProvider(
+      api: connection.api,
+      agUiStreamClient: connection.agUiStreamClient,
+    ),
     toolRegistryResolver: (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),
     logger: logger,

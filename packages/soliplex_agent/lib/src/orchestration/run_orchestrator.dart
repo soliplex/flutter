@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:soliplex_agent/src/models/failure_reason.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
+import 'package:soliplex_agent/src/orchestration/agent_llm_provider.dart';
 import 'package:soliplex_agent/src/orchestration/error_classifier.dart';
 import 'package:soliplex_agent/src/orchestration/run_state.dart';
 import 'package:soliplex_agent/src/tools/tool_registry.dart';
@@ -64,17 +65,14 @@ typedef ToolExecutorCallback = Future<List<ToolCallInfo>> Function(
 class RunOrchestrator {
   /// Creates a [RunOrchestrator] with the given dependencies.
   RunOrchestrator({
-    required SoliplexApi api,
-    required AgUiStreamClient agUiStreamClient,
+    required AgentLlmProvider llmProvider,
     required ToolRegistry toolRegistry,
     required Logger logger,
-  })  : _api = api,
-        _agUiStreamClient = agUiStreamClient,
+  })  : _llmProvider = llmProvider,
         _toolRegistry = toolRegistry,
         _logger = logger;
 
-  final SoliplexApi _api;
-  final AgUiStreamClient _agUiStreamClient;
+  final AgentLlmProvider _llmProvider;
   final ToolRegistry _toolRegistry;
   final Logger _logger;
 
@@ -161,18 +159,22 @@ class RunOrchestrator {
     _guardNotRunning();
     _toolDepth = 0;
     try {
-      final runId = await _createOrUseRun(key, existingRunId);
-      if (_disposedDuringAwait()) return;
       final conversation = _buildConversation(key, userMessage, cachedHistory);
-      final input = _buildInput(key, runId, conversation);
-      final endpoint = _buildEndpoint(key, runId);
+      final input = _buildInput(key, conversation);
+      final handle = await _llmProvider.startRun(
+        key: key,
+        input: input,
+        existingRunId: existingRunId,
+        cancelToken: _cancelToken,
+      );
+      if (_disposedDuringAwait()) return;
       final initialState = RunningState(
         threadKey: key,
-        runId: runId,
+        runId: handle.runId,
         conversation: conversation,
         streaming: const AwaitingText(),
       );
-      _subscribeToStream(endpoint, input, initialState);
+      _subscribeToStream(handle.events, initialState);
     } on Object catch (error, stackTrace) {
       _handleStartError(key, error, stackTrace);
     }
@@ -244,17 +246,20 @@ class RunOrchestrator {
     }
     final conversation = _buildResumeConversation(yielding, executedTools);
     try {
-      final newRunId = await _createOrUseRun(yielding.threadKey, null);
+      final input = _buildInput(yielding.threadKey, conversation);
+      final handle = await _llmProvider.startRun(
+        key: yielding.threadKey,
+        input: input,
+        cancelToken: _cancelToken,
+      );
       if (_interruptedDuringResume()) return;
-      final input = _buildInput(yielding.threadKey, newRunId, conversation);
-      final endpoint = _buildEndpoint(yielding.threadKey, newRunId);
       final initialState = RunningState(
         threadKey: yielding.threadKey,
-        runId: newRunId,
+        runId: handle.runId,
         conversation: conversation,
         streaming: const AwaitingText(),
       );
-      _subscribeToStream(endpoint, input, initialState);
+      _subscribeToStream(handle.events, initialState);
     } on Object catch (error, stackTrace) {
       _handleStartError(yielding.threadKey, error, stackTrace);
     }
@@ -292,17 +297,20 @@ class RunOrchestrator {
     String? existingRunId,
     ThreadHistory? cachedHistory,
   ) async {
-    final runId = await _createOrUseRun(key, existingRunId);
-    if (_disposed) return;
     final conversation = _buildConversation(key, userMessage, cachedHistory);
-    final input = _buildInput(key, runId, conversation);
-    final endpoint = _buildEndpoint(key, runId);
+    final input = _buildInput(key, conversation);
+    final handle = await _llmProvider.startRun(
+      key: key,
+      input: input,
+      existingRunId: existingRunId,
+      cancelToken: _cancelToken,
+    );
+    if (_disposed) return;
     _subscribeToStream(
-      endpoint,
-      input,
+      handle.events,
       RunningState(
         threadKey: key,
-        runId: runId,
+        runId: handle.runId,
         conversation: conversation,
         streaming: const AwaitingText(),
       ),
@@ -349,16 +357,18 @@ class RunOrchestrator {
     List<ToolCallInfo> executedTools,
   ) async {
     final conversation = _buildResumeConversation(yielding, executedTools);
-    final newRunId = await _createOrUseRun(yielding.threadKey, null);
+    final input = _buildInput(yielding.threadKey, conversation);
+    final handle = await _llmProvider.startRun(
+      key: yielding.threadKey,
+      input: input,
+      cancelToken: _cancelToken,
+    );
     if (_disposed) return;
-    final input = _buildInput(yielding.threadKey, newRunId, conversation);
-    final endpoint = _buildEndpoint(yielding.threadKey, newRunId);
     _subscribeToStream(
-      endpoint,
-      input,
+      handle.events,
       RunningState(
         threadKey: yielding.threadKey,
-        runId: newRunId,
+        runId: handle.runId,
         conversation: conversation,
         streaming: const AwaitingText(),
       ),
@@ -509,12 +519,6 @@ class RunOrchestrator {
     );
   }
 
-  Future<String> _createOrUseRun(ThreadKey key, String? existingRunId) async {
-    if (existingRunId != null) return existingRunId;
-    final runInfo = await _api.createRun(key.roomId, key.threadId);
-    return runInfo.id;
-  }
-
   Conversation _buildConversation(
     ThreadKey key,
     String userMessage,
@@ -536,42 +540,31 @@ class RunOrchestrator {
 
   SimpleRunAgentInput _buildInput(
     ThreadKey key,
-    String runId,
     Conversation conversation,
   ) {
     final aguiMessages = convertToAgui(conversation.messages);
     return SimpleRunAgentInput(
       threadId: key.threadId,
-      runId: runId,
+      runId: '', // Assigned by the provider during startRun.
       messages: aguiMessages,
       tools: _toolRegistry.toolDefinitions,
     );
   }
 
-  String _buildEndpoint(ThreadKey key, String runId) {
-    return 'rooms/${key.roomId}/agui/${key.threadId}/$runId';
-  }
-
   void _subscribeToStream(
-    String endpoint,
-    SimpleRunAgentInput input,
+    Stream<BaseEvent> events,
     RunningState initialState,
   ) {
     // Cancel stale subscription from the previous run.
     unawaited(_subscription?.cancel());
     _subscription = null;
-    _cancelToken = CancelToken();
+    _cancelToken ??= CancelToken();
     _receivedTerminalEvent = false;
     _terminalCompleter = Completer<RunState>();
     _subscriptionEpoch++;
     final epoch = _subscriptionEpoch;
-    final stream = _agUiStreamClient.runAgent(
-      endpoint,
-      input,
-      cancelToken: _cancelToken,
-    );
     _setState(initialState);
-    _subscription = stream.listen(
+    _subscription = events.listen(
       _onEvent,
       onError: _onStreamError,
       onDone: () {

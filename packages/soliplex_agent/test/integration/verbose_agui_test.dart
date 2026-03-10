@@ -51,11 +51,16 @@ void main() {
       ..minimumLevel = LogLevel.debug
       ..addSink(StdoutSink());
 
+    final connection = ServerConnection.create(
+      serverId: 'default',
+      serverUrl: baseUrl,
+      httpClient: httpClient,
+    );
     runtime = AgentRuntime(
-      connection: ServerConnection.create(
-        serverId: 'default',
-        serverUrl: baseUrl,
-        httpClient: httpClient,
+      connection: connection,
+      llmProvider: AgUiLlmProvider(
+        api: connection.api,
+        agUiStreamClient: connection.agUiStreamClient,
       ),
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: const NativePlatformConstraints(),

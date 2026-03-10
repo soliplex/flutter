@@ -15,28 +15,21 @@ void main() {
     });
 
     test('filters to only requested tools', () {
-      final registry = buildDemoToolRegistry(
-        enabledTools: {'echo'},
-      );
+      final registry = buildDemoToolRegistry(enabledTools: {'echo'});
       expect(registry.length, 1);
       expect(registry.contains('echo'), isTrue);
       expect(registry.contains('secret_number'), isFalse);
     });
 
     test('returns empty registry for unknown tool names', () {
-      final registry = buildDemoToolRegistry(
-        enabledTools: {'nonexistent'},
-      );
+      final registry = buildDemoToolRegistry(enabledTools: {'nonexistent'});
       expect(registry.isEmpty, isTrue);
     });
   });
 
   group('availableDemoToolNames', () {
     test('returns expected tool names', () {
-      expect(
-        availableDemoToolNames,
-        containsAll(['secret_number', 'echo']),
-      );
+      expect(availableDemoToolNames, containsAll(['secret_number', 'echo']));
     });
   });
 
@@ -51,10 +44,7 @@ void main() {
 
     test('secret_number returns 42', () async {
       final result = await registry.execute(
-        const ToolCallInfo(
-          id: 'tc_1',
-          name: 'secret_number',
-        ),
+        const ToolCallInfo(id: 'tc_1', name: 'secret_number'),
         ctx,
       );
       expect(result, '42');

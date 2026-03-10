@@ -76,6 +76,10 @@ Future<void> launchTui({
 
     runtime = AgentRuntime(
       connection: connection,
+      llmProvider: AgUiLlmProvider(
+        api: connection.api,
+        agUiStreamClient: connection.agUiStreamClient,
+      ),
       toolRegistryResolver: (_) async => toolRegistry,
       platform: const NativePlatformConstraints(),
       logger: Loggers.agui,
@@ -179,6 +183,10 @@ Future<void> runHeadless({
 
     runtime = AgentRuntime(
       connection: connection,
+      llmProvider: AgUiLlmProvider(
+        api: connection.api,
+        agUiStreamClient: connection.agUiStreamClient,
+      ),
       toolRegistryResolver: (_) async => toolRegistry,
       platform: const NativePlatformConstraints(),
       logger: Loggers.agui,
@@ -343,9 +351,7 @@ Future<void> _runHeadlessJson({
 }
 
 /// Lists available rooms from the server and prints them to [stdout].
-Future<void> listRooms({
-  required String serverUrl,
-}) async {
+Future<void> listRooms({required String serverUrl}) async {
   final connection = ServerConnection.create(
     serverId: 'default',
     serverUrl: serverUrl,
@@ -368,7 +374,8 @@ Future<void> listRooms({
   SessionExtensionFactory? extensionFactory,
   void Function(AgentRuntime) bindAgentApi,
   McpConnectionManager? mcpManager,
-}) _buildMontyWiring({
+})
+_buildMontyWiring({
   required bool montyEnabled,
   String? llmProvider,
   String? llmModel,
@@ -409,13 +416,13 @@ Future<void> listRooms({
         llmCompleter: provider?.complete,
         llmChatCompleter: provider != null
             ? (messages, {systemPrompt, maxTokens}) => provider.chat(
-                  [
-                    for (final m in messages)
-                      (role: m['role']!, content: m['content']!),
-                  ],
-                  systemPrompt: systemPrompt,
-                  maxTokens: maxTokens,
-                )
+                [
+                  for (final m in messages)
+                    (role: m['role']!, content: m['content']!),
+                ],
+                systemPrompt: systemPrompt,
+                maxTokens: maxTokens,
+              )
             : null,
         mcpExecutor: mcpManager?.executeTool,
         mcpToolLister: mcpManager?.listTools,
@@ -445,26 +452,28 @@ LlmProvider? _createLlmProvider({
   if (provider == null) return null;
   return switch (provider) {
     'anthropic' => AnthropicLlmProvider(
-        apiKey: apiKey ??
-            Platform.environment['ANTHROPIC_API_KEY'] ??
-            (throw ArgumentError(
-              'Anthropic requires --llm-api-key or ANTHROPIC_API_KEY',
-            )),
-        model: model ?? 'claude-sonnet-4-20250514',
-      ),
+      apiKey:
+          apiKey ??
+          Platform.environment['ANTHROPIC_API_KEY'] ??
+          (throw ArgumentError(
+            'Anthropic requires --llm-api-key or ANTHROPIC_API_KEY',
+          )),
+      model: model ?? 'claude-sonnet-4-20250514',
+    ),
     'openai' => OpenAiLlmProvider(
-        apiKey: apiKey ??
-            Platform.environment['OPENAI_API_KEY'] ??
-            (throw ArgumentError(
-              'OpenAI requires --llm-api-key or OPENAI_API_KEY',
-            )),
-        model: model ?? 'gpt-4o',
-        baseUrl: url,
-      ),
+      apiKey:
+          apiKey ??
+          Platform.environment['OPENAI_API_KEY'] ??
+          (throw ArgumentError(
+            'OpenAI requires --llm-api-key or OPENAI_API_KEY',
+          )),
+      model: model ?? 'gpt-4o',
+      baseUrl: url,
+    ),
     'ollama' => OllamaLlmProvider(
-        model: model ?? 'llama3.2',
-        baseUrl: url ?? 'http://localhost:11434/api',
-      ),
+      model: model ?? 'llama3.2',
+      baseUrl: url ?? 'http://localhost:11434/api',
+    ),
     _ => throw ArgumentError('Unknown LLM provider: $provider'),
   };
 }
@@ -511,19 +520,19 @@ Future<String> _resolveRoom(SoliplexApi api, String? roomId) async {
 
 /// Serializes a [ToolCallInfo] for the JSON envelope.
 Map<String, dynamic> _toolCallToJson(ToolCallInfo tc) => {
-      'id': tc.id,
-      'name': tc.name,
-      if (tc.hasArguments) 'arguments': tc.arguments,
-    };
+  'id': tc.id,
+  'name': tc.name,
+  if (tc.hasArguments) 'arguments': tc.arguments,
+};
 
 /// Formats a [RunState] as a concise string for verbose logging.
 String _describeRunState(RunState state) {
   return switch (state) {
     IdleState() => 'Idle',
     RunningState(:final streaming) => switch (streaming) {
-        AwaitingText() => 'Running (awaiting text)',
-        TextStreaming(:final text) => 'Running (${text.length} chars)',
-      },
+      AwaitingText() => 'Running (awaiting text)',
+      TextStreaming(:final text) => 'Running (${text.length} chars)',
+    },
     ToolYieldingState(:final pendingToolCalls) =>
       'ToolYielding (${pendingToolCalls.map((t) => t.name).join(', ')})',
     CompletedState() => 'Completed',
@@ -566,11 +575,7 @@ class SoliplexTuiApp extends StatelessComponent {
     return NoctermApp(
       title: 'Soliplex TUI',
       theme: TuiThemeData.dark,
-      home: ChatPage(
-        runtime: runtime,
-        roomId: roomId,
-        uiDelegate: uiDelegate,
-      ),
+      home: ChatPage(runtime: runtime, roomId: roomId, uiDelegate: uiDelegate),
     );
   }
 }

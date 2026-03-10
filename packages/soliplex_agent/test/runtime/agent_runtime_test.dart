@@ -132,6 +132,10 @@ void main() {
   }) {
     return AgentRuntime(
       connection: mockConnection(),
+      llmProvider: AgUiLlmProvider(
+        api: api,
+        agUiStreamClient: agUiStreamClient,
+      ),
       toolRegistryResolver: resolver ?? (_) async => const ToolRegistry(),
       platform: platform ?? const NativePlatformConstraints(),
       logger: logger,
@@ -499,6 +503,10 @@ void main() {
       await runtime.dispose();
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -534,6 +542,10 @@ void main() {
     test('allows spawn when depth is disabled (maxSpawnDepth=0)', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -566,6 +578,10 @@ void main() {
     test('cancels root session after rootTimeout expires', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -596,6 +612,10 @@ void main() {
     test('timer is cancelled on normal completion', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -618,6 +638,10 @@ void main() {
     test('no timer for child sessions', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -778,6 +802,10 @@ void main() {
     test('cleans up session when extension onAttach throws', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -810,6 +838,10 @@ void main() {
     test('concurrency count resets after start failure', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(maxConcurrentBridges: 1),
         logger: logger,
@@ -886,6 +918,10 @@ void main() {
 
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -949,6 +985,10 @@ void main() {
     test('factory error propagates from spawn', () async {
       runtime = AgentRuntime(
         connection: mockConnection(),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -973,6 +1013,10 @@ void main() {
       var factoryCalled = false;
       runtime = AgentRuntime(
         connection: mockConnection(serverId: 'prod'),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -1001,6 +1045,10 @@ void main() {
     test('custom serverId appears in ThreadKey', () async {
       runtime = AgentRuntime(
         connection: mockConnection(serverId: 'staging.soliplex.io'),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -1022,6 +1070,10 @@ void main() {
     test('produces runtime with correct serverId', () {
       runtime = AgentRuntime(
         connection: mockConnection(serverId: 'prod'),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -1033,6 +1085,10 @@ void main() {
     test('spawn creates session with matching ThreadKey.serverId', () async {
       runtime = AgentRuntime(
         connection: mockConnection(serverId: 'prod'),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,
@@ -1072,6 +1128,10 @@ void main() {
 
       runtime = AgentRuntime(
         connection: reg.require('prod'),
+        llmProvider: AgUiLlmProvider(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+        ),
         toolRegistryResolver: (_) async => const ToolRegistry(),
         platform: const NativePlatformConstraints(),
         logger: logger,

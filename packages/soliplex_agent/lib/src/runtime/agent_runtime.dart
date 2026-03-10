@@ -4,6 +4,7 @@ import 'package:signals_core/signals_core.dart';
 import 'package:soliplex_agent/src/host/platform_constraints.dart';
 import 'package:soliplex_agent/src/models/agent_result.dart';
 import 'package:soliplex_agent/src/models/thread_key.dart';
+import 'package:soliplex_agent/src/orchestration/agent_llm_provider.dart';
 import 'package:soliplex_agent/src/orchestration/run_orchestrator.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
@@ -11,12 +12,11 @@ import 'package:soliplex_agent/src/runtime/agent_ui_delegate.dart';
 import 'package:soliplex_agent/src/runtime/server_connection.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
-import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Facade for spawning and coordinating multiple [AgentSession]s.
 ///
-/// Each runtime is bound to a single backend server via [SoliplexApi].
+/// Each runtime is bound to a single backend server via [AgentLlmProvider].
 /// The [serverId] identifies which server this runtime talks to and is
 /// embedded into every [ThreadKey] created by [spawn].
 ///
@@ -45,6 +45,7 @@ class AgentRuntime {
   /// all its children are cancelled.
   AgentRuntime({
     required ServerConnection connection,
+    required AgentLlmProvider llmProvider,
     required ToolRegistryResolver toolRegistryResolver,
     required PlatformConstraints platform,
     required Logger logger,
@@ -53,16 +54,16 @@ class AgentRuntime {
     this.maxSpawnDepth = 10,
     this.rootTimeout,
   })  : serverId = connection.serverId,
-        _api = connection.api,
-        _agUiStreamClient = connection.agUiStreamClient,
+        _connection = connection,
+        _llmProvider = llmProvider,
         _toolRegistryResolver = toolRegistryResolver,
         _extensionFactory = extensionFactory,
         _uiDelegate = uiDelegate,
         _platform = platform,
         _logger = logger;
 
-  final SoliplexApi _api;
-  final AgUiStreamClient _agUiStreamClient;
+  final ServerConnection _connection;
+  final AgentLlmProvider _llmProvider;
   final ToolRegistryResolver _toolRegistryResolver;
   final SessionExtensionFactory? _extensionFactory;
   final AgentUiDelegate? _uiDelegate;
@@ -263,7 +264,7 @@ class AgentRuntime {
       final key = (serverId: serverId, roomId: roomId, threadId: threadId);
       return (key, null);
     }
-    final (threadInfo, _) = await _api.createThread(roomId);
+    final (threadInfo, _) = await _connection.api.createThread(roomId);
     final key = (serverId: serverId, roomId: roomId, threadId: threadInfo.id);
     final existingRunId =
         threadInfo.hasInitialRun ? threadInfo.initialRunId : null;
@@ -288,8 +289,7 @@ class AgentRuntime {
       }
     }
     final orchestrator = RunOrchestrator(
-      api: _api,
-      agUiStreamClient: _agUiStreamClient,
+      llmProvider: _llmProvider,
       toolRegistry: toolRegistry,
       logger: _logger,
     );
@@ -393,7 +393,7 @@ class AgentRuntime {
   Future<void> _deleteThreadSafe(ThreadKey key) async {
     if (!_deletedThreadIds.add(key.threadId)) return;
     try {
-      await _api.deleteThread(key.roomId, key.threadId);
+      await _connection.api.deleteThread(key.roomId, key.threadId);
     } on Object catch (error) {
       _logger.warning('Failed to delete thread ${key.threadId}', error: error);
     }

@@ -20,8 +20,7 @@ class _MockAgentSession extends Mock implements AgentSession {
     required String toolName,
     required Map<String, dynamic> arguments,
     required String rationale,
-  }) async =>
-      approveAll;
+  }) async => approveAll;
 }
 
 // ---------------------------------------------------------------------------
@@ -75,10 +74,7 @@ void main() {
       });
       final frame = api.getDataFrame(handle)!;
 
-      expect(
-        () => frame['y'] = [2],
-        throwsA(isA<UnsupportedError>()),
-      );
+      expect(() => frame['y'] = [2], throwsA(isA<UnsupportedError>()));
     });
   });
 
@@ -241,13 +237,15 @@ void main() {
       );
     });
 
-    test('native.file_write with missing content throws ArgumentError',
-        () async {
-      await expectLater(
-        api.invoke('native.file_write', {'path': '/tmp/test.txt'}),
-        throwsA(isA<ArgumentError>()),
-      );
-    });
+    test(
+      'native.file_write with missing content throws ArgumentError',
+      () async {
+        await expectLater(
+          api.invoke('native.file_write', {'path': '/tmp/test.txt'}),
+          throwsA(isA<ArgumentError>()),
+        );
+      },
+    );
 
     test('native.file_read with missing path throws ArgumentError', () async {
       await expectLater(
@@ -261,16 +259,18 @@ void main() {
   // 8. native.file_read with nonexistent file
   // =========================================================================
 
-  test('native.file_read with nonexistent file throws FileSystemException',
-      () async {
-    final session = _MockAgentSession();
-    await api.onAttach(session);
+  test(
+    'native.file_read with nonexistent file throws FileSystemException',
+    () async {
+      final session = _MockAgentSession();
+      await api.onAttach(session);
 
-    await expectLater(
-      api.invoke('native.file_read', {'path': '/tmp/__no_such_file__'}),
-      throwsA(isA<FileSystemException>()),
-    );
-  });
+      await expectLater(
+        api.invoke('native.file_read', {'path': '/tmp/__no_such_file__'}),
+        throwsA(isA<FileSystemException>()),
+      );
+    },
+  );
 
   // =========================================================================
   // 9. native.shell round-trip (real Process.run)
@@ -280,10 +280,9 @@ void main() {
     final session = _MockAgentSession();
     await api.onAttach(session);
 
-    final result = await api.invoke(
-      'native.shell',
-      {'command': 'echo hello_from_test'},
-    );
+    final result = await api.invoke('native.shell', {
+      'command': 'echo hello_from_test',
+    });
 
     expect(result, isA<String>());
     expect(result! as String, contains('hello_from_test'));
@@ -308,17 +307,14 @@ void main() {
       }
     });
 
-    final writeResult = await api.invoke(
-      'native.file_write',
-      {'path': tmpPath, 'content': 'test content'},
-    );
+    final writeResult = await api.invoke('native.file_write', {
+      'path': tmpPath,
+      'content': 'test content',
+    });
     expect(writeResult, isA<String>());
     expect(writeResult! as String, contains('12 chars'));
 
-    final readResult = await api.invoke(
-      'native.file_read',
-      {'path': tmpPath},
-    );
+    final readResult = await api.invoke('native.file_read', {'path': tmpPath});
     expect(readResult, 'test content');
   });
 
@@ -332,10 +328,7 @@ void main() {
       final session = _MockAgentSession();
       await api.onAttach(session);
 
-      final result = await api.invoke(
-        'native.clipboard',
-        {'action': 'read'},
-      );
+      final result = await api.invoke('native.clipboard', {'action': 'read'});
       expect(result, isA<String>());
     },
     skip: !Platform.isMacOS ? 'clipboard tests only run on macOS' : null,

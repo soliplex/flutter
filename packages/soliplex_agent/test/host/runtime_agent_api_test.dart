@@ -62,6 +62,10 @@ void main() {
         api: api,
         agUiStreamClient: agUiStreamClient,
       ),
+      llmProvider: AgUiLlmProvider(
+        api: api,
+        agUiStreamClient: agUiStreamClient,
+      ),
       toolRegistryResolver: (_) async => const ToolRegistry(),
       platform: const NativePlatformConstraints(),
       logger: logger,

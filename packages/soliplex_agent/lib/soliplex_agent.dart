@@ -57,6 +57,8 @@ export 'src/models/agent_result.dart';
 export 'src/models/failure_reason.dart';
 export 'src/models/thread_key.dart';
 // ── Orchestration ──
+export 'src/orchestration/ag_ui_llm_provider.dart';
+export 'src/orchestration/agent_llm_provider.dart';
 export 'src/orchestration/error_classifier.dart';
 export 'src/orchestration/execution_event.dart';
 export 'src/orchestration/run_orchestrator.dart';

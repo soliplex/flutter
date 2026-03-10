@@ -31,60 +31,44 @@ const _roomId = 'room-1';
 const _threadId = 'thread-1';
 const _runId = 'run-abc';
 
-ThreadInfo _threadInfo() => ThreadInfo(
-      id: _threadId,
-      roomId: _roomId,
-      createdAt: DateTime(2026),
-    );
+ThreadInfo _threadInfo() =>
+    ThreadInfo(id: _threadId, roomId: _roomId, createdAt: DateTime(2026));
 
-RunInfo _runInfo() => RunInfo(
-      id: _runId,
-      threadId: _threadId,
-      createdAt: DateTime(2026),
-    );
+RunInfo _runInfo() =>
+    RunInfo(id: _runId, threadId: _threadId, createdAt: DateTime(2026));
 
 List<BaseEvent> _textEvents({String text = 'Hello from agent'}) => [
-      const RunStartedEvent(threadId: _threadId, runId: _runId),
-      const TextMessageStartEvent(messageId: 'msg-1'),
-      TextMessageContentEvent(messageId: 'msg-1', delta: text),
-      const TextMessageEndEvent(messageId: 'msg-1'),
-      const RunFinishedEvent(threadId: _threadId, runId: _runId),
-    ];
+  const RunStartedEvent(threadId: _threadId, runId: _runId),
+  const TextMessageStartEvent(messageId: 'msg-1'),
+  TextMessageContentEvent(messageId: 'msg-1', delta: text),
+  const TextMessageEndEvent(messageId: 'msg-1'),
+  const RunFinishedEvent(threadId: _threadId, runId: _runId),
+];
 
 List<BaseEvent> _toolCallThenTextEvents({
   String toolName = 'secret_number',
   String toolCallId = 'tc-1',
   String args = '{}',
-}) =>
-    [
-      const RunStartedEvent(threadId: _threadId, runId: _runId),
-      ToolCallStartEvent(
-        toolCallId: toolCallId,
-        toolCallName: toolName,
-      ),
-      ToolCallArgsEvent(toolCallId: toolCallId, delta: args),
-      ToolCallEndEvent(toolCallId: toolCallId),
-      const RunFinishedEvent(threadId: _threadId, runId: _runId),
-    ];
+}) => [
+  const RunStartedEvent(threadId: _threadId, runId: _runId),
+  ToolCallStartEvent(toolCallId: toolCallId, toolCallName: toolName),
+  ToolCallArgsEvent(toolCallId: toolCallId, delta: args),
+  ToolCallEndEvent(toolCallId: toolCallId),
+  const RunFinishedEvent(threadId: _threadId, runId: _runId),
+];
 
-List<BaseEvent> _resumeTextEvents({
-  String text = 'The answer is 42',
-}) =>
-    [
-      const RunStartedEvent(threadId: _threadId, runId: _runId),
-      const TextMessageStartEvent(messageId: 'msg-2'),
-      TextMessageContentEvent(messageId: 'msg-2', delta: text),
-      const TextMessageEndEvent(messageId: 'msg-2'),
-      const RunFinishedEvent(threadId: _threadId, runId: _runId),
-    ];
+List<BaseEvent> _resumeTextEvents({String text = 'The answer is 42'}) => [
+  const RunStartedEvent(threadId: _threadId, runId: _runId),
+  const TextMessageStartEvent(messageId: 'msg-2'),
+  TextMessageContentEvent(messageId: 'msg-2', delta: text),
+  const TextMessageEndEvent(messageId: 'msg-2'),
+  const RunFinishedEvent(threadId: _threadId, runId: _runId),
+];
 
-List<BaseEvent> _errorEvents({
-  String message = 'Backend failure',
-}) =>
-    [
-      const RunStartedEvent(threadId: _threadId, runId: _runId),
-      RunErrorEvent(message: message),
-    ];
+List<BaseEvent> _errorEvents({String message = 'Backend failure'}) => [
+  const RunStartedEvent(threadId: _threadId, runId: _runId),
+  RunErrorEvent(message: message),
+];
 
 // ---------------------------------------------------------------------------
 // JSON envelope builder — mirrors _runHeadlessJson logic
@@ -173,6 +157,10 @@ void main() {
         api: api,
         agUiStreamClient: agUiStreamClient,
       ),
+      llmProvider: AgUiLlmProvider(
+        api: api,
+        agUiStreamClient: agUiStreamClient,
+      ),
       toolRegistryResolver: (_) async => toolRegistry ?? const ToolRegistry(),
       platform: const NativePlatformConstraints(),
       logger: logger,
@@ -180,8 +168,9 @@ void main() {
   }
 
   void stubCreateThread() {
-    when(() => api.createThread(any()))
-        .thenAnswer((_) async => (_threadInfo(), <String, dynamic>{}));
+    when(
+      () => api.createThread(any()),
+    ).thenAnswer((_) async => (_threadInfo(), <String, dynamic>{}));
   }
 
   void stubCreateRun() {
@@ -245,9 +234,7 @@ void main() {
         Stream.fromIterable(_resumeTextEvents()),
       ]);
 
-      final registry = buildDemoToolRegistry(
-        enabledTools: {'secret_number'},
-      );
+      final registry = buildDemoToolRegistry(enabledTools: {'secret_number'});
       final runtime = createRuntime(toolRegistry: registry);
       addTearDown(runtime.dispose);
 
@@ -260,8 +247,8 @@ void main() {
       expect(envelope['agent_result'], 'The answer is 42');
       expect(envelope['tool_calls'], isA<List<dynamic>>());
 
-      final toolCalls =
-          (envelope['tool_calls'] as List).cast<Map<String, dynamic>>();
+      final toolCalls = (envelope['tool_calls'] as List)
+          .cast<Map<String, dynamic>>();
       expect(toolCalls, hasLength(1));
       expect(toolCalls.first['name'], 'secret_number');
       expect(toolCalls.first['id'], 'tc-1');
@@ -319,9 +306,7 @@ void main() {
         Stream.fromIterable(_resumeTextEvents()),
       ]);
 
-      final registry = buildDemoToolRegistry(
-        enabledTools: {'secret_number'},
-      );
+      final registry = buildDemoToolRegistry(enabledTools: {'secret_number'});
       final runtime = createRuntime(toolRegistry: registry);
       addTearDown(runtime.dispose);
 
@@ -330,8 +315,8 @@ void main() {
         messages: ['test dedup'],
       );
 
-      final toolCalls =
-          (envelope['tool_calls'] as List).cast<Map<String, dynamic>>();
+      final toolCalls = (envelope['tool_calls'] as List)
+          .cast<Map<String, dynamic>>();
       final ids = toolCalls.map((tc) => tc['id']).toSet();
       // No duplicates.
       expect(ids.length, toolCalls.length);

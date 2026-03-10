@@ -10,13 +10,29 @@ class _FakeContext implements ToolExecutionContext {
   CancelToken get cancelToken => throw UnimplementedError();
   @override
   Future<AgentSession> spawnChild({
-    required String roomId,
     required String prompt,
-  }) => throw UnimplementedError();
+    String? roomId,
+  }) =>
+      throw UnimplementedError();
   @override
   void emitEvent(ExecutionEvent event) => throw UnimplementedError();
   @override
   T? getExtension<T extends SessionExtension>() => throw UnimplementedError();
+  @override
+  Future<bool> requestApproval({
+    required String toolCallId,
+    required String toolName,
+    required Map<String, dynamic> arguments,
+    required String rationale,
+  }) =>
+      throw UnimplementedError();
+  @override
+  Future<String> delegateTask({
+    required String prompt,
+    String? roomId,
+    Duration? timeout,
+  }) =>
+      throw UnimplementedError();
 }
 
 void main() {

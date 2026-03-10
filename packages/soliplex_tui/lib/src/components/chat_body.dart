@@ -30,7 +30,7 @@ class ChatBody extends StatelessComponent {
         final stream = streaming.value;
         final hasStreamingItem =
             stream is TextStreaming && stream.text.isNotEmpty ||
-                stream is AwaitingText && stream.hasThinkingContent;
+            stream is AwaitingText && stream.hasThinkingContent;
 
         final itemCount = msgs.length + (hasStreamingItem ? 1 : 0);
 

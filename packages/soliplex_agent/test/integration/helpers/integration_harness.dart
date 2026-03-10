@@ -70,8 +70,10 @@ class IntegrationHarness {
     ToolRegistry toolRegistry = const ToolRegistry(),
   }) {
     return RunOrchestrator(
-      api: api,
-      agUiStreamClient: agUiStreamClient,
+      llmProvider: AgUiLlmProvider(
+        api: api,
+        agUiStreamClient: agUiStreamClient,
+      ),
       toolRegistry: toolRegistry,
       logger: createTestLogger(loggerName),
     );
@@ -83,9 +85,14 @@ class IntegrationHarness {
     ToolRegistryResolver? toolRegistryResolver,
     PlatformConstraints platform = const NativePlatformConstraints(),
   }) {
+    final connection = ServerConnection(
+      serverId: 'default',
+      api: api,
+      agUiStreamClient: agUiStreamClient,
+    );
     return AgentRuntime(
-      connection: ServerConnection(
-        serverId: 'default',
+      connection: connection,
+      llmProvider: AgUiLlmProvider(
         api: api,
         agUiStreamClient: agUiStreamClient,
       ),

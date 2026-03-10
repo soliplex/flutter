@@ -22,7 +22,8 @@ Future<void> main(List<String> arguments) async {
     ..addMultiOption(
       'prompt',
       abbr: 'p',
-      help: 'Send message(s) headless, print each response, and exit. '
+      help:
+          'Send message(s) headless, print each response, and exit. '
           'Repeatable for multi-turn conversations.',
     )
     ..addFlag(
@@ -55,7 +56,8 @@ Future<void> main(List<String> arguments) async {
     ..addFlag(
       'auto-approve',
       negatable: false,
-      help: 'Headless mode: auto-approve all tool requests '
+      help:
+          'Headless mode: auto-approve all tool requests '
           '(dangerous — only use with trusted prompts).',
     )
     ..addFlag(

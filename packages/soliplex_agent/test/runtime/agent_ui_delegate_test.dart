@@ -142,6 +142,10 @@ AgentRuntime _createRuntime({
       api: api,
       agUiStreamClient: streamClient,
     ),
+    llmProvider: AgUiLlmProvider(
+      api: api,
+      agUiStreamClient: streamClient,
+    ),
     toolRegistryResolver:
         toolRegistryResolver ?? (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),

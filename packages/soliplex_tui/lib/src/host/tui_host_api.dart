@@ -71,8 +71,8 @@ class TuiHostApi implements HostApi, SessionExtension {
       'native.file_write' => _handleFileWrite(args),
       'native.file_read' => _handleFileRead(args),
       _ => throw UnimplementedError(
-          'TuiHostApi: unsupported operation "$name"',
-        ),
+        'TuiHostApi: unsupported operation "$name"',
+      ),
     };
   }
 
@@ -83,7 +83,8 @@ class TuiHostApi implements HostApi, SessionExtension {
     await _requireApproval(
       toolName: 'native.clipboard',
       arguments: args,
-      rationale: 'Script wants to ${action == 'write' ? 'write to' : 'read'}'
+      rationale:
+          'Script wants to ${action == 'write' ? 'write to' : 'read'}'
           ' the clipboard.',
     );
 
@@ -93,10 +94,7 @@ class TuiHostApi implements HostApi, SessionExtension {
       if (Platform.isMacOS) {
         process = await Process.start('pbcopy', []);
       } else if (Platform.isLinux) {
-        process = await Process.start(
-          'xclip',
-          ['-selection', 'clipboard'],
-        );
+        process = await Process.start('xclip', ['-selection', 'clipboard']);
       } else {
         throw UnsupportedError(
           'Clipboard write not supported on '
@@ -115,10 +113,11 @@ class TuiHostApi implements HostApi, SessionExtension {
       return _truncate(result.stdout as String);
     }
     if (Platform.isLinux) {
-      final result = await Process.run(
-        'xclip',
-        ['-selection', 'clipboard', '-o'],
-      );
+      final result = await Process.run('xclip', [
+        '-selection',
+        'clipboard',
+        '-o',
+      ]);
       return _truncate(result.stdout as String);
     }
     throw UnsupportedError(
@@ -181,9 +180,7 @@ class TuiHostApi implements HostApi, SessionExtension {
   Future<String> _handleFileRead(Map<String, Object?> args) async {
     final rawPath = args['path'] as String?;
     if (rawPath == null) {
-      throw ArgumentError(
-        'native.file_read requires a "path" argument',
-      );
+      throw ArgumentError('native.file_read requires a "path" argument');
     }
     final path = _safePath(rawPath);
 

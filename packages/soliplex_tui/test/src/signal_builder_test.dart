@@ -8,68 +8,59 @@ void main() {
     test('renders initial signal value', () async {
       final count = signal(0);
 
-      await testNocterm(
-        'initial value',
-        (tester) async {
-          await tester.pumpComponent(
-            SignalBuilder<int>(
-              signal: count,
-              builder: (context, value) => Text('Count: $value'),
-            ),
-          );
+      await testNocterm('initial value', (tester) async {
+        await tester.pumpComponent(
+          SignalBuilder<int>(
+            signal: count,
+            builder: (context, value) => Text('Count: $value'),
+          ),
+        );
 
-          expect(tester.terminalState, containsText('Count: 0'));
-        },
-      );
+        expect(tester.terminalState, containsText('Count: 0'));
+      });
     });
 
     test('rebuilds when signal value changes', () async {
       final count = signal(0);
 
-      await testNocterm(
-        'rebuild on change',
-        (tester) async {
-          await tester.pumpComponent(
-            SignalBuilder<int>(
-              signal: count,
-              builder: (context, value) => Text('Count: $value'),
-            ),
-          );
+      await testNocterm('rebuild on change', (tester) async {
+        await tester.pumpComponent(
+          SignalBuilder<int>(
+            signal: count,
+            builder: (context, value) => Text('Count: $value'),
+          ),
+        );
 
-          expect(tester.terminalState, containsText('Count: 0'));
+        expect(tester.terminalState, containsText('Count: 0'));
 
-          count.value = 42;
-          await tester.pump();
+        count.value = 42;
+        await tester.pump();
 
-          expect(tester.terminalState, containsText('Count: 42'));
-        },
-      );
+        expect(tester.terminalState, containsText('Count: 42'));
+      });
     });
 
     test('rebuilds on multiple changes', () async {
       final label = signal('hello');
 
-      await testNocterm(
-        'multiple changes',
-        (tester) async {
-          await tester.pumpComponent(
-            SignalBuilder<String>(
-              signal: label,
-              builder: (context, value) => Text('Label: $value'),
-            ),
-          );
+      await testNocterm('multiple changes', (tester) async {
+        await tester.pumpComponent(
+          SignalBuilder<String>(
+            signal: label,
+            builder: (context, value) => Text('Label: $value'),
+          ),
+        );
 
-          expect(tester.terminalState, containsText('Label: hello'));
+        expect(tester.terminalState, containsText('Label: hello'));
 
-          label.value = 'world';
-          await tester.pump();
-          expect(tester.terminalState, containsText('Label: world'));
+        label.value = 'world';
+        await tester.pump();
+        expect(tester.terminalState, containsText('Label: world'));
 
-          label.value = 'done';
-          await tester.pump();
-          expect(tester.terminalState, containsText('Label: done'));
-        },
-      );
+        label.value = 'done';
+        await tester.pump();
+        expect(tester.terminalState, containsText('Label: done'));
+      });
     });
 
     test('works with computed signals', () async {
@@ -77,24 +68,21 @@ void main() {
       final last = signal('Doe');
       final full = computed(() => '${first.value} ${last.value}');
 
-      await testNocterm(
-        'computed signal',
-        (tester) async {
-          await tester.pumpComponent(
-            SignalBuilder<String>(
-              signal: full,
-              builder: (context, value) => Text('Name: $value'),
-            ),
-          );
+      await testNocterm('computed signal', (tester) async {
+        await tester.pumpComponent(
+          SignalBuilder<String>(
+            signal: full,
+            builder: (context, value) => Text('Name: $value'),
+          ),
+        );
 
-          expect(tester.terminalState, containsText('Name: John Doe'));
+        expect(tester.terminalState, containsText('Name: John Doe'));
 
-          last.value = 'Smith';
-          await tester.pump();
+        last.value = 'Smith';
+        await tester.pump();
 
-          expect(tester.terminalState, containsText('Name: John Smith'));
-        },
-      );
+        expect(tester.terminalState, containsText('Name: John Smith'));
+      });
     });
   });
 }

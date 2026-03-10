@@ -24,10 +24,7 @@ class InputRow extends StatelessComponent {
 
     return Row(
       children: [
-        Text(
-          '> ',
-          style: TextStyle(color: theme.primary),
-        ),
+        Text('> ', style: TextStyle(color: theme.primary)),
         Expanded(
           child: TextField(
             controller: controller,
@@ -35,8 +32,9 @@ class InputRow extends StatelessComponent {
             focused: enabled,
             onKeyEvent: onKeyEvent,
             placeholder: enabled ? 'Type a message...' : 'Waiting...',
-            placeholderStyle:
-                TextStyle(color: theme.onSurface.withOpacity(0.5)),
+            placeholderStyle: TextStyle(
+              color: theme.onSurface.withOpacity(0.5),
+            ),
             style: TextStyle(color: theme.onSurface),
             onSubmitted: (text) {
               if (text.trim().isEmpty) return;

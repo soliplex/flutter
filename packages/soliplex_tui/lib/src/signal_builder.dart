@@ -13,11 +13,7 @@ import 'package:signals_core/signals_core.dart';
 /// )
 /// ```
 class SignalBuilder<T> extends StatefulComponent {
-  const SignalBuilder({
-    required this.signal,
-    required this.builder,
-    super.key,
-  });
+  const SignalBuilder({required this.signal, required this.builder, super.key});
 
   final ReadonlySignal<T> signal;
   final Component Function(BuildContext context, T value) builder;
