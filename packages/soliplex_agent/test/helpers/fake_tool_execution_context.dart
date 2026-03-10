@@ -10,8 +10,7 @@ class FakeToolExecutionContext implements ToolExecutionContext {
 
   @override
   Future<AgentSession> spawnChild({
-    required String roomId,
-    required String prompt,
+    required String prompt, String? roomId,
   }) =>
       throw UnimplementedError();
 
@@ -20,4 +19,21 @@ class FakeToolExecutionContext implements ToolExecutionContext {
 
   @override
   T? getExtension<T extends SessionExtension>() => throw UnimplementedError();
+
+  @override
+  Future<bool> requestApproval({
+    required String toolCallId,
+    required String toolName,
+    required Map<String, dynamic> arguments,
+    required String rationale,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<String> delegateTask({
+    required String prompt,
+    String? roomId,
+    Duration? timeout,
+  }) =>
+      throw UnimplementedError();
 }

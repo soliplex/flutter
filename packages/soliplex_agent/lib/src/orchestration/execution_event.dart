@@ -212,6 +212,39 @@ class StepProgress extends ExecutionEvent {
   int get hashCode => stepName.hashCode;
 }
 
+/// A tool is awaiting user approval before executing a sensitive action.
+///
+/// Emitted by `AgentSession.requestApproval` so UI layers can display
+/// an approval prompt. The event carries enough context for the UI to
+/// render a meaningful description of what the tool wants to do.
+class AwaitingApproval extends ExecutionEvent {
+  const AwaitingApproval({
+    required this.toolCallId,
+    required this.toolName,
+    required this.rationale,
+  });
+
+  /// The tool call that triggered the approval request.
+  final String toolCallId;
+
+  /// Name of the tool requesting approval.
+  final String toolName;
+
+  /// Human-readable explanation of what the tool wants to do.
+  final String rationale;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AwaitingApproval &&
+          toolCallId == other.toolCallId &&
+          toolName == other.toolName &&
+          rationale == other.rationale;
+
+  @override
+  int get hashCode => Object.hash(toolCallId, toolName, rationale);
+}
+
 /// Extension point for third-party plugins to emit custom events.
 ///
 /// Use this when a `SessionExtension` needs to communicate

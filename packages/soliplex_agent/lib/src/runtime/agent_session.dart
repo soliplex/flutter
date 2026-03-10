@@ -10,6 +10,7 @@ import 'package:soliplex_agent/src/orchestration/run_orchestrator.dart';
 import 'package:soliplex_agent/src/orchestration/run_state.dart';
 import 'package:soliplex_agent/src/runtime/agent_runtime.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
+import 'package:soliplex_agent/src/runtime/agent_ui_delegate.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_execution_context.dart';
 import 'package:soliplex_agent/src/tools/tool_registry.dart';
@@ -42,10 +43,12 @@ class AgentSession implements ToolExecutionContext {
     required ToolRegistry toolRegistry,
     required Logger logger,
     List<SessionExtension> extensions = const [],
+    AgentUiDelegate? uiDelegate,
   })  : _runtime = runtime,
         _orchestrator = orchestrator,
         _toolRegistry = toolRegistry,
         _extensions = extensions,
+        _uiDelegate = uiDelegate,
         _logger = logger,
         id = '${threadKey.threadId}-'
             '${DateTime.now().microsecondsSinceEpoch}';
@@ -66,6 +69,7 @@ class AgentSession implements ToolExecutionContext {
   final RunOrchestrator _orchestrator;
   final ToolRegistry _toolRegistry;
   final List<SessionExtension> _extensions;
+  final AgentUiDelegate? _uiDelegate;
   final Logger _logger;
 
   static const _toolTimeout = Duration(seconds: 60);
@@ -141,20 +145,58 @@ class AgentSession implements ToolExecutionContext {
 
   @override
   Future<AgentSession> spawnChild({
-    required String roomId,
-    required String prompt,
+    required String prompt, String? roomId,
     String? threadId,
     Duration? timeout,
     bool ephemeral = true,
   }) {
     return _runtime.spawn(
-      roomId: roomId,
+      roomId: roomId ?? threadKey.roomId,
       prompt: prompt,
       threadId: threadId,
       timeout: timeout,
       ephemeral: ephemeral,
       parent: this,
     );
+  }
+
+  @override
+  Future<bool> requestApproval({
+    required String toolCallId,
+    required String toolName,
+    required Map<String, dynamic> arguments,
+    required String rationale,
+  }) async {
+    if (_uiDelegate == null) return true;
+    emitEvent(AwaitingApproval(
+      toolCallId: toolCallId,
+      toolName: toolName,
+      rationale: rationale,
+    ),);
+    return Future.any([
+      _uiDelegate.requestToolApproval(
+        session: this,
+        toolName: toolName,
+        arguments: arguments,
+        rationale: rationale,
+      ),
+      cancelToken.whenCancelled.then((_) => false),
+    ]);
+  }
+
+  @override
+  Future<String> delegateTask({
+    required String prompt,
+    String? roomId,
+    Duration? timeout,
+  }) async {
+    final child = await spawnChild(roomId: roomId, prompt: prompt);
+    final result = await child.awaitResult(timeout: timeout);
+    return switch (result) {
+      AgentSuccess(:final output) => output,
+      AgentFailure(:final error) => throw StateError('Child failed: $error'),
+      AgentTimedOut() => throw TimeoutException('Child timed out'),
+    };
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async' show TimeoutException;
+
 import 'package:soliplex_agent/src/orchestration/execution_event.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
@@ -17,9 +19,10 @@ abstract interface class ToolExecutionContext {
   CancelToken get cancelToken;
 
   /// Spawn a child agent session linked to the current session.
+  ///
+  /// When [roomId] is omitted, the child inherits the parent session's room.
   Future<AgentSession> spawnChild({
-    required String roomId,
-    required String prompt,
+    required String prompt, String? roomId,
   });
 
   /// Emit a granular execution event for UI observation.
@@ -27,4 +30,30 @@ abstract interface class ToolExecutionContext {
 
   /// Access a session-scoped extension by type.
   T? getExtension<T extends SessionExtension>();
+
+  /// Suspend execution until the UI delegate approves.
+  ///
+  /// Auto-approves if no delegate is set (headless/testing). Tools call
+  /// this before performing sensitive actions (clipboard, file I/O, shell).
+  /// The delegate receives the [rationale] to display to the user.
+  ///
+  /// Returns `true` to proceed, `false` to deny. On denial the tool
+  /// should return an error message to the LLM.
+  Future<bool> requestApproval({
+    required String toolCallId,
+    required String toolName,
+    required Map<String, dynamic> arguments,
+    required String rationale,
+  });
+
+  /// Spawn a child session, wait for completion, and return the output.
+  ///
+  /// Convenience wrapper around [spawnChild] + [AgentSession.awaitResult].
+  /// Throws [StateError] on child failure, [TimeoutException] on timeout.
+  /// When [roomId] is omitted, the child inherits the parent session's room.
+  Future<String> delegateTask({
+    required String prompt,
+    String? roomId,
+    Duration? timeout,
+  });
 }

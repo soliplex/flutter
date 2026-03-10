@@ -7,6 +7,7 @@ import 'package:soliplex_agent/src/models/thread_key.dart';
 import 'package:soliplex_agent/src/orchestration/run_orchestrator.dart';
 import 'package:soliplex_agent/src/runtime/agent_session.dart';
 import 'package:soliplex_agent/src/runtime/agent_session_state.dart';
+import 'package:soliplex_agent/src/runtime/agent_ui_delegate.dart';
 import 'package:soliplex_agent/src/runtime/server_connection.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
@@ -48,6 +49,7 @@ class AgentRuntime {
     required PlatformConstraints platform,
     required Logger logger,
     SessionExtensionFactory? extensionFactory,
+    AgentUiDelegate? uiDelegate,
     this.maxSpawnDepth = 10,
     this.rootTimeout,
   })  : serverId = connection.serverId,
@@ -55,6 +57,7 @@ class AgentRuntime {
         _agUiStreamClient = connection.agUiStreamClient,
         _toolRegistryResolver = toolRegistryResolver,
         _extensionFactory = extensionFactory,
+        _uiDelegate = uiDelegate,
         _platform = platform,
         _logger = logger;
 
@@ -62,6 +65,7 @@ class AgentRuntime {
   final AgUiStreamClient _agUiStreamClient;
   final ToolRegistryResolver _toolRegistryResolver;
   final SessionExtensionFactory? _extensionFactory;
+  final AgentUiDelegate? _uiDelegate;
   final PlatformConstraints _platform;
   final Logger _logger;
 
@@ -297,6 +301,7 @@ class AgentRuntime {
       orchestrator: orchestrator,
       toolRegistry: toolRegistry,
       extensions: extensions,
+      uiDelegate: _uiDelegate,
       logger: _logger,
     );
   }
