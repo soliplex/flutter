@@ -1,9 +1,8 @@
 import 'dart:developer' as developer;
 
+import 'package:dart_monty_bridge/dart_monty_bridge.dart'
+    show HostFunctionSchema, HostParam, HostParamType;
 import 'package:meta/meta.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_function_schema.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_param.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/host_param_type.dart';
 
 /// Pairs the Monty function name with the ToolRegistry lookup name.
 ///

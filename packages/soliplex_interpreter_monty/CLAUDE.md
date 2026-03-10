@@ -14,18 +14,14 @@ dart test --coverage
 
 ## Architecture
 
-### Bridge (core agentic pipeline)
+### Bridge (re-exported from `dart_monty_bridge`)
 
-- `MontyBridge` — abstract bridge interface (`Stream<BridgeEvent> execute(code)`)
-- `DefaultMontyBridge` — Monty start/resume loop, host function dispatch, emits `Stream<BridgeEvent>`
-- `BridgeEvent` — sealed hierarchy (12 subtypes): protocol-agnostic lifecycle events
+All core bridge types are provided by `dart_monty_bridge` and re-exported:
 
-### Host Functions
-
-- `HostFunction` — schema + async handler pair
-- `HostFunctionSchema` — name, description, params with `mapAndValidate()`
-- `HostFunctionRegistry` — groups HostFunctions by category, bulk-registers onto bridge
-- `HostParam` / `HostParamType` — parameter definitions with validation
+- `MontyBridge`, `DefaultMontyBridge`, `EventLoopBridge`
+- `BridgeEvent` sealed hierarchy (15 subtypes)
+- `HostFunction`, `HostFunctionSchema`, `HostParam`, `HostParamType`
+- `HostFunctionRegistry`, `MontyPlugin`, `IsolatePlugin`
 
 ### Execution
 
@@ -43,6 +39,7 @@ dart test --coverage
 
 ## Dependencies
 
+- `dart_monty_bridge` — DefaultMontyBridge, BridgeEvent, HostFunction, MontyPlugin, etc.
 - `dart_monty_platform_interface` — MontyPlatform, MockMontyPlatform, all data types
 - `meta` — @immutable annotations
 

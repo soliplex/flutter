@@ -1,5 +1,4 @@
-import 'package:soliplex_interpreter_monty/src/bridge/host_param_type.dart';
-import 'package:soliplex_interpreter_monty/src/bridge/tool_definition_converter.dart';
+import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
 import 'package:test/test.dart';
 
 void main() {
