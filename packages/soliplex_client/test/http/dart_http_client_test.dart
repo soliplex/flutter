@@ -851,6 +851,11 @@ void main() {
       });
 
       test('force-cancels after timeout if server does not close', () async {
+        client = DartHttpClient(
+          client: mockClient,
+          drainGracePeriod: const Duration(milliseconds: 50),
+        );
+
         final bodyController = StreamController<List<int>>();
         final streamedResponse = http.StreamedResponse(
           bodyController.stream,
@@ -869,11 +874,11 @@ void main() {
         final subscription = stream.listen((_) {});
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Cancel — server will NOT close, so the 2s timeout should fire
+        // Cancel — server will NOT close, so the timeout should fire
         await subscription.cancel();
 
-        // Wait for the 2s grace period + margin
-        await Future<void>.delayed(const Duration(seconds: 3));
+        // Wait for the grace period + margin
+        await Future<void>.delayed(const Duration(milliseconds: 150));
 
         // The body stream should have been force-cancelled
         expect(bodyController.hasListener, isFalse);
