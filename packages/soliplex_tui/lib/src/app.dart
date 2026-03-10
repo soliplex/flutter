@@ -13,6 +13,7 @@ import 'package:soliplex_scripting/soliplex_scripting.dart';
 
 import 'package:soliplex_tui/src/components/chat_page.dart';
 import 'package:soliplex_tui/src/file_sink.dart';
+import 'package:soliplex_tui/src/host/tui_host_api.dart';
 import 'package:soliplex_tui/src/loggers.dart';
 import 'package:soliplex_tui/src/services/tui_ui_delegate.dart';
 import 'package:soliplex_tui/src/tool_definitions.dart';
@@ -232,12 +233,12 @@ Future<void> listRooms({
   }
 
   MontyPlatform.instance = MontyFfi(bindings: NativeBindingsFfi());
-  final hostApi = FakeHostApi();
   final blackboardApi = DirectBlackboardApi();
   AgentApi? agentApi;
 
   return (
     extensionFactory: () async {
+      final hostApi = TuiHostApi(); // implements HostApi + SessionExtension
       final factory = createMontyScriptEnvironmentFactory(
         hostApi: hostApi,
         agentApi: agentApi,
@@ -245,7 +246,10 @@ Future<void> listRooms({
         limits: MontyLimitsDefaults.tool,
       );
       final env = await factory();
-      return [ScriptEnvironmentExtension(env)];
+      return [
+        hostApi, // onAttach gives it the AgentSession
+        ScriptEnvironmentExtension(env),
+      ];
     },
     bindAgentApi: (AgentRuntime runtime) {
       agentApi = RuntimeAgentApi(runtime: runtime);
