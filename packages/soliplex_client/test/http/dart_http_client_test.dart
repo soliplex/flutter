@@ -772,29 +772,21 @@ void main() {
         // Cancel before send() resolves — this is the race condition
         await subscription.cancel();
 
-        // Track whether the body stream was listened to (drained)
-        var wasDrained = false;
-        final bodyController = StreamController<List<int>>(
-          onListen: () => wasDrained = true,
-        );
+        final bodyController = StreamController<List<int>>();
         sendCompleter.complete(
           http.StreamedResponse(bodyController.stream, 200),
         );
 
-        // Give onListen a chance to drain
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        // The body stream should have been listened to for draining
-        expect(wasDrained, isTrue);
-
+        // Close the stream and verify drain completes (consumes to end)
         await bodyController.close();
+        await bodyController.done;
+
+        // Stream was fully consumed — not just subscribed then cancelled
+        expect(bodyController.hasListener, isFalse);
       });
 
       test('drains socket on HTTP error status', () async {
-        var wasDrained = false;
-        final bodyController = StreamController<List<int>>(
-          onListen: () => wasDrained = true,
-        );
+        final bodyController = StreamController<List<int>>();
         final streamedResponse = http.StreamedResponse(
           bodyController.stream,
           500,
@@ -811,10 +803,12 @@ void main() {
 
         await expectLater(stream, emitsError(isA<NetworkException>()));
 
-        // Body stream should have been drained
-        expect(wasDrained, isTrue);
-
+        // Close the stream and verify drain completes (consumes to end)
         await bodyController.close();
+        await bodyController.done;
+
+        // Stream was fully consumed — not just subscribed then cancelled
+        expect(bodyController.hasListener, isFalse);
       });
 
       test('allows server to close gracefully on cancel after data', () async {
@@ -856,7 +850,89 @@ void main() {
         );
       });
 
+      test('skips drain on cancel after stream completes naturally', () async {
+        final bodyController = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final chunks = <List<int>>[];
+        final done = Completer<void>();
+        stream.listen(chunks.add, onDone: done.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        bodyController.add([1, 2, 3]);
+        await bodyController.close();
+
+        await done.future;
+
+        // Stream completed via onDone → onCancel skips drain
+        expect(
+          chunks,
+          equals([
+            [1, 2, 3],
+          ]),
+        );
+        expect(bodyController.hasListener, isFalse);
+      });
+
+      test('skips drain on cancel after stream error', () async {
+        final bodyController = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final errors = <Object>[];
+        final done = Completer<void>();
+        stream.listen(
+          (_) {},
+          onError: (Object e) {
+            errors.add(e);
+            done.complete();
+          },
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        bodyController.addError(Exception('stream died'));
+
+        await done.future;
+
+        // Stream errored with cancelOnError → onCancel skips drain
+        expect(errors, hasLength(1));
+        expect(errors.first, isA<NetworkException>());
+        expect(bodyController.hasListener, isFalse);
+
+        await bodyController.close();
+      });
+
       test('force-cancels after timeout if server does not close', () async {
+        client = DartHttpClient(
+          client: mockClient,
+          drainGracePeriod: const Duration(milliseconds: 50),
+        );
+
         final bodyController = StreamController<List<int>>();
         final streamedResponse = http.StreamedResponse(
           bodyController.stream,
@@ -875,17 +951,88 @@ void main() {
         final subscription = stream.listen((_) {});
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
-        // Cancel — server will NOT close, so the 2s timeout should fire
+        // Cancel — server will NOT close, so the timeout should fire
         await subscription.cancel();
 
-        // Wait for the 2s grace period + margin
-        await Future<void>.delayed(const Duration(seconds: 3));
+        // Wait for the grace period + margin
+        await Future<void>.delayed(const Duration(milliseconds: 150));
 
         // The body stream should have been force-cancelled
         expect(bodyController.hasListener, isFalse);
 
         await bodyController.close();
       });
+
+      test(
+        'force-cancels after timeout during connection phase',
+        () async {
+          client = DartHttpClient(
+            client: mockClient,
+            drainGracePeriod: const Duration(milliseconds: 50),
+          );
+
+          final sendCompleter = Completer<http.StreamedResponse>();
+          when(() => mockClient.send(any()))
+              .thenAnswer((_) => sendCompleter.future);
+
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/sse'),
+          );
+
+          final subscription = stream.listen((_) {});
+          await subscription.cancel();
+
+          // Server responds with an infinite stream after cancel
+          final bodyController = StreamController<List<int>>();
+          sendCompleter.complete(
+            http.StreamedResponse(bodyController.stream, 200),
+          );
+
+          // Wait for the grace period + margin
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+
+          // The body stream should have been force-cancelled
+          expect(bodyController.hasListener, isFalse);
+
+          await bodyController.close();
+        },
+      );
+
+      test(
+        'force-cancels after timeout on HTTP error with slow body',
+        () async {
+          client = DartHttpClient(
+            client: mockClient,
+            drainGracePeriod: const Duration(milliseconds: 50),
+          );
+
+          final bodyController = StreamController<List<int>>();
+          final streamedResponse = http.StreamedResponse(
+            bodyController.stream,
+            500,
+            reasonPhrase: 'Internal Server Error',
+          );
+
+          when(() => mockClient.send(any()))
+              .thenAnswer((_) async => streamedResponse);
+
+          final stream = client.requestStream(
+            'GET',
+            Uri.parse('https://example.com/sse'),
+          );
+
+          await expectLater(stream, emitsError(isA<NetworkException>()));
+
+          // Wait for the grace period + margin
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+
+          // The body stream should have been force-cancelled
+          expect(bodyController.hasListener, isFalse);
+
+          await bodyController.close();
+        },
+      );
     });
 
     group('HTTP methods', () {
