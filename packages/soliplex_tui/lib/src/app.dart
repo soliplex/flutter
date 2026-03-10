@@ -187,7 +187,10 @@ Future<void> runHeadless({
   } on Exception catch (e, s) {
     Loggers.app.error('Headless fatal error', error: e, stackTrace: s);
     if (json) {
-      final errorEnvelope = {'status': 'error', 'error': '$e'};
+      final errorEnvelope = {
+        'status': 'error',
+        'errors': ['$e'],
+      };
       stdout.writeln(jsonEncode(errorEnvelope));
     } else {
       stderr.writeln('Error: $e');
@@ -249,6 +252,7 @@ Future<void> _runHeadlessJson({
   required bool verbose,
 }) async {
   final sw = Stopwatch()..start();
+  final seenToolIds = <String>{};
   final allToolCalls = <Map<String, dynamic>>[];
   final errors = <String>[];
   var turns = 0;
@@ -265,6 +269,7 @@ Future<void> _runHeadlessJson({
     );
 
     // Collect tool calls as they flow through ToolYieldingState.
+    // Deduplicate by tool call ID since effect() may re-fire.
     final cleanup = effect(() {
       final state = session.runState.value;
       if (verbose) {
@@ -272,7 +277,9 @@ Future<void> _runHeadlessJson({
       }
       if (state is ToolYieldingState) {
         for (final tc in state.pendingToolCalls) {
-          allToolCalls.add(_toolCallToJson(tc));
+          if (seenToolIds.add(tc.id)) {
+            allToolCalls.add(_toolCallToJson(tc));
+          }
         }
       }
     });
@@ -302,6 +309,7 @@ Future<void> _runHeadlessJson({
   };
 
   stdout.writeln(jsonEncode(envelope));
+  if (errors.isNotEmpty) exit(1);
 }
 
 /// Lists available rooms from the server and prints them to [stdout].
