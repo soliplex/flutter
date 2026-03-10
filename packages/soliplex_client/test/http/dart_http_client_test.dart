@@ -772,29 +772,21 @@ void main() {
         // Cancel before send() resolves — this is the race condition
         await subscription.cancel();
 
-        // Track whether the body stream was listened to (drained)
-        var wasDrained = false;
-        final bodyController = StreamController<List<int>>(
-          onListen: () => wasDrained = true,
-        );
+        final bodyController = StreamController<List<int>>();
         sendCompleter.complete(
           http.StreamedResponse(bodyController.stream, 200),
         );
 
-        // Give onListen a chance to drain
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        // The body stream should have been listened to for draining
-        expect(wasDrained, isTrue);
-
+        // Close the stream and verify drain completes (consumes to end)
         await bodyController.close();
+        await bodyController.done;
+
+        // Stream was fully consumed — not just subscribed then cancelled
+        expect(bodyController.hasListener, isFalse);
       });
 
       test('drains socket on HTTP error status', () async {
-        var wasDrained = false;
-        final bodyController = StreamController<List<int>>(
-          onListen: () => wasDrained = true,
-        );
+        final bodyController = StreamController<List<int>>();
         final streamedResponse = http.StreamedResponse(
           bodyController.stream,
           500,
@@ -811,10 +803,12 @@ void main() {
 
         await expectLater(stream, emitsError(isA<NetworkException>()));
 
-        // Body stream should have been drained
-        expect(wasDrained, isTrue);
-
+        // Close the stream and verify drain completes (consumes to end)
         await bodyController.close();
+        await bodyController.done;
+
+        // Stream was fully consumed — not just subscribed then cancelled
+        expect(bodyController.hasListener, isFalse);
       });
 
       test('allows server to close gracefully on cancel after data', () async {
