@@ -38,6 +38,9 @@ dependencies:
     path: ../soliplex_mcp
   soliplex_scripting:
     path: ../soliplex_scripting
+  struct_log:
+    git:
+      url: https://github.com/runyaga/struct_log.git
 
 dev_dependencies:
   mocktail: ^1.0.0
