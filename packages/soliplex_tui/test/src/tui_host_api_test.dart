@@ -20,7 +20,8 @@ class _MockAgentSession extends Mock implements AgentSession {
     required String toolName,
     required Map<String, dynamic> arguments,
     required String rationale,
-  }) async => approveAll;
+  }) async =>
+      approveAll;
 }
 
 // ---------------------------------------------------------------------------

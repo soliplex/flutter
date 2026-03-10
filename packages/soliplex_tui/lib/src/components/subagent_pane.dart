@@ -68,9 +68,8 @@ class _SessionCard extends StatelessComponent {
         final color = _stateColor(theme, state);
 
         // Truncate session ID for display.
-        final shortId = session.id.length > 16
-            ? session.id.substring(0, 16)
-            : session.id;
+        final shortId =
+            session.id.length > 16 ? session.id.substring(0, 16) : session.id;
 
         final depthLabel = session.depth > 0 ? ' d${session.depth}' : '';
 

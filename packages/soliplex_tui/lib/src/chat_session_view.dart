@@ -46,8 +46,8 @@ class ChatSessionView {
   /// The pending approval signal for this tab, or `null` if no delegate.
   ReadonlySignal<ToolApprovalRequest?>? get approvalRequest =>
       _session != null && uiDelegate != null
-      ? uiDelegate!.signalFor(_session!.id).readonly()
-      : null;
+          ? uiDelegate!.signalFor(_session!.id).readonly()
+          : null;
 
   /// Attach a new session to this view, syncing its run state into
   /// our owned signals.
@@ -106,13 +106,13 @@ class ChatSessionView {
   static String? _extractReasoningText(RunState state) {
     return switch (state) {
       RunningState(:final streaming) => switch (streaming) {
-        AwaitingText(:final bufferedThinkingText)
-            when bufferedThinkingText.isNotEmpty =>
-          bufferedThinkingText,
-        TextStreaming(:final thinkingText) when thinkingText.isNotEmpty =>
-          thinkingText,
-        _ => null,
-      },
+          AwaitingText(:final bufferedThinkingText)
+              when bufferedThinkingText.isNotEmpty =>
+            bufferedThinkingText,
+          TextStreaming(:final thinkingText) when thinkingText.isNotEmpty =>
+            thinkingText,
+          _ => null,
+        },
       _ => null,
     };
   }

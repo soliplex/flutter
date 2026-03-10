@@ -50,8 +50,8 @@ class _ChatPageState extends State<ChatPage> {
 
   ChatSessionView? get _activeTab =>
       _activeIndex >= 0 && _activeIndex < _tabs.length
-      ? _tabs[_activeIndex]
-      : null;
+          ? _tabs[_activeIndex]
+          : null;
 
   @override
   void initState() {
@@ -247,8 +247,7 @@ class _ChatPageState extends State<ChatPage> {
           _lastReasoningText = reasoning;
         }
 
-        final showReasoning =
-            _activePanel == _ActivePanel.reasoning &&
+        final showReasoning = _activePanel == _ActivePanel.reasoning &&
             _lastReasoningText.isNotEmpty;
 
         final approvalSignal = tab.approvalRequest;

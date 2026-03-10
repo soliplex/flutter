@@ -71,8 +71,8 @@ class TuiHostApi implements HostApi, SessionExtension {
       'native.file_write' => _handleFileWrite(args),
       'native.file_read' => _handleFileRead(args),
       _ => throw UnimplementedError(
-        'TuiHostApi: unsupported operation "$name"',
-      ),
+          'TuiHostApi: unsupported operation "$name"',
+        ),
     };
   }
 
@@ -83,8 +83,7 @@ class TuiHostApi implements HostApi, SessionExtension {
     await _requireApproval(
       toolName: 'native.clipboard',
       arguments: args,
-      rationale:
-          'Script wants to ${action == 'write' ? 'write to' : 'read'}'
+      rationale: 'Script wants to ${action == 'write' ? 'write to' : 'read'}'
           ' the clipboard.',
     );
 
