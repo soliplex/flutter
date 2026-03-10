@@ -14,6 +14,7 @@ import 'package:soliplex_scripting/soliplex_scripting.dart';
 import 'package:soliplex_tui/src/components/chat_page.dart';
 import 'package:soliplex_tui/src/file_sink.dart';
 import 'package:soliplex_tui/src/loggers.dart';
+import 'package:soliplex_tui/src/services/tui_ui_delegate.dart';
 import 'package:soliplex_tui/src/tool_definitions.dart';
 
 /// Launches the Soliplex TUI application.
@@ -54,12 +55,15 @@ Future<void> launchTui({
     final (:extensionFactory, :bindAgentApi) =
         _buildMontyWiring(montyEnabled: montyEnabled);
 
+    final uiDelegate = TuiUiDelegate();
+
     runtime = AgentRuntime(
       connection: connection,
       toolRegistryResolver: (_) async => toolRegistry,
       platform: const NativePlatformConstraints(),
       logger: Loggers.agui,
       extensionFactory: extensionFactory,
+      uiDelegate: uiDelegate,
     );
 
     bindAgentApi(runtime);
@@ -68,6 +72,7 @@ Future<void> launchTui({
       SoliplexTuiApp(
         runtime: runtime,
         roomId: resolvedRoomId,
+        uiDelegate: uiDelegate,
       ),
     );
   } on Exception catch (e, s) {
@@ -297,11 +302,13 @@ class SoliplexTuiApp extends StatelessComponent {
   const SoliplexTuiApp({
     required this.runtime,
     required this.roomId,
+    this.uiDelegate,
     super.key,
   });
 
   final AgentRuntime runtime;
   final String roomId;
+  final TuiUiDelegate? uiDelegate;
 
   @override
   Component build(BuildContext context) {
@@ -311,6 +318,7 @@ class SoliplexTuiApp extends StatelessComponent {
       home: ChatPage(
         runtime: runtime,
         roomId: roomId,
+        uiDelegate: uiDelegate,
       ),
     );
   }

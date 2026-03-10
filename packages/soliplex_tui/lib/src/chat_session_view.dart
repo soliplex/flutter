@@ -1,6 +1,7 @@
 import 'package:signals_core/signals_core.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_tui/src/loggers.dart';
+import 'package:soliplex_tui/src/services/tui_ui_delegate.dart';
 
 /// View model for a chat tab, owning its own signals that survive
 /// session disposal.
@@ -12,10 +13,12 @@ class ChatSessionView {
   ChatSessionView({
     required this.roomId,
     required this.threadId,
+    this.uiDelegate,
   });
 
   final String roomId;
   final String threadId;
+  final TuiUiDelegate? uiDelegate;
 
   final Signal<List<ChatMessage>> _messages = signal(const []);
   final Signal<StreamingState?> _streaming = signal(null);
@@ -39,6 +42,12 @@ class ChatSessionView {
 
   /// Short label for the tab bar.
   String get label => roomId;
+
+  /// The pending approval signal for this tab, or `null` if no delegate.
+  ReadonlySignal<ToolApprovalRequest?>? get approvalRequest =>
+      _session != null && uiDelegate != null
+          ? uiDelegate!.signalFor(_session!.id).readonly()
+          : null;
 
   /// Attach a new session to this view, syncing its run state into
   /// our owned signals.
@@ -64,6 +73,9 @@ class ChatSessionView {
 
   void dispose() {
     _cleanup?.call();
+    if (_session != null && uiDelegate != null) {
+      uiDelegate!.cleanup(_session!.id);
+    }
     _messages.dispose();
     _streaming.dispose();
     _reasoningText.dispose();

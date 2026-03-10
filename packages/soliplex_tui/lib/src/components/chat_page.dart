@@ -8,8 +8,10 @@ import 'package:soliplex_tui/src/components/header_bar.dart';
 import 'package:soliplex_tui/src/components/input_row.dart';
 import 'package:soliplex_tui/src/components/reasoning_pane.dart';
 import 'package:soliplex_tui/src/components/tab_bar.dart';
+import 'package:soliplex_tui/src/components/tool_approval.dart';
 import 'package:soliplex_tui/src/components/tool_status_bar.dart';
 import 'package:soliplex_tui/src/loggers.dart';
+import 'package:soliplex_tui/src/services/tui_ui_delegate.dart';
 import 'package:soliplex_tui/src/signal_builder.dart';
 
 /// Main chat page with tabs, header, message body, input, and footer.
@@ -17,11 +19,13 @@ class ChatPage extends StatefulComponent {
   const ChatPage({
     required this.runtime,
     required this.roomId,
+    this.uiDelegate,
     super.key,
   });
 
   final AgentRuntime runtime;
   final String roomId;
+  final TuiUiDelegate? uiDelegate;
 
   @override
   State<ChatPage> createState() => _ChatPageState();
@@ -75,6 +79,7 @@ class _ChatPageState extends State<ChatPage> {
       final view = ChatSessionView(
         roomId: component.roomId,
         threadId: session.threadKey.threadId,
+        uiDelegate: component.uiDelegate,
       )..attachSession(session);
       setState(() {
         _tabs.add(view);
@@ -241,10 +246,31 @@ class _ChatPageState extends State<ChatPage> {
         final showReasoning =
             _showReasoningToggle && _lastReasoningText.isNotEmpty;
 
+        final approvalSignal = tab.approvalRequest;
+        final approval = approvalSignal?.value;
+
+        var body = _buildBody(context, tab, showReasoning);
+        if (approval != null) {
+          body = Stack(
+            children: [
+              body,
+              ToolApprovalModal(
+                request: approval,
+                onResolve: ({required approved, always = false}) {
+                  component.uiDelegate?.resolve(
+                    approved: approved,
+                    always: always,
+                  );
+                },
+              ),
+            ],
+          );
+        }
+
         return _buildShell(
           context,
           tabBar: hasMultipleTabs ? _buildTabBar(context) : null,
-          body: _buildBody(context, tab, showReasoning),
+          body: body,
           isInputEnabled: tab.isInputEnabled.value,
           toolBar: tab.pendingTools.value != null
               ? ToolStatusBar(pendingTools: tab.pendingTools.value!)
