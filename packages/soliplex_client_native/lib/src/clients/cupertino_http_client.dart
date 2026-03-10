@@ -144,14 +144,14 @@ class CupertinoHttpClient implements SoliplexHttpClient {
 
           // If cancelled while awaiting headers, drain to release socket.
           if (isCancelled) {
-            unawaited(streamedResponse.stream.listen((_) {}).cancel());
+            unawaited(streamedResponse.stream.drain<void>());
             return;
           }
 
           // Check for HTTP errors before streaming
           if (streamedResponse.statusCode >= 400) {
             // Drain the body stream to release the underlying socket.
-            unawaited(streamedResponse.stream.listen((_) {}).cancel());
+            unawaited(streamedResponse.stream.drain<void>());
             controller.addError(
               NetworkException(
                 message: 'HTTP ${streamedResponse.statusCode}: '
