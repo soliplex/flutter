@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dart_monty_bridge/dart_monty_bridge.dart' as dmb;
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart'
     show MontyLimits, MontyPlatform;
 import 'package:soliplex_agent/soliplex_agent.dart'
@@ -83,9 +84,22 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
     );
 
     // Register IsolatePlugin if a platform factory is provided.
+    // When LLM callbacks are available, children get oracle access via
+    // childPluginRegistryFactory so that llm_complete() / llm_chat() work
+    // inside spawned isolates.
     IsolatePlugin? isolatePlugin;
     if (platformFactory != null) {
-      isolatePlugin = IsolatePlugin(platformFactory: platformFactory);
+      final childFactory = _buildChildPluginRegistryFactory(
+        llmCompleter: llmCompleter,
+        llmChatCompleter: llmChatCompleter,
+        agentApi: agentApi,
+        agentTimeout: agentTimeout,
+      );
+      isolatePlugin = IsolatePlugin(
+        platformFactory: platformFactory,
+        childPluginRegistryFactory: childFactory,
+        childPrelude: prelude,
+      );
       isolatePlugin.functions.forEach(bridge.register);
     }
 
@@ -169,5 +183,43 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       hostFunctionSchemas: hostSchemas,
       prelude: prelude,
     );
+  };
+}
+
+/// Builds a [dmb.ChildPluginRegistryFactory] that gives each child isolate
+/// an [LlmPlugin] wired to the same LLM callbacks (or [AgentApi]) as the
+/// parent session.
+///
+/// Returns `null` when no LLM path is available, which means children will
+/// run without oracle access (matching existing behaviour).
+dmb.ChildPluginRegistryFactory? _buildChildPluginRegistryFactory({
+  required LlmCompleter? llmCompleter,
+  required LlmChatCompleter? llmChatCompleter,
+  required AgentApi? agentApi,
+  required Duration? agentTimeout,
+}) {
+  // Determine which LlmPlugin variant the child should get (same logic as
+  // the parent registry).
+  final hasCallbacks = llmCompleter != null && llmChatCompleter != null;
+  if (!hasCallbacks && agentApi == null) return null;
+
+  return () async {
+    final childRegistry = dmb.PluginRegistry();
+    if (hasCallbacks) {
+      childRegistry.register(
+        LlmPlugin.fromCallbacks(
+          complete: llmCompleter,
+          chat: llmChatCompleter,
+        ),
+      );
+    } else {
+      childRegistry.register(
+        LlmPlugin(
+          agentApi: agentApi!,
+          agentTimeout: agentTimeout ?? const Duration(seconds: 30),
+        ),
+      );
+    }
+    return childRegistry;
   };
 }
