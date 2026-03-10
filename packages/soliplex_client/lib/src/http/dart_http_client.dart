@@ -196,7 +196,6 @@ class DartHttpClient implements SoliplexHttpClient {
         // into a closed controller, then give the server a brief window
         // to send TCP FIN before force-cancelling.
         subscription!.onData((_) {});
-        subscription!.onError((_) {});
 
         // Fire-and-forget so the caller's cancel() resolves immediately.
         unawaited(() async {
