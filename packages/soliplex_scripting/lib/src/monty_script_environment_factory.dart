@@ -7,8 +7,17 @@ import 'package:soliplex_agent/soliplex_agent.dart'
 import 'package:soliplex_client/soliplex_client.dart' show SoliplexHttpClient;
 import 'package:soliplex_dataframe/soliplex_dataframe.dart';
 import 'package:soliplex_interpreter_monty/soliplex_interpreter_monty.dart';
-import 'package:soliplex_scripting/src/host_function_wiring.dart';
 import 'package:soliplex_scripting/src/monty_script_environment.dart';
+import 'package:soliplex_scripting/src/plugin_registry.dart';
+import 'package:soliplex_scripting/src/plugins/agent_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/blackboard_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/chart_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/df_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/form_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/llm_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/mcp_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/platform_plugin.dart';
+import 'package:soliplex_scripting/src/plugins/stream_plugin.dart';
 import 'package:soliplex_scripting/src/stream_registry.dart';
 
 /// Factory that creates a fresh [MontyPlatform] for each session.
@@ -18,7 +27,7 @@ typedef MontyPlatformFactory = Future<MontyPlatform> Function();
 /// [MontyScriptEnvironment] instances.
 ///
 /// Each invocation of the returned factory creates a fresh bridge,
-/// registers host functions once, and returns an environment that
+/// registers plugins via [PluginRegistry], and returns an environment that
 /// disposes everything when the owning session dies.
 ///
 /// When [platformFactory] is provided, each session gets its own
@@ -44,7 +53,11 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
   SoliplexHttpClient? httpClient,
   String? Function()? getAuthToken,
   FormApi? formApi,
+  McpToolExecutor? mcpExecutor,
+  McpToolLister? mcpToolLister,
+  McpServerLister? mcpServerLister,
   List<HostFunction>? extraFunctions,
+  List<MontyPlugin>? extraPlugins,
   MontyPlatformFactory? platformFactory,
   MontyLimits? limits,
   Duration executionTimeout = const Duration(seconds: 30),
@@ -67,17 +80,43 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
     }
 
     try {
-      HostFunctionWiring(
-        hostApi: hostApi,
-        agentApi: agentApi,
-        blackboardApi: blackboardApi,
-        httpClient: httpClient,
-        getAuthToken: getAuthToken,
-        dfRegistry: dfRegistry,
-        streamRegistry: streamRegistry,
-        formApi: formApi,
-        extraFunctions: extraFunctions,
-      ).registerOnto(bridge);
+      final registry = PluginRegistry()
+        ..register(DfPlugin(dfRegistry: dfRegistry))
+        ..register(
+          ChartPlugin(hostApi: hostApi),
+        )
+        ..register(
+          PlatformPlugin(
+            hostApi: hostApi,
+            httpClient: httpClient,
+            getAuthToken: getAuthToken,
+          ),
+        )
+        ..register(StreamPlugin(streamRegistry: streamRegistry));
+      if (formApi != null) {
+        registry.register(FormPlugin(formApi: formApi));
+      }
+      if (agentApi != null) {
+        registry
+          ..register(AgentPlugin(agentApi: agentApi))
+          ..register(LlmPlugin(agentApi: agentApi));
+      }
+      if (mcpExecutor != null) {
+        registry.register(
+          McpPlugin(
+            executor: mcpExecutor,
+            toolLister: mcpToolLister!,
+            serverLister: mcpServerLister!,
+          ),
+        );
+      }
+      if (blackboardApi != null) {
+        registry.register(BlackboardPlugin(blackboardApi: blackboardApi));
+      }
+      if (extraPlugins != null) {
+        extraPlugins.forEach(registry.register);
+      }
+      await registry.attachTo(bridge, extraFunctions: extraFunctions);
     } on Object {
       bridge.dispose();
       if (platform != null) unawaited(platform.dispose());

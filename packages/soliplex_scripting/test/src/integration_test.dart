@@ -122,20 +122,25 @@ class _ScriptableBridge implements MontyBridge {
   void dispose() {}
 }
 
-MontyScriptEnvironment _createEnvironment({
+Future<MontyScriptEnvironment> _createEnvironment({
   required HostApi hostApi,
   FakeAgentApi? agentApi,
   DfRegistry? dfRegistry,
-}) {
+}) async {
   final df = dfRegistry ?? DfRegistry();
   final streamRegistry = StreamRegistry();
   final bridge = _ScriptableBridge();
-  HostFunctionWiring(
-    hostApi: hostApi,
-    agentApi: agentApi,
-    dfRegistry: df,
-    streamRegistry: streamRegistry,
-  ).registerOnto(bridge);
+  final registry = PluginRegistry()
+    ..register(DfPlugin(dfRegistry: df))
+    ..register(ChartPlugin(hostApi: hostApi))
+    ..register(
+      PlatformPlugin(hostApi: hostApi),
+    )
+    ..register(StreamPlugin(streamRegistry: streamRegistry));
+  if (agentApi != null) {
+    registry.register(AgentPlugin(agentApi: agentApi));
+  }
+  await registry.attachTo(bridge);
   return MontyScriptEnvironment(
     bridge: bridge,
     dfRegistry: df,
@@ -147,7 +152,7 @@ void main() {
   group('Integration', () {
     test('environment → bridge → host function → result', () async {
       final hostApi = _FakeHostApi();
-      final env = _createEnvironment(hostApi: hostApi);
+      final env = await _createEnvironment(hostApi: hostApi);
 
       final tools = env.tools;
       expect(tools, hasLength(1));
@@ -170,7 +175,7 @@ void main() {
 
     test('environment tools registered in tool registry', () async {
       final hostApi = _FakeHostApi();
-      final env = _createEnvironment(hostApi: hostApi);
+      final env = await _createEnvironment(hostApi: hostApi);
 
       final toolCall = ToolCallInfo(
         id: 'tc-e2e',
@@ -195,7 +200,10 @@ void main() {
         spawnResult: 42,
         getResultResult: 'agent says hello',
       );
-      final env = _createEnvironment(hostApi: hostApi, agentApi: agentApi);
+      final env = await _createEnvironment(
+        hostApi: hostApi,
+        agentApi: agentApi,
+      );
 
       final toolCall = ToolCallInfo(
         id: 'tc-agent-spawn',
@@ -220,7 +228,10 @@ void main() {
         spawnResult: 7,
         getResultResult: 'the answer is 42',
       );
-      final env = _createEnvironment(hostApi: hostApi, agentApi: agentApi);
+      final env = await _createEnvironment(
+        hostApi: hostApi,
+        agentApi: agentApi,
+      );
 
       final toolCall = ToolCallInfo(
         id: 'tc-agent-ask',
@@ -244,7 +255,10 @@ void main() {
     test('wait_all via environment → bridge → AgentApi', () async {
       final hostApi = _FakeHostApi();
       final agentApi = FakeAgentApi(waitAllResult: ['result-a', 'result-b']);
-      final env = _createEnvironment(hostApi: hostApi, agentApi: agentApi);
+      final env = await _createEnvironment(
+        hostApi: hostApi,
+        agentApi: agentApi,
+      );
 
       final toolCall = ToolCallInfo(
         id: 'tc-agent-wait',
@@ -262,9 +276,13 @@ void main() {
 
     test('agent functions absent when no agentApi', () async {
       final hostApi = _FakeHostApi();
-      final wiring = HostFunctionWiring(hostApi: hostApi);
       final bridge = _ScriptableBridge();
-      wiring.registerOnto(bridge);
+      final registry = PluginRegistry()
+        ..register(DfPlugin(dfRegistry: DfRegistry()))
+        ..register(ChartPlugin(hostApi: hostApi))
+        ..register(PlatformPlugin(hostApi: hostApi))
+        ..register(StreamPlugin(streamRegistry: StreamRegistry()));
+      await registry.attachTo(bridge);
 
       final names = bridge.schemas.map((s) => s.name).toSet();
       expect(names, isNot(contains('spawn_agent')));
