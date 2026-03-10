@@ -29,6 +29,7 @@ class RuntimeAgentApi implements AgentApi {
       prompt: prompt,
       threadId: threadId,
       timeout: timeout,
+      autoDispose: true,
     );
     final handle = _nextHandle++;
     _handles[handle] = session;

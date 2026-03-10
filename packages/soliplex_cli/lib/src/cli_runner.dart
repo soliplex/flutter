@@ -462,6 +462,7 @@ Future<void> _sendAndWait(_CliContext ctx, String room, String prompt) async {
       roomId: room,
       prompt: prompt,
       threadId: threadId,
+      autoDispose: true,
     );
     ctx.setThread(room, session.threadKey.threadId);
 
@@ -495,6 +496,7 @@ Future<void> _spawnBackground(_CliContext ctx, String prompt) async {
       roomId: ctx.defaultRoom,
       prompt: prompt,
       threadId: threadId,
+      autoDispose: true,
     );
     ctx.tracked.add(session);
     stdout.writeln(

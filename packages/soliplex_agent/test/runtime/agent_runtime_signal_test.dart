@@ -132,7 +132,11 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
-      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
+      final session = await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'Hello',
+        autoDispose: true,
+      );
 
       expect(runtime.sessions.value, hasLength(1));
 

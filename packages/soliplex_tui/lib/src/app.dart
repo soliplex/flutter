@@ -308,6 +308,8 @@ Future<void> _runHeadlessPlain({
       );
     }
 
+    session.dispose();
+
     switch (result) {
       case AgentSuccess(:final output):
         stdout.writeln(output);
@@ -378,6 +380,8 @@ Future<void> _runHeadlessJson({
         messageStates: completedState!.conversation.messageStates,
       );
     }
+
+    session.dispose();
 
     switch (result) {
       case AgentSuccess(:final output):

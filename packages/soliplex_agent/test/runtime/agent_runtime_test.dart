@@ -278,7 +278,11 @@ void main() {
       final emissions = <List<AgentSession>>[];
       runtime.sessionChanges.listen(emissions.add);
 
-      await runtime.spawn(roomId: _roomId, prompt: 'Hello');
+      await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'Hello',
+        autoDispose: true,
+      );
 
       // Wait for session to complete and be cleaned up
       await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -669,6 +673,7 @@ void main() {
         roomId: _roomId,
         prompt: 'Hello',
         ephemeral: true,
+        autoDispose: true,
       );
 
       await session.result;

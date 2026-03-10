@@ -288,8 +288,18 @@ void main() {
         stream: stagingCtl.stream,
       );
 
-      await msr.spawn(serverId: 'prod', roomId: _roomId, prompt: 'A');
-      await msr.spawn(serverId: 'staging', roomId: _roomId, prompt: 'B');
+      await msr.spawn(
+        serverId: 'prod',
+        roomId: _roomId,
+        prompt: 'A',
+        autoDispose: true,
+      );
+      await msr.spawn(
+        serverId: 'staging',
+        roomId: _roomId,
+        prompt: 'B',
+        autoDispose: true,
+      );
 
       expect(msr.activeSessions, hasLength(2));
 

@@ -129,7 +129,7 @@ class AgentRuntime {
     String? threadId,
     Duration? timeout,
     bool ephemeral = false,
-    bool autoDispose = true,
+    bool autoDispose = false,
     AgentSession? parent,
     ThreadHistory? cachedHistory,
   }) async {
@@ -359,8 +359,10 @@ class AgentRuntime {
         if (autoDispose) {
           await _handleSessionComplete(session);
         } else {
-          // Caller owns the lifecycle — just update tracking.
+          // Caller owns the lifecycle — just update tracking and
+          // drain the spawn queue so waiting spawns can proceed.
           _emitSessions();
+          _drainQueue();
         }
       }),
     );

@@ -158,6 +158,7 @@ class AgentSession implements ToolExecutionContext {
       threadId: threadId,
       timeout: timeout,
       ephemeral: ephemeral,
+      autoDispose: true,
       parent: this,
     );
   }

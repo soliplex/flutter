@@ -43,6 +43,7 @@ Future<void> main() async {
     final session = await runtime.spawn(
       roomId: 'plain',
       prompt: 'Hello, what can you help me with?',
+      autoDispose: true,
     );
 
     // Await the result.

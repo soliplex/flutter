@@ -40,9 +40,21 @@ Future<void> main() async {
 
   try {
     // Spawn three sessions in parallel.
-    final s1 = await runtime.spawn(roomId: 'plain', prompt: 'Say "alpha".');
-    final s2 = await runtime.spawn(roomId: 'plain', prompt: 'Say "beta".');
-    final s3 = await runtime.spawn(roomId: 'plain', prompt: 'Say "gamma".');
+    final s1 = await runtime.spawn(
+      roomId: 'plain',
+      prompt: 'Say "alpha".',
+      autoDispose: true,
+    );
+    final s2 = await runtime.spawn(
+      roomId: 'plain',
+      prompt: 'Say "beta".',
+      autoDispose: true,
+    );
+    final s3 = await runtime.spawn(
+      roomId: 'plain',
+      prompt: 'Say "gamma".',
+      autoDispose: true,
+    );
 
     stdout.writeln('Spawned 3 sessions, waiting for all...\n');
 
