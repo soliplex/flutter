@@ -7,6 +7,7 @@ import 'package:soliplex_tui/src/components/footer_bar.dart';
 import 'package:soliplex_tui/src/components/header_bar.dart';
 import 'package:soliplex_tui/src/components/input_row.dart';
 import 'package:soliplex_tui/src/components/reasoning_pane.dart';
+import 'package:soliplex_tui/src/components/subagent_pane.dart';
 import 'package:soliplex_tui/src/components/tab_bar.dart';
 import 'package:soliplex_tui/src/components/tool_approval.dart';
 import 'package:soliplex_tui/src/components/tool_status_bar.dart';
@@ -38,8 +39,8 @@ class _ChatPageState extends State<ChatPage> {
   final List<ChatSessionView> _tabs = [];
   int _activeIndex = -1;
 
-  /// User toggle for the reasoning pane (Ctrl+R).
-  bool _showReasoningToggle = true;
+  /// Which side panel is currently visible (null = none).
+  _ActivePanel? _activePanel = _ActivePanel.reasoning;
 
   /// Latched reasoning text — persists after run ends until toggled off.
   String _lastReasoningText = '';
@@ -178,7 +179,18 @@ class _ChatPageState extends State<ChatPage> {
     if (event.matches(LogicalKey.keyR, ctrl: true)) {
       Loggers.chat.debug('Toggled reasoning pane');
       setState(() {
-        _showReasoningToggle = !_showReasoningToggle;
+        _activePanel = _activePanel == _ActivePanel.reasoning
+            ? null
+            : _ActivePanel.reasoning;
+      });
+      return true;
+    }
+    if (event.matches(LogicalKey.keyS, ctrl: true)) {
+      Loggers.chat.debug('Toggled subagent pane');
+      setState(() {
+        _activePanel = _activePanel == _ActivePanel.subagents
+            ? null
+            : _ActivePanel.subagents;
       });
       return true;
     }
@@ -244,12 +256,14 @@ class _ChatPageState extends State<ChatPage> {
         }
 
         final showReasoning =
-            _showReasoningToggle && _lastReasoningText.isNotEmpty;
+            _activePanel == _ActivePanel.reasoning &&
+                _lastReasoningText.isNotEmpty;
 
         final approvalSignal = tab.approvalRequest;
         final approval = approvalSignal?.value;
 
-        var body = _buildBody(context, tab, showReasoning);
+        final showSubagents = _activePanel == _ActivePanel.subagents;
+        var body = _buildBody(context, tab, showReasoning, showSubagents);
         if (approval != null) {
           body = Stack(
             children: [
@@ -319,6 +333,7 @@ class _ChatPageState extends State<ChatPage> {
     BuildContext context,
     ChatSessionView tab,
     bool showReasoning,
+    bool showSubagents,
   ) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -328,7 +343,21 @@ class _ChatPageState extends State<ChatPage> {
           streaming: tab.streaming,
         );
 
+        final Component? sidePane;
         if (showReasoning && constraints.maxWidth >= 80) {
+          sidePane = ReasoningPane(reasoningText: _lastReasoningText);
+        } else if (showSubagents && constraints.maxWidth >= 80) {
+          sidePane = SignalBuilder<List<AgentSession>>(
+            signal: component.runtime.sessions,
+            builder: (context, sessions) {
+              return SubagentPane(sessions: sessions);
+            },
+          );
+        } else {
+          sidePane = null;
+        }
+
+        if (sidePane != null) {
           return Row(
             children: [
               Expanded(child: chatBody),
@@ -337,9 +366,7 @@ class _ChatPageState extends State<ChatPage> {
               ),
               SizedBox(
                 width: (constraints.maxWidth / 3).floor().toDouble(),
-                child: ReasoningPane(
-                  reasoningText: _lastReasoningText,
-                ),
+                child: sidePane,
               ),
             ],
           );
@@ -363,3 +390,6 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 }
+
+/// Which side panel is currently displayed.
+enum _ActivePanel { reasoning, subagents }

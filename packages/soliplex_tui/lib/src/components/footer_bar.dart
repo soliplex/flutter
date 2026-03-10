@@ -12,7 +12,8 @@ class FooterBar extends StatelessComponent {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 1),
       child: Text(
-        'Ctrl+C Cancel  Ctrl+R Reasoning  Ctrl+T Tab  Ctrl+Q Quit',
+        'Ctrl+C Cancel  Ctrl+R Reasoning  '
+        'Ctrl+S Sessions  Ctrl+T Tab  Ctrl+Q Quit',
         style: hintStyle,
       ),
     );
