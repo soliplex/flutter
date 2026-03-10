@@ -15,7 +15,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());
@@ -79,7 +79,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());
@@ -167,7 +167,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());
@@ -230,7 +230,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());
@@ -307,7 +307,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());
@@ -356,7 +356,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());
@@ -407,7 +407,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
       });
 
       tearDown(() => bridge.dispose());

@@ -85,7 +85,7 @@ BridgeToolCallResult? findToolCallResult(
 /// executes code, and returns collected events.
 Future<List<BridgeEvent>> runRoom(RoomFixture room) async {
   final mock = buildMockPlatform(room.progressQueue);
-  final bridge = DefaultMontyBridge(platform: mock);
+  final bridge = DefaultMontyBridge(platform: mock, useFutures: false);
 
   room.functions.forEach(bridge.register);
 

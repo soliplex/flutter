@@ -13,6 +13,12 @@ dart run bin/soliplex_cli.dart
 dart run bin/soliplex_cli.dart --host http://localhost:8000 --room plain
 dart run bin/soliplex_cli.dart --monty --room spike-20b
 dart run bin/soliplex_cli.dart --monty --wasm-mode --room spike-20b
+
+# Multiple prompts run sequentially in the same thread (shared state):
+dart run bin/soliplex_cli.dart --monty --room spike-20b \
+  -p "Write a function to add two numbers" \
+  -p "Now call add(3, 4) and print the result" \
+  -p "What functions have we defined so far?"
 ```
 
 ## Architecture

@@ -51,20 +51,7 @@ $_validateToolPython
 validate_tool(raw)
 ''';
 
-      final result = await mock.run(
-        code,
-        inputs: {
-          '__input__': {
-            'kind': 'search',
-            'tool_name': 'tools.search',
-            'tool_description': 'Search indexed documents',
-            'tool_requires': 'bare',
-            'allow_mcp': false,
-            'agui_feature_names': ['code_execution'],
-            'extra_parameters': <String, Object?>{},
-          },
-        },
-      );
+      final result = await mock.run(code);
 
       expect(result.error, isNull);
 
@@ -98,14 +85,10 @@ $_validateToolPython
 validate_tool(raw)
 ''';
 
-      await mock.run(code, inputs: {'__input__': <String, Object?>{}});
+      await mock.run(code);
 
       expect(mock.lastRunCode, contains('def validate_tool(raw):'));
       expect(mock.lastRunCode, contains('validate_tool(raw)'));
-      expect(
-        mock.lastRunInputs,
-        containsPair('__input__', isA<Map<String, Object?>>()),
-      );
     });
 
     test('handles missing fields with defaults', () async {
@@ -129,10 +112,7 @@ $_validateToolPython
 validate_tool(raw)
 ''';
 
-      final result = await mock.run(
-        code,
-        inputs: {'__input__': <String, Object?>{}},
-      );
+      final result = await mock.run(code);
 
       expect(result.error, isNull);
 
@@ -164,17 +144,7 @@ $_validateToolPython
 validate_tool(raw)
 ''';
 
-      final result = await mock.run(
-        code,
-        inputs: {
-          '__input__': {
-            'kind': 42, // int → str
-            'allow_mcp': 1, // int → bool
-            'agui_feature_names': ['a', 'b'],
-            'extra_parameters': {'key': 'val'},
-          },
-        },
-      );
+      final result = await mock.run(code);
 
       expect(result.error, isNull);
 

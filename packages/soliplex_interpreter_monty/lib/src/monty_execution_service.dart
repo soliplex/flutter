@@ -120,6 +120,11 @@ class MontyExecutionService {
             return;
         }
       }
+    } on MontyCancelledError {
+      // Supervisor-initiated cancel — not a script error.
+      return;
+    } on MontyError catch (e) {
+      controller.addError(e);
     } on MontyException catch (e) {
       controller.add(ConsoleError(e));
     } on Exception catch (e) {

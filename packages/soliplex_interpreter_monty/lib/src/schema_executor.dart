@@ -1,5 +1,29 @@
 import 'package:dart_monty_platform_interface/dart_monty_platform_interface.dart';
 
+/// Converts a Dart value to a Python literal string.
+String _toPythonLiteral(Object? value) {
+  if (value == null) return 'None';
+  if (value is bool) return value ? 'True' : 'False';
+  if (value is num) return value.toString();
+  if (value is String) {
+    final escaped = value
+        .replaceAll(r'\', r'\\')
+        .replaceAll("'", r"\'")
+        .replaceAll('\n', r'\n');
+    return "'$escaped'";
+  }
+  if (value is List) {
+    return '[${value.map(_toPythonLiteral).join(', ')}]';
+  }
+  if (value is Map) {
+    final entries = value.entries
+        .map((e) => '${_toPythonLiteral(e.key)}: ${_toPythonLiteral(e.value)}')
+        .join(', ');
+    return '{$entries}';
+  }
+  return "'$value'";
+}
+
 /// Executes Monty-compatible Python schema validators at runtime.
 ///
 /// Fetched Python code (generated from backend Pydantic models) is cached
@@ -48,9 +72,10 @@ class SchemaExecutor {
       throw ArgumentError.value(schemaName, 'schemaName', 'Unknown schema');
     }
 
-    final code = 'raw = __input__\n$schemaCode\nvalidate_$schemaName(raw)';
+    final literal = _toPythonLiteral(rawJson);
+    final code = 'raw = $literal\n$schemaCode\nvalidate_$schemaName(raw)';
 
-    final result = await _platform.run(code, inputs: {'__input__': rawJson});
+    final result = await _platform.run(code);
 
     if (result.isError) {
       throw result.error!;

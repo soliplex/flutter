@@ -15,7 +15,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
 
         (HostFunctionRegistry()
               ..addCategory('research', [
@@ -120,7 +120,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
 
         (HostFunctionRegistry()
               ..addCategory('data', [
@@ -227,7 +227,7 @@ void main() {
 
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
 
         (HostFunctionRegistry()
               ..addCategory('storage', [

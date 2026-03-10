@@ -187,44 +187,49 @@ packages:
     source: hosted
     version: "1.0.8"
   dart_monty_ffi:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: dart_monty_ffi
-      sha256: "9f0782a04be8994e53b6ca8f24a86adc1af682e2e030b8c05119a2140441d54f"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.1"
+      path: "packages/dart_monty_ffi"
+      ref: main
+      resolved-ref: b3ac889cbcb658ab5c4f54131f3bfcc26a3324ff
+      url: "https://github.com/runyaga/dart_monty.git"
+    source: git
+    version: "0.7.0"
   dart_monty_native:
     dependency: "direct main"
     description:
-      name: dart_monty_native
-      sha256: "410bad9e4b7cc4946f8ac37c8039b36bbc5092d6e89810f0caca00168b10b3cc"
-      url: "https://pub.dev"
-    source: hosted
-    version: "0.6.1"
+      path: "packages/dart_monty_native"
+      ref: main
+      resolved-ref: b3ac889cbcb658ab5c4f54131f3bfcc26a3324ff
+      url: "https://github.com/runyaga/dart_monty.git"
+    source: git
+    version: "0.7.0"
   dart_monty_platform_interface:
     dependency: "direct main"
     description:
-      name: dart_monty_platform_interface
-      sha256: "52a8524b26600161820f3f31df244fd9a9514ef832df1939e1e0d3a4b649ef8d"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/dart_monty_platform_interface"
+      ref: main
+      resolved-ref: b3ac889cbcb658ab5c4f54131f3bfcc26a3324ff
+      url: "https://github.com/runyaga/dart_monty.git"
+    source: git
     version: "0.6.1"
   dart_monty_wasm:
     dependency: "direct main"
     description:
-      name: dart_monty_wasm
-      sha256: "4458b56a92b888772fa36ab332f5f24f80aeecb0029e3fedbda6c5c90c3a5878"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/dart_monty_wasm"
+      ref: main
+      resolved-ref: b3ac889cbcb658ab5c4f54131f3bfcc26a3324ff
+      url: "https://github.com/runyaga/dart_monty.git"
+    source: git
     version: "0.6.1"
   dart_monty_web:
     dependency: "direct main"
     description:
-      name: dart_monty_web
-      sha256: "4a24c93b4227aca028330ee692126dd6060a2f09b4b00fdea14768ff71b94d2a"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/dart_monty_web"
+      ref: main
+      resolved-ref: b3ac889cbcb658ab5c4f54131f3bfcc26a3324ff
+      url: "https://github.com/runyaga/dart_monty.git"
+    source: git
     version: "0.6.1"
   dbus:
     dependency: transitive

@@ -14,7 +14,7 @@ void main() {
       late DefaultMontyBridge bridge;
       setUp(() {
         mock = MockMontyPlatform();
-        bridge = DefaultMontyBridge(platform: mock);
+        bridge = DefaultMontyBridge(platform: mock, useFutures: false);
         (HostFunctionRegistry()
               ..addCategory('finance', [
                 HostFunction(

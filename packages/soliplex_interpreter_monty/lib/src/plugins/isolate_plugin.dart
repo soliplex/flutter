@@ -23,6 +23,7 @@ class _ChildHandle {
   Future<void> cancel() async {
     isAlive = false;
     await subscription?.cancel();
+    await platform.cancel();
     bridge.dispose();
     await platform.dispose();
   }

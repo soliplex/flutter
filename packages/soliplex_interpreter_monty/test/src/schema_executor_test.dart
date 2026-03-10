@@ -82,12 +82,12 @@ void main() {
 
       await executor.validate('tool', <String, Object?>{});
 
-      expect(mock.lastRunCode, contains('raw = __input__'));
+      expect(mock.lastRunCode, contains('raw = {}'));
       expect(mock.lastRunCode, contains('def validate_tool(raw):'));
       expect(mock.lastRunCode, contains('validate_tool(raw)'));
     });
 
-    test('passes raw JSON as __input__', () async {
+    test('inlines raw JSON as Python literal', () async {
       executor.loadSchemas({'tool': _toolValidatorCode});
 
       mock.runResult = const MontyResult(
@@ -95,10 +95,9 @@ void main() {
         usage: _usage,
       );
 
-      final input = <String, Object?>{'kind': 'test'};
-      await executor.validate('tool', input);
+      await executor.validate('tool', <String, Object?>{'kind': 'test'});
 
-      expect(mock.lastRunInputs, containsPair('__input__', input));
+      expect(mock.lastRunCode, contains("raw = {'kind': 'test'}"));
     });
 
     test('throws ArgumentError for unknown schema', () async {

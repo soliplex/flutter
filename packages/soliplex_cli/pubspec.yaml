@@ -8,8 +8,16 @@ environment:
 
 dependencies:
   args: ^2.4.0
-  dart_monty_ffi: ^0.6.1
-  dart_monty_platform_interface: ^0.6.1
+  dart_monty_ffi:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+      path: packages/dart_monty_ffi
+  dart_monty_platform_interface:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+      path: packages/dart_monty_platform_interface
   soliplex_agent:
     path: ../soliplex_agent
   soliplex_client:
@@ -27,4 +35,11 @@ dev_dependencies:
   mocktail: ^1.0.0
   test: ^1.24.0
   very_good_analysis: ^10.0.0
+
+dependency_overrides:
+  dart_monty_platform_interface:
+    git:
+      url: https://github.com/runyaga/dart_monty.git
+      ref: main
+      path: packages/dart_monty_platform_interface
 
