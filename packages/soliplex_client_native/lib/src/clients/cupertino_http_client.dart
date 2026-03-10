@@ -40,6 +40,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
   CupertinoHttpClient({
     URLSessionConfiguration? configuration,
     this.defaultTimeout = defaultHttpTimeout,
+    this.drainGracePeriod = const Duration(seconds: 2),
   }) : _client = CupertinoClient.fromSessionConfiguration(
           configuration ?? _createConfiguration(defaultTimeout),
         );
@@ -51,6 +52,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
   CupertinoHttpClient.forTesting({
     required http.Client client,
     this.defaultTimeout = defaultHttpTimeout,
+    this.drainGracePeriod = const Duration(seconds: 2),
   }) : _client = client;
 
   /// Creates a URLSessionConfiguration with the given timeout.
@@ -63,6 +65,11 @@ class CupertinoHttpClient implements SoliplexHttpClient {
 
   /// Default timeout for requests when not specified per-request.
   final Duration defaultTimeout;
+
+  /// How long to wait for the server to close the connection before
+  /// force-cancelling the stream subscription.
+  @visibleForTesting
+  final Duration drainGracePeriod;
 
   bool _closed = false;
 
@@ -201,9 +208,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
         subscription!.onData((_) {});
         unawaited(() async {
           try {
-            await subscription!.asFuture<void>().timeout(
-                  const Duration(seconds: 2),
-                );
+            await subscription!.asFuture<void>().timeout(drainGracePeriod);
           } catch (_) {
             await subscription!.cancel();
           }

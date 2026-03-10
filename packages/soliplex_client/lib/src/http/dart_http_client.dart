@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_response.dart';
 import 'package:soliplex_client/src/http/soliplex_http_client.dart';
@@ -39,12 +40,18 @@ class DartHttpClient implements SoliplexHttpClient {
   DartHttpClient({
     http.Client? client,
     this.defaultTimeout = defaultHttpTimeout,
+    this.drainGracePeriod = const Duration(seconds: 2),
   }) : _client = client ?? http.Client();
 
   final http.Client _client;
 
   /// Default timeout for requests when not specified per-request.
   final Duration defaultTimeout;
+
+  /// How long to wait for the server to close the connection before
+  /// force-cancelling the stream subscription.
+  @visibleForTesting
+  final Duration drainGracePeriod;
 
   bool _closed = false;
 
@@ -197,9 +204,7 @@ class DartHttpClient implements SoliplexHttpClient {
         subscription!.onData((_) {});
         unawaited(() async {
           try {
-            await subscription!.asFuture<void>().timeout(
-                  const Duration(seconds: 2),
-                );
+            await subscription!.asFuture<void>().timeout(drainGracePeriod);
           } catch (_) {
             await subscription!.cancel();
           }
