@@ -154,30 +154,13 @@ class CupertinoHttpClient implements SoliplexHttpClient {
           // Bounded to drainGracePeriod to avoid leaking on infinite
           // streams (e.g. SSE).
           if (isCancelled) {
-            final sub = streamedResponse.stream.listen((_) {});
-            unawaited(() async {
-              try {
-                await sub.asFuture<void>().timeout(drainGracePeriod);
-              } catch (_) {
-                // Timeout or stream error — force-cancel to release socket.
-                await sub.cancel();
-              }
-            }());
+            _boundedDrain(streamedResponse.stream);
             return;
           }
 
           // Check for HTTP errors before streaming
           if (streamedResponse.statusCode >= 400) {
-            // Drain the body stream to release the underlying socket.
-            final sub = streamedResponse.stream.listen((_) {});
-            unawaited(() async {
-              try {
-                await sub.asFuture<void>().timeout(drainGracePeriod);
-              } catch (_) {
-                // Timeout or stream error — force-cancel to release socket.
-                await sub.cancel();
-              }
-            }());
+            _boundedDrain(streamedResponse.stream);
             controller.addError(
               NetworkException(
                 message: 'HTTP ${streamedResponse.statusCode}: '
@@ -233,8 +216,9 @@ class CupertinoHttpClient implements SoliplexHttpClient {
           try {
             await subscription!.asFuture<void>().timeout(drainGracePeriod);
           } catch (_) {
-            // Timeout or stream error — force-cancel to release socket.
-            await subscription!.cancel();
+            try {
+              await subscription!.cancel();
+            } catch (_) {}
           }
         }());
       },
@@ -249,6 +233,23 @@ class CupertinoHttpClient implements SoliplexHttpClient {
       _closed = true;
       _client.close();
     }
+  }
+
+  /// Subscribes to [stream] and waits for it to finish within
+  /// [drainGracePeriod], then force-cancels if the server hasn't
+  /// closed the connection.
+  void _boundedDrain(Stream<List<int>> stream) {
+    final sub = stream.listen((_) {});
+    unawaited(() async {
+      try {
+        await sub.asFuture<void>().timeout(drainGracePeriod);
+      } catch (_) {
+        // Timeout or stream error — force-cancel to release socket.
+        try {
+          await sub.cancel();
+        } catch (_) {}
+      }
+    }());
   }
 
   /// Creates an HTTP request with the given parameters.
