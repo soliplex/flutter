@@ -886,63 +886,6 @@ void main() {
 
         await bodyController.close();
       });
-      test('survives transient stream error and receives subsequent data',
-          () async {
-        final bodyController = StreamController<List<int>>();
-        final streamedResponse = http.StreamedResponse(
-          bodyController.stream,
-          200,
-          reasonPhrase: 'OK',
-        );
-
-        when(() => mockClient.send(any()))
-            .thenAnswer((_) async => streamedResponse);
-
-        final stream = client.requestStream(
-          'GET',
-          Uri.parse('https://example.com/sse'),
-        );
-
-        final chunks = <List<int>>[];
-        final errors = <Object>[];
-        final doneCompleter = Completer<void>();
-
-        stream.listen(
-          chunks.add,
-          onError: errors.add,
-          onDone: doneCompleter.complete,
-        );
-
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        // Send some data
-        bodyController.add([1, 2, 3]);
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        // Simulate transient network error (e.g. ERR_NETWORK_CHANGED)
-        bodyController.addError(
-          const SocketException('Connection lost'),
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 10));
-
-        // Stream should NOT be dead — send more data
-        bodyController.add([4, 5, 6]);
-        await bodyController.close();
-
-        await doneCompleter.future;
-
-        // Both chunks received despite the error in between
-        expect(
-          chunks,
-          equals([
-            [1, 2, 3],
-            [4, 5, 6],
-          ]),
-        );
-        // Error was still surfaced
-        expect(errors, hasLength(1));
-        expect(errors.first, isA<NetworkException>());
-      });
     });
 
     group('HTTP methods', () {

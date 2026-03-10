@@ -124,7 +124,6 @@ class DartHttpClient implements SoliplexHttpClient {
 
     late StreamController<List<int>> controller;
     StreamSubscription<List<int>>? subscription;
-    Timer? inactivityTimer;
     var isCancelled = false;
 
     controller = StreamController<List<int>>(
@@ -153,16 +152,9 @@ class DartHttpClient implements SoliplexHttpClient {
           }
 
           subscription = streamedResponse.stream.listen(
-            (data) {
-              // Reset inactivity timer on every chunk.
-              inactivityTimer?.cancel();
-              inactivityTimer = null;
-              controller.add(data);
-            },
+            controller.add,
             onError: (Object error, StackTrace stackTrace) {
-              // Swallow transient stream errors (e.g. ERR_NETWORK_CHANGED)
-              // and start an inactivity timer. If real data resumes, the
-              // timer is reset. If not, the stream closes after the timeout.
+              // Wrap all stream errors as NetworkException
               controller.addError(
                 NetworkException(
                   message: 'Stream error: $error',
@@ -170,25 +162,9 @@ class DartHttpClient implements SoliplexHttpClient {
                   stackTrace: stackTrace,
                 ),
               );
-
-              // Start inactivity deadline — if no data arrives within 30s
-              // after an error, the connection is truly dead.
-              inactivityTimer ??= Timer(
-                const Duration(seconds: 30),
-                () {
-                  subscription?.cancel();
-                  if (!controller.isClosed) {
-                    controller.close();
-                  }
-                },
-              );
             },
-            onDone: () {
-              inactivityTimer?.cancel();
-              controller.close();
-            },
-            // Don't auto-kill on error — let the inactivity timer decide.
-            cancelOnError: false,
+            onDone: controller.close,
+            cancelOnError: true,
           );
         } on http.ClientException catch (e, stackTrace) {
           controller.addError(
@@ -213,7 +189,6 @@ class DartHttpClient implements SoliplexHttpClient {
       },
       onCancel: () {
         isCancelled = true;
-        inactivityTimer?.cancel();
 
         if (subscription == null) return;
 
