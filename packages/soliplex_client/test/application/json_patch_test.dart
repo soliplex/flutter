@@ -370,11 +370,7 @@ void main() {
         final state = <String, dynamic>{
           'haiku.rag.chat': {
             'qa_history': <dynamic>[
-              {
-                'question': 'Q1',
-                'answer': 'A1',
-                'citations': <dynamic>[],
-              },
+              {'question': 'Q1', 'answer': 'A1', 'citations': <dynamic>[]},
             ],
           },
         };

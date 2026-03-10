@@ -171,10 +171,7 @@ class SoliplexApi {
   /// - [NetworkException] if connection fails
   /// - [ApiException] for other server errors
   /// - [CancelledException] if cancelled via [cancelToken]
-  Future<String> getMcpToken(
-    String roomId, {
-    CancelToken? cancelToken,
-  }) async {
+  Future<String> getMcpToken(String roomId, {CancelToken? cancelToken}) async {
     _requireNonEmpty(roomId, 'roomId');
 
     final response = await _transport.request<Map<String, dynamic>>(
@@ -336,10 +333,7 @@ class SoliplexApi {
       'POST',
       _urlBuilder.build(pathSegments: ['rooms', roomId, 'agui']),
       body: {
-        'metadata': {
-          'name': name ?? 'New Thread',
-          'description': '',
-        },
+        'metadata': {'name': name ?? 'New Thread', 'description': ''},
       },
       cancelToken: cancelToken,
     );
@@ -517,10 +511,7 @@ class SoliplexApi {
       _urlBuilder.build(
         pathSegments: ['rooms', roomId, 'agui', threadId, runId, 'feedback'],
       ),
-      body: {
-        'feedback': feedback.toJson(),
-        'reason': reason,
-      },
+      body: {'feedback': feedback.toJson(), 'reason': reason},
       cancelToken: cancelToken,
     );
   }
@@ -934,9 +925,7 @@ class SoliplexApi {
   }) async {
     final response = await _transport.request<Map<String, dynamic>>(
       'GET',
-      _urlBuilder.build(
-        pathSegments: ['installation', 'schemas', 'monty'],
-      ),
+      _urlBuilder.build(pathSegments: ['installation', 'schemas', 'monty']),
       cancelToken: cancelToken,
     );
 

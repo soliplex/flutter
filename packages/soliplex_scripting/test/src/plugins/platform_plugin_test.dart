@@ -27,13 +27,7 @@ void main() {
       final names = plugin.functions.map((f) => f.schema.name).toSet();
       expect(
         names,
-        containsAll([
-          'host_invoke',
-          'sleep',
-          'fetch',
-          'log',
-          'get_auth_token',
-        ]),
+        containsAll(['host_invoke', 'sleep', 'fetch', 'log', 'get_auth_token']),
       );
     });
 
@@ -41,13 +35,7 @@ void main() {
       expect(plugin, isA<LegacyUnprefixedPlugin>());
       expect(
         plugin.legacyNames,
-        containsAll([
-          'host_invoke',
-          'sleep',
-          'fetch',
-          'log',
-          'get_auth_token',
-        ]),
+        containsAll(['host_invoke', 'sleep', 'fetch', 'log', 'get_auth_token']),
       );
     });
 
@@ -140,10 +128,7 @@ void main() {
 
       setUp(() {
         httpClient = _FakeHttpClient();
-        final p = PlatformPlugin(
-          hostApi: hostApi,
-          httpClient: httpClient,
-        );
+        final p = PlatformPlugin(hostApi: hostApi, httpClient: httpClient);
         byName = {for (final f in p.functions) f.schema.name: f};
       });
 

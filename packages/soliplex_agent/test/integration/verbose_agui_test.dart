@@ -94,8 +94,10 @@ void main() {
       stderr.writeln('--- result: ${result.runtimeType} ---');
       switch (result) {
         case AgentSuccess(:final output):
-          stderr.writeln('output (${output.length} chars): '
-              '${output.substring(0, output.length.clamp(0, 300))}');
+          stderr.writeln(
+            'output (${output.length} chars): '
+            '${output.substring(0, output.length.clamp(0, 300))}',
+          );
         case AgentFailure(:final reason, :final error):
           stderr.writeln('FAILED: $reason — $error');
         case AgentTimedOut(:final elapsed):

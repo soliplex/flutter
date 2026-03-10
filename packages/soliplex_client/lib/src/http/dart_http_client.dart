@@ -140,15 +140,16 @@ class DartHttpClient implements SoliplexHttpClient {
         statusCode: streamedResponse.statusCode,
         headers: _normalizeHeaders(streamedResponse.headers),
         reasonPhrase: streamedResponse.reasonPhrase,
-        body: streamedResponse.stream.handleError(
-          (Object error, StackTrace stackTrace) {
-            throw NetworkException(
-              message: 'Stream error: $error',
-              originalError: error,
-              stackTrace: stackTrace,
-            );
-          },
-        ),
+        body: streamedResponse.stream.handleError((
+          Object error,
+          StackTrace stackTrace,
+        ) {
+          throw NetworkException(
+            message: 'Stream error: $error',
+            originalError: error,
+            stackTrace: stackTrace,
+          );
+        }),
       );
     } on CancelledException {
       rethrow;

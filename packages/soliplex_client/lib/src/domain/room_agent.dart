@@ -8,10 +8,7 @@ import 'package:meta/meta.dart';
 /// - [OtherRoomAgent]: Unknown agent kind for forward compatibility
 @immutable
 sealed class RoomAgent {
-  const RoomAgent({
-    required this.id,
-    this.aguiFeatureNames = const [],
-  });
+  const RoomAgent({required this.id, this.aguiFeatureNames = const []});
 
   /// Unique identifier for the agent.
   final String id;

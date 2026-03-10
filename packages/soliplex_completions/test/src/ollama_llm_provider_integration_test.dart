@@ -39,9 +39,7 @@ void main() {
 
         expect(result, isNotEmpty, reason: 'Ollama returned empty content');
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
 
     test(
@@ -56,25 +54,23 @@ void main() {
         expect(result, isNotEmpty);
         expect(result, contains('4'));
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
 
     test(
       'chat single turn',
       () async {
         final result = await provider.chat(
-          [(role: 'user', content: 'Say "pong" and nothing else.')],
+          [
+            (role: 'user', content: 'Say "pong" and nothing else.'),
+          ],
           maxTokens: defaultMaxTokens,
         );
 
         expect(result, isNotEmpty);
         expect(result.toLowerCase(), contains('pong'));
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
 
     test(
@@ -93,9 +89,7 @@ void main() {
         expect(result, isNotEmpty);
         expect(result, contains('42'));
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
 
     test(
@@ -105,9 +99,7 @@ void main() {
 
         expect(result, isNotEmpty);
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
 
     test(
@@ -123,15 +115,15 @@ void main() {
         expect(completeResult, isNotEmpty);
 
         final chatResult = await contract.chat(
-          [(role: 'user', content: 'Say hi')],
+          [
+            (role: 'user', content: 'Say hi'),
+          ],
           maxTokens: defaultMaxTokens,
         );
         expect(chatResult, isA<String>());
         expect(chatResult, isNotEmpty);
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
   });
 }

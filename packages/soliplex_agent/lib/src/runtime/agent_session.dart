@@ -80,8 +80,9 @@ class AgentSession implements ToolExecutionContext {
   AgentSessionState _state = AgentSessionState.spawning;
   bool _disposed = false;
   final Signal<RunState> _runStateSignal = signal(const IdleState());
-  final Signal<AgentSessionState> _sessionStateSignal =
-      signal(AgentSessionState.spawning);
+  final Signal<AgentSessionState> _sessionStateSignal = signal(
+    AgentSessionState.spawning,
+  );
   final Signal<ExecutionEvent?> _executionEventSignal = signal(null);
 
   /// Child sessions spawned by this session.
@@ -329,18 +330,13 @@ class AgentSession implements ToolExecutionContext {
   // Tool execution (callback for runToCompletion)
   // ---------------------------------------------------------------------------
 
-  Future<List<ToolCallInfo>> _executeAll(
-    List<ToolCallInfo> pendingTools,
-  ) {
+  Future<List<ToolCallInfo>> _executeAll(List<ToolCallInfo> pendingTools) {
     return Future.wait(pendingTools.map(_executeSingle));
   }
 
   Future<ToolCallInfo> _executeSingle(ToolCallInfo toolCall) async {
     emitEvent(
-      ClientToolExecuting(
-        toolName: toolCall.name,
-        toolCallId: toolCall.id,
-      ),
+      ClientToolExecuting(toolName: toolCall.name, toolCallId: toolCall.id),
     );
     try {
       final result =
@@ -381,10 +377,7 @@ class AgentSession implements ToolExecutionContext {
         status: ToolCallStatus.failed,
       ),
     );
-    return toolCall.copyWith(
-      status: ToolCallStatus.failed,
-      result: errorStr,
-    );
+    return toolCall.copyWith(status: ToolCallStatus.failed, result: errorStr);
   }
 
   // ---------------------------------------------------------------------------

@@ -175,9 +175,7 @@ void main() {
       controller
         ..add(const RunStartedEvent(threadId: 'thread-1', runId: _runId))
         ..add(const TextMessageStartEvent(messageId: 'msg-1'))
-        ..add(
-          const TextMessageContentEvent(messageId: 'msg-1', delta: 'Done'),
-        )
+        ..add(const TextMessageContentEvent(messageId: 'msg-1', delta: 'Done'))
         ..add(const TextMessageEndEvent(messageId: 'msg-1'))
         ..add(const RunFinishedEvent(threadId: 'thread-1', runId: _runId))
         // TCP close error arrives after terminal event.
@@ -633,9 +631,7 @@ void main() {
         logger: logger,
       );
       stubCreateRun();
-      stubRunAgent(
-        stream: Stream.error(const CancellationError('cancelled')),
-      );
+      stubRunAgent(stream: Stream.error(const CancellationError('cancelled')));
 
       final result = await orchestrator.runToCompletion(
         key: _key,

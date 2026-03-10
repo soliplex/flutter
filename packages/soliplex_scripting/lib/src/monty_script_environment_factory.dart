@@ -84,9 +84,7 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
     try {
       final registry = PluginRegistry()
         ..register(DfPlugin(dfRegistry: dfRegistry))
-        ..register(
-          ChartPlugin(hostApi: hostApi),
-        )
+        ..register(ChartPlugin(hostApi: hostApi))
         ..register(
           PlatformPlugin(
             hostApi: hostApi,

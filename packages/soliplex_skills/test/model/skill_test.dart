@@ -14,21 +14,9 @@ void main() {
     });
 
     test('equality compares all fields', () {
-      const a = SkillMetadata(
-        name: 'x',
-        description: 'd',
-        category: 'cat',
-      );
-      const b = SkillMetadata(
-        name: 'x',
-        description: 'd',
-        category: 'cat',
-      );
-      const c = SkillMetadata(
-        name: 'x',
-        description: 'd',
-        category: 'other',
-      );
+      const a = SkillMetadata(name: 'x', description: 'd', category: 'cat');
+      const b = SkillMetadata(name: 'x', description: 'd', category: 'cat');
+      const c = SkillMetadata(name: 'x', description: 'd', category: 'other');
 
       expect(a, equals(b));
       expect(a, isNot(equals(c)));

@@ -219,8 +219,9 @@ void main() {
       await queue.close();
 
       // Write a fatal record directly.
-      File('${tempDir.path}/log_queue_fatal.jsonl')
-          .writeAsStringSync('${jsonEncode({'msg': 'fatal'})}\n');
+      File(
+        '${tempDir.path}/log_queue_fatal.jsonl',
+      ).writeAsStringSync('${jsonEncode({'msg': 'fatal'})}\n');
 
       final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
       final records = await newQueue.drain(10);
@@ -289,8 +290,9 @@ void main() {
       await queue.close();
 
       // Write garbage to meta file.
-      File('${tempDir.path}/.queue_meta')
-          .writeAsStringSync('not valid json!!!');
+      File(
+        '${tempDir.path}/.queue_meta',
+      ).writeAsStringSync('not valid json!!!');
 
       final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
       // Corrupt meta → confirmed=0, all records re-drain.
@@ -331,8 +333,9 @@ void main() {
       await sink.close();
 
       // Set confirmed=505 in meta.
-      File('${tempDir.path}/.queue_meta')
-          .writeAsStringSync(jsonEncode({'confirmed': 505}));
+      File(
+        '${tempDir.path}/.queue_meta',
+      ).writeAsStringSync(jsonEncode({'confirmed': 505}));
 
       final compactQueue = PlatformDiskQueue(directoryPath: tempDir.path);
       // Append triggers compaction since confirmed >= 500.
@@ -390,10 +393,7 @@ void main() {
       expect(files, isNot(contains(endsWith('.fatal_processing.tmp'))));
 
       // Fatal file should be deleted after merge.
-      expect(
-        File('${tempDir.path}/log_queue_fatal.jsonl').existsSync(),
-        false,
-      );
+      expect(File('${tempDir.path}/log_queue_fatal.jsonl').existsSync(), false);
     });
 
     test('old temp file cleanup on construction', () async {
@@ -431,14 +431,12 @@ void main() {
       await queue.close();
 
       // Simulate crash during fatal merge: .fatal_processing.tmp left behind.
-      File('${tempDir.path}/.fatal_processing.tmp')
-          .writeAsStringSync('${jsonEncode({'msg': 'orphaned-fatal'})}\n');
+      File(
+        '${tempDir.path}/.fatal_processing.tmp',
+      ).writeAsStringSync('${jsonEncode({'msg': 'orphaned-fatal'})}\n');
 
       final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
-      expect(
-        File('${tempDir.path}/.fatal_processing.tmp').existsSync(),
-        false,
-      );
+      expect(File('${tempDir.path}/.fatal_processing.tmp').existsSync(), false);
       final records = await newQueue.drain(10);
       expect(records, hasLength(2));
       final messages = records.map((r) => r['msg']).toSet();
@@ -446,29 +444,32 @@ void main() {
       await newQueue.close();
     });
 
-    test('compaction crash safety — stale meta causes duplicates not loss',
-        () async {
-      // Simulate state after compaction crash: meta says confirmed=0
-      // but file still has all records (rename didn't happen).
-      await queue.close();
+    test(
+      'compaction crash safety — stale meta causes duplicates not loss',
+      () async {
+        // Simulate state after compaction crash: meta says confirmed=0
+        // but file still has all records (rename didn't happen).
+        await queue.close();
 
-      final file = File('${tempDir.path}/log_queue.jsonl');
-      final sink = file.openWrite();
-      for (var i = 0; i < 10; i++) {
-        sink.writeln(jsonEncode({'msg': 'r-$i'}));
-      }
-      await sink.close();
+        final file = File('${tempDir.path}/log_queue.jsonl');
+        final sink = file.openWrite();
+        for (var i = 0; i < 10; i++) {
+          sink.writeln(jsonEncode({'msg': 'r-$i'}));
+        }
+        await sink.close();
 
-      // Meta reset to 0 (as if compaction wrote meta but didn't rename).
-      File('${tempDir.path}/.queue_meta')
-          .writeAsStringSync(jsonEncode({'confirmed': 0}));
+        // Meta reset to 0 (as if compaction wrote meta but didn't rename).
+        File(
+          '${tempDir.path}/.queue_meta',
+        ).writeAsStringSync(jsonEncode({'confirmed': 0}));
 
-      final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
-      // All 10 records should be available (duplicates, not loss).
-      final records = await newQueue.drain(20);
-      expect(records, hasLength(10));
-      await newQueue.close();
-    });
+        final newQueue = PlatformDiskQueue(directoryPath: tempDir.path);
+        // All 10 records should be available (duplicates, not loss).
+        final records = await newQueue.drain(20);
+        expect(records, hasLength(10));
+        await newQueue.close();
+      },
+    );
 
     test('confirm does not rewrite main file', () async {
       await queue.append({'msg': 'a'});

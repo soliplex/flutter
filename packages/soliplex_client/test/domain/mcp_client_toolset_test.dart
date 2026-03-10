@@ -12,10 +12,7 @@ void main() {
 
       expect(toolset.kind, equals('http'));
       expect(toolset.allowedTools, equals(['tool1', 'tool2']));
-      expect(
-        toolset.toolsetParams,
-        equals({'url': 'http://localhost:3000'}),
-      );
+      expect(toolset.toolsetParams, equals({'url': 'http://localhost:3000'}));
     });
 
     test('creates with defaults', () {
@@ -33,10 +30,7 @@ void main() {
     });
 
     test('empty allowedTools means no tools allowed', () {
-      const toolset = McpClientToolset(
-        kind: 'http',
-        allowedTools: [],
-      );
+      const toolset = McpClientToolset(kind: 'http', allowedTools: []);
 
       expect(toolset.allowedTools, isEmpty);
     });

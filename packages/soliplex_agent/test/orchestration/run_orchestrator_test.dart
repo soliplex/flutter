@@ -281,9 +281,7 @@ void main() {
         controller
           ..add(const RunStartedEvent(threadId: 'thread-1', runId: _runId))
           ..add(const TextMessageStartEvent(messageId: 'msg-1'))
-          ..add(
-            const TextMessageContentEvent(messageId: 'msg-1', delta: 'Hi'),
-          )
+          ..add(const TextMessageContentEvent(messageId: 'msg-1', delta: 'Hi'))
           ..add(const TextMessageEndEvent(messageId: 'msg-1'))
           ..add(const RunFinishedEvent(threadId: 'thread-1', runId: _runId));
         await Future<void>.delayed(Duration.zero);
@@ -846,41 +844,43 @@ void main() {
   });
 
   group('graceful SSE close', () {
-    test('dispose after RunFinishedEvent does not cancel subscription',
-        () async {
-      stubCreateRun();
+    test(
+      'dispose after RunFinishedEvent does not cancel subscription',
+      () async {
+        stubCreateRun();
 
-      var subscriptionCancelled = false;
-      final controller = StreamController<BaseEvent>(
-        onCancel: () => subscriptionCancelled = true,
-      );
-      stubRunAgent(stream: controller.stream);
+        var subscriptionCancelled = false;
+        final controller = StreamController<BaseEvent>(
+          onCancel: () => subscriptionCancelled = true,
+        );
+        stubRunAgent(stream: controller.stream);
 
-      await orchestrator.startRun(key: _key, userMessage: 'Hi');
+        await orchestrator.startRun(key: _key, userMessage: 'Hi');
 
-      // Emit a complete happy-path sequence.
-      _happyPathEvents().forEach(controller.add);
-      await Future<void>.delayed(Duration.zero);
+        // Emit a complete happy-path sequence.
+        _happyPathEvents().forEach(controller.add);
+        await Future<void>.delayed(Duration.zero);
 
-      expect(orchestrator.currentState, isA<CompletedState>());
-      // Reset flag — _handleRunFinished detaches without cancel,
-      // but the stream controller may fire onCancel when the sub
-      // reference is dropped. We care about the dispose() path.
-      subscriptionCancelled = false;
+        expect(orchestrator.currentState, isA<CompletedState>());
+        // Reset flag — _handleRunFinished detaches without cancel,
+        // but the stream controller may fire onCancel when the sub
+        // reference is dropped. We care about the dispose() path.
+        subscriptionCancelled = false;
 
-      // Dispose after terminal event — should NOT force-cancel.
-      orchestrator.dispose();
+        // Dispose after terminal event — should NOT force-cancel.
+        orchestrator.dispose();
 
-      expect(
-        subscriptionCancelled,
-        isFalse,
-        reason: 'dispose() after RunFinishedEvent must not cancel '
-            'the subscription to avoid poisoning the server '
-            'connection pool',
-      );
+        expect(
+          subscriptionCancelled,
+          isFalse,
+          reason: 'dispose() after RunFinishedEvent must not cancel '
+              'the subscription to avoid poisoning the server '
+              'connection pool',
+        );
 
-      await controller.close();
-    });
+        await controller.close();
+      },
+    );
 
     test('dispose during active run still cancels subscription', () async {
       stubCreateRun();

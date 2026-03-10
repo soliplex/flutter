@@ -60,10 +60,7 @@ void main() {
     expect(first['level'], 'info');
     expect(first['logger'], 'Integration');
     expect(first['install_id'], 'i-1');
-    expect(
-      (first['attributes']! as Map<String, Object?>)['view'],
-      'home',
-    );
+    expect((first['attributes']! as Map<String, Object?>)['view'], 'home');
 
     final second = logs[1] as Map<String, Object?>;
     expect(second['message'], 'Something suspect');

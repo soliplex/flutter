@@ -34,10 +34,7 @@ void main() {
         ..write(_record('third'));
 
       expect(sink.length, 3);
-      expect(
-        sink.records.map((r) => r.message),
-        ['first', 'second', 'third'],
-      );
+      expect(sink.records.map((r) => r.message), ['first', 'second', 'third']);
     });
 
     test('evicts oldest record when at capacity', () {
@@ -46,10 +43,13 @@ void main() {
       }
 
       expect(sink.length, 5);
-      expect(
-        sink.records.map((r) => r.message),
-        ['msg-2', 'msg-3', 'msg-4', 'msg-5', 'msg-6'],
-      );
+      expect(sink.records.map((r) => r.message), [
+        'msg-2',
+        'msg-3',
+        'msg-4',
+        'msg-5',
+        'msg-6',
+      ]);
     });
 
     test('evicts correctly at exact boundary', () {
@@ -71,18 +71,18 @@ void main() {
       }
 
       expect(sink.length, 5);
-      expect(
-        sink.records.map((r) => r.message),
-        ['msg-7', 'msg-8', 'msg-9', 'msg-10', 'msg-11'],
-      );
+      expect(sink.records.map((r) => r.message), [
+        'msg-7',
+        'msg-8',
+        'msg-9',
+        'msg-10',
+        'msg-11',
+      ]);
     });
 
     test('records returns unmodifiable list', () {
       sink.write(_record('test'));
-      expect(
-        () => sink.records.add(_record('hack')),
-        throwsUnsupportedError,
-      );
+      expect(() => sink.records.add(_record('hack')), throwsUnsupportedError);
     });
 
     test('records supports indexed access', () {
@@ -127,10 +127,7 @@ void main() {
         ..write(_record('fresh-1'));
 
       expect(sink.length, 2);
-      expect(
-        sink.records.map((r) => r.message),
-        ['fresh-0', 'fresh-1'],
-      );
+      expect(sink.records.map((r) => r.message), ['fresh-0', 'fresh-1']);
     });
 
     test('onClear emits when clear is called', () async {
@@ -235,10 +232,7 @@ void main() {
     });
 
     test('rejects maxRecords of zero', () {
-      expect(
-        () => MemorySink(maxRecords: 0),
-        throwsA(isA<AssertionError>()),
-      );
+      expect(() => MemorySink(maxRecords: 0), throwsA(isA<AssertionError>()));
     });
   });
 }

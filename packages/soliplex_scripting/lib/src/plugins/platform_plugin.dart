@@ -168,10 +168,10 @@ class PlatformPlugin extends MontyPlugin with LegacyUnprefixedPlugin {
           handler: (args) async {
             final level = args['level']! as String;
             final message = args['message']! as String;
-            await _hostApi.invoke(
-              'log',
-              <String, Object?>{'level': level, 'message': message},
-            );
+            await _hostApi.invoke('log', <String, Object?>{
+              'level': level,
+              'message': message,
+            });
             return '[$level] $message';
           },
         ),

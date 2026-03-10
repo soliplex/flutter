@@ -201,10 +201,7 @@ class SchemaStateView {
     return null;
   }
 
-  Map<String, T> _coerceMap<T>(
-    Map<String, dynamic> raw,
-    String field,
-  ) {
+  Map<String, T> _coerceMap<T>(Map<String, dynamic> raw, String field) {
     final result = <String, T>{};
     for (final entry in raw.entries) {
       final coerced = _coerceScalar<T>(entry.value, field);

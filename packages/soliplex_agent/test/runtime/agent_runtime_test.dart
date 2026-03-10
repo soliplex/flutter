@@ -445,9 +445,7 @@ void main() {
     });
 
     test('WASM reentrant guard still throws immediately', () async {
-      runtime = createRuntime(
-        platform: const WebPlatformConstraints(),
-      );
+      runtime = createRuntime(platform: const WebPlatformConstraints());
 
       stubCreateThread();
       stubCreateRun();
@@ -520,11 +518,7 @@ void main() {
       expect(parent.depth, 0);
 
       expect(
-        () => runtime.spawn(
-          roomId: _roomId,
-          prompt: 'Child',
-          parent: parent,
-        ),
+        () => runtime.spawn(roomId: _roomId, prompt: 'Child', parent: parent),
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
@@ -601,10 +595,7 @@ void main() {
       final result = await session.result;
 
       expect(result, isA<AgentFailure>());
-      expect(
-        (result as AgentFailure).reason,
-        FailureReason.cancelled,
-      );
+      expect((result as AgentFailure).reason, FailureReason.cancelled);
 
       await controller.close();
     });
@@ -656,11 +647,7 @@ void main() {
       stubRunAgent(stream: controller.stream);
 
       final parent = await runtime.spawn(roomId: _roomId, prompt: 'Parent');
-      await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Child',
-        parent: parent,
-      );
+      await runtime.spawn(roomId: _roomId, prompt: 'Child', parent: parent);
 
       // Wait past the rootTimeout — only parent should be cancelled,
       // but since child is a child of parent, it gets cascaded
@@ -757,11 +744,7 @@ void main() {
       final controller = StreamController<BaseEvent>.broadcast();
       stubRunAgent(stream: controller.stream);
 
-      await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'A',
-        ephemeral: true,
-      );
+      await runtime.spawn(roomId: _roomId, prompt: 'A', ephemeral: true);
       controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
       await Future<void>.delayed(Duration.zero);
 
@@ -816,11 +799,7 @@ void main() {
       stubDeleteThread();
 
       await expectLater(
-        () => runtime.spawn(
-          roomId: _roomId,
-          prompt: 'Hello',
-          ephemeral: true,
-        ),
+        () => runtime.spawn(roomId: _roomId, prompt: 'Hello', ephemeral: true),
         throwsA(
           isA<StateError>().having(
             (e) => e.message,
@@ -1099,10 +1078,7 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
 
       expect(session.threadKey.serverId, equals('prod'));
       await session.result;
@@ -1185,10 +1161,7 @@ void main() {
       stubDeleteThread();
       stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
 
-      final session = await runtime.spawn(
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      final session = await runtime.spawn(roomId: _roomId, prompt: 'Hello');
       await session.result;
 
       final captured = verify(

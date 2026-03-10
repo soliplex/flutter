@@ -114,10 +114,7 @@ void main() {
       });
 
       test('throws on unknown operator', () {
-        expect(
-          () => df.filter('age', '~', 30),
-          throwsArgumentError,
-        );
+        expect(() => df.filter('age', '~', 30), throwsArgumentError);
       });
     });
 
@@ -372,10 +369,13 @@ void main() {
 
     group('columnValues', () {
       test('returns values for column', () {
-        expect(
-          df.columnValues('name'),
-          ['Alice', 'Bob', 'Carol', 'Dave', 'Eve'],
-        );
+        expect(df.columnValues('name'), [
+          'Alice',
+          'Bob',
+          'Carol',
+          'Dave',
+          'Eve',
+        ]);
       });
     });
 

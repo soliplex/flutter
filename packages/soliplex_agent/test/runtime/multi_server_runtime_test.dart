@@ -44,17 +44,11 @@ const _runId = 'run-abc';
   );
 }
 
-ThreadInfo _threadInfo(String threadId) => ThreadInfo(
-      id: threadId,
-      roomId: _roomId,
-      createdAt: DateTime(2026),
-    );
+ThreadInfo _threadInfo(String threadId) =>
+    ThreadInfo(id: threadId, roomId: _roomId, createdAt: DateTime(2026));
 
-RunInfo _runInfo(String threadId) => RunInfo(
-      id: _runId,
-      threadId: threadId,
-      createdAt: DateTime(2026),
-    );
+RunInfo _runInfo(String threadId) =>
+    RunInfo(id: _runId, threadId: threadId, createdAt: DateTime(2026));
 
 List<BaseEvent> _happyPathEvents(String threadId) => [
       RunStartedEvent(threadId: threadId, runId: _runId),
@@ -71,19 +65,15 @@ void _stubHappyPath(
   required String threadId,
   Stream<BaseEvent>? stream,
 }) {
-  when(() => api.createThread(any())).thenAnswer(
-    (_) async => (_threadInfo(threadId), <String, dynamic>{}),
-  );
-  when(() => api.createRun(any(), any())).thenAnswer(
-    (_) async => _runInfo(threadId),
-  );
+  when(
+    () => api.createThread(any()),
+  ).thenAnswer((_) async => (_threadInfo(threadId), <String, dynamic>{}));
+  when(
+    () => api.createRun(any(), any()),
+  ).thenAnswer((_) async => _runInfo(threadId));
   when(() => api.deleteThread(any(), any())).thenAnswer((_) async {});
   when(
-    () => agUi.runAgent(
-      any(),
-      any(),
-      cancelToken: any(named: 'cancelToken'),
-    ),
+    () => agUi.runAgent(any(), any(), cancelToken: any(named: 'cancelToken')),
   ).thenAnswer(
     (_) => stream ?? Stream.fromIterable(_happyPathEvents(threadId)),
   );
@@ -258,11 +248,7 @@ void main() {
         stream: controller.stream,
       );
 
-      await msr.spawn(
-        serverId: 'prod',
-        roomId: _roomId,
-        prompt: 'Hello',
-      );
+      await msr.spawn(serverId: 'prod', roomId: _roomId, prompt: 'Hello');
 
       const unknownKey = (
         serverId: 'prod',
@@ -418,9 +404,7 @@ void main() {
       );
 
       // Let runs start.
-      prodCtl.add(
-        const RunStartedEvent(threadId: 'prod-t1', runId: _runId),
-      );
+      prodCtl.add(const RunStartedEvent(threadId: 'prod-t1', runId: _runId));
       stagingCtl.add(
         const RunStartedEvent(threadId: 'staging-t1', runId: _runId),
       );
@@ -441,11 +425,7 @@ void main() {
     test('dispose cleans up all runtimes', () async {
       _stubHappyPath(prod.api, prod.agUi, threadId: 'prod-t1');
 
-      await msr.spawn(
-        serverId: 'prod',
-        roomId: _roomId,
-        prompt: 'A',
-      );
+      await msr.spawn(serverId: 'prod', roomId: _roomId, prompt: 'A');
 
       await msr.dispose();
 
@@ -461,11 +441,7 @@ void main() {
     test('concurrent dispose is safe', () async {
       _stubHappyPath(prod.api, prod.agUi, threadId: 'prod-t1');
 
-      await msr.spawn(
-        serverId: 'prod',
-        roomId: _roomId,
-        prompt: 'A',
-      );
+      await msr.spawn(serverId: 'prod', roomId: _roomId, prompt: 'A');
 
       // Two concurrent disposes should not throw.
       await Future.wait([msr.dispose(), msr.dispose()]);

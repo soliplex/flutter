@@ -139,10 +139,7 @@ AgentSession createSession({
 }) {
   final registry = toolRegistry ?? const ToolRegistry();
   final orchestrator = RunOrchestrator(
-    llmProvider: AgUiLlmProvider(
-      api: api,
-      agUiStreamClient: agUiStreamClient,
-    ),
+    llmProvider: AgUiLlmProvider(api: api, agUiStreamClient: agUiStreamClient),
     toolRegistry: registry,
     logger: logger,
   );
@@ -608,10 +605,7 @@ void main() {
 
     test('extension tools merged into registry', () async {
       final tool = ClientTool(
-        definition: const Tool(
-          name: 'ext_tool',
-          description: 'Extension tool',
-        ),
+        definition: const Tool(name: 'ext_tool', description: 'Extension tool'),
         executor: (_, __) async => 'ext result',
       );
       final ext = _TestExtensionWithTool(tool);
@@ -766,50 +760,52 @@ void main() {
       expect(session.lastExecutionEvent.value, equals(event));
     });
 
-    test('executeSingle emits ClientToolExecuting then ClientToolCompleted',
-        () async {
-      final registry = _registryWith();
-      stubCreateRun();
+    test(
+      'executeSingle emits ClientToolExecuting then ClientToolCompleted',
+      () async {
+        final registry = _registryWith();
+        stubCreateRun();
 
-      final events = <ExecutionEvent>[];
-      var callCount = 0;
-      when(
-        () => agUiStreamClient.runAgent(
-          any(),
-          any(),
-          cancelToken: any(named: 'cancelToken'),
-        ),
-      ).thenAnswer((_) {
-        callCount++;
-        return callCount == 1
-            ? Stream.fromIterable(_toolCallEvents())
-            : Stream.fromIterable(_resumeTextEvents());
-      });
+        final events = <ExecutionEvent>[];
+        var callCount = 0;
+        when(
+          () => agUiStreamClient.runAgent(
+            any(),
+            any(),
+            cancelToken: any(named: 'cancelToken'),
+          ),
+        ).thenAnswer((_) {
+          callCount++;
+          return callCount == 1
+              ? Stream.fromIterable(_toolCallEvents())
+              : Stream.fromIterable(_resumeTextEvents());
+        });
 
-      final session = createSession(
-        api: api,
-        agUiStreamClient: agUiStreamClient,
-        logger: logger,
-        toolRegistry: registry,
-      );
-      addTearDown(session.dispose);
+        final session = createSession(
+          api: api,
+          agUiStreamClient: agUiStreamClient,
+          logger: logger,
+          toolRegistry: registry,
+        );
+        addTearDown(session.dispose);
 
-      // Collect execution events
-      session.lastExecutionEvent.subscribe((_) {
-        final val = session.lastExecutionEvent.value;
-        if (val != null) events.add(val);
-      });
+        // Collect execution events
+        session.lastExecutionEvent.subscribe((_) {
+          final val = session.lastExecutionEvent.value;
+          if (val != null) events.add(val);
+        });
 
-      await session.start(userMessage: 'Weather?');
-      await session.result;
+        await session.start(userMessage: 'Weather?');
+        await session.result;
 
-      final executing = events.whereType<ClientToolExecuting>().toList();
-      final completed = events.whereType<ClientToolCompleted>().toList();
-      expect(executing, hasLength(1));
-      expect(executing.first.toolName, equals('weather'));
-      expect(completed, hasLength(1));
-      expect(completed.first.status, equals(ToolCallStatus.completed));
-    });
+        final executing = events.whereType<ClientToolExecuting>().toList();
+        final completed = events.whereType<ClientToolCompleted>().toList();
+        expect(executing, hasLength(1));
+        expect(executing.first.toolName, equals('weather'));
+        expect(completed, hasLength(1));
+        expect(completed.first.status, equals(ToolCallStatus.completed));
+      },
+    );
 
     test('executeSingle failure emits ClientToolCompleted(failed)', () async {
       final registry = _registryWith(

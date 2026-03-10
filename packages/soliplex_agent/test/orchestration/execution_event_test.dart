@@ -31,18 +31,9 @@ void main() {
       });
 
       test('ServerToolCallStarted equality', () {
-        const a = ServerToolCallStarted(
-          toolName: 'search',
-          toolCallId: 'tc-1',
-        );
-        const b = ServerToolCallStarted(
-          toolName: 'search',
-          toolCallId: 'tc-1',
-        );
-        const c = ServerToolCallStarted(
-          toolName: 'search',
-          toolCallId: 'tc-2',
-        );
+        const a = ServerToolCallStarted(toolName: 'search', toolCallId: 'tc-1');
+        const b = ServerToolCallStarted(toolName: 'search', toolCallId: 'tc-1');
+        const c = ServerToolCallStarted(toolName: 'search', toolCallId: 'tc-2');
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
@@ -50,14 +41,8 @@ void main() {
       });
 
       test('ServerToolCallCompleted equality', () {
-        const a = ServerToolCallCompleted(
-          toolCallId: 'tc-1',
-          result: 'ok',
-        );
-        const b = ServerToolCallCompleted(
-          toolCallId: 'tc-1',
-          result: 'ok',
-        );
+        const a = ServerToolCallCompleted(toolCallId: 'tc-1', result: 'ok');
+        const b = ServerToolCallCompleted(toolCallId: 'tc-1', result: 'ok');
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));

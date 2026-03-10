@@ -48,9 +48,7 @@ class DataFrame {
           'contains' => cell.toString().contains(value.toString()),
           _ => throw ArgumentError('Unknown op: $op'),
         };
-    return DataFrame(
-      rows.where((r) => test(r[column])).toList(),
-    );
+    return DataFrame(rows.where((r) => test(r[column])).toList());
   }
 
   /// Sort by [column].
@@ -67,10 +65,7 @@ class DataFrame {
   ///
   /// [aggMap] maps column names to aggregation functions:
   /// `"sum"`, `"mean"`, `"min"`, `"max"`, `"count"`.
-  DataFrame groupAgg(
-    List<String> groupCols,
-    Map<String, String> aggMap,
-  ) {
+  DataFrame groupAgg(List<String> groupCols, Map<String, String> aggMap) {
     final groups = <String, List<Map<String, dynamic>>>{};
     for (final row in rows) {
       final key = groupCols.map((c) => '${row[c]}').join('|');
@@ -105,10 +100,7 @@ class DataFrame {
   DataFrame addColumn(String name, List<Object?> values) {
     final out = <Map<String, dynamic>>[];
     for (var i = 0; i < rows.length; i++) {
-      out.add({
-        ...rows[i],
-        name: i < values.length ? values[i] : null,
-      });
+      out.add({...rows[i], name: i < values.length ? values[i] : null});
     }
     return DataFrame(out);
   }
@@ -125,9 +117,7 @@ class DataFrame {
   /// Rename columns.
   DataFrame rename(Map<String, String> mapping) => DataFrame([
         for (final row in rows)
-          {
-            for (final e in row.entries) (mapping[e.key] ?? e.key): e.value,
-          },
+          {for (final e in row.entries) (mapping[e.key] ?? e.key): e.value},
       ]);
 
   /// Merge with another DataFrame on [onCols] column(s).
@@ -168,15 +158,12 @@ class DataFrame {
   /// Fill null values.
   DataFrame fillna(Object? value) => DataFrame([
         for (final row in rows)
-          {
-            for (final e in row.entries) e.key: e.value ?? value,
-          },
+          {for (final e in row.entries) e.key: e.value ?? value},
       ]);
 
   /// Drop rows with any null values.
-  DataFrame dropna() => DataFrame(
-        rows.where((r) => r.values.every((v) => v != null)).toList(),
-      );
+  DataFrame dropna() =>
+      DataFrame(rows.where((r) => r.values.every((v) => v != null)).toList());
 
   /// Transpose.
   DataFrame transpose() {

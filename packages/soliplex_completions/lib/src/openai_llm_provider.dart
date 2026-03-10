@@ -52,10 +52,7 @@ class OpenAiLlmProvider implements LlmProvider {
     return _send(mapped, maxTokens: maxTokens);
   }
 
-  Future<String> _send(
-    List<ChatMessage> messages, {
-    int? maxTokens,
-  }) async {
+  Future<String> _send(List<ChatMessage> messages, {int? maxTokens}) async {
     final response = await _client.chat.completions.create(
       ChatCompletionCreateRequest(
         model: model,

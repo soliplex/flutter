@@ -102,11 +102,9 @@ void main() {
     });
 
     test('passes span fields to record', () {
-      LogManager.instance.getLogger('Test').info(
-            'Request',
-            spanId: 'span-123',
-            traceId: 'trace-456',
-          );
+      LogManager.instance
+          .getLogger('Test')
+          .info('Request', spanId: 'span-123', traceId: 'trace-456');
 
       expect(sink.records.first.spanId, 'span-123');
       expect(sink.records.first.traceId, 'trace-456');
@@ -114,20 +112,16 @@ void main() {
 
     test('passes attributes to record', () {
       final attrs = {'user_id': 'u-1', 'view_name': 'settings'};
-      LogManager.instance.getLogger('Test').info(
-            'Navigated',
-            attributes: attrs,
-          );
+      LogManager.instance
+          .getLogger('Test')
+          .info('Navigated', attributes: attrs);
 
       expect(sink.records.first.attributes, attrs);
     });
 
     test('attributes are defensively copied from caller', () {
       final attrs = <String, Object>{'key': 'original'};
-      LogManager.instance.getLogger('Test').info(
-            'Test',
-            attributes: attrs,
-          );
+      LogManager.instance.getLogger('Test').info('Test', attributes: attrs);
 
       // Mutate the caller's map after logging.
       attrs['key'] = 'mutated';

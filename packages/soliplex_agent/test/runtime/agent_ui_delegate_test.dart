@@ -56,11 +56,8 @@ const _runId = 'run-1';
 RunInfo _runInfo([String id = _runId]) =>
     RunInfo(id: id, threadId: _threadId, createdAt: DateTime(2026));
 
-ThreadInfo _threadInfo([String id = _threadId]) => ThreadInfo(
-      id: id,
-      roomId: _roomA,
-      createdAt: DateTime(2026),
-    );
+ThreadInfo _threadInfo([String id = _threadId]) =>
+    ThreadInfo(id: id, roomId: _roomA, createdAt: DateTime(2026));
 
 List<BaseEvent> _happyPathEvents() => [
       const RunStartedEvent(threadId: _threadId, runId: _runId),
@@ -91,12 +88,10 @@ List<BaseEvent> _resumeTextEvents() => [
 // ---------------------------------------------------------------------------
 
 void _stubHappyPath(MockSoliplexApi api, MockAgUiStreamClient streamClient) {
-  when(() => api.createThread(any())).thenAnswer(
-    (_) async => (_threadInfo(), <String, dynamic>{}),
-  );
-  when(() => api.createRun(any(), any())).thenAnswer(
-    (_) async => _runInfo(),
-  );
+  when(
+    () => api.createThread(any()),
+  ).thenAnswer((_) async => (_threadInfo(), <String, dynamic>{}));
+  when(() => api.createRun(any(), any())).thenAnswer((_) async => _runInfo());
   when(
     () => streamClient.runAgent(
       any(),
@@ -142,10 +137,7 @@ AgentRuntime _createRuntime({
       api: api,
       agUiStreamClient: streamClient,
     ),
-    llmProvider: AgUiLlmProvider(
-      api: api,
-      agUiStreamClient: streamClient,
-    ),
+    llmProvider: AgUiLlmProvider(api: api, agUiStreamClient: streamClient),
     toolRegistryResolver:
         toolRegistryResolver ?? (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),
@@ -362,9 +354,9 @@ void main() {
           );
         });
 
-        when(() => api.createRun(any(), any())).thenAnswer(
-          (_) async => _runInfo(),
-        );
+        when(
+          () => api.createRun(any(), any()),
+        ).thenAnswer((_) async => _runInfo());
 
         var runAgentCallCount = 0;
         when(
@@ -428,8 +420,10 @@ void main() {
           toolRegistryResolver: (_) async => registry,
         );
 
-        final session =
-            await runtime.spawn(roomId: 'my-room', prompt: 'parent');
+        final session = await runtime.spawn(
+          roomId: 'my-room',
+          prompt: 'parent',
+        );
         await session.result;
 
         expect(childRoomId, 'my-room');

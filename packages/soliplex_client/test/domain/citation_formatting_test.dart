@@ -108,17 +108,13 @@ void main() {
       });
 
       test('returns fallback for invalid URI', () {
-        final citation = createCitation(
-          documentUri: ':::invalid',
-        );
+        final citation = createCitation(documentUri: ':::invalid');
 
         expect(citation.displayTitle, 'Unknown Document');
       });
 
       test('returns fallback for URI with no path segments', () {
-        final citation = createCitation(
-          documentUri: 'https://example.com',
-        );
+        final citation = createCitation(documentUri: 'https://example.com');
 
         expect(citation.displayTitle, 'Unknown Document');
       });
@@ -155,14 +151,16 @@ void main() {
         expect(citation.isPdf, isFalse);
       });
 
-      test('returns false for URLs with pdf in path but different extension',
-          () {
-        final citation = createCitation(
-          documentUri: 'https://example.com/pdf/document.txt',
-        );
+      test(
+        'returns false for URLs with pdf in path but different extension',
+        () {
+          final citation = createCitation(
+            documentUri: 'https://example.com/pdf/document.txt',
+          );
 
-        expect(citation.isPdf, isFalse);
-      });
+          expect(citation.isPdf, isFalse);
+        },
+      );
     });
   });
 }

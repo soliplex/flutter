@@ -41,19 +41,13 @@ void main() {
           'name': 'feature_a',
           'description': 'A',
           'source': 'CLIENT',
-          'json_schema': {
-            'type': 'object',
-            'properties': <String, dynamic>{},
-          },
+          'json_schema': {'type': 'object', 'properties': <String, dynamic>{}},
         },
         'feature_b': {
           'name': 'feature_b',
           'description': 'B',
           'source': 'EITHER',
-          'json_schema': {
-            'type': 'object',
-            'properties': <String, dynamic>{},
-          },
+          'json_schema': {'type': 'object', 'properties': <String, dynamic>{}},
         },
       });
 
@@ -97,10 +91,7 @@ void main() {
           'name': 'my_feature',
           'description': 'Test',
           'source': 'SERVER',
-          'json_schema': {
-            'type': 'object',
-            'properties': <String, dynamic>{},
-          },
+          'json_schema': {'type': 'object', 'properties': <String, dynamic>{}},
         },
       });
 
@@ -127,10 +118,7 @@ void main() {
           'name': 'f',
           'description': '',
           'source': 'SERVER',
-          'json_schema': {
-            'type': 'object',
-            'properties': <String, dynamic>{},
-          },
+          'json_schema': {'type': 'object', 'properties': <String, dynamic>{}},
         },
       });
 
@@ -173,10 +161,7 @@ void main() {
       expect(FeatureSource.fromString('SERVER'), FeatureSource.server);
       expect(FeatureSource.fromString('EITHER'), FeatureSource.either);
       expect(FeatureSource.fromString('client'), FeatureSource.client);
-      expect(
-        FeatureSource.fromString('unknown'),
-        FeatureSource.either,
-      );
+      expect(FeatureSource.fromString('unknown'), FeatureSource.either);
     });
 
     test('viewFromSchema creates view directly', () {
@@ -187,10 +172,7 @@ void main() {
         },
       });
 
-      final view = FeatureSchemaRegistry.viewFromSchema(
-        {'x': 42},
-        schema,
-      );
+      final view = FeatureSchemaRegistry.viewFromSchema({'x': 42}, schema);
       expect(view.getScalar<int>('x'), 42);
     });
   });

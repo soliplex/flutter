@@ -108,8 +108,9 @@ class ObservableHttpClient implements SoliplexHttpClient {
 
       // Capture and redact response
       final redactedResponseBody = _redactResponseBody(response, uri);
-      final redactedResponseHeaders =
-          HttpRedactor.redactHeaders(response.headers);
+      final redactedResponseHeaders = HttpRedactor.redactHeaders(
+        response.headers,
+      );
 
       // Notify successful response
       _notifyObservers((observer) {

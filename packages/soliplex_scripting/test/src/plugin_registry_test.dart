@@ -182,19 +182,13 @@ void main() {
       test('rejects function not prefixed with namespace', () {
         expect(
           () => registry.register(
-            _TestPlugin(
-              namespace: 'sqlite',
-              functions: [_fn('query')],
-            ),
+            _TestPlugin(namespace: 'sqlite', functions: [_fn('query')]),
           ),
           throwsA(
             isA<ArgumentError>().having(
               (e) => e.message,
               'message',
-              allOf(
-                contains('query'),
-                contains('sqlite_'),
-              ),
+              allOf(contains('query'), contains('sqlite_')),
             ),
           ),
         );
@@ -202,10 +196,7 @@ void main() {
 
       test('accepts function correctly prefixed with namespace', () {
         registry.register(
-          _TestPlugin(
-            namespace: 'sqlite',
-            functions: [_fn('sqlite_query')],
-          ),
+          _TestPlugin(namespace: 'sqlite', functions: [_fn('sqlite_query')]),
         );
 
         expect(registry.plugins, hasLength(1));
@@ -232,10 +223,7 @@ void main() {
         // alpha_s_thing satisfies both alpha_ and alpha_s_ prefixes,
         // so registering it under both namespaces causes a collision.
         registry.register(
-          _TestPlugin(
-            namespace: 'alpha',
-            functions: [_fn('alpha_s_thing')],
-          ),
+          _TestPlugin(namespace: 'alpha', functions: [_fn('alpha_s_thing')]),
         );
 
         expect(
@@ -262,10 +250,7 @@ void main() {
       test('collision does not partially register the plugin', () {
         // alpha_s_one satisfies prefix alpha_ — register it under alpha.
         registry.register(
-          _TestPlugin(
-            namespace: 'alpha',
-            functions: [_fn('alpha_s_one')],
-          ),
+          _TestPlugin(namespace: 'alpha', functions: [_fn('alpha_s_one')]),
         );
 
         // alpha_s tries to register alpha_s_ok (valid, no collision) and

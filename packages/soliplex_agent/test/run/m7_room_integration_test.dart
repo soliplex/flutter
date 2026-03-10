@@ -77,10 +77,7 @@ void main() {
     });
 
     test('sequential tool rounds → CompletedState', () async {
-      await orchestrator.startRun(
-        key: key,
-        userMessage: 'Run diagnostics.',
-      );
+      await orchestrator.startRun(key: key, userMessage: 'Run diagnostics.');
 
       var yieldCount = 0;
       for (var round = 0; round < 5; round++) {
@@ -351,9 +348,7 @@ void main() {
         roomId: 'accumulator',
         prompt: 'Fact 1: Water freezes at 0°C.',
       );
-      final r1 = await s1.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r1 = await s1.awaitResult(timeout: const Duration(seconds: 60));
       expect(r1, isA<AgentSuccess>());
       print('Turn 1 done: ${(r1 as AgentSuccess).output}');
 
@@ -371,9 +366,7 @@ void main() {
         threadId: s1.threadKey.threadId,
         cachedHistory: history1,
       );
-      final r2 = await s2.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r2 = await s2.awaitResult(timeout: const Duration(seconds: 60));
       expect(r2, isA<AgentSuccess>());
       print('Turn 2 done: ${(r2 as AgentSuccess).output}');
 
@@ -391,9 +384,7 @@ void main() {
         threadId: s1.threadKey.threadId,
         cachedHistory: history2,
       );
-      final r3 = await s3.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r3 = await s3.awaitResult(timeout: const Duration(seconds: 60));
       expect(r3, isA<AgentSuccess>());
       final response = (r3 as AgentSuccess).output.toLowerCase();
       print('Recall response: $response');
@@ -423,9 +414,7 @@ void main() {
         roomId: 'writer',
         prompt: 'Write one sentence about a magical forest.',
       );
-      final r1 = await s1.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r1 = await s1.awaitResult(timeout: const Duration(seconds: 60));
       expect(r1, isA<AgentSuccess>());
       final draft = (r1 as AgentSuccess).output;
       print('Draft: $draft');
@@ -435,9 +424,7 @@ void main() {
         roomId: 'reviewer',
         prompt: 'Review this draft: $draft',
       );
-      final r2 = await s2.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r2 = await s2.awaitResult(timeout: const Duration(seconds: 60));
       expect(r2, isA<AgentSuccess>());
       final review = (r2 as AgentSuccess).output;
       print('Review: $review');
@@ -447,9 +434,7 @@ void main() {
         roomId: 'fixer',
         prompt: 'Draft: $draft\nCritique: $review\nProduce a revised version.',
       );
-      final r3 = await s3.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r3 = await s3.awaitResult(timeout: const Duration(seconds: 60));
       expect(r3, isA<AgentSuccess>());
       print('Revised: ${(r3 as AgentSuccess).output}');
     });
@@ -469,9 +454,7 @@ void main() {
     });
 
     setUp(() {
-      orchestrator = harness.createOrchestrator(
-        loggerName: 'm7-06-depth',
-      );
+      orchestrator = harness.createOrchestrator(loggerName: 'm7-06-depth');
     });
 
     tearDown(() {
@@ -635,7 +618,11 @@ void main() {
       );
 
       final results = await runtime.waitAll(
-        [s1, s2, s3],
+        [
+          s1,
+          s2,
+          s3,
+        ],
         timeout: const Duration(seconds: 90),
       );
       expect(results, hasLength(3));
@@ -689,7 +676,11 @@ void main() {
       );
 
       final winner = await runtime.waitAny(
-        [fast, medium, slow],
+        [
+          fast,
+          medium,
+          slow,
+        ],
         timeout: const Duration(seconds: 60),
       );
       print('Winner type: ${winner.runtimeType}');
@@ -760,8 +751,10 @@ void main() {
 
         callCount++;
         final yielding = orchestrator.currentState as ToolYieldingState;
-        print('Search round $callCount: '
-            '${yielding.pendingToolCalls.first.arguments}');
+        print(
+          'Search round $callCount: '
+          '${yielding.pendingToolCalls.first.arguments}',
+        );
 
         // First call: not found. Second+: found.
         final result = callCount == 1
@@ -770,10 +763,8 @@ void main() {
 
         final executed = yielding.pendingToolCalls
             .map(
-              (tc) => tc.copyWith(
-                status: ToolCallStatus.completed,
-                result: result,
-              ),
+              (tc) =>
+                  tc.copyWith(status: ToolCallStatus.completed, result: result),
             )
             .toList();
         await orchestrator.submitToolOutputs(executed);
@@ -833,9 +824,7 @@ void main() {
         roomId: targetRoom,
         prompt: 'Hello from the routed session.',
       );
-      final rr = await routed.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final rr = await routed.awaitResult(timeout: const Duration(seconds: 60));
       expect(rr, isA<AgentSuccess>());
       print('Routed response: ${(rr as AgentSuccess).output}');
     });
@@ -850,9 +839,7 @@ void main() {
     setUp(() {
       runtime = harness.createRuntime(
         loggerName: 'm7-12-introspect',
-        platform: const NativePlatformConstraints(
-          maxConcurrentBridges: 10,
-        ),
+        platform: const NativePlatformConstraints(maxConcurrentBridges: 10),
       );
     });
 
@@ -870,10 +857,7 @@ void main() {
       final sessions = <AgentSession>[];
       for (var i = 0; i < 5; i++) {
         sessions.add(
-          await runtime.spawn(
-            roomId: 'parallel',
-            prompt: 'Say "$i".',
-          ),
+          await runtime.spawn(roomId: 'parallel', prompt: 'Say "$i".'),
         );
       }
 
@@ -913,9 +897,7 @@ void main() {
         roomId: 'echo',
         prompt: 'Hello, this is a setup message.',
       );
-      final r1 = await s1.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r1 = await s1.awaitResult(timeout: const Duration(seconds: 60));
       expect(r1, isA<AgentSuccess>());
       final threadId = s1.threadKey.threadId;
       print('Turn 1 done on thread: $threadId');
@@ -928,9 +910,7 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 500));
       s2.cancel();
-      final r2 = await s2.awaitResult(
-        timeout: const Duration(seconds: 10),
-      );
+      final r2 = await s2.awaitResult(timeout: const Duration(seconds: 10));
       print('Turn 2 result: ${r2.runtimeType}');
 
       // Turn 3: new run on the SAME thread succeeds (thread not corrupted).
@@ -939,9 +919,7 @@ void main() {
         prompt: 'Tell me a one-sentence joke.',
         threadId: threadId,
       );
-      final r3 = await s3.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final r3 = await s3.awaitResult(timeout: const Duration(seconds: 60));
       print('Turn 3 result: ${r3.runtimeType}');
       expect(
         r3,
@@ -999,12 +977,7 @@ void main() {
       // Fan-out — use echo room (handles full-sentence prompts).
       final workers = <AgentSession>[];
       for (final task in tasks) {
-        workers.add(
-          await runtime.spawn(
-            roomId: 'echo',
-            prompt: task,
-          ),
-        );
+        workers.add(await runtime.spawn(roomId: 'echo', prompt: task));
       }
 
       final results = await runtime.waitAll(
@@ -1022,9 +995,7 @@ void main() {
         roomId: 'echo',
         prompt: 'Combine into one paragraph: ${workerOutputs.join("; ")}',
       );
-      final sr = await synth.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final sr = await synth.awaitResult(timeout: const Duration(seconds: 60));
       expect(sr, isA<AgentSuccess>());
       print('Synthesis: ${(sr as AgentSuccess).output}');
     });
@@ -1060,7 +1031,11 @@ void main() {
       );
 
       final results = await runtime.waitAll(
-        [s1, s2, s3],
+        [
+          s1,
+          s2,
+          s3,
+        ],
         timeout: const Duration(seconds: 90),
       );
       expect(results.every((r) => r is AgentSuccess), isTrue);
@@ -1077,9 +1052,7 @@ void main() {
             '3: ${opinions[2]}\n'
             'What is the consensus?',
       );
-      final jr = await judge.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final jr = await judge.awaitResult(timeout: const Duration(seconds: 60));
       expect(jr, isA<AgentSuccess>());
       print('Judge verdict: ${(jr as AgentSuccess).output}');
     });
@@ -1121,11 +1094,10 @@ void main() {
         timeout: const Duration(seconds: 60),
       );
       expect(cr, isA<AgentSuccess>());
-      final route = (cr as AgentSuccess)
-          .output
-          .trim()
-          .toLowerCase()
-          .replaceAll(RegExp('[^a-z]'), '');
+      final route = (cr as AgentSuccess).output.trim().toLowerCase().replaceAll(
+            RegExp('[^a-z]'),
+            '',
+          );
       print('Classifier route: $route');
 
       // Keep winner, cancel loser.
@@ -1168,9 +1140,7 @@ void main() {
         roomId: 'writer',
         prompt: 'Write exactly 3 bullet points about Dart programming.',
       );
-      final wr = await writer.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final wr = await writer.awaitResult(timeout: const Duration(seconds: 60));
       expect(wr, isA<AgentSuccess>());
       var draft = (wr as AgentSuccess).output;
       print('Draft: $draft');
@@ -1235,9 +1205,7 @@ void main() {
         roomId: 'advocate',
         prompt: 'Argue FOR remote work being better than office work.',
       );
-      final ar = await adv.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final ar = await adv.awaitResult(timeout: const Duration(seconds: 60));
       expect(ar, isA<AgentSuccess>());
       final forArgs = (ar as AgentSuccess).output;
       print('Advocate: $forArgs');
@@ -1247,9 +1215,7 @@ void main() {
         roomId: 'critic',
         prompt: 'Counter these arguments: $forArgs',
       );
-      final crr = await crt.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final crr = await crt.awaitResult(timeout: const Duration(seconds: 60));
       expect(crr, isA<AgentSuccess>());
       final againstArgs = (crr as AgentSuccess).output;
       print('Critic: $againstArgs');
@@ -1260,9 +1226,7 @@ void main() {
         prompt: 'A critic responded: $againstArgs\n'
             'Defend your strongest point in 2 sentences.',
       );
-      final rbr = await reb.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final rbr = await reb.awaitResult(timeout: const Duration(seconds: 60));
       expect(rbr, isA<AgentSuccess>());
       final rebuttal = (rbr as AgentSuccess).output;
       print('Rebuttal: $rebuttal');
@@ -1276,9 +1240,7 @@ void main() {
             'Who made the stronger argument? '
             'Reply ADVOCATE or CRITIC with justification.',
       );
-      final jr = await jdg.awaitResult(
-        timeout: const Duration(seconds: 60),
-      );
+      final jr = await jdg.awaitResult(timeout: const Duration(seconds: 60));
       expect(jr, isA<AgentSuccess>());
       final verdict = (jr as AgentSuccess).output;
       print('Verdict: $verdict');
@@ -1298,9 +1260,7 @@ void main() {
     setUp(() {
       runtime = harness.createRuntime(
         loggerName: 'm7-19-mapreduce',
-        platform: const NativePlatformConstraints(
-          maxConcurrentBridges: 10,
-        ),
+        platform: const NativePlatformConstraints(maxConcurrentBridges: 10),
       );
     });
 

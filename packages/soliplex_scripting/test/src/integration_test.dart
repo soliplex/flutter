@@ -133,9 +133,7 @@ Future<MontyScriptEnvironment> _createEnvironment({
   final registry = PluginRegistry()
     ..register(DfPlugin(dfRegistry: df))
     ..register(ChartPlugin(hostApi: hostApi))
-    ..register(
-      PlatformPlugin(hostApi: hostApi),
-    )
+    ..register(PlatformPlugin(hostApi: hostApi))
     ..register(StreamPlugin(streamRegistry: streamRegistry));
   if (agentApi != null) {
     registry.register(AgentPlugin(agentApi: agentApi));

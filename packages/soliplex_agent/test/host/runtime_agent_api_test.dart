@@ -162,10 +162,7 @@ void main() {
       await agentApi.getResult(handle);
 
       // Handle is evicted — second call throws.
-      expect(
-        () => agentApi.getResult(handle),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => agentApi.getResult(handle), throwsA(isA<ArgumentError>()));
     });
 
     test('waitAll evicts handles after completion', () async {
@@ -176,14 +173,8 @@ void main() {
       await agentApi.waitAll([h1, h2]);
 
       // Both handles are evicted.
-      expect(
-        () => agentApi.getResult(h1),
-        throwsA(isA<ArgumentError>()),
-      );
-      expect(
-        () => agentApi.getResult(h2),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => agentApi.getResult(h1), throwsA(isA<ArgumentError>()));
+      expect(() => agentApi.getResult(h2), throwsA(isA<ArgumentError>()));
     });
 
     test('cancelAgent evicts handle', () async {
@@ -192,11 +183,8 @@ void main() {
         () => api.createThread(any()),
       ).thenAnswer((_) async => (_threadInfo(), <String, dynamic>{}));
       when(() => api.createRun(any(), any())).thenAnswer(
-        (_) async => RunInfo(
-          id: _runId,
-          threadId: _threadId,
-          createdAt: DateTime(2026),
-        ),
+        (_) async =>
+            RunInfo(id: _runId, threadId: _threadId, createdAt: DateTime(2026)),
       );
       when(() => api.deleteThread(any(), any())).thenAnswer((_) async {});
       when(
@@ -214,10 +202,7 @@ void main() {
       await agentApi.cancelAgent(handle);
 
       // Handle is evicted.
-      expect(
-        () => agentApi.getResult(handle),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => agentApi.getResult(handle), throwsA(isA<ArgumentError>()));
 
       await controller.close();
     });

@@ -86,7 +86,11 @@ void main() {
       print('Handles: $h1, $h2, $h3');
 
       final results = await agentApi.waitAll(
-        [h1, h2, h3],
+        [
+          h1,
+          h2,
+          h3,
+        ],
         timeout: const Duration(seconds: 90),
       );
       print('Results: $results');
@@ -127,10 +131,7 @@ void main() {
 
       // getResult should throw because the agent was cancelled.
       expect(
-        () => agentApi.getResult(
-          handle,
-          timeout: const Duration(seconds: 30),
-        ),
+        () => agentApi.getResult(handle, timeout: const Duration(seconds: 30)),
         throwsA(isA<StateError>()),
       );
     });
@@ -153,24 +154,15 @@ void main() {
     });
 
     test('getResult with unknown handle throws ArgumentError', () {
-      expect(
-        () => agentApi.getResult(9999),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => agentApi.getResult(9999), throwsA(isA<ArgumentError>()));
     });
 
     test('waitAll with unknown handle throws ArgumentError', () {
-      expect(
-        () => agentApi.waitAll([9999]),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => agentApi.waitAll([9999]), throwsA(isA<ArgumentError>()));
     });
 
     test('cancelAgent with unknown handle throws ArgumentError', () {
-      expect(
-        () => agentApi.cancelAgent(9999),
-        throwsA(isA<ArgumentError>()),
-      );
+      expect(() => agentApi.cancelAgent(9999), throwsA(isA<ArgumentError>()));
     });
   });
 }

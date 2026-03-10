@@ -150,10 +150,8 @@ class LlmPlugin extends MontyPlugin {
             ];
 
             if (_chatCompleter != null) {
-              final text = await _chatCompleter(
-                mapped,
-                systemPrompt: systemPrompt,
-              );
+              final text =
+                  await _chatCompleter(mapped, systemPrompt: systemPrompt);
               return <String, Object?>{'text': text, 'thread_id': null};
             }
 

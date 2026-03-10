@@ -4,11 +4,7 @@ import 'package:soliplex_schema/src/field_schema.dart';
 /// Parsed JSON Schema object with its field map.
 @immutable
 class ObjectSchema {
-  const ObjectSchema({
-    required this.fields,
-    this.title,
-    this.description,
-  });
+  const ObjectSchema({required this.fields, this.title, this.description});
 
   /// Fields keyed by JSON property name (snake_case).
   final Map<String, FieldSchema> fields;

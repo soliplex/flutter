@@ -255,9 +255,7 @@ class HttpRedactor {
     if (!body.contains('=')) return false;
     // Must have at least one sensitive field pattern
     final lowerBody = body.toLowerCase();
-    return _sensitiveFormFields.any(
-      (field) => lowerBody.contains('$field='),
-    );
+    return _sensitiveFormFields.any((field) => lowerBody.contains('$field='));
   }
 
   /// Redacts sensitive fields from form-urlencoded body.

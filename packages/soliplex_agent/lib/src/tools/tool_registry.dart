@@ -24,10 +24,7 @@ const Map<String, Object> emptyToolParameters = {
 @immutable
 class ClientTool {
   /// Creates a client-side tool from a pre-built [Tool] definition.
-  const ClientTool({
-    required this.definition,
-    required this.executor,
-  });
+  const ClientTool({required this.definition, required this.executor});
 
   /// Creates a client-side tool with sensible defaults.
   ///

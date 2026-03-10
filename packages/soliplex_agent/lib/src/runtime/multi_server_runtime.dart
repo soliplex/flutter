@@ -100,9 +100,7 @@ class MultiServerRuntime {
 
   /// All active sessions across all servers.
   List<AgentSession> get activeSessions {
-    return [
-      for (final runtime in _runtimes.values) ...runtime.activeSessions,
-    ];
+    return [for (final runtime in _runtimes.values) ...runtime.activeSessions];
   }
 
   /// Finds a session by [ThreadKey], routing via `serverId`.
@@ -116,9 +114,7 @@ class MultiServerRuntime {
     List<AgentSession> sessions, {
     Duration? timeout,
   }) {
-    return Future.wait(
-      sessions.map((s) => s.awaitResult(timeout: timeout)),
-    );
+    return Future.wait(sessions.map((s) => s.awaitResult(timeout: timeout)));
   }
 
   /// Returns the first result from any of the given sessions.
@@ -126,9 +122,7 @@ class MultiServerRuntime {
     List<AgentSession> sessions, {
     Duration? timeout,
   }) {
-    return Future.any(
-      sessions.map((s) => s.awaitResult(timeout: timeout)),
-    );
+    return Future.any(sessions.map((s) => s.awaitResult(timeout: timeout)));
   }
 
   /// Cancels all active sessions across all servers.

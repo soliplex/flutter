@@ -19,10 +19,7 @@ void main() {
         expect(agent.retries, equals(3));
         expect(agent.systemPrompt, equals('You are a helpful assistant.'));
         expect(agent.providerType, equals('openai'));
-        expect(
-          agent.aguiFeatureNames,
-          equals(['feature1', 'feature2']),
-        );
+        expect(agent.aguiFeatureNames, equals(['feature1', 'feature2']));
       });
 
       test('creates with defaults', () {
@@ -92,10 +89,7 @@ void main() {
           factoryName: 'my.custom.agent',
         );
 
-        expect(
-          agent.displayModelName,
-          equals('Factory: my.custom.agent'),
-        );
+        expect(agent.displayModelName, equals('Factory: my.custom.agent'));
       });
 
       test('toString includes id and factoryName', () {

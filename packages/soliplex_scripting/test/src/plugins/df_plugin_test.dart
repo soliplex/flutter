@@ -40,9 +40,7 @@ void main() {
     });
 
     test('df_create creates via DfRegistry', () async {
-      final byName = {
-        for (final f in plugin.functions) f.schema.name: f,
-      };
+      final byName = {for (final f in plugin.functions) f.schema.name: f};
 
       final result = await byName['df_create']!.handler({
         'data': <Object?>[
@@ -56,9 +54,7 @@ void main() {
     });
 
     test('df_head returns rows', () async {
-      final byName = {
-        for (final f in plugin.functions) f.schema.name: f,
-      };
+      final byName = {for (final f in plugin.functions) f.schema.name: f};
 
       final handle = (await byName['df_create']!.handler({
         'data': <Object?>[
@@ -69,10 +65,7 @@ void main() {
         'columns': null,
       }))! as int;
 
-      final rows = await byName['df_head']!.handler({
-        'handle': handle,
-        'n': 2,
-      });
+      final rows = await byName['df_head']!.handler({'handle': handle, 'n': 2});
       expect(rows, isA<List<Object?>>());
       expect((rows! as List<Object?>).length, 2);
     });

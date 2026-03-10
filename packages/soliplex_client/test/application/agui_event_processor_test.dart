@@ -280,10 +280,7 @@ void main() {
           );
           final afterStart = processEvent(conversation, streaming, startEvent);
 
-          const args1 = ToolCallArgsEvent(
-            toolCallId: 'tc-1',
-            delta: '{"q":',
-          );
+          const args1 = ToolCallArgsEvent(toolCallId: 'tc-1', delta: '{"q":');
           final afterArgs1 = processEvent(
             afterStart.conversation,
             afterStart.streaming,
@@ -321,10 +318,7 @@ void main() {
             endEvent,
           );
 
-          expect(
-            result.conversation.toolCalls.first.arguments,
-            isEmpty,
-          );
+          expect(result.conversation.toolCalls.first.arguments, isEmpty);
         });
 
         test('args for non-existent toolCallId are ignored', () {
@@ -345,10 +339,7 @@ void main() {
           );
 
           // tc-1's arguments remain empty
-          expect(
-            result.conversation.toolCalls.first.arguments,
-            isEmpty,
-          );
+          expect(result.conversation.toolCalls.first.arguments, isEmpty);
         });
 
         test('args after ToolCallEnd are ignored (status guard)', () {
@@ -532,60 +523,42 @@ void main() {
             toolCallId: 'tc-a',
             delta: '{"q":"alice"}',
           );
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            argsA,
-          );
+          result = processEvent(result.conversation, result.streaming, argsA);
 
           // End tool A
           const endA = ToolCallEndEvent(toolCallId: 'tc-a');
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            endA,
-          );
+          result = processEvent(result.conversation, result.streaming, endA);
 
           // Start tool B
           const startB = ToolCallStartEvent(
             toolCallId: 'tc-b',
             toolCallName: 'summarize',
           );
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            startB,
-          );
+          result = processEvent(result.conversation, result.streaming, startB);
 
           // Args for tool B
           const argsB = ToolCallArgsEvent(
             toolCallId: 'tc-b',
             delta: '{"text":"hello"}',
           );
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            argsB,
-          );
+          result = processEvent(result.conversation, result.streaming, argsB);
 
           // End tool B
           const endB = ToolCallEndEvent(toolCallId: 'tc-b');
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            endB,
-          );
+          result = processEvent(result.conversation, result.streaming, endB);
 
           // Both tools present, both pending, correct args
           expect(result.conversation.toolCalls, hasLength(2));
 
-          final toolA =
-              result.conversation.toolCalls.firstWhere((tc) => tc.id == 'tc-a');
+          final toolA = result.conversation.toolCalls.firstWhere(
+            (tc) => tc.id == 'tc-a',
+          );
           expect(toolA.status, equals(ToolCallStatus.pending));
           expect(toolA.arguments, equals('{"q":"alice"}'));
 
-          final toolB =
-              result.conversation.toolCalls.firstWhere((tc) => tc.id == 'tc-b');
+          final toolB = result.conversation.toolCalls.firstWhere(
+            (tc) => tc.id == 'tc-b',
+          );
           expect(toolB.status, equals(ToolCallStatus.pending));
           expect(toolB.arguments, equals('{"text":"hello"}'));
         });
@@ -721,11 +694,7 @@ void main() {
 
           // End text
           const textEnd = TextMessageEndEvent(messageId: 'msg-1');
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            textEnd,
-          );
+          result = processEvent(result.conversation, result.streaming, textEnd);
 
           // Then tool call
           const toolStart = ToolCallStartEvent(
@@ -749,11 +718,7 @@ void main() {
           );
 
           const toolEnd = ToolCallEndEvent(toolCallId: 'tc-1');
-          result = processEvent(
-            result.conversation,
-            result.streaming,
-            toolEnd,
-          );
+          result = processEvent(result.conversation, result.streaming, toolEnd);
 
           // Both text message and tool call present
           expect(result.conversation.messages, hasLength(1));
@@ -867,21 +832,23 @@ void main() {
         },
       );
 
-      test('TextMessageEndEvent preserves thinkingText in finalized message',
-          () {
-        const streamingState = app_streaming.TextStreaming(
-          messageId: 'msg-1',
-          user: _defaultUser,
-          text: 'Response',
-          thinkingText: 'My reasoning',
-        );
-        const event = TextMessageEndEvent(messageId: 'msg-1');
+      test(
+        'TextMessageEndEvent preserves thinkingText in finalized message',
+        () {
+          const streamingState = app_streaming.TextStreaming(
+            messageId: 'msg-1',
+            user: _defaultUser,
+            text: 'Response',
+            thinkingText: 'My reasoning',
+          );
+          const event = TextMessageEndEvent(messageId: 'msg-1');
 
-        final result = processEvent(conversation, streamingState, event);
+          final result = processEvent(conversation, streamingState, event);
 
-        final message = result.conversation.messages.first as TextMessage;
-        expect(message.thinkingText, equals('My reasoning'));
-      });
+          final message = result.conversation.messages.first as TextMessage;
+          expect(message.thinkingText, equals('My reasoning'));
+        },
+      );
     });
 
     group('state events', () {

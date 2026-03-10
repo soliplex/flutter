@@ -39,10 +39,8 @@ class ChatFnLlmProvider implements AgentLlmProvider {
   /// [chatFn] is the LLM chat callback.
   /// [systemPrompt] is an optional base system prompt prepended to
   /// the tool instructions.
-  ChatFnLlmProvider({
-    required ChatFn chatFn,
-    this.systemPrompt,
-  }) : _chatFn = chatFn;
+  ChatFnLlmProvider({required ChatFn chatFn, this.systemPrompt})
+      : _chatFn = chatFn;
 
   final ChatFn _chatFn;
 
@@ -78,10 +76,7 @@ class ChatFnLlmProvider implements AgentLlmProvider {
 
       if (cancelToken?.isCancelled ?? false) return;
 
-      final response = await _chatFn(
-        messages,
-        systemPrompt: fullSystemPrompt,
-      );
+      final response = await _chatFn(messages, systemPrompt: fullSystemPrompt);
 
       if (cancelToken?.isCancelled ?? false) return;
 
@@ -193,9 +188,7 @@ class ChatFnLlmProvider implements AgentLlmProvider {
           'When you need to use a tool, respond with EXACTLY this format:',
         )
         ..writeln('```tool_call')
-        ..writeln(
-          '{"name": "tool_name", "arguments": {"param1": "value"}}',
-        )
+        ..writeln('{"name": "tool_name", "arguments": {"param1": "value"}}')
         ..writeln('```')
         ..writeln()
         ..writeln(

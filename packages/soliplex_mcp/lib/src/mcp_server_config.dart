@@ -20,9 +20,8 @@ class McpServerConfig {
   })  : kind = McpTransportKind.stdio,
         url = null;
 
-  const McpServerConfig.http({
-    required String this.url,
-  })  : kind = McpTransportKind.http,
+  const McpServerConfig.http({required String this.url})
+      : kind = McpTransportKind.http,
         command = null,
         args = const [],
         workingDirectory = null,

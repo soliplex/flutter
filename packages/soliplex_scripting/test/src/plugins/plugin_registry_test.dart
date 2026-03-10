@@ -91,11 +91,7 @@ void main() {
       test('still enforces prefix on non-legacy names', () {
         expect(
           () => registry.register(
-            _LegacyPlugin(
-              'platform',
-              ['host_invoke', 'oops'],
-              {'host_invoke'},
-            ),
+            _LegacyPlugin('platform', ['host_invoke', 'oops'], {'host_invoke'}),
           ),
           throwsA(isA<ArgumentError>()),
         );
@@ -220,10 +216,8 @@ class _LifecyclePlugin extends MontyPlugin {
   @override
   List<HostFunction> get functions => [
         HostFunction(
-          schema: HostFunctionSchema(
-            name: '${_namespace}_fn',
-            description: 'test',
-          ),
+          schema:
+              HostFunctionSchema(name: '${_namespace}_fn', description: 'test'),
           handler: (args) async => null,
         ),
       ];

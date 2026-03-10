@@ -32,10 +32,7 @@ void main() {
     test('add duplicate throws StateError', () {
       registry.add(_fakeConnection('srv-1'));
 
-      expect(
-        () => registry.add(_fakeConnection('srv-1')),
-        throwsStateError,
-      );
+      expect(() => registry.add(_fakeConnection('srv-1')), throwsStateError);
     });
 
     test('remove returns connection', () {

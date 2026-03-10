@@ -3,23 +3,13 @@ import 'package:test/test.dart';
 
 void main() {
   group('ChatFnLlmProvider', () {
-    const key = (
-      serverId: 'local',
-      roomId: 'test-room',
-      threadId: 'thread-1',
-    );
+    const key = (serverId: 'local', roomId: 'test-room', threadId: 'thread-1');
 
-    SimpleRunAgentInput input0({
-      List<Message>? messages,
-      List<Tool>? tools,
-    }) {
+    SimpleRunAgentInput input0({List<Message>? messages, List<Tool>? tools}) {
       return SimpleRunAgentInput(
         threadId: key.threadId,
         runId: 'run-1',
-        messages: messages ??
-            [
-              const UserMessage(id: 'u1', content: 'Hello'),
-            ],
+        messages: messages ?? [const UserMessage(id: 'u1', content: 'Hello')],
         tools: tools,
       );
     }
@@ -82,10 +72,7 @@ Let me check.
       // Prefix text events.
       expect(events[1], isA<TextMessageStartEvent>());
       expect(events[2], isA<TextMessageContentEvent>());
-      expect(
-        (events[2] as TextMessageContentEvent).delta,
-        'Let me check.',
-      );
+      expect((events[2] as TextMessageContentEvent).delta, 'Let me check.');
       expect(events[3], isA<TextMessageEndEvent>());
       // Tool call events.
       expect(events[4], isA<ToolCallStartEvent>());

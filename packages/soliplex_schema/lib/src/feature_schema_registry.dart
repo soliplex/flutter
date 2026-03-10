@@ -27,10 +27,7 @@ class FeatureSchemaRegistry {
   ///   "json_schema": { ... }
   /// }
   /// ```
-  void register(
-    String roomId,
-    Map<String, Map<String, dynamic>> rawFeatures,
-  ) {
+  void register(String roomId, Map<String, Map<String, dynamic>> rawFeatures) {
     final features = <String, FeatureSchema>{};
     for (final entry in rawFeatures.entries) {
       final raw = entry.value;
@@ -41,9 +38,7 @@ class FeatureSchemaRegistry {
       features[entry.key] = FeatureSchema(
         name: raw['name'] as String? ?? entry.key,
         description: raw['description'] as String? ?? '',
-        source: FeatureSource.fromString(
-          raw['source'] as String? ?? 'EITHER',
-        ),
+        source: FeatureSource.fromString(raw['source'] as String? ?? 'EITHER'),
         objectSchema: objectSchema,
       );
     }

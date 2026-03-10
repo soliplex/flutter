@@ -874,10 +874,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await transport.requestStream(
@@ -919,10 +917,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await transport.requestStream(
@@ -971,11 +967,7 @@ void main() {
             Uri.parse('https://api.example.com/stream'),
           ),
           throwsA(
-            isA<AuthException>().having(
-              (e) => e.statusCode,
-              'statusCode',
-              401,
-            ),
+            isA<AuthException>().having((e) => e.statusCode, 'statusCode', 401),
           ),
         );
       });
@@ -1002,11 +994,7 @@ void main() {
             Uri.parse('https://api.example.com/stream'),
           ),
           throwsA(
-            isA<ApiException>().having(
-              (e) => e.statusCode,
-              'statusCode',
-              500,
-            ),
+            isA<ApiException>().having((e) => e.statusCode, 'statusCode', 500),
           ),
         );
       });
@@ -1068,10 +1056,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await transport.requestStream(
@@ -1126,10 +1112,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await transport.requestStream(
@@ -1170,10 +1154,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await transport.requestStream(
@@ -1206,10 +1188,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final token = CancelToken();

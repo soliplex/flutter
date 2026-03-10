@@ -126,12 +126,7 @@ class RunOrchestrator {
     _toolDepth = 0;
     try {
       try {
-        await _initializeStream(
-          key,
-          userMessage,
-          existingRunId,
-          cachedHistory,
-        );
+        await _initializeStream(key, userMessage, existingRunId, cachedHistory);
       } on Object catch (error, stackTrace) {
         _handleStartError(key, error, stackTrace);
         return _currentState;
@@ -448,9 +443,7 @@ class RunOrchestrator {
   void _guardNotRunning() {
     _guardNotDisposed();
     if (_runToCompletionActive) {
-      throw StateError(
-        'Cannot call startRun while runToCompletion is active',
-      );
+      throw StateError('Cannot call startRun while runToCompletion is active');
     }
     if (_currentState is RunningState || _currentState is ToolYieldingState) {
       throw StateError('A run is already active');
@@ -538,10 +531,7 @@ class RunOrchestrator {
     );
   }
 
-  SimpleRunAgentInput _buildInput(
-    ThreadKey key,
-    Conversation conversation,
-  ) {
+  SimpleRunAgentInput _buildInput(ThreadKey key, Conversation conversation) {
     final aguiMessages = convertToAgui(conversation.messages);
     return SimpleRunAgentInput(
       threadId: key.threadId,
@@ -551,10 +541,7 @@ class RunOrchestrator {
     );
   }
 
-  void _subscribeToStream(
-    Stream<BaseEvent> events,
-    RunningState initialState,
-  ) {
+  void _subscribeToStream(Stream<BaseEvent> events, RunningState initialState) {
     // Cancel stale subscription from the previous run.
     unawaited(_subscription?.cancel());
     _subscription = null;

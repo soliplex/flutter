@@ -703,23 +703,25 @@ void main() {
         expect(thread.createdAt, equals(DateTime.utc(2025, 1, 15, 10, 30)));
       });
 
-      test('extracts name and description from metadata when not at top level',
-          () {
-        final json = <String, dynamic>{
-          'thread_id': 'thread-1',
-          'room_id': 'room-1',
-          'created': '2025-01-15T10:30:00.000',
-          'metadata': {
-            'name': 'Thread from metadata',
-            'description': 'Description from metadata',
-          },
-        };
+      test(
+        'extracts name and description from metadata when not at top level',
+        () {
+          final json = <String, dynamic>{
+            'thread_id': 'thread-1',
+            'room_id': 'room-1',
+            'created': '2025-01-15T10:30:00.000',
+            'metadata': {
+              'name': 'Thread from metadata',
+              'description': 'Description from metadata',
+            },
+          };
 
-        final thread = threadInfoFromJson(json);
+          final thread = threadInfoFromJson(json);
 
-        expect(thread.name, equals('Thread from metadata'));
-        expect(thread.description, equals('Description from metadata'));
-      });
+          expect(thread.name, equals('Thread from metadata'));
+          expect(thread.description, equals('Description from metadata'));
+        },
+      );
 
       test('prefers top-level name/description over metadata', () {
         final json = <String, dynamic>{
@@ -1278,10 +1280,7 @@ void main() {
         expect(agent.id, equals('agent-1'));
         expect(agent.modelName, equals('gpt-4o'));
         expect(agent.retries, equals(3));
-        expect(
-          agent.systemPrompt,
-          equals('You are helpful.'),
-        );
+        expect(agent.systemPrompt, equals('You are helpful.'));
         expect(agent.providerType, equals('openai'));
         expect(agent.aguiFeatureNames, equals(['feature1']));
       });
@@ -1309,10 +1308,7 @@ void main() {
         expect(agent.id, equals('agent-1'));
         expect(agent.modelName, equals('gemini-2.5-flash'));
         expect(agent.retries, equals(3));
-        expect(
-          agent.systemPrompt,
-          equals('You are a friendly agent.'),
-        );
+        expect(agent.systemPrompt, equals('You are a friendly agent.'));
         expect(agent.providerType, equals('google'));
         expect(agent.aguiFeatureNames, isEmpty);
       });
@@ -1380,10 +1376,7 @@ void main() {
       });
 
       test('handles missing agent field', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 
@@ -1428,11 +1421,7 @@ void main() {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
-          'agent': {
-            'kind': 'default',
-            'id': 123,
-            'model_name': 'gpt-4o',
-          },
+          'agent': {'kind': 'default', 'id': 123, 'model_name': 'gpt-4o'},
         };
 
         final room = roomFromJson(json);
@@ -1443,10 +1432,7 @@ void main() {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
-          'agent': {
-            'kind': 'default',
-            'model_name': 'gpt-4o',
-          },
+          'agent': {'kind': 'default', 'model_name': 'gpt-4o'},
         };
 
         final room = roomFromJson(json);
@@ -1457,10 +1443,7 @@ void main() {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
-          'agent': {
-            'kind': 'default',
-            'id': 'agent-1',
-          },
+          'agent': {'kind': 'default', 'id': 'agent-1'},
         };
 
         final room = roomFromJson(json);
@@ -1471,10 +1454,7 @@ void main() {
         final json = <String, dynamic>{
           'id': 'room-1',
           'name': 'Test Room',
-          'agent': {
-            'kind': 'factory',
-            'id': 'agent-1',
-          },
+          'agent': {'kind': 'factory', 'id': 'agent-1'},
         };
 
         final room = roomFromJson(json);
@@ -1495,9 +1475,7 @@ void main() {
               'tool_requires': 'tool_config',
               'allow_mcp': true,
               'agui_feature_names': ['f1'],
-              'extra_parameters': {
-                'rag_lancedb_stem': '/data',
-              },
+              'extra_parameters': {'rag_lancedb_stem': '/data'},
             },
           },
         };
@@ -1513,17 +1491,11 @@ void main() {
         expect(tool.toolRequires, equals('tool_config'));
         expect(tool.allowMcp, isTrue);
         expect(tool.aguiFeatureNames, equals(['f1']));
-        expect(
-          tool.extraParameters,
-          equals({'rag_lancedb_stem': '/data'}),
-        );
+        expect(tool.extraParameters, equals({'rag_lancedb_stem': '/data'}));
       });
 
       test('handles missing tools field', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 
@@ -1547,14 +1519,9 @@ void main() {
           'id': 'room-1',
           'name': 'Test Room',
           'tools': {
-            'good_tool': {
-              'kind': 'search',
-              'tool_description': 'Works fine',
-            },
+            'good_tool': {'kind': 'search', 'tool_description': 'Works fine'},
             'bad_tool': 'not a map',
-            'another_good': {
-              'kind': 'rag',
-            },
+            'another_good': {'kind': 'rag'},
           },
         };
 
@@ -1576,9 +1543,7 @@ void main() {
             'my_toolset': {
               'kind': 'http',
               'allowed_tools': ['tool1', 'tool2'],
-              'toolset_params': {
-                'url': 'http://localhost:3000',
-              },
+              'toolset_params': {'url': 'http://localhost:3000'},
             },
           },
         };
@@ -1588,14 +1553,8 @@ void main() {
         expect(room.mcpClientToolsets, hasLength(1));
         final toolset = room.mcpClientToolsets['my_toolset']!;
         expect(toolset.kind, equals('http'));
-        expect(
-          toolset.allowedTools,
-          equals(['tool1', 'tool2']),
-        );
-        expect(
-          toolset.toolsetParams,
-          equals({'url': 'http://localhost:3000'}),
-        );
+        expect(toolset.allowedTools, equals(['tool1', 'tool2']));
+        expect(toolset.toolsetParams, equals({'url': 'http://localhost:3000'}));
       });
 
       test('handles null allowed_tools', () {
@@ -1637,10 +1596,7 @@ void main() {
       });
 
       test('handles missing mcp_client_toolsets field', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 
@@ -1713,17 +1669,11 @@ void main() {
 
         final room = roomFromJson(json);
 
-        expect(
-          room.aguiFeatureNames,
-          equals(['feature1', 'feature2']),
-        );
+        expect(room.aguiFeatureNames, equals(['feature1', 'feature2']));
       });
 
       test('handles missing scalar fields with defaults', () {
-        final json = <String, dynamic>{
-          'id': 'room-1',
-          'name': 'Test Room',
-        };
+        final json = <String, dynamic>{'id': 'room-1', 'name': 'Test Room'};
 
         final room = roomFromJson(json);
 

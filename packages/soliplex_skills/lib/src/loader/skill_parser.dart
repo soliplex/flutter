@@ -41,11 +41,7 @@ abstract final class SkillParser {
   static MarkdownSkill parseMarkdown(String path, String raw) {
     final (frontmatter, body) = extractFrontmatter(raw);
     final metadata = _metadataFromMap(frontmatter, path);
-    return MarkdownSkill(
-      metadata: metadata,
-      sourcePath: path,
-      content: body,
-    );
+    return MarkdownSkill(metadata: metadata, sourcePath: path, content: body);
   }
 
   /// Parses a `.py` file into a [PythonSkill].
@@ -76,17 +72,10 @@ abstract final class SkillParser {
     }
 
     final metadata = _metadataFromMap(frontmatter, path);
-    return PythonSkill(
-      metadata: metadata,
-      sourcePath: path,
-      code: code,
-    );
+    return PythonSkill(metadata: metadata, sourcePath: path, code: code);
   }
 
-  static SkillMetadata _metadataFromMap(
-    Map<String, dynamic> map,
-    String path,
-  ) {
+  static SkillMetadata _metadataFromMap(Map<String, dynamic> map, String path) {
     final metaSection = map['metadata'] is Map<String, dynamic>
         ? map['metadata'] as Map<String, dynamic>
         : const <String, dynamic>{};

@@ -11,9 +11,7 @@ class ServerRegistry {
   /// [ServerConnection.serverId].
   void add(ServerConnection connection) {
     if (_connections.containsKey(connection.serverId)) {
-      throw StateError(
-        'Server "${connection.serverId}" is already registered',
-      );
+      throw StateError('Server "${connection.serverId}" is already registered');
     }
     _connections[connection.serverId] = connection;
   }

@@ -32,9 +32,7 @@ class ToolCallResponse extends ToolCallParseResult {
 }
 
 /// Fenced code block pattern: ```tool_call\n...\n```
-final _toolCallPattern = RegExp(
-  r'```tool_call\s*\n([\s\S]*?)\n\s*```',
-);
+final _toolCallPattern = RegExp(r'```tool_call\s*\n([\s\S]*?)\n\s*```');
 
 /// Parses an LLM text response for tool call blocks.
 ///

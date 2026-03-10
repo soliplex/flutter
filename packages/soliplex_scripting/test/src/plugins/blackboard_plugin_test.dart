@@ -23,11 +23,7 @@ void main() {
       final names = plugin.functions.map((f) => f.schema.name).toSet();
       expect(
         names,
-        containsAll([
-          'blackboard_write',
-          'blackboard_read',
-          'blackboard_keys',
-        ]),
+        containsAll(['blackboard_write', 'blackboard_read', 'blackboard_keys']),
       );
     });
 

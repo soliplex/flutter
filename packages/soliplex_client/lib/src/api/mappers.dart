@@ -96,21 +96,13 @@ RoomAgent roomAgentFromJson(Map<String, dynamic> json) {
             (json['extra_config'] as Map<String, dynamic>?) ?? const {},
         aguiFeatureNames: aguiFeatureNames,
       ),
-    _ => OtherRoomAgent(
-        id: id,
-        kind: kind,
-        aguiFeatureNames: aguiFeatureNames,
-      ),
+    _ => OtherRoomAgent(id: id, kind: kind, aguiFeatureNames: aguiFeatureNames),
   };
 }
 
 /// Extracts a required string field, throwing [FormatException] if missing
 /// or not a string.
-String _requireString(
-  Map<String, dynamic> json,
-  String field,
-  String context,
-) {
+String _requireString(Map<String, dynamic> json, String field, String context) {
   final value = json[field];
   if (value is! String) {
     throw FormatException('$context JSON missing required "$field" field');
@@ -119,10 +111,7 @@ String _requireString(
 }
 
 /// Creates a [RoomTool] from JSON.
-RoomTool roomToolFromJson(
-  String name,
-  Map<String, dynamic> json,
-) {
+RoomTool roomToolFromJson(String name, Map<String, dynamic> json) {
   return RoomTool(
     name: (json['tool_name'] as String?) ?? name,
     description: (json['tool_description'] as String?) ?? '',
@@ -138,9 +127,7 @@ RoomTool roomToolFromJson(
 }
 
 /// Creates a [McpClientToolset] from JSON.
-McpClientToolset mcpClientToolsetFromJson(
-  Map<String, dynamic> json,
-) {
+McpClientToolset mcpClientToolsetFromJson(Map<String, dynamic> json) {
   final allowedToolsRaw = json['allowed_tools'] as List<dynamic>?;
   return McpClientToolset(
     kind: json['kind'] as String? ?? '',

@@ -27,11 +27,7 @@ void main() {
         required String answer,
         List<Map<String, dynamic>> citations = const [],
       }) {
-        return {
-          'question': question,
-          'answer': answer,
-          'citations': citations,
-        };
+        return {'question': question, 'answer': answer, 'citations': citations};
       }
 
       Map<String, dynamic> createCitation({
@@ -171,9 +167,7 @@ void main() {
       test('handles entry with no citations', () {
         final previous = createState();
         final current = createState(
-          qaHistory: [
-            createQaEntry(question: 'Q1', answer: 'A1'),
-          ],
+          qaHistory: [createQaEntry(question: 'Q1', answer: 'A1')],
         );
 
         final refs = extractor.extractNew(previous, current);

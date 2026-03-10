@@ -203,10 +203,7 @@ void main() {
         final conv1 = Conversation.empty(threadId: 'thread-1');
         final conv2 = conv1.withMessageState(
           'user-1',
-          MessageState(
-            userMessageId: 'user-1',
-            sourceReferences: const [],
-          ),
+          MessageState(userMessageId: 'user-1', sourceReferences: const []),
         );
         expect(conv1, isNot(equals(conv2)));
       });
@@ -262,9 +259,7 @@ void main() {
           sourceReferences: const [],
         );
 
-        final updated = conversation.copyWith(
-          messageStates: {'user-1': state},
-        );
+        final updated = conversation.copyWith(messageStates: {'user-1': state});
 
         expect(updated.messageStates, hasLength(1));
       });

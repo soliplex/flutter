@@ -209,10 +209,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await client.requestStream(
@@ -257,10 +255,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await client.requestStream(
@@ -303,10 +299,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await client.requestStream(
@@ -345,10 +339,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await client.requestStream(
@@ -433,10 +425,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await client.requestStream(

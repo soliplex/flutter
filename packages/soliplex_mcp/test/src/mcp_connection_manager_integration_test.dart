@@ -31,10 +31,7 @@ void main() {
         'brave': McpServerConfig.stdio(
           command: 'npx',
           args: const ['-y', '@brave/brave-search-mcp-server'],
-          environment: {
-            ...Platform.environment,
-            'BRAVE_API_KEY': apiKey,
-          },
+          environment: {...Platform.environment, 'BRAVE_API_KEY': apiKey},
         ),
       },
     );
@@ -54,10 +51,7 @@ void main() {
             'brave': McpServerConfig.stdio(
               command: 'npx',
               args: const ['-y', '@brave/brave-search-mcp-server'],
-              environment: {
-                ...Platform.environment,
-                'BRAVE_API_KEY': apiKey!,
-              },
+              environment: {...Platform.environment, 'BRAVE_API_KEY': apiKey!},
             ),
           },
         );
@@ -91,9 +85,7 @@ void main() {
           expect(tool['description'], isA<String>());
         }
       },
-      timeout: const Timeout(
-        Duration(seconds: 60),
-      ),
+      timeout: const Timeout(Duration(seconds: 60)),
     );
 
     test('listServers shows brave as connected after listTools', () async {
@@ -106,11 +98,9 @@ void main() {
     test(
       'executeTool brave_web_search returns results',
       () async {
-        final result = await manager.executeTool(
-          'brave',
-          'brave_web_search',
-          {'query': 'Flutter MCP integration'},
-        );
+        final result = await manager.executeTool('brave', 'brave_web_search', {
+          'query': 'Flutter MCP integration',
+        });
 
         expect(result['isError'], isFalse);
         expect(result['content'], isA<List<Object?>>());
@@ -121,9 +111,7 @@ void main() {
         final firstItem = content.first as String;
         expect(firstItem, isNotEmpty);
       },
-      timeout: const Timeout(
-        Duration(seconds: 30),
-      ),
+      timeout: const Timeout(Duration(seconds: 30)),
     );
 
     test(
@@ -143,9 +131,7 @@ void main() {
           // Some servers may throw — that's acceptable too.
         }
       },
-      timeout: const Timeout(
-        Duration(seconds: 15),
-      ),
+      timeout: const Timeout(Duration(seconds: 15)),
     );
 
     test('unknown server throws ArgumentError', () async {
@@ -164,10 +150,7 @@ void main() {
             'brave': McpServerConfig.stdio(
               command: 'npx',
               args: const ['-y', '@brave/brave-search-mcp-server'],
-              environment: {
-                ...Platform.environment,
-                'BRAVE_API_KEY': apiKey!,
-              },
+              environment: {...Platform.environment, 'BRAVE_API_KEY': apiKey!},
             ),
           },
         );
@@ -177,9 +160,7 @@ void main() {
         // Dispose should not throw.
         await disposable.dispose();
       },
-      timeout: const Timeout(
-        Duration(seconds: 60),
-      ),
+      timeout: const Timeout(Duration(seconds: 60)),
     );
   });
 }

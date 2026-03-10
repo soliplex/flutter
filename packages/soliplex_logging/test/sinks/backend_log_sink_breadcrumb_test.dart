@@ -220,9 +220,7 @@ void main() {
 
   group('deriveBreadcrumbCategory', () {
     test('returns explicit category from attributes', () {
-      final record = makeRecord(
-        attributes: {'breadcrumb_category': 'custom'},
-      );
+      final record = makeRecord(attributes: {'breadcrumb_category': 'custom'});
       expect(deriveBreadcrumbCategory(record), 'custom');
     });
 

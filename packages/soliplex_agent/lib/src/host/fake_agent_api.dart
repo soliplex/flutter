@@ -15,11 +15,7 @@ class FakeAgentApi implements AgentApi {
     AgentResult? watchResult,
   }) : watchResult = watchResult ??
             const AgentSuccess(
-              threadKey: (
-                serverId: 'fake',
-                roomId: 'fake',
-                threadId: 'fake',
-              ),
+              threadKey: (serverId: 'fake', roomId: 'fake', threadId: 'fake'),
               output: '',
               runId: 'fake-run',
             );

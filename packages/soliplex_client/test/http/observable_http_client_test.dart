@@ -273,10 +273,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -335,10 +333,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -379,10 +375,8 @@ void main() {
               body: any(named: 'body'),
             ),
           ).thenAnswer(
-            (_) async => StreamedHttpResponse(
-              statusCode: 200,
-              body: controller.stream,
-            ),
+            (_) async =>
+                StreamedHttpResponse(statusCode: 200, body: controller.stream),
           );
 
           final response = await observableClient.requestStream(
@@ -438,10 +432,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -479,53 +471,53 @@ void main() {
         await controller.close();
       });
 
-      test('emits only one onStreamEnd when error and done both fire',
-          () async {
-        final controller = StreamController<List<int>>();
+      test(
+        'emits only one onStreamEnd when error and done both fire',
+        () async {
+          final controller = StreamController<List<int>>();
 
-        when(
-          () => mockClient.requestStream(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-          ),
-        ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
-        );
+          when(
+            () => mockClient.requestStream(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+            ),
+          ).thenAnswer(
+            (_) async =>
+                StreamedHttpResponse(statusCode: 200, body: controller.stream),
+          );
 
-        final response = await observableClient.requestStream(
-          'GET',
-          Uri.parse('https://example.com/stream'),
-        );
+          final response = await observableClient.requestStream(
+            'GET',
+            Uri.parse('https://example.com/stream'),
+          );
 
-        final completer = Completer<void>();
+          final completer = Completer<void>();
 
-        response.body.listen(
-          (_) {},
-          onError: (_) {},
-          onDone: () {
-            if (!completer.isCompleted) completer.complete();
-          },
-        );
+          response.body.listen(
+            (_) {},
+            onError: (_) {},
+            onDone: () {
+              if (!completer.isCompleted) completer.complete();
+            },
+          );
 
-        controller
-          ..add('data: hello\n\n'.codeUnits)
-          ..addError(const NetworkException(message: 'Connection closed'));
-        await controller.close();
+          controller
+            ..add('data: hello\n\n'.codeUnits)
+            ..addError(const NetworkException(message: 'Connection closed'));
+          await controller.close();
 
-        await completer.future;
+          await completer.future;
 
-        final endEvents = recorder.eventsOfType<HttpStreamEndEvent>();
-        expect(
-          endEvents,
-          hasLength(1),
-          reason: 'Should emit exactly one onStreamEnd, not two',
-        );
-      });
+          final endEvents = recorder.eventsOfType<HttpStreamEndEvent>();
+          expect(
+            endEvents,
+            hasLength(1),
+            reason: 'Should emit exactly one onStreamEnd, not two',
+          );
+        },
+      );
 
       test('canceling stream emits successful onStreamEnd', () async {
         final controller = StreamController<List<int>>();
@@ -538,10 +530,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -752,10 +742,8 @@ void main() {
               body: any(named: 'body'),
             ),
           ).thenAnswer(
-            (_) async => StreamedHttpResponse(
-              statusCode: 200,
-              body: controller.stream,
-            ),
+            (_) async =>
+                StreamedHttpResponse(statusCode: 200, body: controller.stream),
           );
 
           final response = await observableClient.requestStream(
@@ -848,10 +836,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -990,10 +976,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await clientNoObservers.requestStream(
@@ -1101,10 +1085,7 @@ void main() {
         );
 
         final requestEvent = recorder.eventsOfType<HttpRequestEvent>().first;
-        expect(
-          requestEvent.uri.queryParameters['token'],
-          equals('[REDACTED]'),
-        );
+        expect(requestEvent.uri.queryParameters['token'], equals('[REDACTED]'));
         expect(requestEvent.uri.queryParameters['page'], equals('1'));
       });
 
@@ -1240,10 +1221,7 @@ void main() {
             timeout: any(named: 'timeout'),
           ),
         ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 204,
-            bodyBytes: Uint8List(0),
-          ),
+          (_) async => HttpResponse(statusCode: 204, bodyBytes: Uint8List(0)),
         );
 
         await observableClient.request(
@@ -1277,36 +1255,39 @@ void main() {
         expect(requestEvent.body, isNull);
       });
 
-      test('redacts sensitive data in non-JSON/non-text response body',
-          () async {
-        // e.g., application/octet-stream or unknown content type
-        const body = 'token=secret123&data=value';
-        when(
-          () => mockClient.request(
-            any(),
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-            timeout: any(named: 'timeout'),
-          ),
-        ).thenAnswer(
-          (_) async => HttpResponse(
-            statusCode: 200,
-            bodyBytes: Uint8List.fromList(body.codeUnits),
-            headers: const {'content-type': 'application/octet-stream'},
-          ),
-        );
+      test(
+        'redacts sensitive data in non-JSON/non-text response body',
+        () async {
+          // e.g., application/octet-stream or unknown content type
+          const body = 'token=secret123&data=value';
+          when(
+            () => mockClient.request(
+              any(),
+              any(),
+              headers: any(named: 'headers'),
+              body: any(named: 'body'),
+              timeout: any(named: 'timeout'),
+            ),
+          ).thenAnswer(
+            (_) async => HttpResponse(
+              statusCode: 200,
+              bodyBytes: Uint8List.fromList(body.codeUnits),
+              headers: const {'content-type': 'application/octet-stream'},
+            ),
+          );
 
-        await observableClient.request(
-          'GET',
-          Uri.parse('https://example.com/api'),
-        );
+          await observableClient.request(
+            'GET',
+            Uri.parse('https://example.com/api'),
+          );
 
-        final responseEvent = recorder.eventsOfType<HttpResponseEvent>().first;
-        // Should redact sensitive form fields even in unknown content types
-        expect(responseEvent.body, contains('data=value'));
-        expect(responseEvent.body, isNot(contains('secret123')));
-      });
+          final responseEvent =
+              recorder.eventsOfType<HttpResponseEvent>().first;
+          // Should redact sensitive form fields even in unknown content types
+          expect(responseEvent.body, contains('data=value'));
+          expect(responseEvent.body, isNot(contains('secret123')));
+        },
+      );
     });
 
     group('SSE stream request data', () {
@@ -1321,10 +1302,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1358,10 +1337,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1394,10 +1371,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         const jsonBody = '{"thread_id": "t1", "token": "secret"}';
@@ -1433,10 +1408,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1470,10 +1443,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1505,10 +1476,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1552,10 +1521,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1592,10 +1559,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1668,10 +1633,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(
@@ -1710,10 +1673,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final response = await observableClient.requestStream(

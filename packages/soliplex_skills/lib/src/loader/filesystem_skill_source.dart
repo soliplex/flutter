@@ -53,9 +53,7 @@ class FilesystemSkillSource implements SkillSource {
           }
         }
       } on Exception catch (e) {
-        errors.add(
-          SkillLoadException(entity.path, 'Failed to load skill', e),
-        );
+        errors.add(SkillLoadException(entity.path, 'Failed to load skill', e));
       }
     }
 

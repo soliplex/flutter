@@ -334,10 +334,7 @@ class SchemaParser {
 
   /// Resolves a `$ref` string like `#/$defs/Citation` to an
   /// [ObjectSchema].
-  ObjectSchema? _resolveRef(
-    String ref,
-    Map<String, ObjectSchema> defs,
-  ) {
+  ObjectSchema? _resolveRef(String ref, Map<String, ObjectSchema> defs) {
     // Expected format: "#/$defs/TypeName"
     final parts = ref.split('/');
     if (parts.length >= 3 && parts[1] == r'$defs') {

@@ -472,10 +472,7 @@ void main() {
     group('nested object redaction', () {
       test('redacts sensitive fields in nested objects', () {
         final body = {
-          'user': {
-            'name': 'John',
-            'password': 'secret',
-          },
+          'user': {'name': 'John', 'password': 'secret'},
         };
         final result = _redactMap(body);
         final user = result['user'] as Map<String, dynamic>;
@@ -487,9 +484,7 @@ void main() {
         final body = {
           'level1': {
             'level2': {
-              'level3': {
-                'token': 'deep-secret',
-              },
+              'level3': {'token': 'deep-secret'},
             },
           },
         };

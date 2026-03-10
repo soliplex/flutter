@@ -264,10 +264,7 @@ class BackendLogSink implements LogSink {
     // Coerce resource attributes for safe JSON encoding.
     final safeResource = _safeAttributes(resourceAttributes);
 
-    final payload = jsonEncode({
-      'logs': batch,
-      'resource': safeResource,
-    });
+    final payload = jsonEncode({'logs': batch, 'resource': safeResource});
 
     try {
       final response = await _client.post(

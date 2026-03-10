@@ -54,9 +54,8 @@ class HaikuRagChat {
             ? []
             : List<List<Citation>>.from(
                 json["citations_history"]!.map(
-                  (x) => List<Citation>.from(
-                    x.map((y) => Citation.fromJson(y)),
-                  ),
+                  (x) =>
+                      List<Citation>.from(x.map((y) => Citation.fromJson(y))),
                 ),
               ),
         documentFilter: json["document_filter"] == null

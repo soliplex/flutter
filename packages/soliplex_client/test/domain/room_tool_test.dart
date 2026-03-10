@@ -22,10 +22,7 @@ void main() {
       expect(tool.kind, equals('search'));
       expect(tool.toolRequires, equals('tool_config'));
       expect(tool.allowMcp, isTrue);
-      expect(
-        tool.extraParameters,
-        equals({'rag_lancedb_stem': '/data/rag'}),
-      );
+      expect(tool.extraParameters, equals({'rag_lancedb_stem': '/data/rag'}));
       expect(tool.aguiFeatureNames, equals(['feature1']));
     });
 

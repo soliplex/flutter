@@ -15,10 +15,7 @@ void main() {
 
     test('write does nothing when disabled', () {
       final captured = <LogRecord>[];
-      final sink = ConsoleSink(
-        enabled: false,
-        testWriter: captured.add,
-      );
+      final sink = ConsoleSink(enabled: false, testWriter: captured.add);
       final record = LogRecord(
         level: LogLevel.info,
         message: 'Test',
@@ -339,10 +336,7 @@ void main() {
         final captured = <LogRecord>[];
         final sink = ConsoleSink(testWriter: captured.add);
         final innerException = Exception('Inner error');
-        final outerException = _WrappedException(
-          'Outer error',
-          innerException,
-        );
+        final outerException = _WrappedException('Outer error', innerException);
 
         sink.write(
           LogRecord(

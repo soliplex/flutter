@@ -35,12 +35,14 @@ void main() {
     });
 
     group('citationsHistory field', () {
-      test('citationsHistory field exists and returns List<List<Citation>>?',
-          () {
-        final ragChat = HaikuRagChat();
-        final history = ragChat.citationsHistory;
-        expect(history, isNull);
-      });
+      test(
+        'citationsHistory field exists and returns List<List<Citation>>?',
+        () {
+          final ragChat = HaikuRagChat();
+          final history = ragChat.citationsHistory;
+          expect(history, isNull);
+        },
+      );
 
       test('can construct with citations history', () {
         final ragChat = HaikuRagChat(
@@ -450,10 +452,7 @@ void main() {
 
     group('JSON keys for parsing', () {
       test('required JSON keys', () {
-        final json = {
-          'answer': 'The answer',
-          'question': 'The question',
-        };
+        final json = {'answer': 'The answer', 'question': 'The question'};
 
         final qa = QaResponse.fromJson(json);
         expect(qa.answer, equals('The answer'));

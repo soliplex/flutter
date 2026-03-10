@@ -86,9 +86,7 @@ void main() {
   void stubCreateThread({String id = _threadId}) {
     when(
       () => api.createThread(any()),
-    ).thenAnswer(
-      (_) async => (_threadInfo(id: id), <String, dynamic>{}),
-    );
+    ).thenAnswer((_) async => (_threadInfo(id: id), <String, dynamic>{}));
   }
 
   void stubCreateRun() {
@@ -143,10 +141,7 @@ void main() {
       stubRunAgent(stream: controller.stream);
 
       final parent = await runtime.spawn(roomId: _roomA, prompt: 'Hello');
-      final child = await parent.spawnChild(
-        roomId: _roomA,
-        prompt: 'Sub-task',
-      );
+      final child = await parent.spawnChild(roomId: _roomA, prompt: 'Sub-task');
 
       expect(parent.children, contains(child));
 
@@ -269,11 +264,7 @@ void main() {
       stubRunAgent(stream: controller.stream);
 
       final parent = await runtime.spawn(roomId: _roomA, prompt: 'Hello');
-      await runtime.spawn(
-        roomId: _roomA,
-        prompt: 'Sub-task',
-        parent: parent,
-      );
+      await runtime.spawn(roomId: _roomA, prompt: 'Sub-task', parent: parent);
 
       controller.add(const RunStartedEvent(threadId: _threadId, runId: _runId));
       await Future<void>.delayed(Duration.zero);
@@ -318,8 +309,10 @@ void main() {
       final controller = StreamController<BaseEvent>.broadcast();
       stubRunAgent(stream: controller.stream);
 
-      final grandparent =
-          await runtime.spawn(roomId: _roomA, prompt: 'Level 0');
+      final grandparent = await runtime.spawn(
+        roomId: _roomA,
+        prompt: 'Level 0',
+      );
       final parent = await runtime.spawn(
         roomId: _roomA,
         prompt: 'Level 1',

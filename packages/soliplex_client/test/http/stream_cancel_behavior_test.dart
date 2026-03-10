@@ -104,8 +104,11 @@ void main() {
     });
 
     test('natural completion — stream ends without cancel', () async {
-      final response =
-          await postSse(naturalThreadId, naturalRunId, 'Say "hello" only.');
+      final response = await postSse(
+        naturalThreadId,
+        naturalRunId,
+        'Say "hello" only.',
+      );
 
       expect(response.statusCode, 200);
 
@@ -114,10 +117,7 @@ void main() {
       Object? streamError;
 
       await response.body
-          .listen(
-            allBytes.addAll,
-            onError: (Object e) => streamError = e,
-          )
+          .listen(allBytes.addAll, onError: (Object e) => streamError = e)
           .asFuture<void>();
 
       // Parse to verify we got events.
@@ -133,11 +133,7 @@ void main() {
 
       expect(eventTypes.map((e) => e.toUpperCase()), contains('RUN_STARTED'));
       expect(eventTypes.map((e) => e.toUpperCase()), contains('RUN_FINISHED'));
-      expect(
-        streamError,
-        isNull,
-        reason: 'Natural close should have no error',
-      );
+      expect(streamError, isNull, reason: 'Natural close should have no error');
 
       // ignore: avoid_print
       print('NATURAL CLOSE: stream completed cleanly');
@@ -146,8 +142,11 @@ void main() {
     });
 
     test('eager cancel after RunFinished — the #60 pattern', () async {
-      final response =
-          await postSse(eagerThreadId, eagerRunId, 'Say "hello" only.');
+      final response = await postSse(
+        eagerThreadId,
+        eagerRunId,
+        'Say "hello" only.',
+      );
 
       expect(response.statusCode, 200);
 

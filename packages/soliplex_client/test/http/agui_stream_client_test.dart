@@ -67,10 +67,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: sseByteStream([]),
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: sseByteStream([])),
         );
 
         await client.runAgent(endpoint, input, cancelToken: token).toList();
@@ -98,10 +96,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: sseByteStream([]),
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: sseByteStream([])),
         );
 
         await client.runAgent(endpoint, input).toList();
@@ -117,10 +113,7 @@ void main() {
         ).captured;
 
         final uri = captured.single as Uri;
-        expect(
-          uri.toString(),
-          '$baseUrl/$endpoint',
-        );
+        expect(uri.toString(), '$baseUrl/$endpoint');
       });
 
       test('sends correct headers', () async {
@@ -133,10 +126,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: sseByteStream([]),
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: sseByteStream([])),
         );
 
         await client.runAgent(endpoint, input).toList();
@@ -158,11 +149,7 @@ void main() {
 
       test('parses single SSE events into BaseEvents', () async {
         final events = [
-          {
-            'type': 'RUN_STARTED',
-            'threadId': 'thread-1',
-            'runId': 'run-1',
-          },
+          {'type': 'RUN_STARTED', 'threadId': 'thread-1', 'runId': 'run-1'},
           {
             'type': 'TEXT_MESSAGE_START',
             'messageId': 'msg-1',
@@ -173,15 +160,8 @@ void main() {
             'messageId': 'msg-1',
             'delta': 'Hello',
           },
-          {
-            'type': 'TEXT_MESSAGE_END',
-            'messageId': 'msg-1',
-          },
-          {
-            'type': 'RUN_FINISHED',
-            'threadId': 'thread-1',
-            'runId': 'run-1',
-          },
+          {'type': 'TEXT_MESSAGE_END', 'messageId': 'msg-1'},
+          {'type': 'RUN_FINISHED', 'threadId': 'thread-1', 'runId': 'run-1'},
         ];
 
         when(
@@ -205,26 +185,15 @@ void main() {
         expect(result[0], isA<RunStartedEvent>());
         expect(result[1], isA<TextMessageStartEvent>());
         expect(result[2], isA<TextMessageContentEvent>());
-        expect(
-          (result[2] as TextMessageContentEvent).delta,
-          'Hello',
-        );
+        expect((result[2] as TextMessageContentEvent).delta, 'Hello');
         expect(result[3], isA<TextMessageEndEvent>());
         expect(result[4], isA<RunFinishedEvent>());
       });
 
       test('parses batched SSE events (JSON array)', () async {
         final batch = [
-          {
-            'type': 'RUN_STARTED',
-            'threadId': 'thread-1',
-            'runId': 'run-1',
-          },
-          {
-            'type': 'RUN_FINISHED',
-            'threadId': 'thread-1',
-            'runId': 'run-1',
-          },
+          {'type': 'RUN_STARTED', 'threadId': 'thread-1', 'runId': 'run-1'},
+          {'type': 'RUN_FINISHED', 'threadId': 'thread-1', 'runId': 'run-1'},
         ];
 
         // Encode the array as a single SSE data line.
@@ -259,11 +228,13 @@ void main() {
         final sseBody = StringBuffer()
           ..writeln('data: ')
           ..writeln()
-          ..writeln('data: ${json.encode({
-                'type': 'RUN_STARTED',
-                'threadId': 't-1',
-                'runId': 'r-1',
-              })}')
+          ..writeln(
+            'data: ${json.encode({
+                  'type': 'RUN_STARTED',
+                  'threadId': 't-1',
+                  'runId': 'r-1',
+                })}',
+          )
           ..writeln();
 
         when(
@@ -318,10 +289,7 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenThrow(
-          const ApiException(
-            message: 'Internal Server Error',
-            statusCode: 500,
-          ),
+          const ApiException(message: 'Internal Server Error', statusCode: 500),
         );
 
         expect(

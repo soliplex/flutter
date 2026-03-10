@@ -30,16 +30,13 @@ void main() {
       expect(skills, hasLength(1));
       expect(skills.first, isA<MarkdownSkill>());
       expect(skills.first.metadata.name, 'greeting');
-      expect(
-        (skills.first as MarkdownSkill).content,
-        'Hello, how can I help?',
-      );
+      expect((skills.first as MarkdownSkill).content, 'Hello, how can I help?');
     });
 
     test('loads flat .py files', () async {
-      File(p.join(tempDir.path, 'hello.py')).writeAsStringSync(
-        'print("hello")',
-      );
+      File(
+        p.join(tempDir.path, 'hello.py'),
+      ).writeAsStringSync('print("hello")');
 
       final source = FilesystemSkillSource(tempDir);
       final skills = await source.loadAll();
@@ -68,9 +65,7 @@ void main() {
     });
 
     test('loads .py with sidecar .yaml', () async {
-      File(p.join(tempDir.path, 'calc.py')).writeAsStringSync(
-        'result = 1 + 2',
-      );
+      File(p.join(tempDir.path, 'calc.py')).writeAsStringSync('result = 1 + 2');
       const sidecar = 'name: calc\n'
           'description: Calculator\n'
           'metadata:\n'

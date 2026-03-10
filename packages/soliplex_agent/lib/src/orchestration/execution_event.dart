@@ -101,10 +101,7 @@ class ServerToolCallCompleted extends ExecutionEvent {
 
 /// A client-side tool execution has started.
 class ClientToolExecuting extends ExecutionEvent {
-  const ClientToolExecuting({
-    required this.toolName,
-    required this.toolCallId,
-  });
+  const ClientToolExecuting({required this.toolName, required this.toolCallId});
 
   final String toolName;
   final String toolCallId;
@@ -251,10 +248,7 @@ class AwaitingApproval extends ExecutionEvent {
 /// domain-specific progress to the UI without modifying the core
 /// sealed class hierarchy.
 class CustomExecutionEvent extends ExecutionEvent {
-  const CustomExecutionEvent({
-    required this.type,
-    required this.payload,
-  });
+  const CustomExecutionEvent({required this.type, required this.payload});
 
   /// Identifier for the event kind (e.g. `'monty.execution_started'`).
   final String type;

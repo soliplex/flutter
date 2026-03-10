@@ -73,10 +73,7 @@ class FakeHttpClient implements SoliplexHttpClient {
     Object? body,
     CancelToken? cancelToken,
   }) async {
-    return const StreamedHttpResponse(
-      statusCode: 200,
-      body: Stream.empty(),
-    );
+    return const StreamedHttpResponse(statusCode: 200, body: Stream.empty());
   }
 
   @override
@@ -384,10 +381,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final client = RefreshingHttpClient(
@@ -422,10 +417,8 @@ void main() {
             cancelToken: any(named: 'cancelToken'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final client = RefreshingHttpClient(
@@ -467,10 +460,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final client = RefreshingHttpClient(
@@ -534,10 +525,8 @@ void main() {
             body: any(named: 'body'),
           ),
         ).thenAnswer(
-          (_) async => StreamedHttpResponse(
-            statusCode: 200,
-            body: controller.stream,
-          ),
+          (_) async =>
+              StreamedHttpResponse(statusCode: 200, body: controller.stream),
         );
 
         final client = RefreshingHttpClient(

@@ -46,10 +46,7 @@ void main() {
     test('lookup throws StateError for unknown tool', () {
       const registry = ToolRegistry();
 
-      expect(
-        () => registry.lookup('nonexistent'),
-        throwsA(isA<StateError>()),
-      );
+      expect(() => registry.lookup('nonexistent'), throwsA(isA<StateError>()));
     });
 
     test('execute runs the tool executor', () async {
@@ -69,10 +66,7 @@ void main() {
       );
       const toolCall = ToolCallInfo(id: 'tc-1', name: 'test_tool');
 
-      expect(
-        () => registry.execute(toolCall, ctx),
-        throwsA(isA<Exception>()),
-      );
+      expect(() => registry.execute(toolCall, ctx), throwsA(isA<Exception>()));
     });
 
     test('toolDefinitions returns ag_ui Tool list', () {

@@ -3,23 +3,27 @@ import 'package:test/test.dart';
 
 void main() {
   group('ToolCallActivity', () {
-    test('withToolName accumulates tool names from single-tool constructor',
-        () {
-      const activity = ToolCallActivity(toolName: 'search');
+    test(
+      'withToolName accumulates tool names from single-tool constructor',
+      () {
+        const activity = ToolCallActivity(toolName: 'search');
 
-      final updated = activity.withToolName('summarize');
+        final updated = activity.withToolName('summarize');
 
-      expect(updated.allToolNames, equals({'search', 'summarize'}));
-    });
+        expect(updated.allToolNames, equals({'search', 'summarize'}));
+      },
+    );
 
-    test('withToolName accumulates tool names from multiple-tool constructor',
-        () {
-      const activity = ToolCallActivity.multiple(toolNames: {'a', 'b'});
+    test(
+      'withToolName accumulates tool names from multiple-tool constructor',
+      () {
+        const activity = ToolCallActivity.multiple(toolNames: {'a', 'b'});
 
-      final updated = activity.withToolName('c');
+        final updated = activity.withToolName('c');
 
-      expect(updated.allToolNames, equals({'a', 'b', 'c'}));
-    });
+        expect(updated.allToolNames, equals({'a', 'b', 'c'}));
+      },
+    );
 
     test('withToolName is idempotent for duplicate names', () {
       const activity = ToolCallActivity(toolName: 'search');
@@ -38,12 +42,14 @@ void main() {
   });
 
   group('AwaitingText', () {
-    test('hasThinkingContent is true when bufferedThinkingText is non-empty',
-        () {
-      const state = AwaitingText(bufferedThinkingText: 'Thinking...');
+    test(
+      'hasThinkingContent is true when bufferedThinkingText is non-empty',
+      () {
+        const state = AwaitingText(bufferedThinkingText: 'Thinking...');
 
-      expect(state.hasThinkingContent, isTrue);
-    });
+        expect(state.hasThinkingContent, isTrue);
+      },
+    );
 
     test('hasThinkingContent is true when isThinkingStreaming', () {
       const state = AwaitingText(isThinkingStreaming: true);

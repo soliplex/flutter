@@ -194,10 +194,7 @@ void main() {
       expect(record.attributes['key'], 'original');
 
       // Direct mutation of record.attributes must throw.
-      expect(
-        () => record.attributes['new'] = 'value',
-        throwsUnsupportedError,
-      );
+      expect(() => record.attributes['new'] = 'value', throwsUnsupportedError);
     });
 
     test('attributes default to empty map', () {

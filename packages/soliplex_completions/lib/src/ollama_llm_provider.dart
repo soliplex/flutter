@@ -41,10 +41,7 @@ class OllamaLlmProvider implements LlmProvider {
     return _send(mapped, maxTokens: maxTokens);
   }
 
-  Future<String> _send(
-    List<Message> messages, {
-    int? maxTokens,
-  }) async {
+  Future<String> _send(List<Message> messages, {int? maxTokens}) async {
     final response = await _client.generateChatCompletion(
       request: GenerateChatCompletionRequest(
         model: model,

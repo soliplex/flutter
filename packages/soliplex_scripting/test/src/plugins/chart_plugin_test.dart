@@ -68,10 +68,7 @@ void main() {
 
       test('chart_update rejects non-map config', () async {
         await expectLater(
-          byName['chart_update']!.handler({
-            'chart_id': 1,
-            'config': 'bad',
-          }),
+          byName['chart_update']!.handler({'chart_id': 1, 'config': 'bad'}),
           throwsA(isA<ArgumentError>()),
         );
       });

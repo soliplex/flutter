@@ -128,10 +128,7 @@ void main() {
           jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
       final logs = body['logs']! as List;
       expect(logs, hasLength(1));
-      expect(
-        (logs[0] as Map<String, Object?>)['message'],
-        'Test message',
-      );
+      expect((logs[0] as Map<String, Object?>)['message'], 'Test message');
     });
 
     test('resource attributes included in payload', () async {
@@ -175,9 +172,8 @@ void main() {
     test('HTTP 401 disables export and calls onError', () async {
       httpStatus = 401;
       String? errorMessage;
-      final sink = createSink(
-        onError: (msg, _) => errorMessage = msg,
-      )..write(makeRecord());
+      final sink = createSink(onError: (msg, _) => errorMessage = msg)
+        ..write(makeRecord());
       await sink.flush();
 
       expect(errorMessage, contains('Auth failure'));
@@ -194,9 +190,8 @@ void main() {
     test('HTTP 404 disables export permanently', () async {
       httpStatus = 404;
       String? errorMessage;
-      final sink = createSink(
-        onError: (msg, _) => errorMessage = msg,
-      )..write(makeRecord());
+      final sink = createSink(onError: (msg, _) => errorMessage = msg)
+        ..write(makeRecord());
       await sink.flush();
 
       expect(errorMessage, contains('404'));
@@ -213,28 +208,25 @@ void main() {
       await sink.close();
     });
 
-    test(
-      'post-auth: buffered pre-login logs drain on first flush',
-      () async {
-        String? jwt;
-        final sink = createSink(jwtProvider: () => jwt)
-          ..write(makeRecord(message: 'Startup'))
-          ..write(makeRecord(message: 'Session start'));
-        await sink.flush();
-        expect(capturedRequests, isEmpty);
+    test('post-auth: buffered pre-login logs drain on first flush', () async {
+      String? jwt;
+      final sink = createSink(jwtProvider: () => jwt)
+        ..write(makeRecord(message: 'Startup'))
+        ..write(makeRecord(message: 'Session start'));
+      await sink.flush();
+      expect(capturedRequests, isEmpty);
 
-        // Simulate login.
-        jwt = 'jwt-token-123';
-        await sink.flush();
+      // Simulate login.
+      jwt = 'jwt-token-123';
+      await sink.flush();
 
-        expect(capturedRequests, hasLength(1));
-        final body =
-            jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
-        final logs = body['logs']! as List;
-        expect(logs, hasLength(2));
-        await sink.close();
-      },
-    );
+      expect(capturedRequests, hasLength(1));
+      final body =
+          jsonDecode(capturedRequests.first.body) as Map<String, Object?>;
+      final logs = body['logs']! as List;
+      expect(logs, hasLength(2));
+      await sink.close();
+    });
 
     test('networkChecker false skips flush', () async {
       final sink = createSink(networkChecker: () => false)..write(makeRecord());
@@ -250,9 +242,8 @@ void main() {
       () async {
         httpStatus = 500;
         String? errorMessage;
-        final sink = createSink(
-          onError: (msg, _) => errorMessage = msg,
-        )..write(makeRecord());
+        final sink = createSink(onError: (msg, _) => errorMessage = msg)
+          ..write(makeRecord());
 
         for (var i = 0; i < 50; i++) {
           sink.backoffUntil = null;
@@ -267,9 +258,7 @@ void main() {
 
     test('attribute value safety: non-primitive coerced to string', () async {
       final sink = createSink()
-        ..write(
-          makeRecord(attributes: const {'count': 42, 'label': 'test'}),
-        );
+        ..write(makeRecord(attributes: const {'count': 42, 'label': 'test'}));
       await sink.flush();
       await sink.close();
 
@@ -518,9 +507,7 @@ void main() {
 
     test('flush catches pendingWrite errors and reports via onError', () async {
       String? errorMessage;
-      final sink = createSink(
-        onError: (msg, _) => errorMessage = msg,
-      );
+      final sink = createSink(onError: (msg, _) => errorMessage = msg);
 
       // Delete the queue directory so the next append fails.
       tempDir.deleteSync(recursive: true);
@@ -600,9 +587,8 @@ void main() {
     test('HTTP 403 disables export same as 401', () async {
       httpStatus = 403;
       String? errorMessage;
-      final sink = createSink(
-        onError: (msg, _) => errorMessage = msg,
-      )..write(makeRecord());
+      final sink = createSink(onError: (msg, _) => errorMessage = msg)
+        ..write(makeRecord());
       await sink.flush();
 
       expect(errorMessage, contains('Auth failure'));
@@ -701,9 +687,8 @@ void main() {
     test('HTTP 400 discards batch immediately (non-retryable)', () async {
       httpStatus = 400;
       String? errorMessage;
-      final sink = createSink(
-        onError: (msg, _) => errorMessage = msg,
-      )..write(makeRecord());
+      final sink = createSink(onError: (msg, _) => errorMessage = msg)
+        ..write(makeRecord());
       await sink.flush();
 
       // Batch should be confirmed (discarded), not retried.
@@ -718,9 +703,8 @@ void main() {
     test('HTTP 413 discards batch immediately (non-retryable)', () async {
       httpStatus = 413;
       String? errorMessage;
-      final sink = createSink(
-        onError: (msg, _) => errorMessage = msg,
-      )..write(makeRecord());
+      final sink = createSink(onError: (msg, _) => errorMessage = msg)
+        ..write(makeRecord());
       await sink.flush();
 
       expect(await diskQueue.pendingCount, 0);
@@ -729,47 +713,47 @@ void main() {
       await sink.close();
     });
 
-    test('pending-write failure does not prevent flushing persisted logs',
-        () async {
-      // Pre-persist a record, then break the directory before writing another.
-      final sink = createSink()..write(makeRecord(message: 'Persisted'));
-      // Wait for the first append to complete.
-      await sink.flush();
-      expect(capturedRequests, hasLength(1));
-      expect(await diskQueue.pendingCount, 0);
+    test(
+      'pending-write failure does not prevent flushing persisted logs',
+      () async {
+        // Pre-persist a record, then break the directory
+        // before writing another.
+        final sink = createSink()..write(makeRecord(message: 'Persisted'));
+        // Wait for the first append to complete.
+        await sink.flush();
+        expect(capturedRequests, hasLength(1));
+        expect(await diskQueue.pendingCount, 0);
 
-      // Write a second record that will persist, then break dir for third.
-      sink.write(makeRecord(message: 'Also persisted'));
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        // Write a second record that will persist, then break dir for third.
+        sink.write(makeRecord(message: 'Also persisted'));
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      // Break directory so the next append fails.
-      final brokenDir = Directory('${tempDir.path}/nonexistent_subdir');
-      final brokenQueue = PlatformDiskQueue(directoryPath: brokenDir.path);
-      final errorMessages = <String>[];
-      final brokenSink = BackendLogSink(
-        endpoint: 'https://api.example.com/logs',
-        client: mockClient,
-        installId: 'i',
-        sessionId: 's',
-        diskQueue: brokenQueue,
-        flushInterval: const Duration(hours: 1),
-        onError: (msg, _) => errorMessages.add(msg),
-      );
+        // Break directory so the next append fails.
+        final brokenDir = Directory('${tempDir.path}/nonexistent_subdir');
+        final brokenQueue = PlatformDiskQueue(directoryPath: brokenDir.path);
+        final errorMessages = <String>[];
+        final brokenSink = BackendLogSink(
+          endpoint: 'https://api.example.com/logs',
+          client: mockClient,
+          installId: 'i',
+          sessionId: 's',
+          diskQueue: brokenQueue,
+          flushInterval: const Duration(hours: 1),
+          onError: (msg, _) => errorMessages.add(msg),
+        );
 
-      // Write succeeds to disk, then delete the dir before next write.
-      brokenQueue.appendSync({'message': 'on-disk'});
-      brokenDir.deleteSync(recursive: true);
-      brokenSink.write(makeRecord(message: 'will-fail'));
+        // Write succeeds to disk, then delete the dir before next write.
+        brokenQueue.appendSync({'message': 'on-disk'});
+        brokenDir.deleteSync(recursive: true);
+        brokenSink.write(makeRecord(message: 'will-fail'));
 
-      // flush should still send the on-disk record.
-      await brokenSink.flush();
-      expect(
-        errorMessages,
-        anyElement(contains('Pending write error')),
-      );
-      await sink.close();
-      await brokenQueue.close();
-    });
+        // flush should still send the on-disk record.
+        await brokenSink.flush();
+        expect(errorMessages, anyElement(contains('Pending write error')));
+        await sink.close();
+        await brokenQueue.close();
+      },
+    );
 
     test(
       'truncation safety net produces placeholder for untrunactable record',
@@ -864,10 +848,7 @@ void main() {
           .encode(
             jsonEncode({
               'logs': <Object>[],
-              'resource': {
-                'service.name': 'test',
-                'service.version': '1.0.0',
-              },
+              'resource': {'service.name': 'test', 'service.version': '1.0.0'},
             }),
           )
           .length;
@@ -883,8 +864,9 @@ void main() {
       capturedRequests.clear();
 
       // Need a fresh DiskQueue for the real test since probeSink closed ours.
-      final tempDir2 =
-          Directory.systemTemp.createTempSync('backend_sink_comma_');
+      final tempDir2 = Directory.systemTemp.createTempSync(
+        'backend_sink_comma_',
+      );
       final diskQueue2 = PlatformDiskQueue(directoryPath: tempDir2.path);
 
       // Set limit so 2 records fit without comma but not with:
@@ -996,9 +978,7 @@ void main() {
 
       test('error-level logs bypass gate via force flush', () async {
         final sink = createSink(flushGate: () => false)
-          ..write(
-            makeRecord(level: LogLevel.error, message: 'Error!'),
-          );
+          ..write(makeRecord(level: LogLevel.error, message: 'Error!'));
 
         // Give the unawaited flush a moment.
         await Future<void>.delayed(const Duration(milliseconds: 50));

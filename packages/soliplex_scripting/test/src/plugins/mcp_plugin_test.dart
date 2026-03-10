@@ -51,11 +51,7 @@ void main() {
       final names = bridge.registered.map((f) => f.schema.name).toSet();
       expect(
         names,
-        containsAll([
-          'mcp_call_tool',
-          'mcp_list_tools',
-          'mcp_list_servers',
-        ]),
+        containsAll(['mcp_call_tool', 'mcp_list_tools', 'mcp_list_servers']),
       );
     });
 

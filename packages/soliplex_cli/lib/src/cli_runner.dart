@@ -679,18 +679,17 @@ String _short(String id) => id.length > 12 ? '${id.substring(0, 12)}...' : id;
 ///
 /// Returns `null` and prints an error if configuration is invalid
 /// (e.g. missing API key for Anthropic/OpenAI).
-LlmProvider? _createLlmProvider({
-  required String providerName,
-  String? model,
-}) {
+LlmProvider? _createLlmProvider({required String providerName, String? model}) {
   switch (providerName) {
     case 'ollama':
       return OllamaLlmProvider(model: model ?? 'qwen3:8b');
     case 'anthropic':
       final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
       if (apiKey == null || apiKey.isEmpty) {
-        stderr.writeln('Error: ANTHROPIC_API_KEY environment variable required '
-            'for --llm-provider anthropic');
+        stderr.writeln(
+          'Error: ANTHROPIC_API_KEY environment variable required '
+          'for --llm-provider anthropic',
+        );
         return null;
       }
       return AnthropicLlmProvider(
@@ -700,14 +699,13 @@ LlmProvider? _createLlmProvider({
     case 'openai':
       final apiKey = Platform.environment['OPENAI_API_KEY'];
       if (apiKey == null || apiKey.isEmpty) {
-        stderr.writeln('Error: OPENAI_API_KEY environment variable required '
-            'for --llm-provider openai');
+        stderr.writeln(
+          'Error: OPENAI_API_KEY environment variable required '
+          'for --llm-provider openai',
+        );
         return null;
       }
-      return OpenAiLlmProvider(
-        apiKey: apiKey,
-        model: model ?? 'gpt-4o',
-      );
+      return OpenAiLlmProvider(apiKey: apiKey, model: model ?? 'gpt-4o');
     default:
       stderr.writeln('Unknown LLM provider: $providerName');
       return null;

@@ -13,19 +13,18 @@ void main() {
 
       expect(config.kind, McpTransportKind.stdio);
       expect(config.command, 'npx');
-      expect(
-        config.args,
-        ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
-      );
+      expect(config.args, [
+        '-y',
+        '@modelcontextprotocol/server-filesystem',
+        '/tmp',
+      ]);
       expect(config.workingDirectory, '/home/user');
       expect(config.environment, {'DEBUG': 'true'});
       expect(config.url, isNull);
     });
 
     test('http constructor sets correct fields', () {
-      const config = McpServerConfig.http(
-        url: 'http://localhost:3000/mcp',
-      );
+      const config = McpServerConfig.http(url: 'http://localhost:3000/mcp');
 
       expect(config.kind, McpTransportKind.http);
       expect(config.url, 'http://localhost:3000/mcp');

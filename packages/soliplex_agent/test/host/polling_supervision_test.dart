@@ -152,18 +152,12 @@ void main() {
       final r2 = await agent.getResult(h2);
       await blackboard.write('price', r1);
       await blackboard.write('volume', r2);
-      await blackboard.write(
-        'summary',
-        'Price: $r1, Volume: $r2',
-      );
+      await blackboard.write('summary', 'Price: $r1, Volume: $r2');
 
       // Verify blackboard state.
       expect(blackboard.store['price'], '42.50');
       expect(blackboard.store['volume'], '1000000');
-      expect(
-        blackboard.store['summary'],
-        'Price: 42.50, Volume: 1000000',
-      );
+      expect(blackboard.store['summary'], 'Price: 42.50, Volume: 1000000');
       expect(await blackboard.keys(), hasLength(3));
     });
 
@@ -346,10 +340,7 @@ void main() {
         final h = await agent.spawnAgent('chat', 'worker-$i');
         handles.add(h);
         // Workers complete after 1..5 poll cycles.
-        final statuses = [
-          ...List.filled(i + 1, 'running'),
-          'completed',
-        ];
+        final statuses = [...List.filled(i + 1, 'running'), 'completed'];
         agent
           ..setStatusSequence(h, statuses)
           ..setResult(h, 'output-$i');
@@ -370,10 +361,13 @@ void main() {
 
       // Write aggregated result.
       await blackboard.write('all_outputs', outputs);
-      expect(
-        blackboard.store['all_outputs'],
-        ['output-0', 'output-1', 'output-2', 'output-3', 'output-4'],
-      );
+      expect(blackboard.store['all_outputs'], [
+        'output-0',
+        'output-1',
+        'output-2',
+        'output-3',
+        'output-4',
+      ]);
     });
   });
 
@@ -399,14 +393,14 @@ void main() {
 
       // Simulate sub-supervisor running for a few cycles then completing.
       agent
-        ..setStatusSequence(
-          subSupervisor,
-          ['spawning', 'running', 'running', 'running', 'completed'],
-        )
-        ..setResult(
-          subSupervisor,
-          'sub-supervisor aggregated: A=10, B=20',
-        );
+        ..setStatusSequence(subSupervisor, [
+          'spawning',
+          'running',
+          'running',
+          'running',
+          'completed',
+        ])
+        ..setResult(subSupervisor, 'sub-supervisor aggregated: A=10, B=20');
 
       // L1: poll sub-supervisor.
       final status = await pollUntilDone(agent, subSupervisor);

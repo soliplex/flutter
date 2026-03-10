@@ -377,7 +377,10 @@ void main() {
       final s2 = await runtime.spawn(roomId: roomId, prompt: 'Say "beta".');
 
       final results = await runtime.waitAll(
-        [s1, s2],
+        [
+          s1,
+          s2,
+        ],
         timeout: const Duration(seconds: 60),
       );
 

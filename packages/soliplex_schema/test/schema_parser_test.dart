@@ -156,10 +156,7 @@ void main() {
           'SessionContext': {
             'type': 'object',
             'properties': {
-              'summary': {
-                'default': '',
-                'type': 'string',
-              },
+              'summary': {'default': '', 'type': 'string'},
             },
           },
         },
@@ -269,25 +266,16 @@ void main() {
       // citations: array of Citation objects
       expect(schema['citations']!.type, FieldType.array);
       expect(schema['citations']!.itemSchema, isNotNull);
-      expect(
-        schema['citations']!.itemSchema!.fields,
-        hasLength(8),
-      );
+      expect(schema['citations']!.itemSchema!.fields, hasLength(8));
 
       // citations_history: array of arrays of Citations
       expect(schema['citations_history']!.type, FieldType.array);
-      expect(
-        schema['citations_history']!.nestedItemSchema,
-        isNotNull,
-      );
+      expect(schema['citations_history']!.nestedItemSchema, isNotNull);
 
       // qa_history: array of QAHistoryEntry objects
       expect(schema['qa_history']!.type, FieldType.array);
       expect(schema['qa_history']!.itemSchema, isNotNull);
-      expect(
-        schema['qa_history']!.itemSchema!['question']!.required,
-        isTrue,
-      );
+      expect(schema['qa_history']!.itemSchema!['question']!.required, isTrue);
 
       // session_context: nullable SessionContext object
       expect(schema['session_context']!.type, FieldType.object);
@@ -300,10 +288,7 @@ void main() {
 
       // citation_registry: map<string, int>
       expect(schema['citation_registry']!.type, FieldType.map);
-      expect(
-        schema['citation_registry']!.valueType,
-        FieldType.integer,
-      );
+      expect(schema['citation_registry']!.valueType, FieldType.integer);
     });
   });
 }
@@ -360,11 +345,7 @@ const _haikuRagChatSchema = <String, dynamic>{
       'properties': {
         'question': {'title': 'Question', 'type': 'string'},
         'answer': {'title': 'Answer', 'type': 'string'},
-        'confidence': {
-          'default': 0.9,
-          'title': 'Confidence',
-          'type': 'number',
-        },
+        'confidence': {'default': 0.9, 'title': 'Confidence', 'type': 'number'},
         'citations': {
           'default': <dynamic>[],
           'items': {r'$ref': r'#/$defs/Citation'},
@@ -390,11 +371,7 @@ const _haikuRagChatSchema = <String, dynamic>{
     'SessionContext': {
       'description': 'Compressed summary.',
       'properties': {
-        'summary': {
-          'default': '',
-          'title': 'Summary',
-          'type': 'string',
-        },
+        'summary': {'default': '', 'title': 'Summary', 'type': 'string'},
         'last_updated': {
           'anyOf': [
             {'format': 'date-time', 'type': 'string'},

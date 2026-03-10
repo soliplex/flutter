@@ -59,11 +59,7 @@ class AgentPlugin extends MontyPlugin with LegacyUnprefixedPlugin {
             final room = args['room']! as String;
             final prompt = args['prompt']! as String;
             final threadId = args['thread_id'] as String?;
-            return _agentApi.spawnAgent(
-              room,
-              prompt,
-              threadId: threadId,
-            );
+            return _agentApi.spawnAgent(room, prompt, threadId: threadId);
           },
         ),
         HostFunction(

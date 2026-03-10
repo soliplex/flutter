@@ -36,10 +36,7 @@ void main() {
         'brave': McpServerConfig.stdio(
           command: 'npx',
           args: const ['-y', '@brave/brave-search-mcp-server'],
-          environment: {
-            ...Platform.environment,
-            'BRAVE_API_KEY': apiKey,
-          },
+          environment: {...Platform.environment, 'BRAVE_API_KEY': apiKey},
         ),
       },
     );
@@ -78,9 +75,7 @@ void main() {
         // The summary should be a coherent sentence, not empty garbage.
         expect(summary.length, greaterThan(10));
       },
-      timeout: const Timeout(
-        Duration(seconds: 60),
-      ),
+      timeout: const Timeout(Duration(seconds: 60)),
     );
 
     test(
@@ -109,9 +104,7 @@ void main() {
           reason: 'LLM should identify brave_web_search as the web search tool',
         );
       },
-      timeout: const Timeout(
-        Duration(seconds: 60),
-      ),
+      timeout: const Timeout(Duration(seconds: 60)),
     );
   });
 }

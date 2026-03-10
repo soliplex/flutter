@@ -57,9 +57,7 @@ void main() {
       });
 
       test('sends prompt via AgentApi and returns result', () async {
-        final result = await fn.handler({
-          'prompt': 'What is 2+2?',
-        });
+        final result = await fn.handler({'prompt': 'What is 2+2?'});
 
         expect(result, 'LLM says hello');
         expect(agentApi.calls['spawnAgent']![0], 'general');
@@ -78,19 +76,13 @@ void main() {
       });
 
       test('uses custom room when provided', () async {
-        await fn.handler({
-          'prompt': 'Hello',
-          'room': 'math',
-        });
+        await fn.handler({'prompt': 'Hello', 'room': 'math'});
 
         expect(agentApi.calls['spawnAgent']![0], 'math');
       });
 
       test('uses defaultRoom when room not provided', () async {
-        final p = LlmPlugin(
-          agentApi: agentApi,
-          defaultRoom: 'custom-room',
-        );
+        final p = LlmPlugin(agentApi: agentApi, defaultRoom: 'custom-room');
         final f = p.functions.firstWhere(
           (f) => f.schema.name == 'llm_complete',
         );
@@ -131,19 +123,14 @@ void main() {
       late HostFunction fn;
 
       setUp(() {
-        fn = plugin.functions.firstWhere(
-          (f) => f.schema.name == 'llm_chat',
-        );
+        fn = plugin.functions.firstWhere((f) => f.schema.name == 'llm_chat');
       });
 
       test('sends messages via AgentApi and returns result', () async {
         final result = await fn.handler({
           'messages': <Object?>[
             <String, Object?>{'role': 'user', 'content': 'Hello'},
-            <String, Object?>{
-              'role': 'assistant',
-              'content': 'Hi there!',
-            },
+            <String, Object?>{'role': 'assistant', 'content': 'Hi there!'},
             <String, Object?>{'role': 'user', 'content': 'How are you?'},
           ],
         });

@@ -272,10 +272,7 @@ void main() {
         final byName = {for (final f in p.functions) f.schema.name: f};
 
         await expectLater(
-          byName['ask_llm']!.handler({
-            'prompt': 'slow',
-            'room': 'general',
-          }),
+          byName['ask_llm']!.handler({'prompt': 'slow', 'room': 'general'}),
           throwsA(isA<TimeoutException>()),
         );
       });

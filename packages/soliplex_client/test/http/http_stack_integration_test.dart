@@ -187,30 +187,32 @@ void main() {
       expect(caughtError, isA<NotFoundException>());
     });
 
-    test('NetworkException from platform propagates through all layers',
-        () async {
-      platform.nextRequestError = const NetworkException(
-        message: 'Connection refused',
-      );
+    test(
+      'NetworkException from platform propagates through all layers',
+      () async {
+        platform.nextRequestError = const NetworkException(
+          message: 'Connection refused',
+        );
 
-      Object? caughtError;
-      try {
-        await transport.request<void>('GET', testUri);
-      } catch (e) {
-        caughtError = e;
-      }
+        Object? caughtError;
+        try {
+          await transport.request<void>('GET', testUri);
+        } catch (e) {
+          caughtError = e;
+        }
 
-      expect(caughtError, isA<NetworkException>());
-      expect(
-        (caughtError! as NetworkException).message,
-        equals('Connection refused'),
-      );
+        expect(caughtError, isA<NetworkException>());
+        expect(
+          (caughtError! as NetworkException).message,
+          equals('Connection refused'),
+        );
 
-      // Observer should record error event
-      final errors = observer.ofType<HttpErrorEvent>();
-      expect(errors, hasLength(1));
-      expect(errors.first.exception, isA<NetworkException>());
-    });
+        // Observer should record error event
+        final errors = observer.ofType<HttpErrorEvent>();
+        expect(errors, hasLength(1));
+        expect(errors.first.exception, isA<NetworkException>());
+      },
+    );
 
     test('CancelToken cancels before request reaches platform', () async {
       final token = CancelToken()..cancel('user abort');
@@ -253,39 +255,41 @@ void main() {
       await sub.cancel();
     });
 
-    test('SSE stream data flows through observer with correct byte counts',
-        () async {
-      final controller = StreamController<List<int>>();
-      platform.nextStreamResponse = StreamedHttpResponse(
-        statusCode: 200,
-        body: controller.stream,
-      );
+    test(
+      'SSE stream data flows through observer with correct byte counts',
+      () async {
+        final controller = StreamController<List<int>>();
+        platform.nextStreamResponse = StreamedHttpResponse(
+          statusCode: 200,
+          body: controller.stream,
+        );
 
-      final response = await transport.requestStream('GET', testUri);
+        final response = await transport.requestStream('GET', testUri);
 
-      final chunks = <List<int>>[];
-      final completer = Completer<void>();
-      response.body.listen(chunks.add, onDone: completer.complete);
+        final chunks = <List<int>>[];
+        final completer = Completer<void>();
+        response.body.listen(chunks.add, onDone: completer.complete);
 
-      controller
-        ..add([1, 2, 3])
-        ..add([4, 5]);
-      await controller.close();
-      await completer.future;
+        controller
+          ..add([1, 2, 3])
+          ..add([4, 5]);
+        await controller.close();
+        await completer.future;
 
-      expect(chunks, hasLength(2));
-      expect(chunks[0], equals([1, 2, 3]));
-      expect(chunks[1], equals([4, 5]));
+        expect(chunks, hasLength(2));
+        expect(chunks[0], equals([1, 2, 3]));
+        expect(chunks[1], equals([4, 5]));
 
-      // Observer should record stream start and end
-      final starts = observer.ofType<HttpStreamStartEvent>();
-      expect(starts, hasLength(1));
+        // Observer should record stream start and end
+        final starts = observer.ofType<HttpStreamStartEvent>();
+        expect(starts, hasLength(1));
 
-      final ends = observer.ofType<HttpStreamEndEvent>();
-      expect(ends, hasLength(1));
-      expect(ends.first.isSuccess, isTrue);
-      expect(ends.first.bytesReceived, equals(5));
-    });
+        final ends = observer.ofType<HttpStreamEndEvent>();
+        expect(ends, hasLength(1));
+        expect(ends.first.isSuccess, isTrue);
+        expect(ends.first.bytesReceived, equals(5));
+      },
+    );
 
     test('SSE connection error propagates through all layers', () async {
       platform.nextStreamError = const NetworkException(
@@ -384,78 +388,83 @@ void main() {
     });
 
     test(
-        'observer receives onStreamStart and onStreamEnd for successful stream',
-        () async {
-      final controller = StreamController<List<int>>();
-      platform.nextStreamResponse = StreamedHttpResponse(
-        statusCode: 200,
-        body: controller.stream,
-      );
+      'observer receives onStreamStart and onStreamEnd for successful stream',
+      () async {
+        final controller = StreamController<List<int>>();
+        platform.nextStreamResponse = StreamedHttpResponse(
+          statusCode: 200,
+          body: controller.stream,
+        );
 
-      final response = await transport.requestStream('GET', testUri);
+        final response = await transport.requestStream('GET', testUri);
 
-      final completer = Completer<void>();
-      response.body.listen((_) {}, onDone: completer.complete);
+        final completer = Completer<void>();
+        response.body.listen((_) {}, onDone: completer.complete);
 
-      controller.add([1, 2, 3]);
-      await controller.close();
-      await completer.future;
+        controller.add([1, 2, 3]);
+        await controller.close();
+        await completer.future;
 
-      final starts = observer.ofType<HttpStreamStartEvent>();
-      expect(starts, hasLength(1));
-      expect(starts.first.method, equals('GET'));
-      expect(starts.first.uri, equals(testUri));
+        final starts = observer.ofType<HttpStreamStartEvent>();
+        expect(starts, hasLength(1));
+        expect(starts.first.method, equals('GET'));
+        expect(starts.first.uri, equals(testUri));
 
-      final ends = observer.ofType<HttpStreamEndEvent>();
-      expect(ends, hasLength(1));
-      expect(ends.first.isSuccess, isTrue);
-    });
+        final ends = observer.ofType<HttpStreamEndEvent>();
+        expect(ends, hasLength(1));
+        expect(ends.first.isSuccess, isTrue);
+      },
+    );
 
-    test('observer sees stream start but no end for connection error',
-        () async {
-      platform.nextStreamError = const NetworkException(
-        message: 'Stream setup failed',
-      );
+    test(
+      'observer sees stream start but no end for connection error',
+      () async {
+        platform.nextStreamError = const NetworkException(
+          message: 'Stream setup failed',
+        );
 
-      try {
-        await transport.requestStream('GET', testUri);
-      } catch (_) {}
+        try {
+          await transport.requestStream('GET', testUri);
+        } catch (_) {}
 
-      // Connection errors occur during await of requestStream,
-      // after onStreamStart but before the body stream is wrapped.
-      // No onStreamEnd is emitted in this case.
-      final starts = observer.ofType<HttpStreamStartEvent>();
-      expect(starts, hasLength(1));
+        // Connection errors occur during await of requestStream,
+        // after onStreamStart but before the body stream is wrapped.
+        // No onStreamEnd is emitted in this case.
+        final starts = observer.ofType<HttpStreamStartEvent>();
+        expect(starts, hasLength(1));
 
-      final ends = observer.ofType<HttpStreamEndEvent>();
-      expect(ends, isEmpty);
-    });
+        final ends = observer.ofType<HttpStreamEndEvent>();
+        expect(ends, isEmpty);
+      },
+    );
   });
 
   group('Resource cleanup', () {
-    test('cancelling stream subscription triggers observer onStreamEnd',
-        () async {
-      final controller = StreamController<List<int>>();
-      platform.nextStreamResponse = StreamedHttpResponse(
-        statusCode: 200,
-        body: controller.stream,
-      );
+    test(
+      'cancelling stream subscription triggers observer onStreamEnd',
+      () async {
+        final controller = StreamController<List<int>>();
+        platform.nextStreamResponse = StreamedHttpResponse(
+          statusCode: 200,
+          body: controller.stream,
+        );
 
-      final response = await transport.requestStream('GET', testUri);
+        final response = await transport.requestStream('GET', testUri);
 
-      final subscription = response.body.listen((_) {});
+        final subscription = response.body.listen((_) {});
 
-      controller.add([1, 2, 3]);
-      await Future<void>.delayed(Duration.zero);
+        controller.add([1, 2, 3]);
+        await Future<void>.delayed(Duration.zero);
 
-      await subscription.cancel();
-      await Future<void>.delayed(Duration.zero);
+        await subscription.cancel();
+        await Future<void>.delayed(Duration.zero);
 
-      final ends = observer.ofType<HttpStreamEndEvent>();
-      expect(ends, hasLength(1));
+        final ends = observer.ofType<HttpStreamEndEvent>();
+        expect(ends, hasLength(1));
 
-      await controller.close();
-    });
+        await controller.close();
+      },
+    );
 
     test('platform client close propagates through decorator chain', () {
       transport.close();

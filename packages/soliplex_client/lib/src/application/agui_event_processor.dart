@@ -57,16 +57,27 @@ EventProcessingResult processEvent(
       ),
 
     // Thinking events (arrive before text message)
-    ThinkingTextMessageStartEvent() =>
-      _processThinkingStart(conversation, streaming),
-    ThinkingTextMessageContentEvent(:final delta) =>
-      _processThinkingContent(conversation, streaming, delta),
-    ThinkingTextMessageEndEvent() =>
-      _processThinkingEnd(conversation, streaming),
+    ThinkingTextMessageStartEvent() => _processThinkingStart(
+        conversation,
+        streaming,
+      ),
+    ThinkingTextMessageContentEvent(:final delta) => _processThinkingContent(
+        conversation,
+        streaming,
+        delta,
+      ),
+    ThinkingTextMessageEndEvent() => _processThinkingEnd(
+        conversation,
+        streaming,
+      ),
 
     // Text message streaming events
-    TextMessageStartEvent(:final messageId, :final role) =>
-      _processTextStart(conversation, streaming, messageId, role),
+    TextMessageStartEvent(:final messageId, :final role) => _processTextStart(
+        conversation,
+        streaming,
+        messageId,
+        role,
+      ),
     TextMessageContentEvent(:final messageId, :final delta) =>
       _processTextContent(conversation, streaming, messageId, delta),
     TextMessageEndEvent(:final messageId) => _processTextEnd(
@@ -104,8 +115,12 @@ EventProcessingResult processEvent(
           streaming: newStreaming,
         );
       }(),
-    ToolCallArgsEvent(:final toolCallId, :final delta) =>
-      _processToolCallArgs(conversation, streaming, toolCallId, delta),
+    ToolCallArgsEvent(:final toolCallId, :final delta) => _processToolCallArgs(
+        conversation,
+        streaming,
+        toolCallId,
+        delta,
+      ),
     ToolCallEndEvent(:final toolCallId) => _processToolCallEnd(
         conversation,
         streaming,
@@ -348,10 +363,7 @@ EventProcessingResult _processToolCallResult(
     if (tc.id == toolCallId &&
         (tc.status == ToolCallStatus.pending ||
             tc.status == ToolCallStatus.streaming)) {
-      return tc.copyWith(
-        status: ToolCallStatus.completed,
-        result: content,
-      );
+      return tc.copyWith(status: ToolCallStatus.completed, result: content);
     }
     return tc;
   }).toList();

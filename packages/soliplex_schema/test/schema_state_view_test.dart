@@ -34,7 +34,12 @@ void main() {
 
       test('returns value when present', () {
         final view = SchemaStateView(
-          const {'name': 'test', 'count': 5, 'score': 1.5, 'active': false},
+          const {
+            'name': 'test',
+            'count': 5,
+            'score': 1.5,
+            'active': false,
+          },
           schema,
         );
 
@@ -299,18 +304,12 @@ void main() {
         expect(history[0], hasLength(1));
         expect(history[0][0].getScalar<String>('content'), 'first');
         expect(history[1], hasLength(2));
-        expect(
-          history[1][1].getScalar<String>('content'),
-          'third',
-        );
+        expect(history[1][1].getScalar<String>('content'), 'third');
       });
 
       test('returns empty list when absent', () {
         final view = SchemaStateView(const {}, schema);
-        expect(
-          view.getNestedObjectList('citations_history'),
-          isEmpty,
-        );
+        expect(view.getNestedObjectList('citations_history'), isEmpty);
       });
     });
 
@@ -361,7 +360,9 @@ void main() {
     group('raw access', () {
       test('get returns raw value', () {
         const view = SchemaStateView(
-          {'key': 'value'},
+          {
+            'key': 'value',
+          },
           ObjectSchema(fields: {}),
         );
         expect(view.get('key'), 'value');
@@ -369,17 +370,17 @@ void main() {
       });
 
       test('hasField checks presence', () {
-        const view = SchemaStateView(
-          {'key': null},
-          ObjectSchema(fields: {}),
-        );
+        const view = SchemaStateView({'key': null}, ObjectSchema(fields: {}));
         expect(view.hasField('key'), isTrue);
         expect(view.hasField('missing'), isFalse);
       });
 
       test('fieldNames returns data keys', () {
         const view = SchemaStateView(
-          {'a': 1, 'b': 2},
+          {
+            'a': 1,
+            'b': 2,
+          },
           ObjectSchema(fields: {}),
         );
         expect(view.fieldNames, containsAll(['a', 'b']));
@@ -417,24 +418,12 @@ void main() {
     test('citations list', () {
       final citations = view.getObjectList('citations');
       expect(citations, hasLength(1));
-      expect(
-        citations[0].getScalar<String>('document_id'),
-        'doc-1',
-      );
+      expect(citations[0].getScalar<String>('document_id'), 'doc-1');
       expect(citations[0].getScalar<String>('content'), 'Some text');
       expect(citations[0].getScalar<int>('index'), isNull);
-      expect(
-        citations[0].getScalar<String>('document_title'),
-        'My Doc',
-      );
-      expect(
-        citations[0].getScalarList<int>('page_numbers'),
-        [1, 2],
-      );
-      expect(
-        citations[0].getScalarList<String>('headings'),
-        ['Chapter 1'],
-      );
+      expect(citations[0].getScalar<String>('document_title'), 'My Doc');
+      expect(citations[0].getScalarList<int>('page_numbers'), [1, 2]);
+      expect(citations[0].getScalarList<String>('headings'), ['Chapter 1']);
     });
 
     test('citations length', () {
@@ -452,44 +441,29 @@ void main() {
 
       final citations = entry.getObjectList('citations');
       expect(citations, hasLength(1));
-      expect(
-        citations[0].getScalar<String>('document_id'),
-        'doc-1',
-      );
+      expect(citations[0].getScalar<String>('document_id'), 'doc-1');
     });
 
     test('session_context nullable object', () {
       final session = view.getObject('session_context');
       expect(session, isNotNull);
       expect(session!.getScalar<String>('summary'), 'A summary');
-      expect(
-        session.getScalar<String>('last_updated'),
-        '2024-01-01T00:00:00Z',
-      );
+      expect(session.getScalar<String>('last_updated'), '2024-01-01T00:00:00Z');
     });
 
     test('document_filter scalar list', () {
-      expect(
-        view.getScalarList<String>('document_filter'),
-        ['doc-1'],
-      );
+      expect(view.getScalarList<String>('document_filter'), ['doc-1']);
     });
 
     test('citation_registry map', () {
-      expect(
-        view.getMap<int>('citation_registry'),
-        {'cite-1': 0},
-      );
+      expect(view.getMap<int>('citation_registry'), {'cite-1': 0});
     });
 
     test('citations_history nested list', () {
       final history = view.getNestedObjectList('citations_history');
       expect(history, hasLength(1));
       expect(history[0], hasLength(1));
-      expect(
-        history[0][0].getScalar<String>('content'),
-        'Some text',
-      );
+      expect(history[0][0].getScalar<String>('content'), 'Some text');
     });
 
     test('absent field returns schema default', () {
@@ -497,10 +471,7 @@ void main() {
       expect(emptyView.getScalar<String>('initial_context'), isNull);
       expect(emptyView.getObjectList('citations'), isEmpty);
       expect(emptyView.getObjectList('qa_history'), isEmpty);
-      expect(
-        emptyView.getScalarList<String>('document_filter'),
-        isEmpty,
-      );
+      expect(emptyView.getScalarList<String>('document_filter'), isEmpty);
       expect(emptyView.getMap<int>('citation_registry'), isEmpty);
       expect(emptyView.getObject('session_context'), isNull);
     });

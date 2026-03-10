@@ -8,20 +8,13 @@ void main() {
   group('ThreadHistory', () {
     test('constructs with messages and aguiState', () {
       final messages = [
-        TextMessage.create(
-          id: 'm1',
-          user: ChatUser.user,
-          text: 'Hello',
-        ),
+        TextMessage.create(id: 'm1', user: ChatUser.user, text: 'Hello'),
       ];
       final aguiState = <String, dynamic>{
         'haiku.rag.chat': <String, dynamic>{'citations': <dynamic>[]},
       };
 
-      final history = ThreadHistory(
-        messages: messages,
-        aguiState: aguiState,
-      );
+      final history = ThreadHistory(messages: messages, aguiState: aguiState);
 
       expect(history.messages, equals(messages));
       expect(history.aguiState, equals(aguiState));
