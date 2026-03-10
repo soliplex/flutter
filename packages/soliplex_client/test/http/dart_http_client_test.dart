@@ -850,6 +850,83 @@ void main() {
         );
       });
 
+      test('skips drain on cancel after stream completes naturally', () async {
+        final bodyController = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final chunks = <List<int>>[];
+        final done = Completer<void>();
+        stream.listen(chunks.add, onDone: done.complete);
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        bodyController.add([1, 2, 3]);
+        await bodyController.close();
+
+        await done.future;
+
+        // Stream completed via onDone → onCancel skips drain
+        expect(
+          chunks,
+          equals([
+            [1, 2, 3],
+          ]),
+        );
+        expect(bodyController.hasListener, isFalse);
+      });
+
+      test('skips drain on cancel after stream error', () async {
+        final bodyController = StreamController<List<int>>();
+        final streamedResponse = http.StreamedResponse(
+          bodyController.stream,
+          200,
+          reasonPhrase: 'OK',
+        );
+
+        when(() => mockClient.send(any()))
+            .thenAnswer((_) async => streamedResponse);
+
+        final stream = client.requestStream(
+          'GET',
+          Uri.parse('https://example.com/sse'),
+        );
+
+        final errors = <Object>[];
+        final done = Completer<void>();
+        stream.listen(
+          (_) {},
+          onError: (Object e) {
+            errors.add(e);
+            done.complete();
+          },
+        );
+
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+
+        bodyController.addError(Exception('stream died'));
+
+        await done.future;
+
+        // Stream errored with cancelOnError → onCancel skips drain
+        expect(errors, hasLength(1));
+        expect(errors.first, isA<NetworkException>());
+        expect(bodyController.hasListener, isFalse);
+
+        await bodyController.close();
+      });
+
       test('force-cancels after timeout if server does not close', () async {
         client = DartHttpClient(
           client: mockClient,

@@ -159,6 +159,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
               try {
                 await sub.asFuture<void>().timeout(drainGracePeriod);
               } catch (_) {
+                // Timeout or stream error — force-cancel to release socket.
                 await sub.cancel();
               }
             }());
@@ -173,6 +174,7 @@ class CupertinoHttpClient implements SoliplexHttpClient {
               try {
                 await sub.asFuture<void>().timeout(drainGracePeriod);
               } catch (_) {
+                // Timeout or stream error — force-cancel to release socket.
                 await sub.cancel();
               }
             }());
@@ -223,14 +225,15 @@ class CupertinoHttpClient implements SoliplexHttpClient {
         isCancelled = true;
         if (subscription == null || upstreamTerminated) return;
 
-        // Mute data callbacks to avoid pumping into a closed controller,
+        // Mute data callbacks to avoid pumping into a cancelled controller,
         // then wait briefly for the server to close the connection.
-        // This avoids TCP RST which can poison server connection pools.
+        // This avoids TCP RST which can disrupt connection pooling.
         subscription!.onData((_) {});
         unawaited(() async {
           try {
             await subscription!.asFuture<void>().timeout(drainGracePeriod);
           } catch (_) {
+            // Timeout or stream error — force-cancel to release socket.
             await subscription!.cancel();
           }
         }());
