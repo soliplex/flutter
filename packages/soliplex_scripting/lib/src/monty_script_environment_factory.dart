@@ -98,7 +98,6 @@ ScriptEnvironmentFactory createMontyScriptEnvironmentFactory({
       isolatePlugin = IsolatePlugin(
         platformFactory: platformFactory,
         childPluginRegistryFactory: childFactory,
-        childPrelude: prelude,
       );
       isolatePlugin.functions.forEach(bridge.register);
     }
