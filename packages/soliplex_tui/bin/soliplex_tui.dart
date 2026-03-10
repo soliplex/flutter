@@ -48,6 +48,11 @@ Future<void> main(List<String> arguments) async {
       help: 'Enable Monty Python execution (wires execute_python tool).',
     )
     ..addFlag(
+      'json',
+      negatable: false,
+      help: 'Headless mode: output structured JSON instead of plain text.',
+    )
+    ..addFlag(
       'no-tools',
       negatable: false,
       help: 'Do not advertise client tools.',
@@ -85,10 +90,12 @@ Future<void> main(List<String> arguments) async {
   }
 
   final verbose = results.flag('verbose');
+  final jsonOutput = results.flag('json');
   final montyEnabled = results.flag('monty');
   final noTools = results.flag('no-tools');
   final toolsFilter = results.option('tools');
-  final enabledTools = toolsFilter?.split(',').map((s) => s.trim()).toSet();
+  final enabledTools =
+      toolsFilter?.split(',').map((s) => s.trim()).toSet();
 
   final prompts = results.multiOption('prompt');
   if (prompts.isNotEmpty) {
@@ -99,6 +106,7 @@ Future<void> main(List<String> arguments) async {
       roomId: results.option('room'),
       threadId: results.option('thread'),
       verbose: verbose,
+      json: jsonOutput,
       montyEnabled: montyEnabled,
       noTools: noTools,
       enabledTools: enabledTools,
@@ -123,6 +131,7 @@ Future<void> main(List<String> arguments) async {
       roomId: results.option('room'),
       threadId: results.option('thread'),
       verbose: verbose,
+      json: jsonOutput,
       montyEnabled: montyEnabled,
       noTools: noTools,
       enabledTools: enabledTools,

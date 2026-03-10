@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dart_monty_ffi/dart_monty_ffi.dart';
@@ -7,7 +8,7 @@ import 'package:nocterm/nocterm.dart';
 import 'package:signals_core/signals_core.dart';
 import 'package:soliplex_agent/soliplex_agent.dart';
 import 'package:soliplex_client/soliplex_client.dart'
-    show DartHttpClient, SoliplexApi;
+    show DartHttpClient, SoliplexApi, ToolCallInfo;
 import 'package:soliplex_logging/soliplex_logging.dart';
 import 'package:soliplex_scripting/soliplex_scripting.dart';
 
@@ -107,6 +108,7 @@ Future<void> runHeadless({
   String? roomId,
   String? threadId,
   bool verbose = false,
+  bool json = false,
   bool montyEnabled = false,
   bool noTools = false,
   Set<String>? enabledTools,
@@ -131,12 +133,13 @@ Future<void> runHeadless({
   AgentRuntime? runtime;
 
   try {
-    final resolvedRoomId = roomId ?? (await _resolveRoom(connection.api, null));
+    final resolvedRoomId =
+        roomId ?? (await _resolveRoom(connection.api, null));
     Loggers.app.info('Using room: $resolvedRoomId');
 
     // Resolve or create thread once — all prompts share it.
-    final resolvedThreadId =
-        threadId ?? (await connection.api.createThread(resolvedRoomId)).$1.id;
+    final resolvedThreadId = threadId ??
+        (await connection.api.createThread(resolvedRoomId)).$1.id;
 
     final toolRegistry = noTools
         ? const ToolRegistry()
@@ -155,45 +158,40 @@ Future<void> runHeadless({
 
     bindAgentApi(runtime);
 
-    for (final message in messages) {
-      if (verbose) stderr.writeln('[prompt] $message');
-
-      final session = await runtime.spawn(
+    if (json) {
+      await _runHeadlessJson(
+        runtime: runtime,
         roomId: resolvedRoomId,
-        prompt: message,
         threadId: resolvedThreadId,
+        messages: messages,
+        verbose: verbose,
       );
-
-      if (verbose) {
-        effect(() {
-          final state = session.runState.value;
-          stderr.writeln('[state] ${_describeRunState(state)}');
-        });
-      }
-
-      final result = await session.result;
-
-      switch (result) {
-        case AgentSuccess(:final output):
-          stdout.writeln(output);
-        case AgentFailure(:final error):
-          stderr.writeln('Error: $error');
-          exit(1);
-        case AgentTimedOut(:final elapsed):
-          stderr.writeln('Timed out after $elapsed');
-          exit(1);
-      }
+    } else {
+      await _runHeadlessPlain(
+        runtime: runtime,
+        roomId: resolvedRoomId,
+        threadId: resolvedThreadId,
+        messages: messages,
+        verbose: verbose,
+      );
     }
 
-    // Dispose in a guarded zone to absorb async SSE stream cleanup errors.
+    // Dispose in a guarded zone to absorb async SSE stream cleanup
+    // errors.
     await runZonedGuarded(
       () => runtime!.dispose(),
-      (e, s) => Loggers.agui.debug('Ignoring dispose error', error: e),
+      (e, s) =>
+          Loggers.agui.debug('Ignoring dispose error', error: e),
     );
     runtime = null;
   } on Exception catch (e, s) {
     Loggers.app.error('Headless fatal error', error: e, stackTrace: s);
-    stderr.writeln('Error: $e');
+    if (json) {
+      final errorEnvelope = {'status': 'error', 'error': '$e'};
+      stdout.writeln(jsonEncode(errorEnvelope));
+    } else {
+      stderr.writeln('Error: $e');
+    }
     exit(1);
   } finally {
     await runtime?.dispose();
@@ -201,6 +199,109 @@ Future<void> runHeadless({
     await LogManager.instance.close();
     await connection.close();
   }
+}
+
+/// Plain-text headless output (original behavior).
+Future<void> _runHeadlessPlain({
+  required AgentRuntime runtime,
+  required String roomId,
+  required String threadId,
+  required List<String> messages,
+  required bool verbose,
+}) async {
+  for (final message in messages) {
+    if (verbose) stderr.writeln('[prompt] $message');
+
+    final session = await runtime.spawn(
+      roomId: roomId,
+      prompt: message,
+      threadId: threadId,
+    );
+
+    if (verbose) {
+      effect(() {
+        final state = session.runState.value;
+        stderr.writeln('[state] ${_describeRunState(state)}');
+      });
+    }
+
+    final result = await session.result;
+
+    switch (result) {
+      case AgentSuccess(:final output):
+        stdout.writeln(output);
+      case AgentFailure(:final error):
+        stderr.writeln('Error: $error');
+        exit(1);
+      case AgentTimedOut(:final elapsed):
+        stderr.writeln('Timed out after $elapsed');
+        exit(1);
+    }
+  }
+}
+
+/// JSON headless output — collects tool calls, wall time, and turns.
+Future<void> _runHeadlessJson({
+  required AgentRuntime runtime,
+  required String roomId,
+  required String threadId,
+  required List<String> messages,
+  required bool verbose,
+}) async {
+  final sw = Stopwatch()..start();
+  final allToolCalls = <Map<String, dynamic>>[];
+  final errors = <String>[];
+  var turns = 0;
+  String? agentOutput;
+
+  for (final message in messages) {
+    if (verbose) stderr.writeln('[prompt] $message');
+    turns++;
+
+    final session = await runtime.spawn(
+      roomId: roomId,
+      prompt: message,
+      threadId: threadId,
+    );
+
+    // Collect tool calls as they flow through ToolYieldingState.
+    final cleanup = effect(() {
+      final state = session.runState.value;
+      if (verbose) {
+        stderr.writeln('[state] ${_describeRunState(state)}');
+      }
+      if (state is ToolYieldingState) {
+        for (final tc in state.pendingToolCalls) {
+          allToolCalls.add(_toolCallToJson(tc));
+        }
+      }
+    });
+
+    final result = await session.result;
+    cleanup();
+
+    switch (result) {
+      case AgentSuccess(:final output):
+        agentOutput = output;
+      case AgentFailure(:final error):
+        errors.add(error);
+      case AgentTimedOut(:final elapsed):
+        errors.add('Timed out after $elapsed');
+    }
+  }
+
+  sw.stop();
+
+  final envelope = <String, dynamic>{
+    'status': errors.isEmpty ? 'ok' : 'error',
+    'turns': turns,
+    'wall_time_ms': sw.elapsedMilliseconds,
+    'agent_result': agentOutput,
+    'tool_calls': allToolCalls,
+    if (errors.isNotEmpty) 'errors': errors,
+  };
+
+  stdout.writeln(jsonEncode(envelope));
 }
 
 /// Lists available rooms from the server and prints them to [stdout].
@@ -268,6 +369,13 @@ Future<String> _resolveRoom(SoliplexApi api, String? roomId) async {
   }
   return rooms.first.id;
 }
+
+/// Serializes a [ToolCallInfo] for the JSON envelope.
+Map<String, dynamic> _toolCallToJson(ToolCallInfo tc) => {
+      'id': tc.id,
+      'name': tc.name,
+      if (tc.hasArguments) 'arguments': tc.arguments,
+    };
 
 /// Formats a [RunState] as a concise string for verbose logging.
 String _describeRunState(RunState state) {
