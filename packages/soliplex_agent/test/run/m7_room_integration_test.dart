@@ -332,6 +332,78 @@ void main() {
   });
 
   // =========================================================================
+  // 4b. L2: Multi-turn accumulation via AgentRuntime.spawn()
+  // =========================================================================
+  group('4b: multi-turn via spawn() with cachedHistory', () {
+    late AgentRuntime runtime;
+
+    setUp(() {
+      runtime = harness.createRuntime(loggerName: 'm7-04b-spawn-history');
+    });
+
+    tearDown(() async {
+      await runtime.dispose();
+    });
+
+    test('2 turns via spawn + cachedHistory then recall', () async {
+      // Turn 1: spawn without history.
+      final s1 = await runtime.spawn(
+        roomId: 'accumulator',
+        prompt: 'Fact 1: Water freezes at 0°C.',
+      );
+      final r1 = await s1.awaitResult(
+        timeout: const Duration(seconds: 60),
+      );
+      expect(r1, isA<AgentSuccess>());
+      print('Turn 1 done: ${(r1 as AgentSuccess).output}');
+
+      // Build history from the CompletedState conversation.
+      final completedState1 = s1.runState.value;
+      expect(completedState1, isA<CompletedState>());
+      final history1 = ThreadHistory(
+        messages: (completedState1 as CompletedState).conversation.messages,
+      );
+
+      // Turn 2: spawn with history, same thread.
+      final s2 = await runtime.spawn(
+        roomId: 'accumulator',
+        prompt: 'Fact 2: Water boils at 100°C.',
+        threadId: s1.threadKey.threadId,
+        cachedHistory: history1,
+      );
+      final r2 = await s2.awaitResult(
+        timeout: const Duration(seconds: 60),
+      );
+      expect(r2, isA<AgentSuccess>());
+      print('Turn 2 done: ${(r2 as AgentSuccess).output}');
+
+      // Build cumulative history.
+      final completedState2 = s2.runState.value;
+      expect(completedState2, isA<CompletedState>());
+      final history2 = ThreadHistory(
+        messages: (completedState2 as CompletedState).conversation.messages,
+      );
+
+      // Turn 3: recall both facts.
+      final s3 = await runtime.spawn(
+        roomId: 'accumulator',
+        prompt: 'What are the two facts I told you?',
+        threadId: s1.threadKey.threadId,
+        cachedHistory: history2,
+      );
+      final r3 = await s3.awaitResult(
+        timeout: const Duration(seconds: 60),
+      );
+      expect(r3, isA<AgentSuccess>());
+      final response = (r3 as AgentSuccess).output.toLowerCase();
+      print('Recall response: $response');
+
+      expect(response, contains('0'));
+      expect(response, contains('100'));
+    });
+  });
+
+  // =========================================================================
   // 5. L2: Write → review → revise pipeline
   // =========================================================================
   group('5: write-review-revise pipeline', () {

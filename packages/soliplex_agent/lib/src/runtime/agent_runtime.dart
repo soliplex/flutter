@@ -12,6 +12,7 @@ import 'package:soliplex_agent/src/runtime/agent_ui_delegate.dart';
 import 'package:soliplex_agent/src/runtime/server_connection.dart';
 import 'package:soliplex_agent/src/runtime/session_extension.dart';
 import 'package:soliplex_agent/src/tools/tool_registry_resolver.dart';
+import 'package:soliplex_client/soliplex_client.dart' show ThreadHistory;
 import 'package:soliplex_logging/soliplex_logging.dart';
 
 /// Facade for spawning and coordinating multiple [AgentSession]s.
@@ -130,6 +131,7 @@ class AgentRuntime {
     bool ephemeral = false,
     bool autoDispose = true,
     AgentSession? parent,
+    ThreadHistory? cachedHistory,
   }) async {
     _guardNotDisposed();
     _guardWasmReentrancy();
@@ -146,7 +148,11 @@ class AgentRuntime {
     _trackSession(session);
     parent?.addChild(session);
     try {
-      await session.start(userMessage: prompt, existingRunId: existingRunId);
+      await session.start(
+        userMessage: prompt,
+        existingRunId: existingRunId,
+        cachedHistory: cachedHistory,
+      );
     } on Object {
       parent?.removeChild(session);
       _removeSession(session);

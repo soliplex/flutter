@@ -64,9 +64,12 @@ Future<void> main() async {
 
   // 2. Create runtime
   final runtime = AgentRuntime(
-    api: api,
-    agUiClient: agUiClient,
-    toolRegistryResolver: (_) async => ToolRegistry(),
+    connection: ServerConnection(
+      serverId: 'default',
+      api: api,
+      agUiStreamClient: agUiClient,
+    ),
+    toolRegistryResolver: (_) async => const ToolRegistry(),
     platform: const NativePlatformConstraints(),
     logger: logger,
   );
@@ -90,3 +93,34 @@ Future<void> main() async {
   await runtime.dispose();
 }
 ```
+
+### Multi-turn conversations
+
+To carry conversation history across turns, pass `cachedHistory` when
+spawning subsequent sessions. The orchestrator prepends the cached messages
+before the new user message in the AG-UI payload.
+
+```dart
+// Turn 1
+final s1 = await runtime.spawn(roomId: 'chat', prompt: 'Hi!');
+final r1 = await s1.result;
+
+// Build history from the completed conversation
+final history = ThreadHistory(
+  messages: (s1.runState.value as CompletedState).conversation.messages,
+);
+
+// Turn 2 — carries forward turn 1 context
+final s2 = await runtime.spawn(
+  roomId: 'chat',
+  prompt: 'What did I just say?',
+  threadId: s1.threadKey.threadId,
+  cachedHistory: history,
+);
+final r2 = await s2.result;
+```
+
+`ThreadHistory` is defined in `soliplex_client` and contains:
+- `messages` -- prior `ChatMessage`s in chronological order
+- `aguiState` -- AG-UI state (e.g. citation history) to restore
+- `messageStates` -- per-message metadata (sources/citations)

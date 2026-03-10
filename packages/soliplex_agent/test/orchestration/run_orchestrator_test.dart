@@ -377,6 +377,148 @@ void main() {
     });
   });
 
+  group('cachedHistory', () {
+    test('prepends cached messages before new user message', () async {
+      stubCreateRun();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final history = ThreadHistory(
+        messages: [
+          TextMessage.create(
+            id: 'prior-user',
+            user: ChatUser.user,
+            text: 'First question',
+          ),
+          TextMessage.create(
+            id: 'prior-assistant',
+            user: ChatUser.assistant,
+            text: 'First answer',
+          ),
+        ],
+      );
+
+      await orchestrator.startRun(
+        key: _key,
+        userMessage: 'Follow-up',
+        cachedHistory: history,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(orchestrator.currentState, isA<CompletedState>());
+      final completed = orchestrator.currentState as CompletedState;
+      final messages = completed.conversation.messages;
+
+      // Prior user + prior assistant + new user + streamed assistant = 4
+      expect(messages, hasLength(4));
+      expect(
+        messages[0],
+        isA<TextMessage>().having((m) => m.text, 'text', 'First question'),
+      );
+      expect(
+        messages[1],
+        isA<TextMessage>().having((m) => m.text, 'text', 'First answer'),
+      );
+      expect(
+        messages[2],
+        isA<TextMessage>().having((m) => m.text, 'text', 'Follow-up'),
+      );
+      expect(
+        messages[3],
+        isA<TextMessage>().having((m) => m.text, 'text', 'Hello'),
+      );
+    });
+
+    test('null cachedHistory produces single user message', () async {
+      stubCreateRun();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      await orchestrator.startRun(key: _key, userMessage: 'Hi');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(orchestrator.currentState, isA<CompletedState>());
+      final completed = orchestrator.currentState as CompletedState;
+      final messages = completed.conversation.messages;
+
+      // New user + streamed assistant = 2
+      expect(messages, hasLength(2));
+      expect(
+        messages.first,
+        isA<TextMessage>().having((m) => m.text, 'text', 'Hi'),
+      );
+    });
+
+    test('aguiState from cachedHistory flows to Conversation', () async {
+      stubCreateRun();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final history = ThreadHistory(
+        messages: [
+          TextMessage.create(
+            id: 'prior-user',
+            user: ChatUser.user,
+            text: 'Search',
+          ),
+        ],
+        aguiState: const {'key': 'value'},
+      );
+
+      await orchestrator.startRun(
+        key: _key,
+        userMessage: 'More',
+        cachedHistory: history,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      final completed = orchestrator.currentState as CompletedState;
+      expect(completed.conversation.aguiState, containsPair('key', 'value'));
+    });
+
+    test('cachedHistory works with runToCompletion', () async {
+      stubCreateRun();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final history = ThreadHistory(
+        messages: [
+          TextMessage.create(
+            id: 'prior-user',
+            user: ChatUser.user,
+            text: 'Turn 1',
+          ),
+          TextMessage.create(
+            id: 'prior-assistant',
+            user: ChatUser.assistant,
+            text: 'Response 1',
+          ),
+        ],
+      );
+
+      final result = await orchestrator.runToCompletion(
+        key: _key,
+        userMessage: 'Turn 2',
+        toolExecutor: (_) async => [],
+        cachedHistory: history,
+      );
+
+      expect(result, isA<CompletedState>());
+      final completed = result as CompletedState;
+      final messages = completed.conversation.messages;
+
+      expect(messages, hasLength(4));
+      expect(
+        messages[0],
+        isA<TextMessage>().having((m) => m.text, 'text', 'Turn 1'),
+      );
+      expect(
+        messages[1],
+        isA<TextMessage>().having((m) => m.text, 'text', 'Response 1'),
+      );
+      expect(
+        messages[2],
+        isA<TextMessage>().having((m) => m.text, 'text', 'Turn 2'),
+      );
+    });
+  });
+
   group('tool yielding', () {
     test('pending client tools → ToolYieldingState', () async {
       orchestrator = RunOrchestrator(

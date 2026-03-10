@@ -1109,6 +1109,201 @@ void main() {
     });
   });
 
+  group('cachedHistory', () {
+    test('threads cachedHistory to orchestrator via runAgent input', () async {
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final history = ThreadHistory(
+        messages: [
+          TextMessage.create(
+            id: 'prior-user',
+            user: ChatUser.user,
+            text: 'What color is the sky?',
+          ),
+          TextMessage.create(
+            id: 'prior-assistant',
+            user: ChatUser.assistant,
+            text: 'The sky is blue.',
+          ),
+        ],
+      );
+
+      final session = await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'And what about grass?',
+        cachedHistory: history,
+      );
+      final result = await session.result;
+
+      expect(result, isA<AgentSuccess>());
+
+      // Capture the input sent to runAgent.
+      final captured = verify(
+        () => agUiStreamClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured;
+
+      final input = captured.first as SimpleRunAgentInput;
+      final messages = input.messages!;
+      // AG-UI messages: prior-user, prior-assistant, new user message = 3
+      expect(messages, hasLength(3));
+      expect(
+        messages.first,
+        isA<UserMessage>().having(
+          (m) => m.content,
+          'content',
+          'What color is the sky?',
+        ),
+      );
+      expect(
+        messages[1],
+        isA<AssistantMessage>().having(
+          (m) => m.content,
+          'content',
+          'The sky is blue.',
+        ),
+      );
+      expect(
+        messages.last,
+        isA<UserMessage>().having(
+          (m) => m.content,
+          'content',
+          'And what about grass?',
+        ),
+      );
+    });
+
+    test('null cachedHistory sends only the new user message', () async {
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final session = await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'Hello',
+      );
+      await session.result;
+
+      final captured = verify(
+        () => agUiStreamClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured;
+
+      final input = captured.first as SimpleRunAgentInput;
+      final messages = input.messages!;
+      expect(messages, hasLength(1));
+      expect(messages.first, isA<UserMessage>());
+    });
+
+    test('aguiState from history is preserved in Conversation', () async {
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final history = ThreadHistory(
+        messages: [
+          TextMessage.create(
+            id: 'prior-user',
+            user: ChatUser.user,
+            text: 'Search for X',
+          ),
+        ],
+        aguiState: const {'citations': 'some-data'},
+      );
+
+      final session = await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'Tell me more',
+        cachedHistory: history,
+      );
+
+      // Observe the initial RunningState to inspect the Conversation.
+      Conversation? capturedConversation;
+      final sub = session.stateChanges.listen((state) {
+        if (state is RunningState && capturedConversation == null) {
+          capturedConversation = state.conversation;
+        }
+      });
+
+      await session.result;
+      await sub.cancel();
+
+      expect(capturedConversation, isNotNull);
+      expect(
+        capturedConversation!.aguiState,
+        containsPair('citations', 'some-data'),
+      );
+    });
+
+    test('cachedHistory with tool call messages converts correctly', () async {
+      stubCreateThread();
+      stubCreateRun();
+      stubDeleteThread();
+      stubRunAgent(stream: Stream.fromIterable(_happyPathEvents()));
+
+      final history = ThreadHistory(
+        messages: [
+          TextMessage.create(
+            id: 'prior-user',
+            user: ChatUser.user,
+            text: 'Get weather',
+          ),
+          ToolCallMessage.fromExecuted(
+            id: 'tool-msg-1',
+            toolCalls: const [
+              ToolCallInfo(
+                id: 'tc-prior',
+                name: 'weather',
+                arguments: '{"city":"NYC"}',
+                status: ToolCallStatus.completed,
+                result: '72°F',
+              ),
+            ],
+          ),
+          TextMessage.create(
+            id: 'prior-assistant',
+            user: ChatUser.assistant,
+            text: 'It is 72°F in NYC.',
+          ),
+        ],
+      );
+
+      final session = await runtime.spawn(
+        roomId: _roomId,
+        prompt: 'What about tomorrow?',
+        cachedHistory: history,
+      );
+      final result = await session.result;
+
+      expect(result, isA<AgentSuccess>());
+
+      final captured = verify(
+        () => agUiStreamClient.runAgent(
+          any(),
+          captureAny(),
+          cancelToken: any(named: 'cancelToken'),
+        ),
+      ).captured;
+
+      final input = captured.first as SimpleRunAgentInput;
+      final messages = input.messages!;
+      // user + assistant(toolCalls) + tool_result + assistant(text)
+      // + new user = 5
+      expect(messages.length, greaterThanOrEqualTo(4));
+    });
+  });
+
   group('Phase 1 integration', () {
     test('registry → connection → runtime → session', () async {
       final prodConn = ServerConnection(
