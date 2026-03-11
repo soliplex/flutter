@@ -273,8 +273,28 @@ class ChatMessageWidget extends StatelessWidget {
 
   void _openImage(BuildContext context, String src, String? alt) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FullscreenImageViewer(imageUrl: src, altText: alt),
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => FullscreenImageViewer(
+          caption: alt,
+          child: Image.network(
+            src,
+            errorBuilder: (_, __, ___) => const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.broken_image,
+                  color: Colors.white54,
+                  size: 64,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Failed to load image',
+                  style: TextStyle(color: Colors.white54),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

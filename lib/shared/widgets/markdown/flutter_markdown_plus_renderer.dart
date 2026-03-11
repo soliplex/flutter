@@ -53,17 +53,20 @@ class FlutterMarkdownPlusRenderer extends MarkdownRenderer {
   }
 
   Widget _buildImage(Uri uri, String? title, String? alt) {
-    return GestureDetector(
-      onTap: () => onImageTap!(uri.toString(), alt),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxHeight: 400),
-        child: Image.network(
-          uri.toString(),
-          fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(
-            Icons.broken_image,
-            size: 48,
-            color: Colors.grey,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => onImageTap!(uri.toString(), alt),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 400),
+          child: Image.network(
+            uri.toString(),
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.broken_image,
+              size: 48,
+              color: Colors.grey,
+            ),
           ),
         ),
       ),
