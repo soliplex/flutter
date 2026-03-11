@@ -1649,7 +1649,7 @@ void main() {
       // Start a run with initial state (document_filter via rag)
       final initialState = <String, dynamic>{
         'rag': {
-          'document_filter': ['Doc A', 'Doc B'],
+          'document_filter': "title IN ('Doc A', 'Doc B')",
         },
       };
 
@@ -1677,7 +1677,7 @@ void main() {
       expect(haikuChat['session_context'], isNotNull);
 
       // Client-provided document_filter should be merged in
-      expect(haikuChat['document_filter'], ['Doc A', 'Doc B']);
+      expect(haikuChat['document_filter'], "title IN ('Doc A', 'Doc B')");
     });
   });
 
