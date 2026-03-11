@@ -27,5 +27,42 @@ void main() {
         expect(doc1.hashCode, equals(doc2.hashCode));
       });
     });
+
+    group('buildDocumentFilter', () {
+      test('single title produces equality filter', () {
+        expect(
+          buildDocumentFilter(['Report']),
+          equals("title = 'Report'"),
+        );
+      });
+
+      test('multiple titles produce IN filter', () {
+        expect(
+          buildDocumentFilter(['Report', 'Summary']),
+          equals("title IN ('Report', 'Summary')"),
+        );
+      });
+
+      test('escapes single quotes in titles', () {
+        expect(
+          buildDocumentFilter(["O'Brien Report"]),
+          equals("title = 'O''Brien Report'"),
+        );
+      });
+
+      test('escapes single quotes in multiple titles', () {
+        expect(
+          buildDocumentFilter(["O'Brien", "It's a test"]),
+          equals("title IN ('O''Brien', 'It''s a test')"),
+        );
+      });
+
+      test('throws on empty list', () {
+        expect(
+          () => buildDocumentFilter([]),
+          throwsArgumentError,
+        );
+      });
+    });
   });
 }

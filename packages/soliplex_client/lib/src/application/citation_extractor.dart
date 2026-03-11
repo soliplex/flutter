@@ -29,8 +29,8 @@ Never _throwFromJsonDiagnostic(
 
 /// Extracts new [SourceReference]s by comparing AG-UI state snapshots.
 ///
-/// This is the **schema firewall**: the only file that imports schema types.
-/// When generated schema classes change, only this file needs updating.
+/// This is the **schema firewall**: the primary consumer of generated schema
+/// types. When generated schema classes change, this file needs updating.
 ///
 /// Uses length-based detection: compares `len(previous)` vs `len(current)`
 /// to find new entries at indices `[previousLength, currentLength)`.
@@ -55,13 +55,10 @@ class CitationExtractor {
     final rawCurrent = currentState['rag'];
     if (rawCurrent == null) return [];
     if (rawCurrent is! Map<String, dynamic>) {
-      developer.log(
+      throw FormatException(
         'rag state has unexpected type: ${rawCurrent.runtimeType}. '
         'Expected Map<String, dynamic>.',
-        name: 'soliplex_client.citation_extractor',
-        level: 900,
       );
-      return [];
     }
     final currentData = rawCurrent;
 
@@ -74,31 +71,33 @@ class CitationExtractor {
 
     if (currentLength <= previousLength) return [];
 
-    try {
-      // Supply defaults for fields the server may omit in STATE_DELTA events.
-      // Rag.fromJson (generated) requires searches to be non-null.
-      if (!currentData.containsKey('searches')) {
-        developer.log(
-          'rag state missing "searches" key. '
-          'Keys present: ${currentData.keys.toList()}',
-          name: 'soliplex_client.citation_extractor',
-          level: 900,
-        );
-      }
-      final normalizedData = {
-        'searches': const <String, dynamic>{},
-        ...currentData,
-      };
-      final rag = Rag.fromJson(normalizedData);
-      final qaHistory = rag.qaHistory ?? [];
+    // Supply defaults for fields the server may omit in STATE_DELTA events.
+    // Rag.fromJson (generated) requires searches to be non-null.
+    if (!currentData.containsKey('searches')) {
+      developer.log(
+        'rag state missing "searches" key. '
+        'Keys present: ${currentData.keys.toList()}',
+        name: 'soliplex_client.citation_extractor',
+        level: 900,
+      );
+    }
+    final normalizedData = {
+      'searches': const <String, dynamic>{},
+      ...currentData,
+    };
 
-      return qaHistory
-          .sublist(previousLength)
-          .expand(_extractFromQaHistoryEntry)
-          .toList();
+    final Rag rag;
+    try {
+      rag = Rag.fromJson(normalizedData);
     } catch (e, stackTrace) {
       _throwFromJsonDiagnostic('Rag', currentData, e, stackTrace);
     }
+
+    final qaHistory = rag.qaHistory ?? [];
+    return qaHistory
+        .sublist(previousLength)
+        .expand(_extractFromQaHistoryEntry)
+        .toList();
   }
 
   int _getQaHistoryLength(Map<String, dynamic>? data) {

@@ -249,6 +249,18 @@ void main() {
         expect(refs, isEmpty);
       });
 
+      test('throws FormatException when rag state is not a Map', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{
+          'rag': 'unexpected string value',
+        };
+
+        expect(
+          () => extractor.extractNew(previous, current),
+          throwsA(isA<FormatException>()),
+        );
+      });
+
       test('returns empty when searches is absent', () {
         final previous = <String, dynamic>{};
         final current = <String, dynamic>{
