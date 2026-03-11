@@ -9,6 +9,7 @@ import 'package:soliplex_client/src/domain/room_agent.dart';
 import 'package:soliplex_client/src/domain/room_tool.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
+import 'package:soliplex_client/src/domain/user_identity.dart';
 
 // ============================================================
 // Timestamp helpers
@@ -379,6 +380,7 @@ RunInfo runInfoFromJson(Map<String, dynamic> json) {
         : const NotCompleted(),
     status: runStatusFromString(json['status'] as String?),
     metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    principalId: json['principal_id'] as String?,
   );
 }
 
@@ -393,6 +395,7 @@ Map<String, dynamic> runInfoToJson(RunInfo run) {
       'completed_at': formatTimestamp(time),
     'status': run.status.name,
     if (run.metadata.isNotEmpty) 'metadata': run.metadata,
+    if (run.principalId != null) 'principal_id': run.principalId,
   };
 }
 
@@ -490,4 +493,28 @@ QuizAnswerResult quizAnswerResultFromJson(Map<String, dynamic> json) {
       ),
     _ => throw FormatException('Invalid correct value: $correct'),
   };
+}
+
+// ============================================================
+// UserIdentity mappers
+// ============================================================
+
+/// Creates a [UserIdentity] from JSON.
+///
+/// Throws [FormatException] if required fields are missing.
+UserIdentity userIdentityFromJson(Map<String, dynamic> json) {
+  final email = json['email'] as String?;
+  final username = json['preferred_username'] as String?;
+  if (email == null || username == null) {
+    throw FormatException(
+      'UserIdentity missing required fields: '
+      'email=${email != null}, preferred_username=${username != null}',
+    );
+  }
+  return UserIdentity(
+    email: email,
+    preferredUsername: username,
+    givenName: json['given_name'] as String?,
+    familyName: json['family_name'] as String?,
+  );
 }

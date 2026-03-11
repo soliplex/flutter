@@ -157,6 +157,25 @@ class _AuthStatusListenable extends ChangeNotifier {
   }
 }
 
+/// Provider for the authenticated user's identity.
+///
+/// Fetches from `/user_info` when the user is [Authenticated].
+/// Returns null when in [NoAuthRequired] mode or not authenticated.
+///
+/// Re-fetches when auth state transitions (e.g., after sign-in or
+/// token refresh that changes the access token).
+final userIdentityProvider = FutureProvider<UserIdentity?>((ref) async {
+  final authState = ref.watch(authProvider);
+  if (authState is! Authenticated) return null;
+
+  try {
+    return await ref.watch(apiProvider).getUserInfo();
+  } on NotFoundException {
+    // Backend in no-auth mode returns 404 for /user_info
+    return null;
+  }
+});
+
 /// Provider for fetching available OIDC issuers from the backend.
 ///
 /// Uses core's [fetchAuthProviders] to get configured identity providers,
