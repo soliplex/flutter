@@ -183,8 +183,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
       // Merge accumulated AG-UI state with any client-provided initial state.
       // Deep merge at the state-key level so client-provided keys (e.g.
-      // document_filter) merge INTO the server's haiku.rag.chat dict
-      // rather than replacing it.
+      // document_filter) merge INTO the server's rag dict rather than
+      // replacing it.
       final mergedState = <String, dynamic>{...cachedAguiState};
       if (initialState != null) {
         for (final entry in initialState.entries) {

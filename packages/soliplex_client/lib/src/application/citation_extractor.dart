@@ -1,7 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:soliplex_client/src/domain/source_reference.dart';
-import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
+import 'package:soliplex_client/src/schema/agui_features/rag.dart';
 
 Never _throwFromJsonDiagnostic(
   String className,
@@ -45,16 +45,15 @@ class CitationExtractor {
     Map<String, dynamic> previousState,
     Map<String, dynamic> currentState,
   ) {
-    return _extractFromHaikuRagChat(previousState, currentState);
+    return _extractFromRag(previousState, currentState);
   }
 
-  List<SourceReference> _extractFromHaikuRagChat(
+  List<SourceReference> _extractFromRag(
     Map<String, dynamic> previousState,
     Map<String, dynamic> currentState,
   ) {
-    final previousData =
-        previousState['haiku.rag.chat'] as Map<String, dynamic>?;
-    final currentData = currentState['haiku.rag.chat'] as Map<String, dynamic>?;
+    final previousData = previousState['rag'] as Map<String, dynamic>?;
+    final currentData = currentState['rag'] as Map<String, dynamic>?;
 
     if (currentData == null) return [];
 
@@ -64,29 +63,15 @@ class CitationExtractor {
     if (currentLength <= previousLength) return [];
 
     try {
-      // citation_registry is required by fromJson but may be absent in
-      // STATE_DELTA events that only include qa_history.
-      if (!currentData.containsKey('citation_registry')) {
-        developer.log(
-          'BUG: haiku.rag.chat missing citation_registry. '
-          'Keys present: ${currentData.keys.toList()}',
-          name: 'soliplex_client.citation_extractor',
-          level: 900,
-        );
-      }
-      final normalizedData = {
-        'citation_registry': const <String, int>{},
-        ...currentData,
-      };
-      final haikuRagChat = HaikuRagChat.fromJson(normalizedData);
-      final qaHistory = haikuRagChat.qaHistory ?? [];
+      final rag = Rag.fromJson(currentData);
+      final qaHistory = rag.qaHistory ?? [];
 
       return qaHistory
           .sublist(previousLength)
-          .expand(_extractFromQaResponse)
+          .expand(_extractFromQaHistoryEntry)
           .toList();
     } catch (e, stackTrace) {
-      _throwFromJsonDiagnostic('HaikuRagChat', currentData, e, stackTrace);
+      _throwFromJsonDiagnostic('Rag', currentData, e, stackTrace);
     }
   }
 
@@ -96,7 +81,7 @@ class CitationExtractor {
     return qaHistory?.length ?? 0;
   }
 
-  List<SourceReference> _extractFromQaResponse(QaResponse entry) {
+  List<SourceReference> _extractFromQaHistoryEntry(QaHistoryEntry entry) {
     final citations = entry.citations ?? [];
     return citations.map(_citationToSourceReference).toList();
   }

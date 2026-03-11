@@ -2,10 +2,10 @@
 
 import 'dart:convert';
 
-import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
+import 'package:soliplex_client/src/schema/agui_features/rag.dart';
 import 'package:test/test.dart';
 
-/// Contract tests for haiku_rag_chat.dart generated types.
+/// Contract tests for rag.dart generated types.
 ///
 /// These tests document and enforce the API surface that consuming code depends
 /// on. They will fail to compile if required fields are renamed or removed,
@@ -14,111 +14,64 @@ import 'package:test/test.dart';
 /// These are NOT tests of JSON parsing correctness (that's quicktype's job).
 /// They are tests of the SHAPE of the API we consume.
 void main() {
-  group('HaikuRagChat contract', () {
+  group('Rag contract', () {
     group('fields required by CitationExtractor', () {
       test('citations field exists and returns List<Citation>?', () {
-        // CitationExtractor accesses:
-        //   final haikuRagChat = HaikuRagChat.fromJson(ragChat);
-        //   final qaHistory = haikuRagChat.qaHistory ?? [];
-        final ragChat = HaikuRagChat();
+        final rag = Rag();
 
-        // This access will fail to compile if the field is renamed or removed
-        final citations = ragChat.citations;
+        final citations = rag.citations;
         expect(citations, isNull);
       });
 
       test('can construct with empty citations', () {
-        final ragChat = HaikuRagChat(citations: []);
+        final rag = Rag(citations: []);
 
-        expect(ragChat.citations, isEmpty);
+        expect(rag.citations, isEmpty);
       });
     });
 
-    group('citationsHistory field', () {
-      test('citationsHistory field exists and returns List<List<Citation>>?',
-          () {
-        final ragChat = HaikuRagChat();
-        final history = ragChat.citationsHistory;
+    group('qaHistory field', () {
+      test('qaHistory field exists and returns List<QaHistoryEntry>?', () {
+        final rag = Rag();
+        final history = rag.qaHistory;
         expect(history, isNull);
       });
 
-      test('can construct with citations history', () {
-        final ragChat = HaikuRagChat(
-          citationsHistory: [
-            [
-              Citation(
-                chunkId: 'c1',
-                content: 'content',
-                documentId: 'd1',
-                documentUri: 'uri',
-              ),
-            ],
+      test('can construct with qa history', () {
+        final rag = Rag(
+          qaHistory: [
+            QaHistoryEntry(answer: 'A1', question: 'Q1'),
           ],
         );
-        expect(ragChat.citationsHistory, hasLength(1));
-        expect(ragChat.citationsHistory![0], hasLength(1));
+        expect(rag.qaHistory, hasLength(1));
+      });
+    });
+
+    group('documentFilter field', () {
+      test('documentFilter is String?', () {
+        final rag = Rag();
+        expect(rag.documentFilter, isNull);
       });
 
-      test('parses citations_history from JSON', () {
-        final json = {
-          'citation_registry': <String, int>{},
-          'citations_history': [
-            [
-              {
-                'chunk_id': 'c1',
-                'content': 'text',
-                'document_id': 'd1',
-                'document_uri': 'uri',
-              },
-            ],
-            <Map<String, dynamic>>[],
-          ],
-        };
-
-        final ragChat = HaikuRagChat.fromJson(json);
-        expect(ragChat.citationsHistory, hasLength(2));
-        expect(ragChat.citationsHistory![0], hasLength(1));
-        expect(ragChat.citationsHistory![1], isEmpty);
-      });
-
-      test('citations_history roundtrips through JSON', () {
-        final original = HaikuRagChat(
-          citationRegistry: const {},
-          citationsHistory: [
-            [
-              Citation(
-                chunkId: 'c1',
-                content: 'content',
-                documentId: 'd1',
-                documentUri: 'uri',
-              ),
-            ],
-          ],
-        );
-
-        final json = original.toJson();
-        final decoded = HaikuRagChat.fromJson(json);
-        expect(decoded.citationsHistory, hasLength(1));
-        expect(decoded.citationsHistory![0][0].chunkId, 'c1');
+      test('can construct with documentFilter', () {
+        final rag = Rag(documentFilter: "title = 'Report'");
+        expect(rag.documentFilter, equals("title = 'Report'"));
       });
     });
 
     group('JSON keys required for parsing', () {
-      test('parses from haiku.rag.chat state format', () {
-        // The generated fromJson requires citation_registry to be present.
-        // The backend always sends it (even if empty).
+      test('parses from rag state format', () {
         final json = {
-          'citation_registry': <String, int>{},
           'citations': <Map<String, dynamic>>[],
+          'searches': <String, dynamic>{},
         };
 
-        final ragChat = HaikuRagChat.fromJson(json);
-        expect(ragChat.citations, isEmpty);
+        final rag = Rag.fromJson(json);
+        expect(rag.citations, isEmpty);
       });
 
       test('citations key must exist as array', () {
         final json = {
-          'citation_registry': <String, int>{},
           'citations': [
             {
               'chunk_id': 'c1',
@@ -127,29 +80,30 @@ void main() {
               'document_uri': 'uri',
             },
           ],
+          'searches': <String, dynamic>{},
         };
 
-        final ragChat = HaikuRagChat.fromJson(json);
-        expect(ragChat.citations, hasLength(1));
+        final rag = Rag.fromJson(json);
+        expect(rag.citations, hasLength(1));
       });
 
-      test('citation_registry is required in fromJson', () {
+      test('searches is required in fromJson', () {
         final json = <String, dynamic>{
-          'citation_registry': <String, int>{'ref-1': 0},
+          'searches': <String, dynamic>{
+            'query1': <Map<String, dynamic>>[],
+          },
         };
 
-        final ragChat = HaikuRagChat.fromJson(json);
-        expect(ragChat.citationRegistry, equals({'ref-1': 0}));
+        final rag = Rag.fromJson(json);
+        expect(rag.searches, isNotNull);
+        expect(rag.searches!.containsKey('query1'), isTrue);
       });
     });
   });
 
   group('Citation contract', () {
     group('fields required by CitationsSection UI', () {
-      // CitationsSection depends on these specific fields for display
-
       test('documentTitle is optional String for display header', () {
-        // UI uses: citation.documentTitle ?? citation.documentUri
         final citation = Citation(
           chunkId: 'c1',
           content: 'content',
@@ -157,7 +111,6 @@ void main() {
           documentUri: 'https://example.com/doc',
         );
 
-        // These accesses will fail to compile if renamed/removed
         final title = citation.documentTitle;
         expect(title, isNull);
       });
@@ -170,13 +123,11 @@ void main() {
           documentUri: 'https://example.com/doc',
         );
 
-        // UI uses documentUri as fallback when title is null
         final uri = citation.documentUri;
         expect(uri, isNotEmpty);
       });
 
       test('content is required String for snippet display', () {
-        // UI shows: citation.content (in italic, max 2 lines)
         final citation = Citation(
           chunkId: 'c1',
           content: 'This is the citation content snippet',
@@ -189,8 +140,6 @@ void main() {
       });
 
       test('documentUri is used for "View source" link', () {
-        // UI checks: _isValidUrl(citation.documentUri)
-        // Then opens: citation.documentUri
         final citation = Citation(
           chunkId: 'c1',
           content: 'content',
@@ -206,7 +155,6 @@ void main() {
 
     group('required constructor parameters', () {
       test('chunkId is required', () {
-        // This documents that chunkId cannot be omitted
         final citation = Citation(
           chunkId: 'chunk-123',
           content: 'content',
@@ -260,7 +208,6 @@ void main() {
           documentUri: 'uri',
         );
 
-        // UI displays documentUri when documentTitle is null
         expect(citation.documentTitle, isNull);
       });
 
@@ -318,7 +265,6 @@ void main() {
 
     group('JSON keys for parsing', () {
       test('required JSON keys match snake_case convention', () {
-        // This documents the exact JSON keys the backend must provide
         final json = {
           'chunk_id': 'c1',
           'content': 'text',
@@ -363,7 +309,6 @@ void main() {
 
         final json = citation.toJson();
 
-        // These key names are part of the contract
         expect(json.containsKey('chunk_id'), isTrue);
         expect(json.containsKey('content'), isTrue);
         expect(json.containsKey('document_id'), isTrue);
@@ -402,24 +347,27 @@ void main() {
     });
   });
 
-  group('QaResponse contract', () {
+  group('QaHistoryEntry contract', () {
     group('fields that exist in the schema', () {
       test('answer is required String', () {
-        final qa = QaResponse(answer: 'The answer', question: 'The question');
+        final qa = QaHistoryEntry(
+          answer: 'The answer',
+          question: 'The question',
+        );
 
         final answer = qa.answer;
         expect(answer, equals('The answer'));
       });
 
       test('question is required String', () {
-        final qa = QaResponse(answer: 'answer', question: 'What is X?');
+        final qa = QaHistoryEntry(answer: 'answer', question: 'What is X?');
 
         final question = qa.question;
         expect(question, equals('What is X?'));
       });
 
       test('citations is optional List<Citation>', () {
-        final qa = QaResponse(
+        final qa = QaHistoryEntry(
           answer: 'answer',
           question: 'question',
           citations: [
@@ -437,7 +385,7 @@ void main() {
       });
 
       test('confidence is optional double', () {
-        final qa = QaResponse(
+        final qa = QaHistoryEntry(
           answer: 'answer',
           question: 'question',
           confidence: 0.95,
@@ -455,40 +403,10 @@ void main() {
           'question': 'The question',
         };
 
-        final qa = QaResponse.fromJson(json);
+        final qa = QaHistoryEntry.fromJson(json);
         expect(qa.answer, equals('The answer'));
         expect(qa.question, equals('The question'));
       });
-    });
-  });
-
-  group('SessionContext contract', () {
-    test('lastUpdated is optional DateTime', () {
-      final context = SessionContext(
-        lastUpdated: DateTime(2024, 1, 15),
-        summary: 'A summary',
-      );
-
-      final lastUpdated = context.lastUpdated;
-      expect(lastUpdated, isNotNull);
-    });
-
-    test('summary is optional String', () {
-      final context = SessionContext(summary: 'Context summary');
-
-      final summary = context.summary;
-      expect(summary, equals('Context summary'));
-    });
-
-    test('JSON keys for parsing', () {
-      final json = {
-        'last_updated': '2024-01-15T00:00:00.000',
-        'summary': 'A summary',
-      };
-
-      final context = SessionContext.fromJson(json);
-      expect(context.lastUpdated, isNotNull);
-      expect(context.summary, equals('A summary'));
     });
   });
 }
