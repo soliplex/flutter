@@ -573,8 +573,7 @@ void main() {
         final mockRoom = TestData.createRoom();
         final newThread = TestData.createThread(id: 'seeded-thread');
         final initialState = <String, dynamic>{
-          'haiku.rag.chat': <String, dynamic>{
-            'citation_registry': <String, int>{},
+          'rag': <String, dynamic>{
             'citations': <dynamic>[],
           },
         };
@@ -648,7 +647,7 @@ void main() {
         final history = cache[key]!;
         expect(
           history.aguiState,
-          containsPair('haiku.rag.chat', isA<Map<String, dynamic>>()),
+          containsPair('rag', isA<Map<String, dynamic>>()),
         );
         expect(history.messages, isEmpty);
       });

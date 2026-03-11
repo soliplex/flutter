@@ -260,9 +260,14 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
     // Build initial state with document filter if documents are selected
     Map<String, dynamic>? initialState;
     if (selectedDocuments.isNotEmpty) {
+      final titles = selectedDocuments.map((d) => d.title).toList();
+      final escaped = titles.map((t) => t.replaceAll("'", "''")).toList();
+      final filter = escaped.length == 1
+          ? "title = '${escaped.first}'"
+          : "title IN (${escaped.map((t) => "'$t'").join(', ')})";
       initialState = {
-        'haiku.rag.chat': {
-          'document_filter': selectedDocuments.map((d) => d.title).toList(),
+        'rag': {
+          'document_filter': filter,
         },
       };
     }
