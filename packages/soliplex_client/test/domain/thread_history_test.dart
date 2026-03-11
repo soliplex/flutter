@@ -15,7 +15,7 @@ void main() {
         ),
       ];
       final aguiState = <String, dynamic>{
-        'haiku.rag.chat': <String, dynamic>{'citations': <dynamic>[]},
+        'rag': <String, dynamic>{'citations': <dynamic>[]},
       };
 
       final history = ThreadHistory(

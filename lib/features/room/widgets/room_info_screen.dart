@@ -670,9 +670,7 @@ class _DocumentsCardState extends State<_DocumentsCard> {
     final query = _searchQuery.toLowerCase();
     return docs
         .where(
-          (d) =>
-              d.title.toLowerCase().contains(query) ||
-              d.uri.toLowerCase().contains(query),
+          (d) => documentDisplayName(d).toLowerCase().contains(query),
         )
         .toList();
   }
@@ -708,12 +706,22 @@ class _DocumentsCardState extends State<_DocumentsCard> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: TextField(
                   controller: _searchController,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Search documents...',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear),
+                            tooltip: 'Clear search',
+                            onPressed: () => setState(() {
+                              _searchController.clear();
+                              _searchQuery = '';
+                            }),
+                          )
+                        : null,
                     isDense: true,
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(
+                    border: const OutlineInputBorder(),
+                    contentPadding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 8,
                     ),
@@ -799,11 +807,14 @@ class _DocumentsCardState extends State<_DocumentsCard> {
           children: [
             Row(
               children: [
-                Icon(getFileTypeIcon(doc.title), size: 22),
+                Icon(
+                  getFileTypeIcon(documentIconPath(doc)),
+                  size: 22,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    doc.title,
+                    documentDisplayName(doc),
                     style: theme.textTheme.bodyMedium,
                     overflow: TextOverflow.ellipsis,
                   ),

@@ -390,7 +390,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Document 1.pdf'),
+        find.text('document1.pdf'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
@@ -400,7 +400,7 @@ void main() {
       expect(find.text('file:///docs/document1.pdf'), findsNothing);
 
       // Tap to expand
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
 
       // ID, URI, and dates visible; metadata behind button
@@ -437,19 +437,19 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Document 1.pdf'),
+        find.text('document1.pdf'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
       // Tap to expand
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
       expect(find.text('file:///docs/document1.pdf'), findsOneWidget);
 
       // Tap again to collapse
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
       expect(find.text('file:///docs/document1.pdf'), findsNothing);
     });
@@ -486,13 +486,13 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
-        find.text('Document 1.pdf'),
+        find.text('document1.pdf'),
         200,
         scrollable: find.byType(Scrollable).first,
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Document 1.pdf'));
+      await tester.tap(find.text('document1.pdf'));
       await tester.pumpAndSettle();
 
       // URI and dates still visible
@@ -674,49 +674,8 @@ void main() {
         );
       });
 
-      testWidgets('filters documents by title', (tester) async {
-        tester.view.physicalSize = const Size(800, 2000);
-        tester.view.devicePixelRatio = 1.0;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-
-        const room = Room(id: 'room-1', name: 'Test Room');
-        const docs = [
-          RagDocument(id: 'doc-1', title: 'Alpha.pdf'),
-          RagDocument(id: 'doc-2', title: 'Beta.pdf'),
-          RagDocument(id: 'doc-3', title: 'Gamma.pdf'),
-        ];
-
-        await tester.pumpWidget(
-          createTestApp(
-            home: const RoomInfoScreen(roomId: 'room-1'),
-            overrides: [
-              roomsProvider.overrideWith((ref) async => [room]),
-              documentsProviderOverride('room-1', docs),
-            ],
-          ),
-        );
-        await tester.pumpAndSettle();
-
-        await tester.scrollUntilVisible(
-          find.widgetWithText(TextField, 'Search documents...'),
-          200,
-          scrollable: find.byType(Scrollable).first,
-        );
-        await tester.pumpAndSettle();
-
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Search documents...'),
-          'alpha',
-        );
-        await tester.pumpAndSettle();
-
-        expect(find.text('Alpha.pdf'), findsOneWidget);
-        expect(find.text('Beta.pdf'), findsNothing);
-        expect(find.text('Gamma.pdf'), findsNothing);
-      });
-
-      testWidgets('filters documents by URI', (tester) async {
+      testWidgets('filters documents by URI-derived display name',
+          (tester) async {
         tester.view.physicalSize = const Size(800, 2000);
         tester.view.devicePixelRatio = 1.0;
         addTearDown(tester.view.resetPhysicalSize);
@@ -726,10 +685,19 @@ void main() {
         const docs = [
           RagDocument(
             id: 'doc-1',
-            title: 'Alpha.pdf',
-            uri: 'file:///unique/path',
+            title: 'Alpha Document',
+            uri: 'uploads/alpha_report.pdf',
           ),
-          RagDocument(id: 'doc-2', title: 'Beta.pdf', uri: 'file:///other'),
+          RagDocument(
+            id: 'doc-2',
+            title: 'Beta Document',
+            uri: 'uploads/beta_summary.pdf',
+          ),
+          RagDocument(
+            id: 'doc-3',
+            title: 'Gamma Document',
+            uri: 'uploads/gamma_notes.pdf',
+          ),
         ];
 
         await tester.pumpWidget(
@@ -750,14 +718,16 @@ void main() {
         );
         await tester.pumpAndSettle();
 
+        // Search by URI-derived filename
         await tester.enterText(
           find.widgetWithText(TextField, 'Search documents...'),
-          'unique',
+          'alpha_report',
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Alpha.pdf'), findsOneWidget);
-        expect(find.text('Beta.pdf'), findsNothing);
+        expect(find.text('alpha_report.pdf'), findsOneWidget);
+        expect(find.text('beta_summary.pdf'), findsNothing);
+        expect(find.text('gamma_notes.pdf'), findsNothing);
       });
 
       testWidgets('shows filtered count in title when searching',
@@ -799,6 +769,57 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('DOCUMENTS (2 / 3)'), findsOneWidget);
+      });
+
+      testWidgets('clear icon appears when search has text', (tester) async {
+        tester.view.physicalSize = const Size(800, 2000);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        const room = Room(id: 'room-1', name: 'Test Room');
+        const docs = [
+          RagDocument(id: 'doc-1', title: 'Alpha.pdf', uri: 'alpha/path'),
+          RagDocument(id: 'doc-2', title: 'Beta.pdf', uri: 'beta/other'),
+        ];
+
+        await tester.pumpWidget(
+          createTestApp(
+            home: const RoomInfoScreen(roomId: 'room-1'),
+            overrides: [
+              roomsProvider.overrideWith((ref) async => [room]),
+              documentsProviderOverride('room-1', docs),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.widgetWithText(TextField, 'Search documents...'),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.pumpAndSettle();
+
+        // No clear icon initially
+        expect(find.byIcon(Icons.clear), findsNothing);
+
+        // Type in search
+        await tester.enterText(
+          find.widgetWithText(TextField, 'Search documents...'),
+          'alpha',
+        );
+        await tester.pumpAndSettle();
+
+        // Clear icon should appear
+        expect(find.byIcon(Icons.clear), findsOneWidget);
+
+        // Tap clear icon - restores all documents
+        await tester.tap(find.byIcon(Icons.clear));
+        await tester.pumpAndSettle();
+
+        expect(find.text('DOCUMENTS (2)'), findsOneWidget);
+        expect(find.byIcon(Icons.clear), findsNothing);
       });
     });
 

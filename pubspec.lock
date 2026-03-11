@@ -1109,10 +1109,11 @@ packages:
   wakelock_plus:
     dependency: "direct main"
     description:
-      name: wakelock_plus
-      sha256: "9296d40c9adbedaba95d1e704f4e0b434be446e2792948d0e4aa977048104228"
-      url: "https://pub.dev"
-    source: hosted
+      path: wakelock_plus
+      ref: HEAD
+      resolved-ref: c592df48d5e489865f7dcf34babb4a86f2291b6b
+      url: "https://github.com/soliplex/wakelock_plus.git"
+    source: git
     version: "1.4.0"
   wakelock_plus_platform_interface:
     dependency: transitive

@@ -434,8 +434,9 @@ class TestData {
   static RagDocument createDocument({
     String id = 'test-doc',
     String title = 'Test Document.pdf',
+    String uri = '',
   }) {
-    return RagDocument(id: id, title: title);
+    return RagDocument(id: id, title: title, uri: uri);
   }
 
   static HttpRequestEvent createRequestEvent({

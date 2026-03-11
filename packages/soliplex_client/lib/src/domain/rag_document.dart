@@ -1,5 +1,20 @@
 import 'package:meta/meta.dart';
 
+/// Builds a SQL-style filter expression for the given document [titles].
+///
+/// Single title: `title = 'Report'`
+/// Multiple titles: `title IN ('Report', 'Summary')`
+String buildDocumentFilter(List<String> titles) {
+  if (titles.isEmpty) {
+    throw ArgumentError.value(titles, 'titles', 'must not be empty');
+  }
+  final escaped = titles.map((t) => t.replaceAll("'", "''")).toList();
+  if (escaped.length == 1) {
+    return "title = '${escaped.first}'";
+  }
+  return "title IN (${escaped.map((t) => "'$t'").join(', ')})";
+}
+
 /// Represents a document available for narrowing RAG searches.
 ///
 /// Documents are fetched from a room and can be selected to limit

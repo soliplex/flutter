@@ -1633,7 +1633,7 @@ void main() {
 
       // Pre-populate cache with AG-UI state from previous runs
       final cachedAguiState = <String, dynamic>{
-        'haiku.rag.chat': {
+        'rag': {
           'qa_history': [
             {'question': 'Q1', 'answer': 'A1'},
           ],
@@ -1646,10 +1646,10 @@ void main() {
         ThreadHistory(messages: const [], aguiState: cachedAguiState),
       );
 
-      // Start a run with initial state (document_filter via haiku.rag.chat)
+      // Start a run with initial state (document_filter via rag)
       final initialState = <String, dynamic>{
-        'haiku.rag.chat': {
-          'document_filter': ['Doc A', 'Doc B'],
+        'rag': {
+          'document_filter': "title IN ('Doc A', 'Doc B')",
         },
       };
 
@@ -1670,14 +1670,14 @@ void main() {
 
       // Verify state is deep-merged: cached server state + client state
       final sentState = captured.state as Map<String, dynamic>;
-      final haikuChat = sentState['haiku.rag.chat'] as Map<String, dynamic>;
+      final ragState = sentState['rag'] as Map<String, dynamic>;
 
       // Cached server state should be preserved
-      expect(haikuChat['qa_history'], hasLength(1));
-      expect(haikuChat['session_context'], isNotNull);
+      expect(ragState['qa_history'], hasLength(1));
+      expect(ragState['session_context'], isNotNull);
 
       // Client-provided document_filter should be merged in
-      expect(haikuChat['document_filter'], ['Doc A', 'Doc B']);
+      expect(ragState['document_filter'], "title IN ('Doc A', 'Doc B')");
     });
   });
 

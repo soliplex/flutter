@@ -1,4 +1,4 @@
-import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
+import 'package:soliplex_client/src/schema/agui_features/rag.dart';
 
 /// Formatting utilities for [Citation] display.
 extension CitationFormatting on Citation {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_response.dart';
 import 'package:soliplex_client/src/http/soliplex_http_client.dart';
@@ -39,12 +40,18 @@ class DartHttpClient implements SoliplexHttpClient {
   DartHttpClient({
     http.Client? client,
     this.defaultTimeout = defaultHttpTimeout,
+    this.drainGracePeriod = const Duration(seconds: 2),
   }) : _client = client ?? http.Client();
 
   final http.Client _client;
 
   /// Default timeout for requests when not specified per-request.
   final Duration defaultTimeout;
+
+  /// How long to wait for the server to close the connection before
+  /// force-cancelling the stream subscription.
+  @visibleForTesting
+  final Duration drainGracePeriod;
 
   bool _closed = false;
 
@@ -124,14 +131,25 @@ class DartHttpClient implements SoliplexHttpClient {
 
     late StreamController<List<int>> controller;
     StreamSubscription<List<int>>? subscription;
+    var isCancelled = false;
+    var upstreamTerminated = false;
 
     controller = StreamController<List<int>>(
       onListen: () async {
         try {
           final streamedResponse = await _client.send(request);
 
+          // If cancelled while awaiting headers, drain to release socket.
+          // Bounded to drainGracePeriod to avoid leaking on infinite
+          // streams (e.g. SSE).
+          if (isCancelled) {
+            _boundedDrain(streamedResponse.stream);
+            return;
+          }
+
           // Check for HTTP errors before streaming
           if (streamedResponse.statusCode >= 400) {
+            _boundedDrain(streamedResponse.stream);
             controller.addError(
               NetworkException(
                 message: 'HTTP ${streamedResponse.statusCode}: '
@@ -145,6 +163,7 @@ class DartHttpClient implements SoliplexHttpClient {
           subscription = streamedResponse.stream.listen(
             controller.add,
             onError: (Object error, StackTrace stackTrace) {
+              upstreamTerminated = true;
               // Wrap all stream errors as NetworkException
               controller.addError(
                 NetworkException(
@@ -154,7 +173,10 @@ class DartHttpClient implements SoliplexHttpClient {
                 ),
               );
             },
-            onDone: controller.close,
+            onDone: () {
+              upstreamTerminated = true;
+              controller.close();
+            },
             cancelOnError: true,
           );
         } on http.ClientException catch (e, stackTrace) {
@@ -178,8 +200,23 @@ class DartHttpClient implements SoliplexHttpClient {
           await controller.close();
         }
       },
-      onCancel: () async {
-        await subscription?.cancel();
+      onCancel: () {
+        isCancelled = true;
+        if (subscription == null || upstreamTerminated) return;
+
+        // Mute data callbacks to avoid pumping into a cancelled controller,
+        // then wait briefly for the server to close the connection.
+        // This avoids TCP RST which can disrupt connection pooling.
+        subscription!.onData((_) {});
+        unawaited(() async {
+          try {
+            await subscription!.asFuture<void>().timeout(drainGracePeriod);
+          } catch (_) {
+            try {
+              await subscription!.cancel();
+            } catch (_) {}
+          }
+        }());
       },
     );
 
@@ -192,6 +229,23 @@ class DartHttpClient implements SoliplexHttpClient {
       _closed = true;
       _client.close();
     }
+  }
+
+  /// Subscribes to [stream] and waits for it to finish within
+  /// [drainGracePeriod], then force-cancels if the server hasn't
+  /// closed the connection.
+  void _boundedDrain(Stream<List<int>> stream) {
+    final sub = stream.listen((_) {});
+    unawaited(() async {
+      try {
+        await sub.asFuture<void>().timeout(drainGracePeriod);
+      } catch (_) {
+        // Timeout or stream error — force-cancel to release socket.
+        try {
+          await sub.cancel();
+        } catch (_) {}
+      }
+    }());
   }
 
   /// Creates an HTTP request with the given parameters.
