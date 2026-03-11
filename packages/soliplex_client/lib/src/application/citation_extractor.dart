@@ -63,7 +63,21 @@ class CitationExtractor {
     if (currentLength <= previousLength) return [];
 
     try {
-      final rag = Rag.fromJson(currentData);
+      // Supply defaults for fields the server may omit in STATE_DELTA events.
+      // Rag.fromJson (generated) requires searches to be non-null.
+      if (!currentData.containsKey('searches')) {
+        developer.log(
+          'rag state missing "searches" key. '
+          'Keys present: ${currentData.keys.toList()}',
+          name: 'soliplex_client.citation_extractor',
+          level: 900,
+        );
+      }
+      final normalizedData = {
+        'searches': const <String, dynamic>{},
+        ...currentData,
+      };
+      final rag = Rag.fromJson(normalizedData);
       final qaHistory = rag.qaHistory ?? [];
 
       return qaHistory
