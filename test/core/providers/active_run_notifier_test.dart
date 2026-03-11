@@ -1670,14 +1670,14 @@ void main() {
 
       // Verify state is deep-merged: cached server state + client state
       final sentState = captured.state as Map<String, dynamic>;
-      final haikuChat = sentState['rag'] as Map<String, dynamic>;
+      final ragState = sentState['rag'] as Map<String, dynamic>;
 
       // Cached server state should be preserved
-      expect(haikuChat['qa_history'], hasLength(1));
-      expect(haikuChat['session_context'], isNotNull);
+      expect(ragState['qa_history'], hasLength(1));
+      expect(ragState['session_context'], isNotNull);
 
       // Client-provided document_filter should be merged in
-      expect(haikuChat['document_filter'], "title IN ('Doc A', 'Doc B')");
+      expect(ragState['document_filter'], "title IN ('Doc A', 'Doc B')");
     });
   });
 
