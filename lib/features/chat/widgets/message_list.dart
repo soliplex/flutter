@@ -488,7 +488,15 @@ class _MessageListState extends ConsumerState<MessageList> {
                   if (mounted) setState(() {});
                 });
               }
-              _scrollButton.hide();
+              if (notification.dragDetails != null) {
+                _scrollButton.hide();
+              } else {
+                // Programmatic scroll — notification fires during layout, so
+                // defer hide() to avoid setState during frame building.
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) _scrollButton.hide();
+                });
+              }
             } else if (notification is ScrollEndNotification) {
               final pos = _scrollController.position;
               Loggers.chat.debug(

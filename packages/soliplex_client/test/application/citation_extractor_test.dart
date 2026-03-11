@@ -9,15 +9,15 @@ void main() {
       extractor = CitationExtractor();
     });
 
-    group('extractNew with haiku.rag.chat', () {
+    group('extractNew with rag', () {
       Map<String, dynamic> createState({
         List<Map<String, dynamic>> qaHistory = const [],
       }) {
         return {
-          'haiku.rag.chat': {
+          'rag': {
             'qa_history': qaHistory,
             'citations': <Map<String, dynamic>>[],
-            'citation_registry': <String, int>{},
+            'searches': <String, dynamic>{},
           },
         };
       }
@@ -181,10 +181,10 @@ void main() {
         expect(refs, isEmpty);
       });
 
-      test('extracts citations from STATE_DELTA without citation_registry', () {
+      test('extracts citations from STATE_DELTA without searches', () {
         final previous = createState();
         final current = <String, dynamic>{
-          'haiku.rag.chat': {
+          'rag': {
             'qa_history': [
               createQaEntry(
                 question: 'Q1',
@@ -215,7 +215,7 @@ void main() {
       test('returns empty when current has fewer entries than previous', () {
         // This can happen with FIFO rotation
         final previous = <String, dynamic>{
-          'haiku.rag.chat': {
+          'rag': {
             'qa_history': [
               {
                 'question': 'Q1',
@@ -228,11 +228,11 @@ void main() {
                 'citations': <Map<String, dynamic>>[],
               },
             ],
-            'citation_registry': <String, int>{},
+            'searches': <String, dynamic>{},
           },
         };
         final current = <String, dynamic>{
-          'haiku.rag.chat': {
+          'rag': {
             'qa_history': [
               {
                 'question': 'Q2',
@@ -240,7 +240,7 @@ void main() {
                 'citations': <Map<String, dynamic>>[],
               },
             ],
-            'citation_registry': <String, int>{},
+            'searches': <String, dynamic>{},
           },
         };
 
@@ -249,10 +249,22 @@ void main() {
         expect(refs, isEmpty);
       });
 
-      test('returns citations when citation_registry is absent', () {
+      test('throws FormatException when rag state is not a Map', () {
         final previous = <String, dynamic>{};
         final current = <String, dynamic>{
-          'haiku.rag.chat': {
+          'rag': 'unexpected string value',
+        };
+
+        expect(
+          () => extractor.extractNew(previous, current),
+          throwsA(isA<FormatException>()),
+        );
+      });
+
+      test('returns empty when searches is absent', () {
+        final previous = <String, dynamic>{};
+        final current = <String, dynamic>{
+          'rag': {
             'qa_history': [
               {
                 'question': 'Q1',

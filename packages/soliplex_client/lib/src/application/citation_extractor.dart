@@ -1,7 +1,7 @@
 import 'dart:developer' as developer;
 
 import 'package:soliplex_client/src/domain/source_reference.dart';
-import 'package:soliplex_client/src/schema/agui_features/haiku_rag_chat.dart';
+import 'package:soliplex_client/src/schema/agui_features/rag.dart';
 
 Never _throwFromJsonDiagnostic(
   String className,
@@ -29,8 +29,8 @@ Never _throwFromJsonDiagnostic(
 
 /// Extracts new [SourceReference]s by comparing AG-UI state snapshots.
 ///
-/// This is the **schema firewall**: the only file that imports schema types.
-/// When generated schema classes change, only this file needs updating.
+/// This is the **schema firewall**: the primary consumer of generated schema
+/// types. When generated schema classes change, this file needs updating.
 ///
 /// Uses length-based detection: compares `len(previous)` vs `len(current)`
 /// to find new entries at indices `[previousLength, currentLength)`.
@@ -45,49 +45,59 @@ class CitationExtractor {
     Map<String, dynamic> previousState,
     Map<String, dynamic> currentState,
   ) {
-    return _extractFromHaikuRagChat(previousState, currentState);
+    return _extractFromRag(previousState, currentState);
   }
 
-  List<SourceReference> _extractFromHaikuRagChat(
+  List<SourceReference> _extractFromRag(
     Map<String, dynamic> previousState,
     Map<String, dynamic> currentState,
   ) {
-    final previousData =
-        previousState['haiku.rag.chat'] as Map<String, dynamic>?;
-    final currentData = currentState['haiku.rag.chat'] as Map<String, dynamic>?;
+    final rawCurrent = currentState['rag'];
+    if (rawCurrent == null) return [];
+    if (rawCurrent is! Map<String, dynamic>) {
+      throw FormatException(
+        'rag state has unexpected type: ${rawCurrent.runtimeType}. '
+        'Expected Map<String, dynamic>.',
+      );
+    }
+    final currentData = rawCurrent;
 
-    if (currentData == null) return [];
+    final rawPrevious = previousState['rag'];
+    final previousData =
+        rawPrevious is Map<String, dynamic> ? rawPrevious : null;
 
     final previousLength = _getQaHistoryLength(previousData);
     final currentLength = _getQaHistoryLength(currentData);
 
     if (currentLength <= previousLength) return [];
 
-    try {
-      // citation_registry is required by fromJson but may be absent in
-      // STATE_DELTA events that only include qa_history.
-      if (!currentData.containsKey('citation_registry')) {
-        developer.log(
-          'BUG: haiku.rag.chat missing citation_registry. '
-          'Keys present: ${currentData.keys.toList()}',
-          name: 'soliplex_client.citation_extractor',
-          level: 900,
-        );
-      }
-      final normalizedData = {
-        'citation_registry': const <String, int>{},
-        ...currentData,
-      };
-      final haikuRagChat = HaikuRagChat.fromJson(normalizedData);
-      final qaHistory = haikuRagChat.qaHistory ?? [];
-
-      return qaHistory
-          .sublist(previousLength)
-          .expand(_extractFromQaResponse)
-          .toList();
-    } catch (e, stackTrace) {
-      _throwFromJsonDiagnostic('HaikuRagChat', currentData, e, stackTrace);
+    // Supply defaults for fields the server may omit in STATE_DELTA events.
+    // Rag.fromJson (generated) requires searches to be non-null.
+    if (!currentData.containsKey('searches')) {
+      developer.log(
+        'rag state missing "searches" key. '
+        'Keys present: ${currentData.keys.toList()}',
+        name: 'soliplex_client.citation_extractor',
+        level: 900,
+      );
     }
+    final normalizedData = {
+      'searches': const <String, dynamic>{},
+      ...currentData,
+    };
+
+    final Rag rag;
+    try {
+      rag = Rag.fromJson(normalizedData);
+    } catch (e, stackTrace) {
+      _throwFromJsonDiagnostic('Rag', currentData, e, stackTrace);
+    }
+
+    final qaHistory = rag.qaHistory ?? [];
+    return qaHistory
+        .sublist(previousLength)
+        .expand(_extractFromQaHistoryEntry)
+        .toList();
   }
 
   int _getQaHistoryLength(Map<String, dynamic>? data) {
@@ -96,7 +106,7 @@ class CitationExtractor {
     return qaHistory?.length ?? 0;
   }
 
-  List<SourceReference> _extractFromQaResponse(QaResponse entry) {
+  List<SourceReference> _extractFromQaHistoryEntry(QaHistoryEntry entry) {
     final citations = entry.citations ?? [];
     return citations.map(_citationToSourceReference).toList();
   }

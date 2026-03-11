@@ -25,7 +25,7 @@ void main() {
             TestData.createMessage(id: 'msg-1', text: 'Hello'),
             TestData.createMessage(id: 'msg-2', text: 'World'),
           ],
-          aguiState: const {'haiku.rag.chat': <String, dynamic>{}},
+          aguiState: const {'rag': <String, dynamic>{}},
         );
 
         final container = ProviderContainer(
@@ -48,7 +48,7 @@ void main() {
         expect(history.messages, hasLength(2));
         expect(history.messages[0].id, 'msg-1');
         expect(history.messages[1].id, 'msg-2');
-        expect(history.aguiState, containsPair('haiku.rag.chat', {}));
+        expect(history.aguiState, containsPair('rag', {}));
         verifyNever(() => mockApi.getThreadHistory(any(), any()));
       });
 
@@ -58,7 +58,7 @@ void main() {
           messages: [
             TestData.createMessage(id: 'msg-1', text: 'From API'),
           ],
-          aguiState: const {'haiku.rag.chat': <String, dynamic>{}},
+          aguiState: const {'rag': <String, dynamic>{}},
         );
 
         when(
@@ -78,7 +78,7 @@ void main() {
         // Assert
         expect(history.messages, hasLength(1));
         expect(history.messages[0].id, 'msg-1');
-        expect(history.aguiState, containsPair('haiku.rag.chat', {}));
+        expect(history.aguiState, containsPair('rag', {}));
         verify(
           () => mockApi.getThreadHistory('room-abc', 'thread-123'),
         ).called(1);
