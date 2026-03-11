@@ -192,7 +192,6 @@ void main() {
                 citations: [createCitation(chunkId: 'c1')],
               ),
             ],
-            'searches': <String, dynamic>{},
           },
         };
 
@@ -261,7 +260,6 @@ void main() {
                 'citations': <Map<String, dynamic>>[],
               },
             ],
-            'searches': <String, dynamic>{},
           },
         };
 
