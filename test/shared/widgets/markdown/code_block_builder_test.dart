@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_highlight/flutter_highlight.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:soliplex_frontend/shared/widgets/fullscreen_image_viewer.dart';
 import 'package:soliplex_frontend/shared/widgets/markdown/flutter_markdown_plus_renderer.dart';
 
 import '../../../helpers/test_helpers.dart';
@@ -150,6 +153,139 @@ void main() {
       await tester.pump();
 
       expect(find.text('Copied to clipboard'), findsOneWidget);
+    });
+  });
+
+  group('SVG code block', () {
+    const validSvg = '```svg\n'
+        '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">\n'
+        '<circle cx="50" cy="50" r="40" fill="red"/>\n'
+        '</svg>\n'
+        '```';
+
+    testWidgets('renders SVG preview', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SvgPicture), findsOneWidget);
+    });
+
+    testWidgets('shows "svg" language label', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('svg'), findsOneWidget);
+    });
+
+    testWidgets('has copy and toggle buttons', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.copy), findsOneWidget);
+      expect(find.byIcon(Icons.code), findsOneWidget);
+    });
+
+    testWidgets('copies SVG source to clipboard', (tester) async {
+      String? copiedText;
+
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (message) async {
+        if (message.method == 'Clipboard.setData') {
+          final args = message.arguments as Map;
+          copiedText = args['text'] as String?;
+        }
+        return null;
+      });
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.copy));
+      await tester.pump();
+
+      expect(copiedText, contains('<svg'));
+    });
+
+    testWidgets('toggles to source view', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Initially shows preview, not source.
+      expect(find.byType(SvgPicture), findsOneWidget);
+      expect(find.byType(HighlightView), findsNothing);
+
+      // Tap the toggle button (Icons.code in preview mode).
+      await tester.tap(find.byIcon(Icons.code));
+      await tester.pumpAndSettle();
+
+      // Now shows source, not preview.
+      expect(find.byType(SvgPicture), findsNothing);
+      expect(find.byType(HighlightView), findsOneWidget);
+    });
+
+    testWidgets('shows broken image for malformed SVG', (tester) async {
+      const malformedSvg = '```svg\nnot valid svg at all\n```';
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(
+            data: malformedSvg,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byIcon(Icons.broken_image), findsOneWidget);
+    });
+
+    testWidgets('has accessibility semantics', (tester) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final semantics = find.byWidgetPredicate(
+        (w) => w is Semantics && w.properties.label == 'SVG image',
+      );
+      expect(semantics, findsOneWidget);
+    });
+
+    testWidgets('tapping preview opens fullscreen viewer', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        createTestApp(
+          home: const FlutterMarkdownPlusRenderer(data: validSvg),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(SvgPicture));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FullscreenImageViewer), findsOneWidget);
     });
   });
 }

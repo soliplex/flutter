@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_highlight/flutter_highlight.dart';
 import 'package:flutter_highlight/themes/github.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:soliplex_frontend/shared/widgets/fullscreen_image_viewer.dart';
 
 /// Renders inline code as a styled span with background, padding, and
 /// border radius — matching typical markdown renderers (GitHub, VS Code).
@@ -34,7 +36,9 @@ class InlineCodeBuilder extends MarkdownElementBuilder {
       ),
       child: Text(
         element.textContent,
-        style: preferredStyle?.copyWith(backgroundColor: Colors.transparent),
+        style: preferredStyle?.copyWith(
+          backgroundColor: Colors.transparent,
+        ),
       ),
     );
   }
@@ -44,15 +48,32 @@ class InlineCodeBuilder extends MarkdownElementBuilder {
 ///
 /// Registered for the `'pre'` tag so that inline code (`<code>`) is handled
 /// separately by [InlineCodeBuilder].
+///
+/// When the language is `svg`, renders the SVG visually using `flutter_svg`
+/// instead of showing syntax-highlighted source. All other languages fall
+/// through to the standard [_CodeBlock] with syntax highlighting.
 class CodeBlockBuilder extends MarkdownElementBuilder {
   CodeBlockBuilder({required this.preferredStyle});
 
   final TextStyle preferredStyle;
 
   @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) {
+  Widget? visitElementAfter(
+    md.Element element,
+    TextStyle? preferredStyle,
+  ) {
     final code = element.textContent;
     final language = _languageFrom(element);
+
+    if (language == 'svg') {
+      return Semantics(
+        label: 'SVG image',
+        child: _SvgCodeBlock(
+          code: code,
+          codeStyle: this.preferredStyle,
+        ),
+      );
+    }
 
     final semanticLabel =
         language == 'plaintext' ? 'Code block' : 'Code block in $language';
@@ -85,6 +106,170 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
     return 'plaintext';
   }
 }
+
+// ---------------------------------------------------------------------------
+// Shared helpers
+// ---------------------------------------------------------------------------
+
+Future<void> _copyToClipboard(
+  BuildContext context,
+  String text,
+) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (!context.mounted) return;
+  ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+    const SnackBar(content: Text('Copied to clipboard')),
+  );
+}
+
+class _ToolbarIconButton extends StatelessWidget {
+  const _ToolbarIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(4),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Icon(icon, size: 16, color: iconColor),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SVG preview block
+// ---------------------------------------------------------------------------
+
+class _SvgCodeBlock extends StatefulWidget {
+  const _SvgCodeBlock({
+    required this.code,
+    required this.codeStyle,
+  });
+
+  final String code;
+  final TextStyle codeStyle;
+
+  @override
+  State<_SvgCodeBlock> createState() => _SvgCodeBlockState();
+}
+
+class _SvgCodeBlockState extends State<_SvgCodeBlock> {
+  bool _showSource = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _toolbar(theme),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: _showSource ? _sourceView() : _previewView(),
+        ),
+      ],
+    );
+  }
+
+  Widget _previewView() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => _openFullscreen(context),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 400),
+          child: SvgPicture.string(
+            widget.code,
+            placeholderBuilder: (_) => const SizedBox.shrink(),
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.broken_image,
+              size: 48,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _openFullscreen(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => FullscreenImageViewer(
+          child: SvgPicture.string(
+            widget.code,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.broken_image,
+              color: Colors.white54,
+              size: 64,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sourceView() {
+    return HighlightView(
+      widget.code,
+      language: 'xml',
+      theme: githubTheme,
+      padding: EdgeInsets.zero,
+      textStyle: widget.codeStyle,
+    );
+  }
+
+  Widget _toolbar(ThemeData theme) {
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+
+    return Row(
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 12, top: 4),
+          child: Text('svg', style: labelStyle),
+        ),
+        const Spacer(),
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: _ToolbarIconButton(
+            icon: _showSource ? Icons.image : Icons.code,
+            tooltip: _showSource ? 'Show preview' : 'Show source',
+            onTap: () => setState(() => _showSource = !_showSource),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(right: 4, top: 4),
+          child: _ToolbarIconButton(
+            icon: Icons.copy,
+            tooltip: 'Copy SVG',
+            onTap: () => _copyToClipboard(context, widget.code),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Standard syntax-highlighted code block
+// ---------------------------------------------------------------------------
 
 class _CodeBlock extends StatelessWidget {
   const _CodeBlock({
@@ -119,20 +304,10 @@ class _CodeBlock extends StatelessWidget {
             const Spacer(),
             Padding(
               padding: const EdgeInsets.only(right: 4, top: 4),
-              child: Tooltip(
-                message: 'Copy code',
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(4),
-                  onTap: () => _copy(context),
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Icon(
-                      Icons.copy,
-                      size: 16,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
+              child: _ToolbarIconButton(
+                icon: Icons.copy,
+                tooltip: 'Copy code',
+                onTap: () => _copyToClipboard(context, code),
               ),
             ),
           ],
@@ -148,14 +323,6 @@ class _CodeBlock extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-
-  Future<void> _copy(BuildContext context) async {
-    await Clipboard.setData(ClipboardData(text: code));
-    if (!context.mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(content: Text('Copied to clipboard')),
     );
   }
 }
