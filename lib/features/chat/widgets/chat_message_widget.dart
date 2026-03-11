@@ -273,8 +273,8 @@ class ChatMessageWidget extends StatelessWidget {
 
   void _openImage(BuildContext context, String src, String? alt) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FullscreenImageViewer(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => FullscreenImageViewer(
           caption: alt,
           child: Image.network(
             src,

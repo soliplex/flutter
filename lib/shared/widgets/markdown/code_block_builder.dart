@@ -209,8 +209,8 @@ class _SvgCodeBlockState extends State<_SvgCodeBlock> {
 
   void _openFullscreen(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => FullscreenImageViewer(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, __, ___) => FullscreenImageViewer(
           child: SvgPicture.string(
             widget.code,
             errorBuilder: (_, __, ___) => const Icon(
