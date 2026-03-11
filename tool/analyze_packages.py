@@ -2,11 +2,17 @@
 """Run dart analyze --fatal-infos on every sub-package in packages/."""
 
 import os
+import shutil
 import subprocess
 import sys
 
 
 def main() -> int:
+    dart_exe = shutil.which("dart")
+    if dart_exe is None:
+        print("error: 'dart' not found on PATH", file=sys.stderr)
+        return 1
+
     packages_dir = os.path.join(os.path.dirname(__file__), os.pardir, "packages")
     packages_dir = os.path.normpath(packages_dir)
 
@@ -17,7 +23,7 @@ def main() -> int:
             continue
         print(f"Analyzing {name}...")
         result = subprocess.run(
-            ["dart", "analyze", "--fatal-infos", pkg_path],
+            [dart_exe, "analyze", "--fatal-infos", pkg_path],
         )
         if result.returncode != 0:
             failed.append(name)

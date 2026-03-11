@@ -233,6 +233,7 @@ class HttpTransport {
         message: message,
         statusCode: statusCode,
         serverMessage: serverMessage,
+        detail: _extractDetail(body),
       );
     }
 
@@ -251,6 +252,20 @@ class HttpTransport {
       serverMessage: serverMessage,
       body: body.isNotEmpty ? body : null,
     );
+  }
+
+  /// Extracts the machine-readable `detail` field from a JSON error body.
+  String? _extractDetail(String body) {
+    if (body.isEmpty) return null;
+    try {
+      final json = jsonDecode(body);
+      if (json is Map<String, dynamic>) {
+        return json['detail'] as String?;
+      }
+    } catch (_) {
+      // Not JSON
+    }
+    return null;
   }
 
   /// Attempts to extract an error message from a JSON response body.

@@ -29,6 +29,7 @@ class AuthException extends SoliplexException {
     required super.message,
     this.statusCode,
     this.serverMessage,
+    this.detail,
     super.originalError,
     super.stackTrace,
   });
@@ -40,6 +41,15 @@ class AuthException extends SoliplexException {
   ///
   /// Null when the server didn't provide a meaningful error message.
   final String? serverMessage;
+
+  /// Machine-readable error detail from the server.
+  ///
+  /// Use this to distinguish specific error conditions, e.g.,
+  /// `"missing_identity_claims"` when the JWT lacks required fields.
+  final String? detail;
+
+  /// Whether this error is due to missing identity claims in the JWT.
+  bool get isMissingIdentityClaims => detail == 'missing_identity_claims';
 
   @override
   String toString() {

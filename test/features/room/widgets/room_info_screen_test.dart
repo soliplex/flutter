@@ -256,8 +256,12 @@ void main() {
       );
 
       final mockApi = MockSoliplexApi();
-      when(() => mockApi.getMcpToken('room-1'))
-          .thenAnswer((_) async => 'test-token-abc123');
+      when(() => mockApi.getMcpToken('room-1')).thenAnswer(
+        (_) async => const McpTokenInfo(
+          token: 'test-token-abc123',
+          expiresIn: 3600,
+        ),
+      );
 
       await tester.pumpWidget(
         createTestApp(
@@ -274,7 +278,7 @@ void main() {
       // Token value is NOT displayed
       expect(find.textContaining('test-token-abc123'), findsNothing);
       // "Copy Token" button exists with copy icon
-      expect(find.text('Copy Token'), findsOneWidget);
+      expect(find.textContaining('Copy Token'), findsOneWidget);
       expect(find.byIcon(Icons.copy), findsOneWidget);
     });
 
@@ -291,8 +295,12 @@ void main() {
       );
 
       final mockApi = MockSoliplexApi();
-      when(() => mockApi.getMcpToken('room-1'))
-          .thenAnswer((_) async => 'test-token-abc123');
+      when(() => mockApi.getMcpToken('room-1')).thenAnswer(
+        (_) async => const McpTokenInfo(
+          token: 'test-token-abc123',
+          expiresIn: 3600,
+        ),
+      );
 
       await tester.pumpWidget(
         createTestApp(
@@ -307,12 +315,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Starts with "Copy Token" button and copy icon
-      expect(find.text('Copy Token'), findsOneWidget);
+      expect(find.textContaining('Copy Token'), findsOneWidget);
       expect(find.byIcon(Icons.copy), findsOneWidget);
       expect(find.byIcon(Icons.check), findsNothing);
 
       // Tap copy
-      await tester.tap(find.text('Copy Token'));
+      await tester.tap(find.textContaining('Copy Token'));
       await tester.pump();
 
       // Shows checkmark and "Copied" text
@@ -322,7 +330,7 @@ void main() {
 
       // After 2 seconds, reverts to copy icon
       await tester.pump(const Duration(seconds: 2));
-      expect(find.text('Copy Token'), findsOneWidget);
+      expect(find.textContaining('Copy Token'), findsOneWidget);
       expect(find.byIcon(Icons.copy), findsOneWidget);
       expect(find.byIcon(Icons.check), findsNothing);
     });
@@ -345,7 +353,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Copy Token'), findsNothing);
+      expect(find.textContaining('Copy Token'), findsNothing);
       expect(find.byIcon(Icons.copy), findsNothing);
     });
 
@@ -1064,7 +1072,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        expect(find.text('Copy Token'), findsNothing);
+        expect(find.textContaining('Copy Token'), findsNothing);
         expect(find.text('Retry token'), findsOneWidget);
       });
 
@@ -1086,7 +1094,10 @@ void main() {
         when(() => mockApi.getMcpToken('room-1')).thenAnswer((_) async {
           callCount++;
           if (callCount == 1) throw Exception('token fetch failed');
-          return 'test-token-abc123';
+          return const McpTokenInfo(
+            token: 'test-token-abc123',
+            expiresIn: 3600,
+          );
         });
 
         await tester.pumpWidget(
@@ -1106,7 +1117,7 @@ void main() {
         await tester.tap(find.text('Retry token'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Copy Token'), findsOneWidget);
+        expect(find.textContaining('Copy Token'), findsOneWidget);
         expect(find.text('Retry token'), findsNothing);
         expect(callCount, equals(2));
       });
