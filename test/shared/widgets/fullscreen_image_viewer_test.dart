@@ -6,25 +6,28 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('FullscreenImageViewer', () {
-    testWidgets('wraps image in InteractiveViewer for zoom/pan', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        createTestApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FullscreenImageViewer(
-                    imageUrl: 'https://example.com/photo.png',
-                  ),
+    Widget buildViewer({String? caption}) {
+      return createTestApp(
+        home: Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => FullscreenImageViewer(
+                  caption: caption,
+                  child: const Icon(Icons.image, size: 100),
                 ),
               ),
-              child: const Text('Open'),
             ),
+            child: const Text('Open'),
           ),
         ),
       );
+    }
+
+    testWidgets('wraps child in InteractiveViewer for zoom/pan', (
+      tester,
+    ) async {
+      await tester.pumpWidget(buildViewer());
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -33,22 +36,7 @@ void main() {
     });
 
     testWidgets('close button pops the route', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FullscreenImageViewer(
-                    imageUrl: 'https://example.com/photo.png',
-                  ),
-                ),
-              ),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildViewer());
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -61,48 +49,9 @@ void main() {
       expect(find.byType(FullscreenImageViewer), findsNothing);
     });
 
-    testWidgets('shows error state when image fails to load', (tester) async {
+    testWidgets('displays caption when provided', (tester) async {
       await tester.pumpWidget(
-        createTestApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FullscreenImageViewer(
-                    imageUrl: 'https://broken.example.com/missing.png',
-                  ),
-                ),
-              ),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      );
-
-      await tester.tap(find.text('Open'));
-      await tester.pumpAndSettle();
-
-      // Network images fail in test environment, triggering the error state
-      expect(find.byIcon(Icons.broken_image), findsOneWidget);
-    });
-
-    testWidgets('displays alt text when provided', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FullscreenImageViewer(
-                    imageUrl: 'https://example.com/photo.png',
-                    altText: 'A beautiful sunset',
-                  ),
-                ),
-              ),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
+        buildViewer(caption: 'A beautiful sunset'),
       );
 
       await tester.tap(find.text('Open'));
@@ -111,23 +60,8 @@ void main() {
       expect(find.text('A beautiful sunset'), findsOneWidget);
     });
 
-    testWidgets('rotate button rotates image by 90 degrees', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FullscreenImageViewer(
-                    imageUrl: 'https://example.com/photo.png',
-                  ),
-                ),
-              ),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      );
+    testWidgets('rotate button rotates by 90 degrees', (tester) async {
+      await tester.pumpWidget(buildViewer());
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
@@ -146,22 +80,7 @@ void main() {
     });
 
     testWidgets('has dark background for image viewing', (tester) async {
-      await tester.pumpWidget(
-        createTestApp(
-          home: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => const FullscreenImageViewer(
-                    imageUrl: 'https://example.com/photo.png',
-                  ),
-                ),
-              ),
-              child: const Text('Open'),
-            ),
-          ),
-        ),
-      );
+      await tester.pumpWidget(buildViewer());
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
