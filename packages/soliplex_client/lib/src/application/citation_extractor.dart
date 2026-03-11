@@ -52,10 +52,22 @@ class CitationExtractor {
     Map<String, dynamic> previousState,
     Map<String, dynamic> currentState,
   ) {
-    final previousData = previousState['rag'] as Map<String, dynamic>?;
-    final currentData = currentState['rag'] as Map<String, dynamic>?;
+    final rawCurrent = currentState['rag'];
+    if (rawCurrent == null) return [];
+    if (rawCurrent is! Map<String, dynamic>) {
+      developer.log(
+        'rag state has unexpected type: ${rawCurrent.runtimeType}. '
+        'Expected Map<String, dynamic>.',
+        name: 'soliplex_client.citation_extractor',
+        level: 900,
+      );
+      return [];
+    }
+    final currentData = rawCurrent;
 
-    if (currentData == null) return [];
+    final rawPrevious = previousState['rag'];
+    final previousData =
+        rawPrevious is Map<String, dynamic> ? rawPrevious : null;
 
     final previousLength = _getQaHistoryLength(previousData);
     final currentLength = _getQaHistoryLength(currentData);

@@ -494,7 +494,7 @@ class _MessageListState extends ConsumerState<MessageList> {
                 // Programmatic scroll — notification fires during layout, so
                 // defer hide() to avoid setState during frame building.
                 WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _scrollButton.hide();
+                  if (mounted) _scrollButton.hide();
                 });
               }
             } else if (notification is ScrollEndNotification) {
