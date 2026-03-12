@@ -477,7 +477,7 @@ class _DocumentPickerDialogState extends ConsumerState<_DocumentPickerDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        TextButton(
+        FilledButton(
           onPressed: documentsAsync.isLoading
               ? null
               : () => Navigator.of(context).pop(_selected),

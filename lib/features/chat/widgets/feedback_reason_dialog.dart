@@ -38,7 +38,7 @@ class _FeedbackReasonDialogState extends State<FeedbackReasonDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Cancel'),
         ),
-        TextButton(
+        FilledButton(
           onPressed: () => Navigator.of(context).pop(_controller.text),
           child: const Text('Send'),
         ),
