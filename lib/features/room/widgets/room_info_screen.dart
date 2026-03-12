@@ -808,7 +808,7 @@ class _DocumentsCardState extends State<_DocumentsCard> {
                   style: TextStyle(color: theme.colorScheme.error),
                 ),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: widget.onRetry,
                 child: const Text('Retry'),
               ),
