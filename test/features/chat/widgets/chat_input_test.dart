@@ -13,6 +13,7 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
+import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 
 import '../../../helpers/test_helpers.dart';
@@ -2176,6 +2177,133 @@ void main() {
         // Assert - no retry button for auth errors (ErrorDisplay hides it)
         expect(find.text('Retry'), findsNothing);
         expect(find.textContaining('Session expired'), findsOneWidget);
+      });
+    });
+
+    group('Document Picker Error Indicator', () {
+      testWidgets('button enabled with error tooltip when fetch fails', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const ApiException(
+            statusCode: 500,
+            message: 'Internal Server Error',
+          );
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+              documentsRetryDelaysProvider.overrideWithValue(_testDelays),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - button should be enabled with error tooltip
+        final button = tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.filter_alt),
+        );
+        expect(button.onPressed, isNotNull);
+        expect(button.tooltip, 'Could not load documents');
+      });
+
+      testWidgets('icon tinted warning color when fetch errors', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+
+        when(() => mockApi.getDocuments(mockRoom.id)).thenAnswer((_) async {
+          throw const ApiException(
+            statusCode: 500,
+            message: 'Internal Server Error',
+          );
+        });
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+              documentsRetryDelaysProvider.overrideWithValue(_testDelays),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - icon should have warning color
+        final icon = tester.widget<Icon>(
+          find.descendant(
+            of: find.widgetWithIcon(IconButton, Icons.filter_alt),
+            matching: find.byType(Icon),
+          ),
+        );
+        final context = tester.element(find.byType(ChatInput));
+        final expectedColor = Theme.of(context).colorScheme.warning;
+        expect(icon.color, expectedColor);
+      });
+
+      testWidgets('icon not tinted when documents load successfully', (
+        tester,
+      ) async {
+        // Arrange
+        final mockRoom = TestData.createRoom();
+        final mockThread = TestData.createThread();
+        final mockApi = MockSoliplexApi();
+        final documents = [
+          TestData.createDocument(id: 'doc-1', title: 'Doc 1.pdf'),
+        ];
+
+        when(
+          () => mockApi.getDocuments(mockRoom.id),
+        ).thenAnswer((_) async => documents);
+
+        // Act
+        await tester.pumpWidget(
+          createTestApp(
+            home: Scaffold(
+              body: ChatInput(onSend: (_) {}, roomId: mockRoom.id),
+            ),
+            overrides: [
+              currentRoomProvider.overrideWith((ref) => mockRoom),
+              currentThreadProvider.overrideWith((ref) => mockThread),
+              activeRunNotifierOverride(const IdleState()),
+              apiProvider.overrideWithValue(mockApi),
+            ],
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // Assert - icon should not have warning color
+        final icon = tester.widget<Icon>(
+          find.descendant(
+            of: find.widgetWithIcon(IconButton, Icons.filter_alt),
+            matching: find.byType(Icon),
+          ),
+        );
+        expect(icon.color, isNull);
       });
     });
 
