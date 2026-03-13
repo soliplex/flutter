@@ -1,0 +1,40 @@
+import 'package:meta/meta.dart';
+
+/// A skill configured in a room.
+@immutable
+class RoomSkill {
+  /// Creates a room skill.
+  const RoomSkill({
+    required this.name,
+    required this.description,
+    this.source,
+    this.license,
+    this.compatibility,
+    this.allowedTools,
+    this.stateNamespace,
+  });
+
+  /// Skill name as configured in the backend.
+  final String name;
+
+  /// Human-readable description of what the skill does.
+  final String description;
+
+  /// Where the skill was loaded from (e.g., 'filesystem', 'entrypoint').
+  final String? source;
+
+  /// License of the skill (e.g., 'MIT').
+  final String? license;
+
+  /// Version compatibility string.
+  final String? compatibility;
+
+  /// Space-separated list of tools this skill is allowed to use.
+  final String? allowedTools;
+
+  /// AG-UI state namespace for this skill.
+  final String? stateNamespace;
+
+  @override
+  String toString() => 'RoomSkill(name: $name, source: $source)';
+}
