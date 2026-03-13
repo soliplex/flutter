@@ -947,11 +947,9 @@ class _DocumentsCardState extends State<_DocumentsCard> {
                   style: TextButton.styleFrom(
                     textStyle: theme.textTheme.labelSmall,
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   onPressed: () => showDialog<void>(
                     context: context,
@@ -1078,9 +1076,7 @@ class _DialogButton extends StatelessWidget {
       child: TextButton(
         style: TextButton.styleFrom(
           textStyle: theme.textTheme.labelSmall,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         ),
         onPressed: onPressed,
         child: Text(label),
