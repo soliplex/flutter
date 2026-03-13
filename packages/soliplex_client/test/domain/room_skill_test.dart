@@ -13,6 +13,8 @@ void main() {
       expect(skill.compatibility, isNull);
       expect(skill.allowedTools, isNull);
       expect(skill.stateNamespace, isNull);
+      expect(skill.metadata, isEmpty);
+      expect(skill.stateTypeSchema, isNull);
     });
 
     test('creates with all fields', () {
@@ -24,6 +26,8 @@ void main() {
         compatibility: '>=1.0',
         allowedTools: 'tool_a tool_b',
         stateNamespace: 'rag',
+        metadata: {'author': 'test'},
+        stateTypeSchema: {'type': 'object'},
       );
 
       expect(skill.name, equals('rag_search'));
@@ -33,6 +37,8 @@ void main() {
       expect(skill.compatibility, equals('>=1.0'));
       expect(skill.allowedTools, equals('tool_a tool_b'));
       expect(skill.stateNamespace, equals('rag'));
+      expect(skill.metadata, equals({'author': 'test'}));
+      expect(skill.stateTypeSchema, equals({'type': 'object'}));
     });
 
     test('toString includes name and source', () {
