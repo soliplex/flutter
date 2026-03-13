@@ -2,6 +2,7 @@ import 'package:meta/meta.dart';
 
 import 'package:soliplex_client/src/domain/mcp_client_toolset.dart';
 import 'package:soliplex_client/src/domain/room_agent.dart';
+import 'package:soliplex_client/src/domain/room_skill.dart';
 import 'package:soliplex_client/src/domain/room_tool.dart';
 
 /// Represents a room from the backend.
@@ -20,6 +21,7 @@ class Room {
     this.allowMcp = false,
     this.agent,
     this.tools = const {},
+    this.skills = const {},
     this.mcpClientToolsets = const {},
     this.aguiFeatureNames = const [],
   });
@@ -58,6 +60,9 @@ class Room {
   /// Tools configured in this room, keyed by tool name.
   final Map<String, RoomTool> tools;
 
+  /// Skills configured in this room, keyed by skill name.
+  final Map<String, RoomSkill> skills;
+
   /// MCP client toolsets configured in this room.
   final Map<String, McpClientToolset> mcpClientToolsets;
 
@@ -76,6 +81,9 @@ class Room {
   /// Whether the room has any suggestions.
   bool get hasSuggestions => suggestions.isNotEmpty;
 
+  /// Whether the room has any skills.
+  bool get hasSkills => skills.isNotEmpty;
+
   /// Creates a copy of this room with the given fields replaced.
   Room copyWith({
     String? id,
@@ -89,6 +97,7 @@ class Room {
     bool? allowMcp,
     RoomAgent? agent,
     Map<String, RoomTool>? tools,
+    Map<String, RoomSkill>? skills,
     Map<String, McpClientToolset>? mcpClientToolsets,
     List<String>? aguiFeatureNames,
   }) {
@@ -104,6 +113,7 @@ class Room {
       allowMcp: allowMcp ?? this.allowMcp,
       agent: agent ?? this.agent,
       tools: tools ?? this.tools,
+      skills: skills ?? this.skills,
       mcpClientToolsets: mcpClientToolsets ?? this.mcpClientToolsets,
       aguiFeatureNames: aguiFeatureNames ?? this.aguiFeatureNames,
     );
