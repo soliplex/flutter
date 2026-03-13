@@ -21,6 +21,8 @@ void main() {
       expect(room.allowMcp, isFalse);
       expect(room.agent, isNull);
       expect(room.tools, isEmpty);
+      expect(room.skills, isEmpty);
+      expect(room.hasSkills, isFalse);
       expect(room.mcpClientToolsets, isEmpty);
       expect(room.aguiFeatureNames, isEmpty);
     });
@@ -37,6 +39,11 @@ void main() {
         description: 'Search docs',
         kind: 'search',
       );
+      const skill = RoomSkill(
+        name: 'rag_search',
+        description: 'Search knowledge base',
+        source: 'filesystem',
+      );
       const toolset = McpClientToolset(kind: 'http');
 
       const room = Room(
@@ -51,6 +58,7 @@ void main() {
         allowMcp: true,
         agent: agent,
         tools: {'search': tool},
+        skills: {'rag_search': skill},
         mcpClientToolsets: {'toolset-1': toolset},
         aguiFeatureNames: ['feature1'],
       );
@@ -76,6 +84,8 @@ void main() {
       expect(room.allowMcp, isTrue);
       expect(room.agent, equals(agent));
       expect(room.tools, equals({'search': tool}));
+      expect(room.skills, equals({'rag_search': skill}));
+      expect(room.hasSkills, isTrue);
       expect(
         room.mcpClientToolsets,
         equals({'toolset-1': toolset}),
@@ -102,6 +112,7 @@ void main() {
           metadata: {'new': 'data'},
           quizzes: {'quiz-1': 'Quiz One'},
           suggestions: ['Suggestion 1', 'Suggestion 2'],
+          skills: {'s': const RoomSkill(name: 's', description: 'd')},
         );
 
         expect(modified.id, equals('room-2'));
@@ -111,6 +122,7 @@ void main() {
         expect(modified.quizzes, equals({'quiz-1': 'Quiz One'}));
         expect(modified.quizIds, equals(['quiz-1']));
         expect(modified.suggestions, equals(['Suggestion 1', 'Suggestion 2']));
+        expect(modified.skills, hasLength(1));
       });
 
       test('creates identical copy when no parameters passed', () {
