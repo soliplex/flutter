@@ -13,8 +13,8 @@ packages:
     dependency: transitive
     description:
       path: "sdks/community/dart"
-      ref: HEAD
-      resolved-ref: b7a6fc9922b532596cbae799f683cd38f0ccc9c2
+      ref: "18087b3926d7bbea19564dfa577f4f44ae88c6fc"
+      resolved-ref: "18087b3926d7bbea19564dfa577f4f44ae88c6fc"
       url: "https://github.com/soliplex/ag-ui.git"
     source: git
     version: "0.1.0"

@@ -10,6 +10,7 @@ dependencies:
   ag_ui:
     git:
       url: https://github.com/soliplex/ag-ui.git
+      ref: 18087b3926d7bbea19564dfa577f4f44ae88c6fc
       path: sdks/community/dart
   collection: ^1.19.1
   http: ^1.2.0
