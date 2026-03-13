@@ -1,34 +1,54 @@
 import 'package:meta/meta.dart';
-import 'package:soliplex_frontend/design/tokens/colors.dart';
+import 'package:soliplex_frontend/core/models/color_config.dart';
+import 'package:soliplex_frontend/core/models/font_config.dart';
 
-/// Theme configuration for customizing app appearance.
+/// Theme configuration for white-label customization.
 ///
-/// Wraps [SoliplexColors] for light and dark modes, allowing white-label
-/// apps to provide custom color schemes while preserving the theme structure.
+/// Groups color and font customization into two optional config objects:
+/// - [colorConfig]: brand color palettes for light and dark modes
+/// - [fontConfig]: font families (body, display, brand)
+///
+/// When either config is `null`, all defaults for that category apply.
+///
+/// Example:
+/// ```dart
+/// const config = ThemeConfig(
+///   colorConfig: ColorConfig(),
+/// );
+/// ```
 @immutable
 class ThemeConfig {
-  /// Creates a theme configuration with optional custom colors.
+  /// Creates a theme configuration with optional color and font configs.
   ///
-  /// If colors are not provided, defaults to the standard Soliplex palette.
+  /// Both [colorConfig] and [fontConfig] default to `null`, which means
+  /// all color defaults and Material default fonts apply respectively.
   const ThemeConfig({
-    this.lightColors = lightSoliplexColors,
-    this.darkColors = darkSoliplexColors,
+    this.colorConfig,
+    this.fontConfig,
   });
 
-  /// Color palette for light mode.
-  final SoliplexColors lightColors;
+  /// Optional color configuration for white-label color customization.
+  ///
+  /// When `null`, all default colors apply (see [ColorConfig] defaults).
+  final ColorConfig? colorConfig;
 
-  /// Color palette for dark mode.
-  final SoliplexColors darkColors;
+  /// Optional font configuration for white-label font customization.
+  ///
+  /// When `null`, Material defaults apply (no custom font families).
+  final FontConfig? fontConfig;
 
   /// Creates a copy with the specified fields replaced.
+  ///
+  /// Use `clear*` flags to reset a field to `null` (all defaults).
   ThemeConfig copyWith({
-    SoliplexColors? lightColors,
-    SoliplexColors? darkColors,
+    ColorConfig? colorConfig,
+    FontConfig? fontConfig,
+    bool clearColorConfig = false,
+    bool clearFontConfig = false,
   }) {
     return ThemeConfig(
-      lightColors: lightColors ?? this.lightColors,
-      darkColors: darkColors ?? this.darkColors,
+      colorConfig: clearColorConfig ? null : (colorConfig ?? this.colorConfig),
+      fontConfig: clearFontConfig ? null : (fontConfig ?? this.fontConfig),
     );
   }
 
@@ -37,13 +57,14 @@ class ThemeConfig {
       identical(this, other) ||
       other is ThemeConfig &&
           runtimeType == other.runtimeType &&
-          lightColors == other.lightColors &&
-          darkColors == other.darkColors;
+          colorConfig == other.colorConfig &&
+          fontConfig == other.fontConfig;
 
   @override
-  int get hashCode => Object.hash(lightColors, darkColors);
+  int get hashCode => Object.hash(colorConfig, fontConfig);
 
   @override
-  String toString() => 'ThemeConfig(lightColors: $lightColors, '
-      'darkColors: $darkColors)';
+  String toString() => 'ThemeConfig('
+      'colorConfig: $colorConfig, '
+      'fontConfig: $fontConfig)';
 }

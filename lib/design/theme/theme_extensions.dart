@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:soliplex_frontend/design/tokens/colors.dart';
 import 'package:soliplex_frontend/design/tokens/radii.dart';
 
 class SoliplexBadgeThemeData {
@@ -21,13 +20,13 @@ class SoliplexTheme extends ThemeExtension<SoliplexTheme> {
     required this.badgeTheme,
   });
 
-  final SoliplexColors colors;
+  final ColorScheme colors;
   final SoliplexRadii radii;
   final SoliplexBadgeThemeData badgeTheme;
 
   @override
   SoliplexTheme copyWith({
-    SoliplexColors? colors,
+    ColorScheme? colors,
     SoliplexRadii? radii,
     SoliplexBadgeThemeData? badgeTheme,
   }) {

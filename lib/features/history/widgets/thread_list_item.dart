@@ -80,21 +80,25 @@ class ThreadListItem extends StatelessWidget {
               Icons.chat_bubble_outline,
               color: isSelected ? colorScheme.primary : colorScheme.onSurface,
             ),
+      tileColor: colorScheme.surface,
+      selectedTileColor: colorScheme.primaryContainer,
       title: Text(
         _getTitle(),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodyLarge?.copyWith(
           fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          color: isSelected ? colorScheme.primary : null,
+          color: isSelected
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
         ),
       ),
       subtitle: Text(
         _getSubtitle(),
         style: theme.textTheme.bodySmall?.copyWith(
           color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.7)
-              : colorScheme.onSurfaceVariant,
+              ? colorScheme.onPrimaryContainer
+              : colorScheme.onPrimaryContainer.withValues(alpha: 0.8),
         ),
       ),
       trailing: hasUnreadRun && !isSelected

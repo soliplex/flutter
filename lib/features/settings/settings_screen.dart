@@ -9,7 +9,6 @@ import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/core/providers/backend_version_provider.dart';
 import 'package:soliplex_frontend/core/providers/config_provider.dart';
 import 'package:soliplex_frontend/core/providers/http_log_provider.dart';
-import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/version.dart';
 import 'package:soliplex_logging/soliplex_logging.dart';
@@ -175,11 +174,11 @@ class _AuthSection extends ConsumerWidget {
             ListTile(
               leading: Icon(
                 Icons.logout,
-                color: Theme.of(context).colorScheme.danger,
+                color: Theme.of(context).colorScheme.error,
               ),
               title: Text(
                 'Sign Out',
-                style: TextStyle(color: Theme.of(context).colorScheme.danger),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               onTap: () => _confirmSignOut(context, ref),
             ),
@@ -209,11 +208,11 @@ class _AuthSection extends ConsumerWidget {
             ListTile(
               leading: Icon(
                 Icons.link_off,
-                color: Theme.of(context).colorScheme.danger,
+                color: Theme.of(context).colorScheme.error,
               ),
               title: Text(
                 'Disconnect',
-                style: TextStyle(color: Theme.of(context).colorScheme.danger),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
               onTap: () => _disconnect(context, ref),
             ),
@@ -238,7 +237,7 @@ class _AuthSection extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Sign Out'),
           ),

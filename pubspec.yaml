@@ -23,6 +23,7 @@ dependencies:
   flutter_secure_storage: ^10.0.0
   flutter_svg: ^2.2.4
   go_router: ^17.1.0
+  google_fonts: ^6.2.1
   http: ^1.2.0
   intl: ^0.20.1
   markdown: ^7.0.0
@@ -59,10 +60,25 @@ dev_dependencies:
   # Riverpod for testing (explicit version from transitive)
   riverpod: 3.2.1
   very_good_analysis: ^10.1.0
+
 flutter:
   uses-material-design: true
   assets:
     - assets/branding/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: fonts/Inter-VariableFont_opsz,wght.ttf
+        - asset: fonts/Inter-Italic-VariableFont_opsz,wght.ttf
+          style: italic
+    - family: Hyprsalvo
+      fonts:
+        - asset: fonts/HYPRSALVO.otf
+        - asset: fonts/HYPRSALVO-BoldCondensed.otf
+          weight: 700
+    - family: Tactical
+      fonts:
+        - asset: fonts/TACTICAL.otf
 
 flutter_launcher_icons:
   android: true

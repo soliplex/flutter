@@ -74,14 +74,13 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
             ? width * 2 / 3
             : width - SoliplexSpacing.s4 * 2;
 
-        return Align(
-          alignment: AlignmentDirectional.topCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxContentWidth),
-            child: Column(
-              spacing: SoliplexSpacing.s4,
-              children: [
-                RoomSearchToolbar(
+        return Column(
+          children: [
+            Align(
+              alignment: AlignmentDirectional.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: RoomSearchToolbar(
                   query: _searchQuery,
                   isGridView: isGridView,
                   showViewToggle: !isMobile,
@@ -90,86 +89,117 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                   onToggleView: () =>
                       ref.read(isGridViewProvider.notifier).toggle(),
                 ),
-                Expanded(
-                  child: roomsAsync.when(
-                    data: (rooms) {
-                      final filtered = _filterRooms(rooms);
-                      Loggers.room.debug('Rooms loaded: ${filtered.length}');
-                      if (filtered.isEmpty) {
-                        return const EmptyState(
-                          message: 'No rooms available',
-                          icon: Icons.meeting_room_outlined,
-                        );
-                      }
+              ),
+            ),
+            const SizedBox(height: SoliplexSpacing.s4),
+            Expanded(
+              child: roomsAsync.when(
+                data: (rooms) {
+                  final filtered = _filterRooms(rooms);
+                  Loggers.room.debug('Rooms loaded: ${filtered.length}');
+                  if (filtered.isEmpty) {
+                    return const EmptyState(
+                      message: 'No rooms available',
+                      icon: Icons.meeting_room_outlined,
+                    );
+                  }
 
-                      void navigateToRoom(Room room) {
-                        Loggers.room.info(
-                          'Room selected:'
-                          ' ${room.id} (${room.name})',
-                        );
-                        ref
-                            .read(
-                              currentRoomIdProvider.notifier,
-                            )
-                            .set(room.id);
-                        context.push('/rooms/${room.id}');
-                      }
+                  void navigateToRoom(Room room) {
+                    Loggers.room.info(
+                      'Room selected: ${room.id} (${room.name})',
+                    );
+                    ref.read(currentRoomIdProvider.notifier).set(room.id);
+                    context.push('/rooms/${room.id}');
+                  }
 
-                      if (isGridView && !isMobile) {
-                        return GridView.builder(
-                          gridDelegate:
-                              const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 300,
-                            childAspectRatio: 3 / 2,
-                            crossAxisSpacing: SoliplexSpacing.s2,
-                            mainAxisSpacing: SoliplexSpacing.s2,
-                          ),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final room = filtered[index];
-                            return RoomGridCard(
-                              room: room,
-                              unreadCount: unreadRuns.unreadCountForRoom(
-                                room.id,
+                  if (isGridView && !isMobile) {
+                    const cardSpacing = SoliplexSpacing.s3;
+                    final cardsPerRow =
+                        width >= SoliplexBreakpoints.desktop ? 3 : 2;
+                    final rowCount =
+                        (filtered.length + cardsPerRow - 1) ~/ cardsPerRow;
+
+                    return ListView.builder(
+                      itemCount: rowCount,
+                      itemBuilder: (context, rowIndex) {
+                        final start = rowIndex * cardsPerRow;
+                        final end =
+                            (start + cardsPerRow).clamp(0, filtered.length);
+                        final rowRooms = filtered.sublist(start, end);
+
+                        return Center(
+                          child: ConstrainedBox(
+                            constraints:
+                                BoxConstraints(maxWidth: maxContentWidth),
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                bottom:
+                                    rowIndex < rowCount - 1 ? cardSpacing : 0,
                               ),
-                              onTap: () => navigateToRoom(room),
-                            );
-                          },
+                              child: Row(
+                                spacing: cardSpacing,
+                                children: [
+                                  for (var i = 0; i < cardsPerRow; i++)
+                                    Expanded(
+                                      child: i < rowRooms.length
+                                          ? AspectRatio(
+                                              aspectRatio: 1.25,
+                                              child: RoomGridCard(
+                                                room: rowRooms[i],
+                                                unreadCount: unreadRuns
+                                                    .unreadCountForRoom(
+                                                  rowRooms[i].id,
+                                                ),
+                                                onTap: () => navigateToRoom(
+                                                  rowRooms[i],
+                                                ),
+                                              ),
+                                            )
+                                          : const SizedBox.shrink(),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
                         );
-                      }
+                      },
+                    );
+                  }
 
-                      return ListView.builder(
-                        itemCount: filtered.length,
-                        itemBuilder: (context, index) {
-                          final room = filtered[index];
-                          return Padding(
+                  return ListView.builder(
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final room = filtered[index];
+                      return Center(
+                        child: ConstrainedBox(
+                          constraints:
+                              BoxConstraints(maxWidth: maxContentWidth),
+                          child: Padding(
                             padding: const EdgeInsets.symmetric(
                               vertical: SoliplexSpacing.s1,
                             ),
                             child: RoomListTile(
                               room: room,
-                              unreadCount: unreadRuns.unreadCountForRoom(
-                                room.id,
-                              ),
+                              unreadCount:
+                                  unreadRuns.unreadCountForRoom(room.id),
                               onTap: () => navigateToRoom(room),
                             ),
-                          );
-                        },
+                          ),
+                        ),
                       );
                     },
-                    loading: () => const LoadingIndicator(
-                      message: 'Loading rooms...',
-                    ),
-                    error: (error, stack) => ErrorDisplay(
-                      error: error,
-                      stackTrace: stack,
-                      onRetry: () => ref.invalidate(roomsProvider),
-                    ),
-                  ),
+                  );
+                },
+                loading: () =>
+                    const LoadingIndicator(message: 'Loading rooms...'),
+                error: (error, stack) => ErrorDisplay(
+                  error: error,
+                  stackTrace: stack,
+                  onRetry: () => ref.invalidate(roomsProvider),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         );
       },
     );

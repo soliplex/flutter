@@ -33,10 +33,20 @@ extension points before knowing real requirements leads to wrong abstractions.
 
 **What consumers CAN customize (v1):**
 
-- App name and branding
-- Theme colors (15 semantic tokens)
+- App name and branding (`appName`, `LogoConfig`)
+- AppBar branding (`showLogoInAppBar`, `showAppNameInAppBar`)
+- Theme colors via `ColorConfig` holding separate light and dark `ColorPalette`
+  instances. Each palette has 7 required roles (`primary`, `secondary`,
+  `background`, `foreground`, `muted`, `mutedForeground`, `border`) and 6
+  optional roles (`tertiary`, `error`, `onPrimary`, `onSecondary`, `onTertiary`,
+  `onError`) with auto-computed defaults. The full Material 3 `ColorScheme` is
+  derived from these roles via direct color math (no `ColorScheme.fromSeed()`).
+- Theme fonts via `FontConfig` with 3 roles (`bodyFont`, `displayFont`,
+  `brandFont`). Resolved at runtime by `google_fonts`; when `null`, Material
+  defaults apply.
 - Feature flags (HTTP inspector, quizzes, settings, version info)
 - Default backend URL
+- OAuth redirect scheme for native platforms (`oauthRedirectScheme`)
 - Route visibility (home, rooms)
 - Initial route
 
@@ -96,7 +106,9 @@ runApp(
 
 - `runSoliplexApp` - Entry point
 - `SoliplexConfig`, `Features`, `RouteConfig`, `ThemeConfig` - Configuration
-- `SoliplexColors`, `lightSoliplexColors`, `darkSoliplexColors` - Theming
+- `ColorConfig`, `ColorPalette` - Brand color palettes (light/dark)
+- `FontConfig` - Font family roles (body, display, brand)
+- `LogoConfig` - Logo asset configuration
 
 **Rationale:** Smaller API surface = fewer breaking changes = happier consumers.
 Internal refactoring doesn't affect external code.
@@ -158,7 +170,7 @@ These changes would be breaking and require a major version bump.
 
 ## Implementation Reference
 
-The white-label entry point is `runSoliplexApp()` in `lib/main.dart`.
+The white-label entry point is `runSoliplexApp()` in `lib/run_soliplex_app.dart`.
 Configuration flows through `SoliplexConfig` and Riverpod provider overrides.
 See the [Client Package](../summary/client.md) documentation for the underlying
 API client architecture.

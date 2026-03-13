@@ -309,6 +309,140 @@ void main() {
       });
     });
 
+    group('AppBar branding', () {
+      testWidgets('default config shows no logo, no app name, title centered', (
+        tester,
+      ) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(testSoliplexConfig),
+            ],
+            child: const MaterialApp(
+              home: AppShell(
+                config: ShellConfig(title: Text('Screen Title')),
+                body: SizedBox.shrink(),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Screen Title'), findsOneWidget);
+        expect(find.byType(Image), findsNothing);
+        expect(find.text('Soliplex'), findsNothing);
+      });
+
+      testWidgets('showLogoInAppBar true shows logo and app name in left group',
+          (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(
+                testSoliplexConfig.copyWith(showLogoInAppBar: true),
+              ),
+            ],
+            child: const MaterialApp(
+              home: AppShell(
+                config: ShellConfig(),
+                body: SizedBox.shrink(),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.bySemanticsLabel('Soliplex logo'), findsOneWidget);
+        expect(find.text('Soliplex'), findsOneWidget);
+      });
+
+      testWidgets(
+        'showLogoInAppBar true with showAppNameInAppBar false '
+        'shows logo only',
+        (tester) async {
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                shellConfigProvider.overrideWithValue(
+                  testSoliplexConfig.copyWith(
+                    showLogoInAppBar: true,
+                    showAppNameInAppBar: false,
+                  ),
+                ),
+              ],
+              child: const MaterialApp(
+                home: AppShell(
+                  config: ShellConfig(),
+                  body: SizedBox.shrink(),
+                ),
+              ),
+            ),
+          );
+
+          expect(find.bySemanticsLabel('Soliplex logo'), findsOneWidget);
+          expect(find.text('Soliplex'), findsNothing);
+        },
+      );
+
+      testWidgets(
+        'brand + leading + page title all render together',
+        (tester) async {
+          const leadingKey = Key('screen-leading');
+          await tester.pumpWidget(
+            ProviderScope(
+              overrides: [
+                shellConfigProvider.overrideWithValue(
+                  testSoliplexConfig.copyWith(showLogoInAppBar: true),
+                ),
+              ],
+              child: MaterialApp(
+                home: AppShell(
+                  config: ShellConfig(
+                    leading: IconButton(
+                      key: leadingKey,
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () {},
+                    ),
+                    title: const Text('Room Name'),
+                  ),
+                  body: const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          );
+
+          // Left group: leading, logo, app name
+          expect(find.byKey(leadingKey), findsOneWidget);
+          expect(find.bySemanticsLabel('Soliplex logo'), findsOneWidget);
+          expect(find.text('Soliplex'), findsOneWidget);
+          // Page title centered
+          expect(find.text('Room Name'), findsOneWidget);
+        },
+      );
+
+      testWidgets('no page title leaves center area empty', (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              shellConfigProvider.overrideWithValue(
+                testSoliplexConfig.copyWith(showLogoInAppBar: true),
+              ),
+            ],
+            child: const MaterialApp(
+              home: AppShell(
+                config: ShellConfig(),
+                body: SizedBox.shrink(),
+              ),
+            ),
+          ),
+        );
+
+        // Brand is visible
+        expect(find.bySemanticsLabel('Soliplex logo'), findsOneWidget);
+        expect(find.text('Soliplex'), findsOneWidget);
+        // No page title widget — the Expanded holds a SizedBox.shrink
+        expect(find.byType(SizedBox), findsWidgets);
+      });
+    });
+
     group('feature flags', () {
       testWidgets(
         'hides inspector button when enableHttpInspector is false',

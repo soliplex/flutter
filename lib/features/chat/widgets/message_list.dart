@@ -161,7 +161,13 @@ double computeSpacerHeight({
 /// (from API) with active run messages (streaming).
 class MessageList extends ConsumerStatefulWidget {
   /// Creates a message list widget.
-  const MessageList({super.key});
+  /// When [maxContentWidth] is provided, each message item is centered within
+  /// that width while the scroll view spans full width (scrollbar at edge).
+  const MessageList({this.maxContentWidth, super.key});
+
+  /// Optional max width for message content. The ListView itself remains
+  /// full-width so the scrollbar sits at the screen edge.
+  final double? maxContentWidth;
 
   /// Key for the trailing spacer widget, exposed for testing.
   @visibleForTesting
@@ -589,7 +595,7 @@ class _MessageListState extends ConsumerState<MessageList> {
 
               final key = _scrollSession.keyFor(message.id, _scrollTargetKey);
 
-              return ChatMessageWidget(
+              final child = ChatMessageWidget(
                 key: key,
                 message: message,
                 isStreaming: isSyntheticMessage,
@@ -597,6 +603,16 @@ class _MessageListState extends ConsumerState<MessageList> {
                     isSyntheticMessage && computation.isThinkingStreaming,
                 sourceReferences: sourceRefs,
                 onFeedbackSubmit: onFeedbackSubmit,
+              );
+
+              if (widget.maxContentWidth == null) return child;
+
+              return Center(
+                child: ConstrainedBox(
+                  constraints:
+                      BoxConstraints(maxWidth: widget.maxContentWidth!),
+                  child: child,
+                ),
               );
             },
           ),

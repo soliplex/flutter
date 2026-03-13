@@ -102,8 +102,8 @@ class ChatMessageWidget extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isUser
                       ? theme.colorScheme.primaryContainer
-                      : theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(soliplexTheme.radii.lg),
+                      : theme.colorScheme.surface,
+                  borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

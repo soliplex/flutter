@@ -87,51 +87,50 @@ class HistoryPanel extends ConsumerWidget {
         final currentThreadId = ref.watch(currentThreadIdProvider);
         final unreadRuns = ref.watch(unreadRunsProvider);
 
-        return Padding(
-          padding: const EdgeInsets.only(left: 8, right: 8, top: 8),
-          child: Column(
-            spacing: SoliplexSpacing.s2,
-            children: [
-              NewConversationButton(
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(SoliplexSpacing.s2),
+              child: NewConversationButton(
                 onPressed: () => _handleNewConversation(ref),
               ),
-              const Divider(height: 1),
-              Expanded(
-                child: RefreshIndicator(
-                  onRefresh: () async {
-                    Loggers.room.debug('Thread list refreshed for $roomId');
-                    ref.invalidate(threadsProvider(roomId));
-                    // Wait for the provider to reload
-                    await ref.read(threadsProvider(roomId).future);
-                  },
-                  child: ListView.builder(
-                    itemCount: threads.length,
-                    itemBuilder: (context, index) {
-                      final thread = threads[index];
-                      final isSelected = thread.id == currentThreadId;
-                      final hasActiveRun =
-                          activeThreadId != null && activeThreadId == thread.id;
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  Loggers.room.debug('Thread list refreshed for $roomId');
+                  ref.invalidate(threadsProvider(roomId));
+                  // Wait for the provider to reload
+                  await ref.read(threadsProvider(roomId).future);
+                },
+                child: ListView.builder(
+                  itemCount: threads.length,
+                  itemBuilder: (context, index) {
+                    final thread = threads[index];
+                    final isSelected = thread.id == currentThreadId;
+                    final hasActiveRun =
+                        activeThreadId != null && activeThreadId == thread.id;
 
-                      return ThreadListItem(
-                        thread: thread,
-                        isSelected: isSelected,
-                        hasActiveRun: hasActiveRun,
-                        hasUnreadRun: unreadRuns.isThreadUnread(
-                          (roomId: roomId, threadId: thread.id),
-                        ),
-                        onTap: () => _handleThreadSelection(
-                          context,
-                          ref,
-                          roomId,
-                          thread.id,
-                        ),
-                      );
-                    },
-                  ),
+                    return ThreadListItem(
+                      thread: thread,
+                      isSelected: isSelected,
+                      hasActiveRun: hasActiveRun,
+                      hasUnreadRun: unreadRuns.isThreadUnread(
+                        (roomId: roomId, threadId: thread.id),
+                      ),
+                      onTap: () => _handleThreadSelection(
+                        context,
+                        ref,
+                        roomId,
+                        thread.id,
+                      ),
+                    );
+                  },
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         );
       },
       onRetry: () => ref.refresh(threadsProvider(roomId)),
