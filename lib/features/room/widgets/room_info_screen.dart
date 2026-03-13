@@ -146,22 +146,66 @@ Widget _buildToolContent(RoomTool tool) {
 }
 
 Widget _buildSkillContent(RoomSkill skill) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      if (skill.description.isNotEmpty)
-        _InfoRow(label: 'Description', value: skill.description),
-      if (skill.source != null) _InfoRow(label: 'Source', value: skill.source!),
-      if (skill.license != null)
-        _InfoRow(label: 'License', value: skill.license!),
-      if (skill.compatibility != null)
-        _InfoRow(label: 'Compatibility', value: skill.compatibility!),
-      if (skill.allowedTools != null)
-        _InfoRow(label: 'Allowed Tools', value: skill.allowedTools!),
-      if (skill.stateNamespace != null)
-        _InfoRow(label: 'State Namespace', value: skill.stateNamespace!),
-    ],
-  );
+  return _SkillContentColumn(skill: skill);
+}
+
+class _SkillContentColumn extends StatelessWidget {
+  const _SkillContentColumn({required this.skill});
+  final RoomSkill skill;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      color: colorScheme.onSurfaceVariant,
+    );
+    final valueStyle = theme.textTheme.bodySmall;
+    final noneStyle = theme.textTheme.bodySmall?.copyWith(
+      fontStyle: FontStyle.italic,
+      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+    );
+
+    Widget field(String label, String? value) {
+      final isNone = value == null || value.isEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: labelStyle),
+          const SizedBox(height: 2),
+          Text(
+            isNone ? 'None' : value,
+            style: isNone ? noneStyle : valueStyle,
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        field('description', skill.description),
+        const SizedBox(height: SoliplexSpacing.s2),
+        field('source', skill.source),
+        const SizedBox(height: SoliplexSpacing.s2),
+        field('license', skill.license),
+        const SizedBox(height: SoliplexSpacing.s2),
+        field('compatibility', skill.compatibility),
+        const SizedBox(height: SoliplexSpacing.s2),
+        field('allowed_tools', skill.allowedTools),
+        const SizedBox(height: SoliplexSpacing.s2),
+        field('state_namespace', skill.stateNamespace),
+        _DialogButton(
+          label: 'Show more',
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (_) => _SkillDetailDialog(skill: skill),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 Widget _buildToolsetContent(McpClientToolset toolset) {
@@ -930,6 +974,118 @@ class _DocumentsCardState extends State<_DocumentsCard> {
         '${dt.day.toString().padLeft(2, '0')} '
         '${dt.hour.toString().padLeft(2, '0')}:'
         '${dt.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _SkillDetailDialog extends StatelessWidget {
+  const _SkillDetailDialog({required this.skill});
+  final RoomSkill skill;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final sectionStyle = theme.textTheme.titleSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+    );
+    final labelStyle = theme.textTheme.labelSmall?.copyWith(
+      fontWeight: FontWeight.w600,
+      color: colorScheme.onSurfaceVariant,
+    );
+    final valueStyle = theme.textTheme.bodySmall;
+    final noneStyle = theme.textTheme.bodySmall?.copyWith(
+      fontStyle: FontStyle.italic,
+      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+    );
+
+    Widget mapSection(String title, Map<String, dynamic>? data) {
+      final isEmpty = data == null || data.isEmpty;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: sectionStyle),
+          const SizedBox(height: SoliplexSpacing.s2),
+          if (isEmpty)
+            Text('Empty', style: noneStyle)
+          else
+            for (final entry in data.entries) ...[
+              SizedBox(
+                width: double.infinity,
+                child: Card(
+                  margin: EdgeInsets.zero,
+                  child: Padding(
+                    padding: const EdgeInsets.all(SoliplexSpacing.s3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(entry.key, style: labelStyle),
+                        const SizedBox(height: 2),
+                        SelectableText(
+                          entry.value.toString(),
+                          style: valueStyle,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: SoliplexSpacing.s2),
+            ],
+        ],
+      );
+    }
+
+    return AlertDialog(
+      title: Text(
+        skill.name,
+        overflow: TextOverflow.ellipsis,
+        maxLines: 1,
+      ),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              mapSection('Metadata', skill.metadata),
+              const SizedBox(height: SoliplexSpacing.s4),
+              mapSection('State Schema', skill.stateTypeSchema),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
+}
+
+class _DialogButton extends StatelessWidget {
+  const _DialogButton({required this.label, required this.onPressed});
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.centerRight,
+      child: TextButton(
+        style: TextButton.styleFrom(
+          textStyle: theme.textTheme.labelSmall,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: onPressed,
+        child: Text(label),
+      ),
+    );
   }
 }
 
