@@ -193,6 +193,115 @@ void main() {
 
         expect(room.suggestions, equals(['Valid', 'Also valid']));
       });
+
+      test('parses skills correctly', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'skills': {
+            'rag_search': {
+              'source': 'filesystem',
+              'name': 'rag_search',
+              'description': 'Search knowledge base',
+            },
+            'summarize': {
+              'name': 'summarize',
+              'description': 'Summarize text',
+              'license': 'MIT',
+            },
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.skills, hasLength(2));
+        expect(room.skills['rag_search']!.name, equals('rag_search'));
+        expect(room.skills['rag_search']!.source, equals('filesystem'));
+        expect(room.skills['summarize']!.license, equals('MIT'));
+      });
+
+      test('handles null skills field', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.skills, isEmpty);
+      });
+
+      test('skips malformed skill entries', () {
+        final json = <String, dynamic>{
+          'id': 'room-1',
+          'name': 'Test Room',
+          'skills': {
+            'good_skill': {
+              'name': 'good_skill',
+              'description': 'Works fine',
+            },
+            'bad_skill': 'not a map',
+          },
+        };
+
+        final room = roomFromJson(json);
+
+        expect(room.skills, hasLength(1));
+        expect(room.skills.containsKey('good_skill'), isTrue);
+      });
+    });
+
+    group('roomSkillFromJson', () {
+      test('parses correctly with all fields', () {
+        final json = <String, dynamic>{
+          'source': 'filesystem',
+          'name': 'rag_search',
+          'description': 'Search knowledge base',
+          'license': 'MIT',
+          'compatibility': '>=1.0',
+          'allowed_tools': 'tool_a tool_b',
+          'state_namespace': 'rag',
+          'metadata': {'key': 'value'},
+          'state_type_schema': {'type': 'object'},
+        };
+
+        final skill = roomSkillFromJson('rag_search', json);
+
+        expect(skill.name, equals('rag_search'));
+        expect(skill.description, equals('Search knowledge base'));
+        expect(skill.source, equals('filesystem'));
+        expect(skill.license, equals('MIT'));
+        expect(skill.compatibility, equals('>=1.0'));
+        expect(skill.allowedTools, equals('tool_a tool_b'));
+        expect(skill.stateNamespace, equals('rag'));
+      });
+
+      test('parses correctly with only required fields', () {
+        final json = <String, dynamic>{
+          'name': 'basic_skill',
+          'description': 'A basic skill',
+        };
+
+        final skill = roomSkillFromJson('basic_skill', json);
+
+        expect(skill.name, equals('basic_skill'));
+        expect(skill.description, equals('A basic skill'));
+        expect(skill.source, isNull);
+        expect(skill.license, isNull);
+        expect(skill.compatibility, isNull);
+        expect(skill.allowedTools, isNull);
+        expect(skill.stateNamespace, isNull);
+      });
+
+      test('uses key as name when name field is absent', () {
+        final json = <String, dynamic>{
+          'description': 'A skill',
+        };
+
+        final skill = roomSkillFromJson('fallback_name', json);
+
+        expect(skill.name, equals('fallback_name'));
+      });
     });
   });
 
