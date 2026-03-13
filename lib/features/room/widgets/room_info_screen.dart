@@ -84,6 +84,14 @@ class _RoomInfoBody extends ConsumerWidget {
           ),
         if (room.agent != null) _AgentCard(agent: room.agent!),
         _FeaturesCard(room: room, roomId: roomId),
+        if (room.skills.isNotEmpty)
+          _ExpandableListCard<MapEntry<String, RoomSkill>>(
+            key: const ValueKey('skills'),
+            title: 'SKILLS',
+            items: room.skills.entries.toList(),
+            nameOf: (e) => e.key,
+            contentOf: (e) => _buildSkillContent(e.value),
+          ),
         if (room.tools.isNotEmpty)
           _ExpandableListCard<MapEntry<String, RoomTool>>(
             key: const ValueKey('tools'),
@@ -133,6 +141,25 @@ Widget _buildToolContent(RoomTool tool) {
           label: 'AG-UI Features',
           value: tool.aguiFeatureNames.join(', '),
         ),
+    ],
+  );
+}
+
+Widget _buildSkillContent(RoomSkill skill) {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      if (skill.description.isNotEmpty)
+        _InfoRow(label: 'Description', value: skill.description),
+      if (skill.source != null) _InfoRow(label: 'Source', value: skill.source!),
+      if (skill.license != null)
+        _InfoRow(label: 'License', value: skill.license!),
+      if (skill.compatibility != null)
+        _InfoRow(label: 'Compatibility', value: skill.compatibility!),
+      if (skill.allowedTools != null)
+        _InfoRow(label: 'Allowed Tools', value: skill.allowedTools!),
+      if (skill.stateNamespace != null)
+        _InfoRow(label: 'State Namespace', value: skill.stateNamespace!),
     ],
   );
 }
