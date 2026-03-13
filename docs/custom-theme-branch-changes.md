@@ -16,7 +16,7 @@ applying these changes.
 5. [Theme Building](#theme-building)
 6. [Component Themes](#component-themes)
 7. [Dark Mode Support](#dark-mode-support)
-8. [AppBar & Navigation](#appbar--navigation)
+8. [AppBar and Navigation](#appbar-and-navigation)
 9. [Semantic Colors](#semantic-colors)
 10. [Typography Overhaul](#typography-overhaul)
 11. [UI Polish](#ui-polish)
@@ -49,10 +49,10 @@ dynamic, white-label-ready theming architecture. The key changes:
 
 ```text
 ThemeConfig
-  ├── lightColors: SoliplexColors (15 fixed fields)
-  └── darkColors: SoliplexColors (15 fixed fields)
+  +-- lightColors: SoliplexColors (15 fixed fields)
+  +-- darkColors: SoliplexColors (15 fixed fields)
 
-SoliplexColors → manually mapped to partial ColorScheme
+SoliplexColors -> manually mapped to partial ColorScheme
 Theme built inline in soliplexLightTheme() / soliplexDarkTheme()
 ThemeMode hardcoded to ThemeMode.light
 ```
@@ -61,16 +61,16 @@ ThemeMode hardcoded to ThemeMode.light
 
 ```text
 ThemeConfig
-  ├── colorConfig: ColorConfig?
-  │     ├── light: ColorPalette (7 required + 6 optional roles)
-  │     └── dark:  ColorPalette (7 required + 6 optional roles)
-  └── fontConfig: FontConfig?
-        ├── bodyFont:    String?
-        ├── displayFont: String?
-        └── brandFont:   String?
+  +-- colorConfig: ColorConfig?
+  |     +-- light: ColorPalette (7 required + 6 optional roles)
+  |     +-- dark:  ColorPalette (7 required + 6 optional roles)
+  +-- fontConfig: FontConfig?
+        +-- bodyFont:    String?
+        +-- displayFont: String?
+        +-- brandFont:   String?
 
-ColorPalette → generateColorScheme() → full Material 3 ColorScheme
-ColorScheme + FontConfig → _buildTheme() → component theme builders → ThemeData
+ColorPalette -> generateColorScheme() -> full Material 3 ColorScheme
+ColorScheme + FontConfig -> _buildTheme() -> component theme builders -> ThemeData
 ThemeMode reactive via themeModeProvider (persisted to SharedPreferences)
 ```
 
@@ -186,10 +186,10 @@ These are registered in `pubspec.yaml` under `flutter.fonts` and referenced via
 
 `FontConfig` flows through the entire theme pipeline:
 
-1. `SoliplexConfig.theme.fontConfig` → `app.dart`
-2. `app.dart` → `soliplexLightTheme(fontConfig:)` / `soliplexDarkTheme(fontConfig:)`
-3. `_buildTheme()` → `buildSoliplexTextTheme(bodyFont:, displayFont:)`
-4. `_buildTheme()` → every component theme builder that accepts `fontConfig`
+1. `SoliplexConfig.theme.fontConfig` -> `app.dart`
+2. `app.dart` -> `soliplexLightTheme(fontConfig:)` / `soliplexDarkTheme(fontConfig:)`
+3. `_buildTheme()` -> `buildSoliplexTextTheme(bodyFont:, displayFont:)`
+4. `_buildTheme()` -> every component theme builder that accepts `fontConfig`
 
 ---
 
@@ -205,14 +205,14 @@ editing both functions.
 
 ```text
 soliplexLightTheme(colorConfig, fontConfig)
-  └─ generateColorScheme(Brightness.light, palette)
-       └─ _buildTheme(colorScheme, fontConfig)
-            ├─ buildSoliplexTextTheme(bodyFont, displayFont)
-            ├─ buildAppBarTheme(colorScheme, fontConfig)
-            ├─ buildListTileTheme(colorScheme, fontConfig)
-            ├─ buildFilledButtonTheme(colorScheme, fontConfig)
-            ├─ ... (40+ component builders)
-            └─ extensions: [SoliplexTheme, MarkdownThemeExtension]
+  +-- generateColorScheme(Brightness.light, palette)
+       +-- _buildTheme(colorScheme, fontConfig)
+            +-- buildSoliplexTextTheme(bodyFont, displayFont)
+            +-- buildAppBarTheme(colorScheme, fontConfig)
+            +-- buildListTileTheme(colorScheme, fontConfig)
+            +-- buildFilledButtonTheme(colorScheme, fontConfig)
+            +-- ... (40+ component builders)
+            +-- extensions: [SoliplexTheme, MarkdownThemeExtension]
 ```
 
 - Single `_buildTheme()` function for both light and dark
@@ -285,7 +285,7 @@ MaterialApp(
 
 ---
 
-## AppBar & Navigation
+## AppBar and Navigation
 
 ### Brand logo in AppBar (`lib/shared/widgets/app_shell.dart`)
 
