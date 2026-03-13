@@ -151,6 +151,8 @@ RoomSkill roomSkillFromJson(
     compatibility: json['compatibility'] as String?,
     allowedTools: json['allowed_tools'] as String?,
     stateNamespace: json['state_namespace'] as String?,
+    metadata: (json['metadata'] as Map<String, dynamic>?) ?? const {},
+    stateTypeSchema: json['state_type_schema'] as Map<String, dynamic>?,
   );
 }
 

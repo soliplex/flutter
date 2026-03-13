@@ -12,6 +12,8 @@ class RoomSkill {
     this.compatibility,
     this.allowedTools,
     this.stateNamespace,
+    this.metadata = const {},
+    this.stateTypeSchema,
   });
 
   /// Skill name as configured in the backend.
@@ -34,6 +36,12 @@ class RoomSkill {
 
   /// AG-UI state namespace for this skill.
   final String? stateNamespace;
+
+  /// Arbitrary metadata key-value pairs.
+  final Map<String, dynamic> metadata;
+
+  /// JSON schema describing the skill's AG-UI state type.
+  final Map<String, dynamic>? stateTypeSchema;
 
   @override
   String toString() => 'RoomSkill(name: $name, source: $source)';

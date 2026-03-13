@@ -274,6 +274,8 @@ void main() {
         expect(skill.compatibility, equals('>=1.0'));
         expect(skill.allowedTools, equals('tool_a tool_b'));
         expect(skill.stateNamespace, equals('rag'));
+        expect(skill.metadata, equals({'key': 'value'}));
+        expect(skill.stateTypeSchema, equals({'type': 'object'}));
       });
 
       test('parses correctly with only required fields', () {
@@ -291,6 +293,8 @@ void main() {
         expect(skill.compatibility, isNull);
         expect(skill.allowedTools, isNull);
         expect(skill.stateNamespace, isNull);
+        expect(skill.metadata, isEmpty);
+        expect(skill.stateTypeSchema, isNull);
       });
 
       test('uses key as name when name field is absent', () {
