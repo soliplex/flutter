@@ -1558,6 +1558,10 @@ void main() {
       expect(find.text('Analyze documents'), findsOneWidget);
       expect(find.text('filesystem'), findsOneWidget);
       expect(find.text('MIT'), findsOneWidget);
+      // Null fields show 'None'
+      expect(find.text('compatibility'), findsOneWidget);
+      expect(find.text('allowed_tools'), findsOneWidget);
+      expect(find.text('state_namespace'), findsOneWidget);
     });
 
     testWidgets('hides skills section when room has no skills', (tester) async {
