@@ -6,6 +6,7 @@ import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
 import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/room_agent.dart';
+import 'package:soliplex_client/src/domain/room_skill.dart';
 import 'package:soliplex_client/src/domain/room_tool.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
@@ -137,6 +138,22 @@ RoomTool roomToolFromJson(
   );
 }
 
+/// Creates a [RoomSkill] from JSON.
+RoomSkill roomSkillFromJson(
+  String key,
+  Map<String, dynamic> json,
+) {
+  return RoomSkill(
+    name: (json['name'] as String?) ?? key,
+    description: (json['description'] as String?) ?? '',
+    source: json['source'] as String?,
+    license: json['license'] as String?,
+    compatibility: json['compatibility'] as String?,
+    allowedTools: json['allowed_tools'] as String?,
+    stateNamespace: json['state_namespace'] as String?,
+  );
+}
+
 /// Creates a [McpClientToolset] from JSON.
 McpClientToolset mcpClientToolsetFromJson(
   Map<String, dynamic> json,
@@ -256,6 +273,26 @@ Room roomFromJson(Map<String, dynamic> json) {
     }
   }
 
+  // Parse skills — skip malformed entries
+  final skillsJson = json['skills'] as Map<String, dynamic>?;
+  final skills = <String, RoomSkill>{};
+  if (skillsJson != null) {
+    for (final entry in skillsJson.entries) {
+      if (entry.value is! Map<String, dynamic>) {
+        developer.log(
+          'Malformed skill ignored: ${entry.key}\n${entry.value}',
+          name: 'soliplex_client.room',
+          level: 900,
+        );
+        continue;
+      }
+      skills[entry.key] = roomSkillFromJson(
+        entry.key,
+        entry.value as Map<String, dynamic>,
+      );
+    }
+  }
+
   return Room(
     id: _requireString(json, 'id', 'room'),
     name: _requireString(json, 'name', 'room'),
@@ -268,6 +305,7 @@ Room roomFromJson(Map<String, dynamic> json) {
     allowMcp: json['allow_mcp'] as bool? ?? false,
     agent: agent,
     tools: tools,
+    skills: skills,
     mcpClientToolsets: mcpClientToolsets,
     aguiFeatureNames: _parseStringList(
       json['agui_feature_names'] as List<dynamic>?,
