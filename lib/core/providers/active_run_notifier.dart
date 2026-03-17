@@ -54,8 +54,11 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
   @override
   ActiveRunState build() {
-    _agUiClient = ref.watch(agUiClientProvider);
-    _toolRegistry = ref.watch(toolRegistryProvider);
+    // Read + listen (not watch) to avoid rebuilding the notifier when
+    // these change. Rebuilds dispose the RunRegistry, killing in-flight
+    // runs. New runs pick up updated values via the listen callbacks.
+    _agUiClient = ref.read(agUiClientProvider);
+    _toolRegistry = ref.read(toolRegistryProvider);
 
     // Mark thread as unread when a non-cancelled background run completes.
     _lifecycleSub = _registry.lifecycleEvents.listen((event) {
@@ -69,6 +72,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
 
     // Sync exposed state when the user navigates between rooms/threads.
     ref
+      ..listen(agUiClientProvider, (_, next) => _agUiClient = next)
+      ..listen(toolRegistryProvider, (_, next) => _toolRegistry = next)
       ..listen(currentRoomIdProvider, (_, __) => _syncCurrentHandle())
       ..listen(currentThreadIdProvider, (_, __) => _syncCurrentHandle())
       ..onDispose(() {
