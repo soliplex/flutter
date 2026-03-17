@@ -933,6 +933,123 @@ void main() {
       });
     });
 
+    group('activity snapshot events', () {
+      test('skill_tool_call sets ToolCallActivity from AwaitingText', () {
+        const event = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: 'skill_tool_call',
+          content: {'skill': 'rag', 'tool_name': 'search'},
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        expect(result.conversation, equals(conversation));
+        final awaitingText = result.streaming as app_streaming.AwaitingText;
+        final activity =
+            awaitingText.currentActivity as app_streaming.ToolCallActivity;
+        expect(activity.allToolNames, contains('search'));
+      });
+
+      test('skill_tool_call sets ToolCallActivity from TextStreaming', () {
+        const textStreaming = app_streaming.TextStreaming(
+          messageId: 'msg-1',
+          user: _defaultUser,
+          text: 'Hello',
+        );
+        const event = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: 'skill_tool_call',
+          content: {'skill': 'rag', 'tool_name': 'search'},
+        );
+
+        final result = processEvent(conversation, textStreaming, event);
+
+        expect(result.conversation, equals(conversation));
+        final resultStreaming = result.streaming as app_streaming.TextStreaming;
+        final activity =
+            resultStreaming.currentActivity as app_streaming.ToolCallActivity;
+        expect(activity.allToolNames, contains('search'));
+      });
+
+      test('multiple skill_tool_call events accumulate tool names', () {
+        const event1 = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: 'skill_tool_call',
+          content: {'skill': 'rag', 'tool_name': 'search'},
+        );
+        final result1 = processEvent(conversation, streaming, event1);
+
+        const event2 = ActivitySnapshotEvent(
+          messageId: 'rag:def456',
+          activityType: 'skill_tool_call',
+          content: {'skill': 'rag', 'tool_name': 'summarize'},
+        );
+        final result2 = processEvent(
+          result1.conversation,
+          result1.streaming,
+          event2,
+        );
+
+        expect(result2.conversation, equals(conversation));
+        final awaitingText = result2.streaming as app_streaming.AwaitingText;
+        final activity =
+            awaitingText.currentActivity as app_streaming.ToolCallActivity;
+        expect(activity.allToolNames, equals({'search', 'summarize'}));
+      });
+
+      test('skill_tool_result passes through unchanged', () {
+        const event = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: 'skill_tool_result',
+          content: {'skill': 'rag', 'tool_name': 'search', 'result': '...'},
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        expect(result.conversation, equals(conversation));
+        expect(result.streaming, equals(streaming));
+      });
+
+      test('skill_tool_call with non-String tool_name passes through', () {
+        const event = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: 'skill_tool_call',
+          content: {'skill': 'rag', 'tool_name': 42},
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        expect(result.conversation, equals(conversation));
+        expect(result.streaming, equals(streaming));
+      });
+
+      test('skill_tool_call without tool_name passes through unchanged', () {
+        const event = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: 'skill_tool_call',
+          content: {'skill': 'rag'},
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        expect(result.conversation, equals(conversation));
+        expect(result.streaming, equals(streaming));
+      });
+
+      test('empty activityType passes through unchanged', () {
+        const event = ActivitySnapshotEvent(
+          messageId: 'rag:abc123',
+          activityType: '',
+          content: <String, dynamic>{},
+        );
+
+        final result = processEvent(conversation, streaming, event);
+
+        expect(result.conversation, equals(conversation));
+        expect(result.streaming, equals(streaming));
+      });
+    });
+
     group('passthrough events', () {
       test('CustomEvent passes through unchanged', () {
         const event = CustomEvent(name: 'custom', value: {'data': 123});

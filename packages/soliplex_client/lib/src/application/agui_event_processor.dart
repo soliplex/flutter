@@ -78,21 +78,6 @@ EventProcessingResult processEvent(
     // Tool call events — accumulate tool names on start, args via deltas,
     // transition to pending on end (tool stays in conversation.toolCalls).
     ToolCallStartEvent(:final toolCallId, :final toolCallName) => () {
-        // Accumulate tool names if already in tool call activity
-        final newActivity = switch (streaming) {
-          AwaitingText(:final currentActivity) => switch (currentActivity) {
-              ToolCallActivity() => currentActivity.withToolName(toolCallName),
-              _ => ToolCallActivity(toolName: toolCallName),
-            },
-          TextStreaming(:final currentActivity) => switch (currentActivity) {
-              ToolCallActivity() => currentActivity.withToolName(toolCallName),
-              _ => ToolCallActivity(toolName: toolCallName),
-            },
-        };
-        final newStreaming = switch (streaming) {
-          AwaitingText() => streaming.copyWith(currentActivity: newActivity),
-          TextStreaming() => streaming.copyWith(currentActivity: newActivity),
-        };
         return EventProcessingResult(
           conversation: conversation.withToolCall(
             ToolCallInfo(
@@ -101,7 +86,7 @@ EventProcessingResult processEvent(
               status: ToolCallStatus.streaming,
             ),
           ),
-          streaming: newStreaming,
+          streaming: _withToolCallActivity(streaming, toolCallName),
         );
       }(),
     ToolCallArgsEvent(:final toolCallId, :final delta) =>
@@ -126,6 +111,10 @@ EventProcessingResult processEvent(
         streaming,
         delta,
       ),
+
+    // Activity snapshot events
+    ActivitySnapshotEvent(:final activityType, :final content) =>
+      _processActivitySnapshot(conversation, streaming, activityType, content),
 
     // All other events pass through unchanged
     _ => EventProcessingResult(
@@ -360,6 +349,57 @@ EventProcessingResult _processToolCallResult(
     conversation: conversation.copyWith(toolCalls: updatedToolCalls),
     streaming: streaming,
   );
+}
+
+// Activity snapshot events
+
+EventProcessingResult _processActivitySnapshot(
+  Conversation conversation,
+  StreamingState streaming,
+  String activityType,
+  Map<String, dynamic> content,
+) {
+  if (activityType == 'skill_tool_call') {
+    final toolName = content['tool_name'];
+    // Pass through if tool_name is missing or not a String — the backend
+    // contract requires it, so this guards against schema drift.
+    if (toolName is! String) {
+      return EventProcessingResult(
+        conversation: conversation,
+        streaming: streaming,
+      );
+    }
+    return EventProcessingResult(
+      conversation: conversation,
+      streaming: _withToolCallActivity(streaming, toolName),
+    );
+  }
+  // Unknown activity types pass through unchanged.
+  return EventProcessingResult(
+    conversation: conversation,
+    streaming: streaming,
+  );
+}
+
+/// Returns [streaming] with [toolName] accumulated on its [ToolCallActivity].
+StreamingState _withToolCallActivity(
+  StreamingState streaming,
+  String toolName,
+) {
+  final newActivity = switch (streaming) {
+    AwaitingText(:final currentActivity) => switch (currentActivity) {
+        ToolCallActivity() => currentActivity.withToolName(toolName),
+        _ => ToolCallActivity(toolName: toolName),
+      },
+    TextStreaming(:final currentActivity) => switch (currentActivity) {
+        ToolCallActivity() => currentActivity.withToolName(toolName),
+        _ => ToolCallActivity(toolName: toolName),
+      },
+  };
+  return switch (streaming) {
+    AwaitingText() => streaming.copyWith(currentActivity: newActivity),
+    TextStreaming() => streaming.copyWith(currentActivity: newActivity),
+  };
 }
 
 // State events - apply JSON Patch

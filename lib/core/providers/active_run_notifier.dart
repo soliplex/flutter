@@ -747,6 +747,8 @@ class ActiveRunNotifier extends Notifier<ActiveRunState> {
         Loggers.activeRun.debug('STATE_SNAPSHOT');
       case StateDeltaEvent():
         Loggers.activeRun.debug('STATE_DELTA');
+      case ActivitySnapshotEvent(:final activityType):
+        Loggers.activeRun.debug('ACTIVITY_SNAPSHOT: $activityType');
       default:
         Loggers.activeRun.trace('EVENT: ${event.runtimeType}');
     }
