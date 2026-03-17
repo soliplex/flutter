@@ -40,6 +40,14 @@ Room _createRoomWithAgent() {
       ),
     },
     aguiFeatureNames: ['feature1'],
+    skills: {
+      'doc_analysis': RoomSkill(
+        name: 'doc_analysis',
+        description: 'Analyze documents',
+        source: 'filesystem',
+        license: 'MIT',
+      ),
+    },
   );
 }
 
@@ -1495,6 +1503,85 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Room not found'), findsOneWidget);
+    });
+
+    testWidgets('shows skill names collapsed by default', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final room = _createRoomWithAgent();
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Section header visible with count
+      expect(find.text('SKILLS (1)'), findsOneWidget);
+      // Skill name visible
+      expect(find.text('doc_analysis'), findsOneWidget);
+      // Description hidden when collapsed
+      expect(find.text('Analyze documents'), findsNothing);
+    });
+
+    testWidgets('expands skill to show details on tap', (tester) async {
+      tester.view.physicalSize = const Size(800, 2000);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final room = _createRoomWithAgent();
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Tap to expand
+      await tester.tap(find.text('doc_analysis'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Analyze documents'), findsOneWidget);
+      expect(find.text('filesystem'), findsOneWidget);
+      expect(find.text('MIT'), findsOneWidget);
+      // Null fields show 'None'
+      expect(find.text('compatibility'), findsOneWidget);
+      expect(find.text('allowed_tools'), findsOneWidget);
+      expect(find.text('state_namespace'), findsOneWidget);
+    });
+
+    testWidgets('hides skills section when room has no skills', (tester) async {
+      const room = Room(
+        id: 'room-1',
+        name: 'Empty Room',
+      );
+
+      await tester.pumpWidget(
+        createTestApp(
+          home: const RoomInfoScreen(roomId: 'room-1'),
+          overrides: [
+            roomsProvider.overrideWith((ref) async => [room]),
+            documentsProviderOverride('room-1'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('SKILLS'), findsNothing);
     });
 
     testWidgets('hides description when room has none', (tester) async {
