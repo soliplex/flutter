@@ -54,7 +54,7 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   mocktail: ^1.0.4
-  patrol: ^4.1.0
+  patrol: ^4.3.0
   patrol_finders: ^3.0.0
 
   # Riverpod for testing (explicit version from transitive)
