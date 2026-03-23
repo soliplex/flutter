@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:soliplex_frontend/core/logging/logging_provider.dart';
 import 'package:soliplex_frontend/design/design.dart';
 import 'package:soliplex_frontend/features/log_viewer/log_viewer_controller.dart';
@@ -46,6 +47,11 @@ class _LogViewerScreenState extends ConsumerState<LogViewerScreen> {
     return AppShell(
       config: ShellConfig(
         title: Text('Logs (${records.length})'),
+        leading: IconButton(
+          icon: Icon(Icons.adaptive.arrow_back),
+          tooltip: 'Back to settings',
+          onPressed: () => context.pop(),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete_outline),

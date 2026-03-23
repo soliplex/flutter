@@ -13,7 +13,6 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
-import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 
 import '../../../helpers/test_helpers.dart';
@@ -1464,8 +1463,8 @@ void main() {
         await tester.pump();
 
         // Assert - Done button should be disabled
-        final doneButton = tester.widget<TextButton>(
-          find.widgetWithText(TextButton, 'Done'),
+        final doneButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Done'),
         );
         expect(doneButton.onPressed, isNull);
       });
@@ -1505,8 +1504,8 @@ void main() {
         await tester.pumpAndSettle();
 
         // Assert - Done button should be enabled
-        final doneButton = tester.widget<TextButton>(
-          find.widgetWithText(TextButton, 'Done'),
+        final doneButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Done'),
         );
         expect(doneButton.onPressed, isNotNull);
       });
@@ -2138,8 +2137,8 @@ void main() {
 
         // Assert - Done button should be enabled (can close with empty
         // selection) but user will see error state, not documents
-        final doneButton = tester.widget<TextButton>(
-          find.widgetWithText(TextButton, 'Done'),
+        final doneButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Done'),
         );
         // Done is enabled on error so user can dismiss dialog
         expect(doneButton.onPressed, isNotNull);
@@ -2261,7 +2260,7 @@ void main() {
           ),
         );
         final context = tester.element(find.byType(ChatInput));
-        final expectedColor = Theme.of(context).colorScheme.warning;
+        final expectedColor = Theme.of(context).colorScheme.error;
         expect(icon.color, expectedColor);
       });
 

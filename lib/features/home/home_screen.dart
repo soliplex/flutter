@@ -26,7 +26,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  static const _logoSize = 64.0;
+  static const _logoSize = 132.0;
 
   final _urlController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -93,7 +93,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('I understand, connect anyway'),
           ),
@@ -286,21 +286,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             children: [
               // Header
               _buildLogo(theme),
-              const SizedBox(height: 16),
+              const SizedBox(height: SoliplexSpacing.s1),
               Text(
                 ref.watch(shellConfigProvider).appName,
-                style: theme.textTheme.headlineMedium,
+                style: theme.textTheme.displayLarge,
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: SoliplexSpacing.s6),
               Text(
                 'Enter the URL of your backend server',
-                style: theme.textTheme.bodyMedium?.copyWith(
+                style: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: SoliplexSpacing.s4),
 
               // URL Input
               Form(

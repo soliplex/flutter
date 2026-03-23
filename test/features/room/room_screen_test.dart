@@ -473,7 +473,7 @@ void main() {
 
       // Dialog should show with title
       expect(find.text('Switch Room'), findsOneWidget);
-      expect(find.byType(SimpleDialog), findsOneWidget);
+      expect(find.byType(AlertDialog), findsOneWidget);
 
       // Rooms should be listed alphabetically (Alpha, General, Zebra)
       final alphaFinder = find.text('Alpha Room');
@@ -535,7 +535,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should navigate to Support room (dialog closes, Support now shown)
-      expect(find.byType(SimpleDialog), findsNothing);
+      expect(find.byType(AlertDialog), findsNothing);
       expect(router.state.uri.path, equals('/rooms/support'));
     });
 

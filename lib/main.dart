@@ -1,3 +1,4 @@
+import 'package:soliplex_frontend/design/tokens/typography.dart';
 import 'package:soliplex_frontend/soliplex_frontend.dart';
 
 /// Entry point for the default Soliplex application.
@@ -22,7 +23,15 @@ Future<void> main() async {
       // When running soliplex_frontend directly as the main app, assets are
       // bundled without a package prefix.
       logo: LogoConfig.soliplex,
+      showLogoInAppBar: true,
       oauthRedirectScheme: 'ai.soliplex.client',
+      theme: ThemeConfig(
+        fontConfig: FontConfig(
+          bodyFont: FontFamilies.body,
+          displayFont: FontFamilies.display,
+          brandFont: FontFamilies.brand,
+        ),
+      ),
     ),
   );
 }
