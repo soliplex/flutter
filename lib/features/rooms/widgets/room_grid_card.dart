@@ -5,10 +5,16 @@ import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/shared/widgets/overflow_tooltip.dart';
 
 class RoomGridCard extends StatefulWidget {
-  const RoomGridCard({required this.room, required this.onTap, super.key});
+  const RoomGridCard({
+    required this.room,
+    required this.onTap,
+    this.unreadCount = 0,
+    super.key,
+  });
 
   final Room room;
   final VoidCallback onTap;
+  final int unreadCount;
 
   @override
   State<RoomGridCard> createState() => _RoomGridCardState();
@@ -58,52 +64,77 @@ class _RoomGridCardState extends State<RoomGridCard> {
             child: InkWell(
               borderRadius: BorderRadius.circular(soliplexRadii.md),
               onTap: widget.onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: SoliplexSpacing.s6,
-                  vertical: SoliplexSpacing.s4,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              child: Stack(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: SoliplexSpacing.s6,
+                      vertical: SoliplexSpacing.s4,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: OverflowTooltip(
-                            text: room.name,
-                            style: theme.textTheme.titleMedium,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OverflowTooltip(
+                                text: room.name,
+                                style: theme.textTheme.titleMedium,
+                              ),
+                            ),
+                            Icon(
+                              Icons.chevron_right,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ],
+                        ),
+                        if (room.hasDescription) ...[
+                          const SizedBox(height: 4),
+                          OverflowTooltip(
+                            text: room.description,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 3,
                           ),
-                        ),
-                        Icon(
-                          Icons.chevron_right,
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
+                        ],
                       ],
                     ),
-                    if (room.hasDescription) ...[
-                      const SizedBox(height: 4),
-                      OverflowTooltip(
-                        text: room.description,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        maxLines: 3,
-                      ),
-                    ],
-                    const Spacer(),
-                    Text(
-                      'Last active: 2 hours ago',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  ),
+                  if (widget.unreadCount > 0)
+                    Positioned(
+                      top: 0,
+                      right: 0,
+                      child: _UnreadBadge(count: widget.unreadCount),
                     ),
-                  ],
-                ),
+                ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UnreadBadge extends StatelessWidget {
+  const _UnreadBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        '$count',
+        style: theme.textTheme.labelSmall?.copyWith(
+          color: theme.colorScheme.onPrimary,
         ),
       ),
     );

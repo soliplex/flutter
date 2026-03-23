@@ -6,6 +6,7 @@ import 'package:soliplex_frontend/design/theme/theme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/radii.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/design/tokens/typography.dart';
+import 'package:soliplex_frontend/shared/widgets/markdown/markdown_theme_extension.dart';
 
 // ---------------------------------------------------------------------------
 // Color Scheme Generation
@@ -255,6 +256,40 @@ ThemeData _buildTheme(ColorScheme colorScheme, {FontConfig? fontConfig}) {
           ),
         ),
       ),
+      _markdownThemeExtension(colorScheme, textTheme),
     ],
+  );
+}
+
+MarkdownThemeExtension _markdownThemeExtension(
+  ColorScheme colorScheme,
+  TextTheme textTheme,
+) {
+  return MarkdownThemeExtension(
+    h1: textTheme.titleLarge,
+    h2: textTheme.titleMedium,
+    h3: textTheme.titleSmall,
+    body: textTheme.bodyLarge,
+    code: textTheme.bodyMedium?.copyWith(
+      backgroundColor: colorScheme.surfaceContainerHigh,
+    ),
+    link: TextStyle(
+      color: colorScheme.primary,
+      decoration: TextDecoration.underline,
+      decorationColor: colorScheme.primary,
+    ),
+    codeBlockDecoration: BoxDecoration(
+      color: colorScheme.surfaceContainerHigh,
+      borderRadius: BorderRadius.circular(soliplexRadii.sm),
+    ),
+    blockquoteDecoration: BoxDecoration(
+      color: colorScheme.surfaceContainerHigh,
+      border: Border(
+        left: BorderSide(
+          color: colorScheme.outlineVariant,
+          width: 3,
+        ),
+      ),
+    ),
   );
 }

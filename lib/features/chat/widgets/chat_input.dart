@@ -5,7 +5,6 @@ import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/active_run_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
-import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/shared/utils/file_type_icons.dart';
@@ -243,7 +242,7 @@ class _ChatInputState extends ConsumerState<ChatInput> {
                   icon: Icon(
                     Icons.filter_alt,
                     color: hasDocumentError
-                        ? Theme.of(context).colorScheme.warning
+                        ? Theme.of(context).colorScheme.error
                         : null,
                   ),
                 ),

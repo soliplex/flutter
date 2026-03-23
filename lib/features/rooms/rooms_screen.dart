@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:soliplex_client/soliplex_client.dart';
 import 'package:soliplex_frontend/core/logging/loggers.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
+import 'package:soliplex_frontend/core/providers/unread_runs_provider.dart';
 import 'package:soliplex_frontend/design/tokens/breakpoints.dart';
 import 'package:soliplex_frontend/design/tokens/spacing.dart';
 import 'package:soliplex_frontend/features/rooms/widgets/room_grid_card.dart';
@@ -60,6 +61,7 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
   Widget build(BuildContext context) {
     final roomsAsync = ref.watch(roomsProvider);
     final isGridView = ref.watch(isGridViewProvider);
+    final unreadRuns = ref.watch(unreadRunsProvider);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -118,15 +120,15 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                     final cardsPerRow =
                         width >= SoliplexBreakpoints.desktop ? 3 : 2;
                     final rowCount =
-                        (rooms.length + cardsPerRow - 1) ~/ cardsPerRow;
+                        (filtered.length + cardsPerRow - 1) ~/ cardsPerRow;
 
                     return ListView.builder(
                       itemCount: rowCount,
                       itemBuilder: (context, rowIndex) {
                         final start = rowIndex * cardsPerRow;
                         final end =
-                            (start + cardsPerRow).clamp(0, rooms.length);
-                        final rowRooms = rooms.sublist(start, end);
+                            (start + cardsPerRow).clamp(0, filtered.length);
+                        final rowRooms = filtered.sublist(start, end);
 
                         return Center(
                           child: ConstrainedBox(
@@ -149,6 +151,10 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                                                 room: rowRooms[i],
                                                 onTap: () => navigateToRoom(
                                                   rowRooms[i],
+                                                ),
+                                                unreadCount: unreadRuns
+                                                    .unreadCountForRoom(
+                                                  rowRooms[i].id,
                                                 ),
                                               ),
                                             )
@@ -178,6 +184,8 @@ class _RoomsScreenState extends ConsumerState<RoomsScreen> {
                             child: RoomListTile(
                               room: room,
                               onTap: () => navigateToRoom(room),
+                              unreadCount:
+                                  unreadRuns.unreadCountForRoom(room.id),
                             ),
                           ),
                         ),

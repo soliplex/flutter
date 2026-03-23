@@ -13,7 +13,6 @@ import 'package:soliplex_frontend/core/providers/api_provider.dart';
 import 'package:soliplex_frontend/core/providers/documents_provider.dart';
 import 'package:soliplex_frontend/core/providers/rooms_provider.dart';
 import 'package:soliplex_frontend/core/providers/threads_provider.dart';
-import 'package:soliplex_frontend/design/color/color_scheme_extensions.dart';
 import 'package:soliplex_frontend/features/chat/widgets/chat_input.dart';
 
 import '../../../helpers/test_helpers.dart';
@@ -2261,7 +2260,7 @@ void main() {
           ),
         );
         final context = tester.element(find.byType(ChatInput));
-        final expectedColor = Theme.of(context).colorScheme.warning;
+        final expectedColor = Theme.of(context).colorScheme.error;
         expect(icon.color, expectedColor);
       });
 
