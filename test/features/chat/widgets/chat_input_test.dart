@@ -1463,8 +1463,8 @@ void main() {
         await tester.pump();
 
         // Assert - Done button should be disabled
-        final doneButton = tester.widget<TextButton>(
-          find.widgetWithText(TextButton, 'Done'),
+        final doneButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Done'),
         );
         expect(doneButton.onPressed, isNull);
       });
@@ -1504,8 +1504,8 @@ void main() {
         await tester.pumpAndSettle();
 
         // Assert - Done button should be enabled
-        final doneButton = tester.widget<TextButton>(
-          find.widgetWithText(TextButton, 'Done'),
+        final doneButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Done'),
         );
         expect(doneButton.onPressed, isNotNull);
       });
@@ -2137,8 +2137,8 @@ void main() {
 
         // Assert - Done button should be enabled (can close with empty
         // selection) but user will see error state, not documents
-        final doneButton = tester.widget<TextButton>(
-          find.widgetWithText(TextButton, 'Done'),
+        final doneButton = tester.widget<FilledButton>(
+          find.widgetWithText(FilledButton, 'Done'),
         );
         // Done is enabled on error so user can dismiss dialog
         expect(doneButton.onPressed, isNotNull);
