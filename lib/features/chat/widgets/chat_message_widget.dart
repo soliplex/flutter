@@ -405,9 +405,21 @@ class _ThinkingSectionState extends State<ThinkingSection> {
         children: [
           InkWell(
             onTap: () => setState(() => _isExpanded = !_isExpanded),
-            borderRadius: BorderRadius.circular(soliplexTheme.radii.md),
-            child: Padding(
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(soliplexTheme.radii.md),
+              topRight: Radius.circular(soliplexTheme.radii.md),
+            ),
+            child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: _isExpanded
+                  ? BoxDecoration(
+                      border: Border(
+                        bottom: BorderSide(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      ),
+                    )
+                  : null,
               child: Row(
                 children: [
                   Icon(
@@ -445,7 +457,7 @@ class _ThinkingSectionState extends State<ThinkingSection> {
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 200),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                padding: const EdgeInsets.all(12),
                 child: SingleChildScrollView(
                   child: SelectionArea(
                     child: Text(
