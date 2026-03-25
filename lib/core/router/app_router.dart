@@ -25,21 +25,17 @@ import 'package:soliplex_frontend/shared/widgets/shell_config.dart';
 
 /// Settings button for AppBar actions.
 ///
-/// Navigates to the settings screen when pressed.
-class _SettingsButton extends StatelessWidget {
-  const _SettingsButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Settings',
-      child: IconButton(
-        icon: const Icon(Icons.settings),
-        onPressed: () => context.push('/settings'),
-        tooltip: 'Open settings',
-      ),
-    );
-  }
+/// Returns a [Semantics]-wrapped [IconButton] directly so that
+/// [AppShell]'s mobile overflow menu can extract its properties.
+Widget _settingsButton(BuildContext context) {
+  return Semantics(
+    label: 'Settings',
+    child: IconButton(
+      icon: const Icon(Icons.settings),
+      onPressed: () => context.push('/settings'),
+      tooltip: 'Open settings',
+    ),
+  );
 }
 
 /// Back button for AppBar leading slot.
@@ -288,7 +284,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             return _staticPage(
               title: const Text(''),
               body: const HomeScreen(),
-              actions: [if (features.enableSettings) const _SettingsButton()],
+              actions: [
+                if (features.enableSettings) _settingsButton(context),
+              ],
             );
           },
         ),
@@ -299,7 +297,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           pageBuilder: (context, state) => _staticPage(
             title: const Text('Rooms'),
             body: const RoomsScreen(),
-            actions: [if (features.enableSettings) const _SettingsButton()],
+            actions: [
+              if (features.enableSettings) _settingsButton(context),
+            ],
           ),
         ),
       if (routeConfig.showRoomsRoute)
