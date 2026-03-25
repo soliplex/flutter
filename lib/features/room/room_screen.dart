@@ -299,10 +299,12 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
       );
 
+    Loggers.room.debug('Room picker: opening (${sortedRooms.length} rooms)');
+    final openedAt = DateTime.now();
     final selectedId = await showDialog<String>(
       context: context,
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
+      builder: (dialogContext) {
+        final colorScheme = Theme.of(dialogContext).colorScheme;
 
         return AlertDialog(
           title: const Text('Switch Room'),
@@ -329,7 +331,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
                   trailing: isSelected
                       ? Icon(Icons.check, color: colorScheme.primary)
                       : null,
-                  onTap: () => Navigator.pop(context, room.id),
+                  onTap: () => Navigator.pop(dialogContext, room.id),
                 );
               },
             ),
@@ -337,6 +339,18 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
         );
       },
     );
+    final closedAfter = DateTime.now().difference(openedAt);
+    Loggers.room.debug(
+      'Room picker: closed after ${closedAfter.inMilliseconds}ms, '
+      'selectedId=$selectedId, mounted=$mounted',
+    );
+    if (selectedId == null && closedAfter.inMilliseconds < 300) {
+      Loggers.room.warning(
+        'Room picker: dismissed suspiciously fast '
+        '(${closedAfter.inMilliseconds}ms) — likely popped by navigation '
+        'rebuild, not user action',
+      );
+    }
 
     if (selectedId != null && mounted) {
       Loggers.room.info('Room switched to $selectedId');

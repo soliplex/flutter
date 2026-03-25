@@ -71,7 +71,13 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
     // Initialize logging system (creates sinks and applies config).
     ref.watch(logConfigControllerProvider);
 
-    final authState = ref.watch(authProvider);
+    // Only rebuild on auth loading vs. resolved — not on every token refresh.
+    // Previously this was ref.watch(authProvider), which caused SoliplexApp
+    // to rebuild on every token refresh — suspected of popping imperative
+    // routes (dialogs) via MaterialApp.router rebuild.
+    final isAuthLoading = ref.watch(
+      authProvider.select((state) => state is AuthLoading),
+    );
     final shellConfig = ref.watch(shellConfigProvider);
     final themeMode = ref.watch(themeModeProvider);
     final themeConfig = shellConfig.theme;
@@ -88,7 +94,7 @@ class _SoliplexAppState extends ConsumerState<SoliplexApp>
     // Don't construct routing until auth state is resolved.
     // This prevents building route widgets that would be discarded,
     // avoiding wasted work and premature provider side effects.
-    if (authState is AuthLoading) {
+    if (isAuthLoading) {
       return MaterialApp(
         title: shellConfig.appName,
         theme: lightTheme,
