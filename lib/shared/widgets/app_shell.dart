@@ -53,6 +53,8 @@ class AppShell extends ConsumerWidget {
     final features = ref.watch(featuresProvider);
     final showInspector =
         features.enableHttpInspector && customEndDrawer == null;
+    final isMobile =
+        MediaQuery.of(context).size.width < SoliplexBreakpoints.tablet;
 
     return Scaffold(
       appBar: AppBar(
@@ -65,9 +67,10 @@ class AppShell extends ConsumerWidget {
               spacing: SoliplexSpacing.s2,
               children: [
                 if (config.leading != null) config.leading!,
-                if (shellConfig.showLogoInAppBar)
+                if (!isMobile && shellConfig.showLogoInAppBar)
                   _BrandLogo(config: shellConfig),
-                if (shellConfig.showLogoInAppBar &&
+                if (!isMobile &&
+                    shellConfig.showLogoInAppBar &&
                     shellConfig.showAppNameInAppBar)
                   Text(
                     shellConfig.appName,
@@ -88,18 +91,26 @@ class AppShell extends ConsumerWidget {
             padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s1),
             child: ThemeToggleButton(),
           ),
-          for (final action in config.actions)
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: SoliplexSpacing.s1,
+          if (isMobile) ...[
+            if (config.actions.isNotEmpty || showInspector)
+              _OverflowMenuButton(
+                actions: config.actions,
+                showInspector: showInspector,
               ),
-              child: action,
-            ),
-          if (showInspector)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s1),
-              child: _InspectorButton(),
-            ),
+          ] else ...[
+            for (final action in config.actions)
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: SoliplexSpacing.s1,
+                ),
+                child: action,
+              ),
+            if (showInspector)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: SoliplexSpacing.s1),
+                child: _InspectorButton(),
+              ),
+          ],
         ],
       ),
       drawer: config.drawer != null
@@ -195,5 +206,61 @@ class _InspectorButton extends StatelessWidget {
         onPressed: () => Scaffold.of(context).openEndDrawer(),
       ),
     );
+  }
+}
+
+/// Overflow menu that collapses action buttons on mobile screens.
+///
+/// Extracts icon and label from [IconButton] actions (including those
+/// wrapped in [Semantics]) and renders them as [PopupMenuItem]s.
+class _OverflowMenuButton extends StatelessWidget {
+  const _OverflowMenuButton({
+    required this.actions,
+    required this.showInspector,
+  });
+
+  final List<Widget> actions;
+  final bool showInspector;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<VoidCallback>(
+      icon: const Icon(Icons.more_vert),
+      tooltip: 'More options',
+      onSelected: (callback) => callback(),
+      itemBuilder: (_) => [
+        for (final action in actions)
+          if (_extractIconButton(action) case final ib?)
+            PopupMenuItem<VoidCallback>(
+              value: ib.onPressed,
+              child: Row(
+                children: [
+                  ib.icon,
+                  const SizedBox(width: SoliplexSpacing.s3),
+                  Text(ib.tooltip ?? ''),
+                ],
+              ),
+            ),
+        if (showInspector)
+          PopupMenuItem<VoidCallback>(
+            value: () => Scaffold.of(context).openEndDrawer(),
+            child: const Row(
+              children: [
+                Icon(Icons.bug_report),
+                SizedBox(width: SoliplexSpacing.s3),
+                Text('HTTP inspector'),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  IconButton? _extractIconButton(Widget widget) {
+    if (widget is IconButton) return widget;
+    if (widget is Semantics && widget.child is IconButton) {
+      return widget.child! as IconButton;
+    }
+    return null;
   }
 }

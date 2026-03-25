@@ -240,12 +240,6 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
     final roomsAsync = ref.watch(roomsProvider);
     final currentRoom = ref.watch(currentRoomProvider);
 
-    String trimRoomName(String name) {
-      const maxLength = 16;
-      if (name.length <= maxLength) return name;
-      return '${name.substring(0, maxLength - 3)}...';
-    }
-
     return roomsAsync.when(
       data: (rooms) => Semantics(
         label: 'Room selector, current: ${currentRoom?.name ?? 'none'}',
@@ -258,7 +252,7 @@ class _RoomScreenState extends ConsumerState<RoomScreen> {
               children: [
                 Flexible(
                   child: Text(
-                    trimRoomName(currentRoom?.name ?? 'Select Room'),
+                    currentRoom?.name ?? 'Select Room',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
