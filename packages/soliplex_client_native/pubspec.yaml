@@ -1,5 +1,5 @@
 name: soliplex_client_native
-description: Native HTTP clients for soliplex_client on iOS and macOS
+description: Native HTTP clients for soliplex_client on iOS, macOS, and Android
 version: 1.0.0-dev
 publish_to: none
 
@@ -8,10 +8,11 @@ environment:
   flutter: '>=3.10.0'
 
 dependencies:
+  cronet_http: ^1.7.0
   cupertino_http: ^2.0.0
   flutter:
     sdk: flutter
-  http: ^1.2.0
+  http: ^1.5.0
   meta: ^1.9.0
   soliplex_client:
     path: ../soliplex_client
