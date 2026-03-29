@@ -95,7 +95,7 @@ class WebAuthFlow implements AuthFlow {
     final frontendOrigin = _navigator.origin;
     final logoutUri = Uri.parse(endSessionEndpoint).replace(
       queryParameters: {
-        'post_logout_redirect_uri': frontendOrigin,
+        'post_logout_redirect_uri': '$frontendOrigin/#/signedout',
         'client_id': clientId,
         if (idToken.isNotEmpty) 'id_token_hint': idToken,
       },

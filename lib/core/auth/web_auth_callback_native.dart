@@ -1,5 +1,10 @@
 import 'package:soliplex_frontend/core/auth/web_auth_callback.dart';
 
+/// Capture initial hash path - no-op on native.
+///
+/// Only relevant on web where the IdP redirects back with a hash path.
+String? captureInitialHashPath() => null;
+
 /// Capture callback params - no-op on native.
 ///
 /// Native platforms use flutter_appauth which handles OAuth callbacks
