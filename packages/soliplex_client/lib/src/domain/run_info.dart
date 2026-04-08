@@ -65,6 +65,7 @@ class RunInfo {
     this.completion = const NotCompleted(),
     this.status = RunStatus.pending,
     this.metadata = const {},
+    this.principalId,
   });
 
   /// Unique identifier for the run.
@@ -88,6 +89,9 @@ class RunInfo {
   /// Metadata for the run (empty map if not provided).
   final Map<String, dynamic> metadata;
 
+  /// The agent principal ID for this run, if any.
+  final String? principalId;
+
   /// Whether the run has a label.
   bool get hasLabel => label.isNotEmpty;
 
@@ -103,6 +107,7 @@ class RunInfo {
     CompletionTime? completion,
     RunStatus? status,
     Map<String, dynamic>? metadata,
+    String? principalId,
   }) {
     return RunInfo(
       id: id ?? this.id,
@@ -112,6 +117,7 @@ class RunInfo {
       completion: completion ?? this.completion,
       status: status ?? this.status,
       metadata: metadata ?? this.metadata,
+      principalId: principalId ?? this.principalId,
     );
   }
 

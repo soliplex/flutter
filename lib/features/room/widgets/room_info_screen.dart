@@ -497,20 +497,26 @@ class _McpTokenRow extends ConsumerStatefulWidget {
 }
 
 class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
-  Future<String>? _tokenFuture;
+  Future<McpTokenInfo>? _tokenFuture;
+  DateTime? _fetchedAt;
   bool _copied = false;
   Timer? _copyResetTimer;
 
   @override
   void initState() {
     super.initState();
-    _tokenFuture = ref.read(apiProvider).getMcpToken(widget.roomId);
+    _fetchToken();
   }
 
   @override
   void dispose() {
     _copyResetTimer?.cancel();
     super.dispose();
+  }
+
+  void _fetchToken() {
+    _fetchedAt = DateTime.now();
+    _tokenFuture = ref.read(apiProvider).getMcpToken(widget.roomId);
   }
 
   void _copyToken(String token) {
@@ -522,9 +528,20 @@ class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
     });
   }
 
+  String _formatExpiry(McpTokenInfo info) {
+    if (info.expiresIn == null || _fetchedAt == null) return '';
+    final expiresAt = _fetchedAt!.add(
+      Duration(seconds: info.expiresIn!),
+    );
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.isNegative) return ' (expired)';
+    if (remaining.inMinutes < 1) return ' (<1m)';
+    return ' (${remaining.inMinutes}m)';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String>(
+    return FutureBuilder<McpTokenInfo>(
       future: _tokenFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -543,22 +560,38 @@ class _McpTokenRowState extends ConsumerState<_McpTokenRow> {
             child: OutlinedButton.icon(
               icon: const Icon(Icons.refresh, size: 16),
               label: const Text('Retry token'),
-              onPressed: () => setState(() {
-                _tokenFuture = ref.read(apiProvider).getMcpToken(widget.roomId);
-              }),
+              onPressed: () => setState(_fetchToken),
             ),
           );
         }
         if (!snapshot.hasData) {
           return const SizedBox.shrink();
         }
-        final token = snapshot.data!;
+        final info = snapshot.data!;
+        final expiry = _formatExpiry(info);
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 2),
-          child: OutlinedButton.icon(
-            icon: Icon(_copied ? Icons.check : Icons.copy, size: 16),
-            label: Text(_copied ? 'Copied' : 'Copy Token'),
-            onPressed: _copied ? null : () => _copyToken(token),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              OutlinedButton.icon(
+                icon: Icon(
+                  _copied ? Icons.check : Icons.copy,
+                  size: 16,
+                ),
+                label: Text(
+                  _copied ? 'Copied' : 'Copy Token$expiry',
+                ),
+                onPressed: _copied ? null : () => _copyToken(info.token),
+              ),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.refresh, size: 16),
+                tooltip: 'Refresh token',
+                onPressed: () => setState(_fetchToken),
+                visualDensity: VisualDensity.compact,
+              ),
+            ],
           ),
         );
       },

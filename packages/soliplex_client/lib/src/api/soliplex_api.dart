@@ -9,6 +9,7 @@ import 'package:soliplex_client/src/domain/backend_version_info.dart';
 import 'package:soliplex_client/src/domain/chunk_visualization.dart';
 import 'package:soliplex_client/src/domain/conversation.dart';
 import 'package:soliplex_client/src/domain/feedback_type.dart';
+import 'package:soliplex_client/src/domain/mcp_token_info.dart';
 import 'package:soliplex_client/src/domain/message_state.dart';
 import 'package:soliplex_client/src/domain/quiz.dart';
 import 'package:soliplex_client/src/domain/rag_document.dart';
@@ -16,6 +17,7 @@ import 'package:soliplex_client/src/domain/room.dart';
 import 'package:soliplex_client/src/domain/run_info.dart';
 import 'package:soliplex_client/src/domain/thread_history.dart';
 import 'package:soliplex_client/src/domain/thread_info.dart';
+import 'package:soliplex_client/src/domain/user_identity.dart';
 import 'package:soliplex_client/src/errors/exceptions.dart';
 import 'package:soliplex_client/src/http/http_transport.dart';
 import 'package:soliplex_client/src/utils/cancel_token.dart';
@@ -94,6 +96,30 @@ class SoliplexApi {
   }
 
   // ============================================================
+  // User Identity
+  // ============================================================
+
+  /// Gets the authenticated user's identity from the backend.
+  ///
+  /// Returns a [UserIdentity] with email, username, and name fields.
+  ///
+  /// Throws:
+  /// - [AuthException] if not authenticated (401/403)
+  /// - [NotFoundException] if backend is in no-auth mode (404)
+  /// - [NetworkException] if connection fails
+  /// - [ApiException] for other server errors
+  Future<UserIdentity> getUserInfo({
+    CancelToken? cancelToken,
+  }) async {
+    final response = await _transport.request<Map<String, dynamic>>(
+      'GET',
+      _urlBuilder.build(path: 'user_info'),
+      cancelToken: cancelToken,
+    );
+    return userIdentityFromJson(response);
+  }
+
+  // ============================================================
   // Rooms
   // ============================================================
 
@@ -162,7 +188,7 @@ class SoliplexApi {
   /// Parameters:
   /// - [roomId]: The room ID (must not be empty)
   ///
-  /// Returns the MCP token string.
+  /// Returns [McpTokenInfo] with the token and optional expiry.
   ///
   /// Throws:
   /// - [ArgumentError] if [roomId] is empty
@@ -171,7 +197,7 @@ class SoliplexApi {
   /// - [NetworkException] if connection fails
   /// - [ApiException] for other server errors
   /// - [CancelledException] if cancelled via [cancelToken]
-  Future<String> getMcpToken(
+  Future<McpTokenInfo> getMcpToken(
     String roomId, {
     CancelToken? cancelToken,
   }) async {
@@ -189,7 +215,10 @@ class SoliplexApi {
         'Response missing "mcp_token" field for room $roomId',
       );
     }
-    return token;
+    return McpTokenInfo(
+      token: token,
+      expiresIn: response['expires_in'] as int?,
+    );
   }
 
   /// Gets documents available for narrowing RAG in a room.

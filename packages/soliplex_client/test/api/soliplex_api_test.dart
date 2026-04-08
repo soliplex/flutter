@@ -2944,7 +2944,7 @@ void main() {
     });
 
     group('getMcpToken', () {
-      test('returns token string from response', () async {
+      test('returns McpTokenInfo from response', () async {
         when(
           () => mockTransport.request<Map<String, dynamic>>(
             'GET',
@@ -2959,12 +2959,14 @@ void main() {
           (_) async => {
             'room_id': 'room-123',
             'mcp_token': 'abc.token.xyz',
+            'expires_in': 3600,
           },
         );
 
-        final token = await api.getMcpToken('room-123');
+        final info = await api.getMcpToken('room-123');
 
-        expect(token, equals('abc.token.xyz'));
+        expect(info.token, equals('abc.token.xyz'));
+        expect(info.expiresIn, equals(3600));
       });
 
       test('uses correct URL', () async {
